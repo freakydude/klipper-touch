@@ -6,7 +6,6 @@ A svelte, vite and typescript based web ui for touch style input and control the
 
 This are very very early steps developing this ...
 
-
 ## Finally
 
 Great this will appear :-)
