@@ -1,7 +1,9 @@
 <script lang="ts">
-  import '../app.css';
+  import { HtmlTag } from 'svelte/internal';
+import '../app.css';
 </script>
 
-<div class=" bg-blue-600">
-  <p>Messages from Printer (M117)</p>
+<div class="flex justify-start bg-blue-600">
+  
+  <p class="ml-2">g-Code messages (M117)</p>
 </div>
