@@ -2,13 +2,52 @@
 
 A svelte, vite and typescript based web ui for touch style input and control the klipper3d firmware.
 
-## Progress
+## Status
 
 This are very very early steps developing this ...
 
-## Finally
+## Setup on MainsailOS (Debian 11)
 
-Great this will appear :-)
+Log into your klipper raspberry pi
+
+## Clone Repository
+
+```sh
+cd ~
+git clone https://github.com/freakydude/klipper-touch.git
+```
+
+### Install NodeJS v18
+
+```sh
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+### Start Process
+
+```sh
+cd ~/klipper-touch
+npm run dev
+```
+
+### Configure Moonraker Updates
+
+Add following section to moonraker.conf
+
+```yaml
+[update_manager klipper-touch]
+type: git_repo
+channel: dev
+primary_branch: main
+path: ~/klipper-touch
+origin: https://github.com/freakydude/klipper-touch.git
+is_system_service: False
+enable_node_updates: True
+install_script: scripts/install-klipper-touch.sh
+```
+
+## Finally
 
 Enjoy,
 freakyDude
