@@ -49,5 +49,7 @@ install_script: scripts/install-klipper-touch.sh
 
 ## Finally
 
+Find the dev version unter `http://<your-maschine>:3000`
+
 Enjoy,
 freakyDude
