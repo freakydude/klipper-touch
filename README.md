@@ -42,7 +42,7 @@ channel: dev
 primary_branch: main
 path: ~/klipper-touch
 origin: https://github.com/freakydude/klipper-touch.git
-is_system_service: False
+is_system_service: True
 enable_node_updates: True
 install_script: scripts/install-klipper-touch.sh
 ```
