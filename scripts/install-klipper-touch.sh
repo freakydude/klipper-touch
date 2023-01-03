@@ -64,7 +64,7 @@ set -e
 
 # Find SRCDIR from the pathname of this script
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
-LAUNCH_CMD="/usr/bin/npm run dev --prefix ${SRCDIR}/ --host"
+LAUNCH_CMD="/usr/bin/npm run dev --prefix ${SRCDIR}/"
 
 
 # Parse command line arguments
