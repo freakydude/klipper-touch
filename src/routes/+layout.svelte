@@ -4,7 +4,7 @@
   import MessageBar from '../lib/MessageBar.svelte';
 </script>
 
-<div class=" flex h-screen flex-col justify-between bg-cyan-400">
+<div class=" flex h-screen flex-col justify-between bg-white dark:bg-black">
   <StatusBar />
   <slot />
   <MessageBar />
