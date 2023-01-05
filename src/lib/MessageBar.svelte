@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { HtmlTag } from 'svelte/internal';
   import '../app.css';
+
+  let statusMessage = 'g-Code messages (M117)';
 </script>
 
-<div class="flex justify-start bg-sky-800">
-  <p class="ml-2">g-Code messages (M117)</p>
+<div class="flex flex-row justify-center bg-sky-800">
+  <p>{statusMessage}</p>
 </div>
