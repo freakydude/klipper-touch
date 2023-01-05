@@ -4,7 +4,7 @@
 </script>
 
 <div>
-  <h1 class="flex">Heatbed</h1>
+  <h1 class="flex">Heater bed</h1>
 
   <a class="bg-red-500" href="/">Back</a>
 </div>
