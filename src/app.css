@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@tailwind variants;
+
+@layer components {
+  .btn-primary {
+    @apply rounded bg-neutral-600 py-2 px-4 font-semibold text-sky-600 shadow-md hover:bg-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-opacity-75;
+  }
+
+  .btn-default {
+    @apply rounded bg-neutral-600 py-2 px-4 font-semibold text-gray-200 shadow-md hover:bg-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-opacity-75;
+  }
+}
