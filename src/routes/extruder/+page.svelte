@@ -4,7 +4,7 @@
   import { state, connect } from '$lib/state';
 
   onMount(async () => {
-    connect('192.168.40.6/websocket');
+    connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
   });
 
   let increment = 10;
@@ -57,74 +57,74 @@
   <div class="flex grow flex-row justify-evenly">
     <div class="flex flex-col flex-wrap content-center justify-center">
       <p class="p-2">Extruder Temp</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2" on:click={incExtTemp}>T+</button>
+      <button class="btn-default place-self-center" on:click={incExtTemp}>T+</button>
       <p class="whitespace-nowrap p-2">{extTemp} °C</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2" on:click={decExtTemp}>T-</button>
+      <button class="btn-default place-self-center" on:click={decExtTemp}>T-</button>
     </div>
     <div class="flex flex-col flex-wrap content-center justify-center ">
       <p class="p-2">Extrude Retract</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={incExtrudeRetract}>E+</button>
+      <button class="btn-default place-self-center" on:click={incExtrudeRetract}>E+</button>
       <p class="whitespace-nowrap p-2">{increment} mm</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={decExtrudeRetract}>R-</button>
+      <button class="btn-default place-self-center" on:click={decExtrudeRetract}>R-</button>
     </div>
     <div class="flex flex-col flex-wrap content-center justify-center">
       <p class="p-2">Fan Speed</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={incFanSpeed}>S+</button>
+      <button class="btn-default place-self-center" on:click={incFanSpeed}>S+</button>
       <p class="whitespace-nowrap p-2">{fanSpeed} %</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={decFanSpeed}>S-</button>
+      <button class="btn-default place-self-center" on:click={decFanSpeed}>S-</button>
     </div>
     <div class="flex flex-col flex-wrap content-center justify-center">
       <p class="p-2">Flow Rate</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={incFlowRate}>F+</button>
+      <button class="btn-default place-self-center" on:click={incFlowRate}>F+</button>
       <p class="whitespace-nowrap p-2">{flowRate} %</p>
-      <button class="place-self-center rounded bg-neutral-600 p-2 " on:click={decFlowRate}>F-</button>
+      <button class="btn-default place-self-center" on:click={decFlowRate}>F-</button>
     </div>
 
-    <div class="flex flex-col flex-wrap  justify-center gap-2 pl-2">
-      <button class="rounded bg-neutral-600 px-2 ">Homing</button>
-      <button class="rounded bg-neutral-600 px-2 ">Bed Mesh</button>
-      <button class="rounded bg-neutral-600 px-2 ">PID</button>
+    <div class="ml-2 flex flex-col  flex-wrap justify-center gap-2">
+      <button class="btn-default">Homing</button>
+      <button class="btn-default">Bed Mesh</button>
+      <button class="btn-default">PID</button>
     </div>
   </div>
-  <div class="flex flex-col justify-evenly pl-2">
+  <div class="ml-2 flex flex-col justify-evenly">
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 1 ? 'text-sky-600' : 'text-neutral-200'} "
+      class="py-1 {increment === 1 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 1;
       }}>1</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 2 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 2 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 2;
       }}>2</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 5 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 5 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 5;
       }}>5</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 10 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 10 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 10;
       }}>10</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 20 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 20 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 20;
       }}>20</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 50 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 50 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 50;
       }}>50</button
     >
     <button
-      class="rounded bg-neutral-600 px-2  {increment === 100 ? 'text-sky-600' : 'text-neutral-200'}"
+      class="py-1 {increment === 100 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {
         increment = 100;
       }}>100</button
