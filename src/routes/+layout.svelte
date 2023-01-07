@@ -1,12 +1,16 @@
 <script lang="ts">
+  import NavBar from './../lib/NavBar.svelte';
   import '../app.css';
 
   import StatusBar from '../lib/StatusBar.svelte';
   import MessageBar from '../lib/MessageBar.svelte';
 </script>
 
-<div class="flex h-screen w-screen grow flex-col justify-between bg-white dark:bg-black">
+<div class="flex h-screen w-screen flex-col justify-between bg-white dark:bg-black">
   <StatusBar />
-  <slot />
+  <div class="flex grow flex-row bg-neutral-800">
+    <NavBar />
+    <slot />
+  </div>
   <MessageBar />
 </div>

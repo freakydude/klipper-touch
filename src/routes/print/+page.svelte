@@ -3,9 +3,9 @@
   // $lib auto-resolves to ./src/lib in Svelte.
   import { state, connect } from '$lib/state';
 
-  onMount(async () => {
-    connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
-  });
+  // onMount(async () => {
+  //   connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
+  // });
 
   let increment = 10;
   let extTemp = 210;
@@ -21,13 +21,6 @@
     } else {
       extTemp -= increment;
     }
-  }
-
-  function incExtrudeRetract() {
-    // extrude selected increment
-  }
-  function decExtrudeRetract() {
-    // retract selected increment
   }
 
   function incFanSpeed() {
@@ -61,12 +54,7 @@
       <p class="whitespace-nowrap p-2">{extTemp} °C</p>
       <button class="btn-default place-self-center" on:click={decExtTemp}>T-</button>
     </div>
-    <div class="flex flex-col flex-wrap content-center justify-center ">
-      <p class="p-2">Extrude Retract</p>
-      <button class="btn-default place-self-center" on:click={incExtrudeRetract}>E+</button>
-      <p class="whitespace-nowrap p-2">{increment} mm</p>
-      <button class="btn-default place-self-center" on:click={decExtrudeRetract}>R-</button>
-    </div>
+
     <div class="flex flex-col flex-wrap content-center justify-center">
       <p class="p-2">Fan Speed</p>
       <button class="btn-default place-self-center" on:click={incFanSpeed}>S+</button>
@@ -78,6 +66,11 @@
       <button class="btn-default place-self-center" on:click={incFlowRate}>F+</button>
       <p class="whitespace-nowrap p-2">{flowRate} %</p>
       <button class="btn-default place-self-center" on:click={decFlowRate}>F-</button>
+    </div>
+    <div class="flex flex-col flex-wrap content-center justify-center">
+      <button class="btn-default place-self-center">O+</button>
+      <p class="whitespace-nowrap p-2">Z-Offset</p>
+      <button class="btn-default place-self-center">O-</button>
     </div>
 
     <div class="ml-2 flex flex-col  flex-wrap justify-center gap-2">

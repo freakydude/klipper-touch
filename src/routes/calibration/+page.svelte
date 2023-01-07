@@ -3,9 +3,9 @@
   // $lib auto-resolves to ./src/lib in Svelte.
   import { state, connect } from '$lib/state';
 
-  onMount(async () => {
-    connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
-  });
+  // onMount(async () => {
+  //   connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
+  // });
 
   let increment = 10;
   let bedTemp = 65;
