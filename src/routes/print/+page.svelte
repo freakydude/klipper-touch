@@ -3,10 +3,6 @@
   // $lib auto-resolves to ./src/lib in Svelte.
   import { state, connect } from '$lib/state';
 
-  // onMount(async () => {
-  //   connect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
-  // });
-
   let increment = 10;
   let extTemp = 210;
   let fanSpeed = 75;
