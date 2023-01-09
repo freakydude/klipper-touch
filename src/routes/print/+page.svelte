@@ -1,8 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  // $lib auto-resolves to ./src/lib in Svelte.
-  import { state, connect } from '$lib/state';
-
   let increment = 10;
   let extTemp = 210;
   let fanSpeed = 75;
