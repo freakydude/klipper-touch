@@ -1,7 +1,7 @@
 export interface IMoonrakerWs {
   connect(): void;
   get isConnected(): Boolean;
-  sendMessage(message: string | ArrayBufferLike | Blob | ArrayBufferView): void;
+  sendMessage(message: string): Promise<string>;
 }
 
 type Item = {
@@ -54,21 +54,47 @@ export class MoonrakerWS implements IMoonrakerWs {
       const data: Item = JSON.parse(event.data);
 
       if (this.connectionId.toString() == data.id) {
-        // Mutate state by prepending the new data to the array.
+        console.log('onmessage -> id:' + data.id + ' content: ' + data.content);
       }
     };
   }
 
-  public sendMessage(message: string | ArrayBufferLike | Blob | ArrayBufferView) {
+  public sendMessage(message: string): Promise<string> {
+    let promise: Promise<string> = Promise.reject('Something went completely wrong');
+
     if (!this.isConnected) {
       console.log('Not connected');
+      promise = Promise.reject('ws not connected');
     }
 
     if (this.ws.readyState <= 1) {
       console.log('Websocket sendMessage: ' + message);
 
+      promise = new Promise<string>((resolve, reject) => {
+        setTimeout(() => {
+          this.ws.removeEventListener('message', parser);
+          reject('Timeout');
+        }, 30 * 1000);
+
+        let parser = (event: MessageEvent) => {
+          const data: Item = JSON.parse(event.data);
+          if (this.connectionId.toString() == data.id) {
+            if ('bla' == 'bla') {
+              this.ws.removeEventListener('message', parser);
+              resolve('dieAntwort');
+            }
+          }
+        };
+
+        this.ws.addEventListener('message', parser);
+      });
+
       this.ws.send(message);
+    } else {
+      promise = Promise.reject('ws not ready');
     }
+
+    return promise;
   }
 
   generateConnectionId(): Number {
