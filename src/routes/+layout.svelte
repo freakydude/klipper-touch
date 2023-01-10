@@ -5,20 +5,22 @@
   import StatusBar from '../lib/StatusBar.svelte';
   import MessageBar from '../lib/MessageBar.svelte';
   import { onMount } from 'svelte';
-    import { connect, generateConnectionId, sendMessage } from '$lib/MoonrakerConnect';
+  import { MoonrakerConnect } from '$lib/MoonrakerConnect';
 
-  
+  let mc: MoonrakerConnect;
 
   onMount(async () => {
-    console.log(await connect());
+    mc = new MoonrakerConnect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
 
-    const request2 = {
+    console.log(await mc.connect());
+
+    const request = {
       jsonrpc: '2.0',
       method: 'printer.query_endstops.status',
-      id: generateConnectionId()
+      id: mc.generateConnectionId()
     };
 
-    console.log(await sendMessage(request2));
+    console.log(await mc.sendMessage(request));
   });
 </script>
 
