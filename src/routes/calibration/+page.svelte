@@ -1,5 +1,4 @@
 <script lang="ts">
-
   let increment = 10;
   let bedTemp = 65;
 
@@ -19,9 +18,9 @@
   <div class="flex grow flex-row justify-evenly">
     <div class="flex flex-col flex-wrap content-center justify-center gap-2">
       <p class="p-2">Heater Bed Temperature</p>
-      <button class="place-self-center btn-default" on:click={incBedTemp}>T+</button>
+      <button class="btn-default place-self-center" on:click={incBedTemp}>T+</button>
       <p class="whitespace-nowrap p-2">{bedTemp} °C</p>
-      <button class=" place-self-center btn-default" on:click={decBedTemp}>T-</button>
+      <button class="btn-default place-self-center" on:click={decBedTemp}>T-</button>
     </div>
     <div class="flex flex-col flex-wrap justify-center gap-2">
       <button class="btn-default">Homing</button>
@@ -31,7 +30,7 @@
       <button class="btn-default">Manual</button>
     </div>
   </div>
-   <div class="ml-2 flex flex-col justify-evenly">
+  <div class="ml-2 flex flex-col justify-evenly">
     <button
       class="py-1 {increment === 1 ? 'btn-primary' : 'btn-default'}"
       on:click={() => {

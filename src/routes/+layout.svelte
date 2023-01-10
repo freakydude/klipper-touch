@@ -5,22 +5,25 @@
   import StatusBar from '../lib/StatusBar.svelte';
   import MessageBar from '../lib/MessageBar.svelte';
   import { onMount } from 'svelte';
-  import { MoonrakerConnect } from '$lib/MoonrakerConnect';
 
-  let mc: MoonrakerConnect;
+  import { MoonrakerRpcClient } from '$lib/MoonrakerRpcClient';
+  import { JsonRpcClient, JsonRpcRequest } from '$lib/JsonRpcClient';
+
+  let client: JsonRpcClient;
+  let moonraker: MoonrakerRpcClient;
 
   onMount(async () => {
-    mc = new MoonrakerConnect(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
+    client = new JsonRpcClient(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
+    moonraker = new MoonrakerRpcClient(client);
+    console.log(await client.connect());
+    console.log(await moonraker.requestIdentifyConnection());
 
-    console.log(await mc.connect());
+    let validRequest = new JsonRpcRequest(client.generateConnectionId(), 'printer.query_endstops.status', undefined);
 
-    const request = {
-      jsonrpc: '2.0',
-      method: 'printer.query_endstops.status',
-      id: mc.generateConnectionId()
-    };
+    console.log(await client.sendMessage(validRequest));
+    let errorRequest = new JsonRpcRequest(client.generateConnectionId(), 'printer.query_endsXtops.status', undefined);
 
-    console.log(await mc.sendMessage(request));
+    console.log(await client.sendMessage(errorRequest));
   });
 </script>
 
