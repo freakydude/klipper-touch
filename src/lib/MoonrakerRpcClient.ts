@@ -1,4 +1,4 @@
-import type { IJsonRpcErrorResponse, IJsonRpcSuccessResponse, JsonRpcClient } from './JsonRpcClient';
+import type { IJsonRpcErrorResponse, IJsonRpcSuccessResponse, JsonRpcClient, JsonRpcRequest } from './JsonRpcClient';
 
 export class MoonrakerRpcClient {
   jsonRpcClient: JsonRpcClient;
@@ -8,7 +8,7 @@ export class MoonrakerRpcClient {
   }
 
   public async requestIdentifyConnection(): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
-    const identifyConnectionRequest = {
+    const identifyConnectionRequest: JsonRpcRequest = {
       jsonrpc: '2.0',
       method: 'server.connection.identify',
       params: {

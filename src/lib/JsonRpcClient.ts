@@ -99,18 +99,17 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
   }
 }
 
-export class JsonRpcClient {
+export class JsonRpcClient extends EventTarget {
   private isConnected: Boolean = false;
-  private connectionId: string = '';
   private ws: WebSocket;
 
   public constructor(url: string | URL) {
+    super();
     this.ws = new WebSocket(url);
   }
 
   public async connect(): Promise<boolean> {
     this.isConnected = false;
-    this.connectionId = this.generateConnectionId();
 
     let result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       this.ws.onopen = (event: Event) => {
@@ -132,12 +131,12 @@ export class JsonRpcClient {
       };
 
       this.ws.onmessage = (event: MessageEvent) => {
-        //console.log('Websocket onmessage', event);
-        const data: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
-        //console.log(data);
+        const data: IJsonRpcErrorResponse | IJsonRpcSuccessResponse = JSON.parse(event.data);
 
-        if (this.connectionId == data.id) {
-          console.log('connect ws.onmessage: ID matched');
+        if (!data.id) {
+          console.log('connect ws.onmessage: broadcast-notification', data);
+
+          this.dispatchEvent(new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('broadcast-notification', { detail: data }));
         }
       };
     });
@@ -182,9 +181,10 @@ export class JsonRpcClient {
 
           if (message.id == data.id) {
             this.ws.removeEventListener('message', parser);
+            clearTimeout(timeout);
 
             console.log('parser die Antwort für id:', data);
-            clearTimeout(timeout);
+
             resolve(data);
           }
         };
