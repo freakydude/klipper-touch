@@ -131,12 +131,37 @@ export class JsonRpcClient extends EventTarget {
       };
 
       this.ws.onmessage = (event: MessageEvent) => {
-        const response: IJsonRpcErrorResponse | IJsonRpcSuccessResponse = JSON.parse(event.data);
+        const response: IJsonRpcErrorResponse | IJsonRpcSuccessResponse | IJsonRpcErrorResponse[] | IJsonRpcSuccessResponse[] = JSON.parse(event.data);
 
-        if (!response.id) {
-          //console.log('connect ws.onmessage: notification', response);
+        //console.log('connect ws.onmessage: single', response);
 
-          this.dispatchEvent(new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('notification', { detail: response }));
+        const responseArr = response as IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[];
+        if (responseArr.length >= 1) {
+          // batch response - send notification for every notification inside
+          console.log('connect ws.onmessage: received batchResponse', responseArr);
+          responseArr.forEach((singleResponse) => {
+            if (!singleResponse.id) {
+              //console.log('connect ws.onmessage: notification', response);
+
+              this.dispatchEvent(
+                new CustomEvent<IJsonRpcErrorResponse[] | IJsonRpcSuccessResponse[]>('notification', {
+                  detail: responseArr
+                })
+              );
+            }
+          });
+        } else {
+          // single response
+          const singleResponse = response as IJsonRpcErrorResponse | IJsonRpcSuccessResponse;
+          if (!singleResponse.id) {
+            //console.log('connect ws.onmessage: notification', response);
+
+            this.dispatchEvent(
+              new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('notification', {
+                detail: singleResponse
+              })
+            );
+          }
         }
       };
     });
@@ -157,41 +182,98 @@ export class JsonRpcClient extends EventTarget {
     return result;
   }
 
-  public async sendMessage(message: IJsonRpcRequest): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
+  public async sendRequest(request: IJsonRpcRequest): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
     let promise: Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>;
 
     if (!this.isConnected) {
-      console.log('sendMessage ws not connected');
+      console.log('sendRequest ws not connected');
       promise = Promise.reject('Reject: ws not connected');
     } else if (this.ws.readyState <= 1) {
-      console.log('sendMessage ws.readyState <=1', message);
+      console.log('sendRequest ws.readyState <=1', request);
 
       promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
         let timeout = setTimeout(() => {
           this.ws.removeEventListener('message', parser);
 
-          console.log('sendMessage - timeout');
-          reject('sendMessage - timeout');
+          console.log('sendRequest - timeout');
+          reject('sendRequest - timeout');
         }, 30 * 1000);
 
         let parser = (event: MessageEvent) => {
-          const data: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
+          const response: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
 
-          if (message.id == data.id) {
+          if (request.id == response.id) {
             this.ws.removeEventListener('message', parser);
             clearTimeout(timeout);
 
-            console.log('parser response for id:', data.id, 'data:', data);
+            console.log('parser response for id:', response.id, 'response:', response);
 
-            resolve(data);
+            resolve(response);
           } else {
-            console.log('parser some message: ', message, ' data:', data);
+            console.log('parser some message - request: ', request, ' response:', response);
           }
         };
         this.ws.addEventListener('message', parser);
       });
 
-      this.ws.send(JSON.stringify(message));
+      this.ws.send(JSON.stringify(request));
+    } else {
+      console.log('ws not ready reject');
+      promise = Promise.reject('ws not ready');
+    }
+
+    return promise;
+  }
+
+  public async sendBatchRequest(requests: IJsonRpcRequest[]): Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]> {
+    let promise: Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>;
+
+    if (!this.isConnected) {
+      console.log('sendBatchRequest ws not connected');
+      promise = Promise.reject('Reject: ws not connected');
+    } else if (this.ws.readyState <= 1) {
+      console.log('sendBatchRequest ws.readyState <=1', requests);
+
+      promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
+        let timeout = setTimeout(() => {
+          this.ws.removeEventListener('message', parser);
+
+          console.log('sendBatchRequest - timeout');
+          reject('sendBatchRequest - timeout');
+        }, 30 * 1000);
+
+        let parser = (event: MessageEvent) => {
+          const responses: IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[] = JSON.parse(event.data);
+
+          // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
+          if (responses.length >= 1) {
+            console.log('BatchResponses', responses);
+
+            // TODO result could have another order than requests.
+            let responsesWithId: IJsonRpcResponse[] = new Array<IJsonRpcResponse>();
+
+            for (let index = 0; index < responses.length; index++) {
+              const element = responses[index];
+
+              if (element.id) [responsesWithId.push(element)];
+            }
+
+            if (responsesWithId.length >= 1) {
+              this.ws.removeEventListener('message', parser);
+              clearTimeout(timeout);
+
+              console.log('parser response for id:', requests[0].id, 'responsesWithId:', responsesWithId);
+
+              resolve(responses);
+            } else {
+              console.log('parser some message - requests:', requests, ' responses:', responses);
+            }
+          }
+        };
+        this.ws.addEventListener('message', parser);
+      });
+
+      this.ws.send(JSON.stringify(requests));
     } else {
       console.log('ws not ready reject');
       promise = Promise.reject('ws not ready');

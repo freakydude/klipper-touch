@@ -20,10 +20,14 @@
 
     let validRequest = new JsonRpcRequest('printer.query_endstops.status', client.generateConnectionId(), undefined);
 
-    console.log(await client.sendMessage(validRequest));
+    console.log(await client.sendRequest(validRequest));
     let errorRequest = new JsonRpcRequest('printer.query_endsXtops.status', client.generateConnectionId(), undefined);
 
-    console.log(await client.sendMessage(errorRequest));
+    console.log(await client.sendRequest(errorRequest));
+
+    let batchRequest = [validRequest, errorRequest];
+    console.log('batchRequest', batchRequest);
+    console.log(await client.sendBatchRequest(batchRequest));
   });
 </script>
 
