@@ -21,7 +21,7 @@ export class MoonrakerRpcClient {
     };
 
     let result = await this.jsonRpcClient.sendMessage(identifyConnectionRequest);
-    console.log('requestIdentifyConnection - isConnected', result);
+    // console.log('requestIdentifyConnection - isConnected', result);
 
     return result;
   }

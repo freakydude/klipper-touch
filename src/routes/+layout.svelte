@@ -18,10 +18,10 @@
     console.log(await client.connect());
     console.log(await moonraker.requestIdentifyConnection());
 
-    let validRequest = new JsonRpcRequest(client.generateConnectionId(), 'printer.query_endstops.status', undefined);
+    let validRequest = new JsonRpcRequest('printer.query_endstops.status', client.generateConnectionId(), undefined);
 
     console.log(await client.sendMessage(validRequest));
-    let errorRequest = new JsonRpcRequest(client.generateConnectionId(), 'printer.query_endsXtops.status', undefined);
+    let errorRequest = new JsonRpcRequest('printer.query_endsXtops.status', client.generateConnectionId(), undefined);
 
     console.log(await client.sendMessage(errorRequest));
   });

@@ -131,12 +131,12 @@ export class JsonRpcClient extends EventTarget {
       };
 
       this.ws.onmessage = (event: MessageEvent) => {
-        const data: IJsonRpcErrorResponse | IJsonRpcSuccessResponse = JSON.parse(event.data);
+        const response: IJsonRpcErrorResponse | IJsonRpcSuccessResponse = JSON.parse(event.data);
 
-        if (!data.id) {
-          console.log('connect ws.onmessage: broadcast-notification', data);
+        if (!response.id) {
+          //console.log('connect ws.onmessage: notification', response);
 
-          this.dispatchEvent(new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('broadcast-notification', { detail: data }));
+          this.dispatchEvent(new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('notification', { detail: response }));
         }
       };
     });
@@ -177,19 +177,17 @@ export class JsonRpcClient extends EventTarget {
         let parser = (event: MessageEvent) => {
           const data: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
 
-          console.log('parser message: ', message, ' data:', data);
-
           if (message.id == data.id) {
             this.ws.removeEventListener('message', parser);
             clearTimeout(timeout);
 
-            console.log('parser die Antwort für id:', data);
+            console.log('parser response for id:', data.id, 'data:', data);
 
             resolve(data);
+          } else {
+            console.log('parser some message: ', message, ' data:', data);
           }
         };
-
-        console.log('send message');
         this.ws.addEventListener('message', parser);
       });
 
