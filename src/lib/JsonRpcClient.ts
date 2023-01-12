@@ -101,12 +101,13 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
 
 export class JsonRpcClient extends EventTarget {
   private _isConnected: boolean = false;
-  private ws: WebSocket;
+  private ws?: WebSocket;
   private readyStateOpen = 1;
+  private url;
 
   public constructor(url: string | URL) {
     super();
-    this.ws = new WebSocket(url);
+    this.url = url;
   }
 
   public get isConnected(): boolean {
@@ -125,56 +126,52 @@ export class JsonRpcClient extends EventTarget {
   }
 
   public async connect(): Promise<boolean> {
+    this.ws = new WebSocket(this.url);
     this.isConnected = false;
 
     let result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
-      this.ws.onopen = (event: Event) => {
+      this.ws!.onopen = (event: Event) => {
         console.log('connect ws.onopen', event);
         this.isConnected = true;
         resolve(true);
       };
 
-      this.ws.onclose = (event: CloseEvent) => {
+      this.ws!.onclose = (event: CloseEvent) => {
         this.isConnected = false;
         console.log('connect ws.onclose', event);
         reject(event);
       };
 
-      this.ws.onerror = (event: Event) => {
+      this.ws!.onerror = (event: Event) => {
         this.isConnected = false;
         console.log('connect ws.onerror', event);
         reject(event);
       };
 
-      this.ws.onmessage = (event: MessageEvent) => {
-        const response: IJsonRpcErrorResponse | IJsonRpcSuccessResponse | IJsonRpcErrorResponse[] | IJsonRpcSuccessResponse[] = JSON.parse(event.data);
+      this.ws!.onmessage = (event: MessageEvent) => {
+        const request: IJsonRpcRequest | IJsonRpcRequest[] = JSON.parse(event.data);
 
-        // console.log('connect ws.onmessage: single', response);
-        if (Array.isArray(response)) {
-          const responseArr = response as IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[];
-
-          // batch response - send notification for every notification inside
-          console.log('connect ws.onmessage: received batchResponse', responseArr);
-          responseArr.forEach((singleResponse) => {
-            if (!singleResponse.id) {
-              //console.log('connect ws.onmessage: notification', response);
-
+        // console.log('connect ws.onmessage: single', request);
+        if (Array.isArray(request)) {
+          // batch request - send notification for every notification inside
+          console.log('connect ws.onmessage: received batchRequest', request);
+          request.forEach((singleRequest) => {
+            if (!singleRequest.id) {
+              //console.log('connect ws.onmessage: notification', request);
               this.dispatchEvent(
-                new CustomEvent<IJsonRpcErrorResponse[] | IJsonRpcSuccessResponse[]>('notification', {
-                  detail: responseArr
+                new CustomEvent<IJsonRpcRequest[]>('notification', {
+                  detail: request
                 })
               );
             }
           });
         } else {
-          // single response
-          const singleResponse = response as IJsonRpcErrorResponse | IJsonRpcSuccessResponse;
-          if (!singleResponse.id) {
-            //console.log('connect ws.onmessage: notification', response);
-
+          // single request
+          if (!request.id) {
+            //console.log('connect ws.onmessage: notification', request);
             this.dispatchEvent(
-              new CustomEvent<IJsonRpcErrorResponse | IJsonRpcSuccessResponse>('notification', {
-                detail: singleResponse
+              new CustomEvent<IJsonRpcRequest>('notification', {
+                detail: request
               })
             );
           }
@@ -188,12 +185,14 @@ export class JsonRpcClient extends EventTarget {
   public async disconnect(): Promise<boolean> {
     let result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       if (this.isConnected) {
-        this.ws.close();
+        this.ws!.close();
         resolve(true);
       } else {
         reject('WebSocket was not connected');
       }
     });
+
+    this.ws = undefined;
 
     return result;
   }
@@ -204,12 +203,12 @@ export class JsonRpcClient extends EventTarget {
     if (!this.isConnected) {
       console.log('sendRequest ws not connected');
       promise = Promise.reject('Reject: ws not connected');
-    } else if (this.ws.readyState == this.readyStateOpen) {
+    } else if (this.ws!.readyState == this.readyStateOpen) {
       console.log('sendRequest ws.readyState', request);
 
       promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
         let timeout = setTimeout(() => {
-          this.ws.removeEventListener('message', parser);
+          this.ws!.removeEventListener('message', parser);
 
           console.log('sendRequest - timeout');
           reject('sendRequest - timeout');
@@ -219,7 +218,7 @@ export class JsonRpcClient extends EventTarget {
           const response: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
 
           if (request.id == response.id) {
-            this.ws.removeEventListener('message', parser);
+            this.ws!.removeEventListener('message', parser);
             clearTimeout(timeout);
 
             console.log('parser response for id:', response.id, 'response:', response);
@@ -229,10 +228,10 @@ export class JsonRpcClient extends EventTarget {
             console.log('parser some message - request: ', request, ' response:', response);
           }
         };
-        this.ws.addEventListener('message', parser);
+        this.ws!.addEventListener('message', parser);
       });
 
-      this.ws.send(JSON.stringify(request));
+      this.ws!.send(JSON.stringify(request));
     } else {
       console.log('ws not ready reject');
       promise = Promise.reject('ws not ready');
@@ -247,12 +246,12 @@ export class JsonRpcClient extends EventTarget {
     if (!this.isConnected) {
       console.log('sendBatchRequest ws not connected');
       promise = Promise.reject('Reject: ws not connected');
-    } else if (this.ws.readyState == this.readyStateOpen) {
+    } else if (this.ws!.readyState == this.readyStateOpen) {
       console.log('sendBatchRequest ws.readyState: open', requests);
 
       promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
         let timeout = setTimeout(() => {
-          this.ws.removeEventListener('message', parser);
+          this.ws!.removeEventListener('message', parser);
 
           console.log('sendBatchRequest - timeout');
           reject('sendBatchRequest - timeout');
@@ -275,7 +274,7 @@ export class JsonRpcClient extends EventTarget {
             }
 
             if (responsesWithId.length >= 1) {
-              this.ws.removeEventListener('message', parser);
+              this.ws!.removeEventListener('message', parser);
               clearTimeout(timeout);
 
               console.log('parser response for id:', requests[0].id, 'responsesWithId:', responsesWithId);
@@ -286,10 +285,10 @@ export class JsonRpcClient extends EventTarget {
             }
           }
         };
-        this.ws.addEventListener('message', parser);
+        this.ws!.addEventListener('message', parser);
       });
 
-      this.ws.send(JSON.stringify(requests));
+      this.ws!.send(JSON.stringify(requests));
     } else {
       console.log('ws not ready reject');
       promise = Promise.reject('ws not ready');

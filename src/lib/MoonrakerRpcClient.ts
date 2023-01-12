@@ -1,4 +1,4 @@
-import { JsonRpcClient, JsonRpcRequest, type IJsonRpcSuccessResponse, type IJsonRpcErrorResponse } from '$lib/JsonRpcClient';
+import { JsonRpcClient, JsonRpcRequest, type IJsonRpcSuccessResponse, type IJsonRpcErrorResponse, type IJsonRpcRequest } from '$lib/JsonRpcClient';
 
 export class MoonrakerRpcClient extends EventTarget {
   jsonRpcClient: JsonRpcClient;
@@ -7,6 +7,8 @@ export class MoonrakerRpcClient extends EventTarget {
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
     this.jsonRpcClient = jsonRpcClient;
+
+    this.attachToEvents();
   }
 
   public get isReady(): boolean {
@@ -88,6 +90,40 @@ export class MoonrakerRpcClient extends EventTarget {
       this.isReady = false;
     } catch (error) {
       console.log('MoonrakerRpcClient disconnect error: ', error);
+    }
+  }
+
+  protected attachToEvents() {
+    this.jsonRpcClient.addEventListener('notification', (event: Event) => {
+      this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
+    });
+
+    this.jsonRpcClient.addEventListener('isConnected', (event: Event) => {
+      if ((event as CustomEvent<boolean>).detail == false) {
+        //  this.reconnect(event as CustomEvent<boolean>);
+      }
+    });
+  }
+
+  protected async reconnect(event: CustomEvent<boolean>): Promise<void> {
+    if ((event as CustomEvent<boolean>).detail == false) {
+      await this.connect();
+    }
+  }
+
+  private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
+    let notification = event.detail;
+
+    // console.log('parseNotification: ', notification.method);
+
+    switch (notification.method) {
+      case 'notify_klippy_ready':
+        break;
+      case 'notify_klippy_disconnected ':
+        console.log('notify_klippy_disconnected: ');
+        await this.disconnect();
+        await this.connect();
+        break;
     }
   }
 }
