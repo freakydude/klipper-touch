@@ -15,19 +15,25 @@
   onMount(async () => {
     client = new JsonRpcClient(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
     moonraker = new MoonrakerRpcClient(client);
-    console.log(await client.connect());
-    console.log(await moonraker.requestIdentifyConnection());
+    await moonraker.connect();
+    //console.log(await moonraker.requestIdentifyConnection());
 
-    let validRequest = new JsonRpcRequest('printer.query_endstops.status', client.generateConnectionId(), undefined);
+    // client.addEventListener('notification', (event) => {
+    //   console.log(event.detail);
+    // });
+    let serverInfoRequest = new JsonRpcRequest('server.info', JsonRpcClient.generateConnectionId(), undefined);
+    console.log(await client.sendRequest(serverInfoRequest));
 
-    console.log(await client.sendRequest(validRequest));
-    let errorRequest = new JsonRpcRequest('printer.query_endsXtops.status', client.generateConnectionId(), undefined);
+    // let validRequest = new JsonRpcRequest('printer.query_endstops.status', JsonRpcClient.generateConnectionId(), undefined);
 
-    console.log(await client.sendRequest(errorRequest));
+    // console.log(await client.sendRequest(validRequest));
+    // let errorRequest = new JsonRpcRequest('printer.query_endsXtops.status', JsonRpcClient.generateConnectionId(), undefined);
 
-    let batchRequest = [validRequest, errorRequest];
-    console.log('batchRequest', batchRequest);
-    console.log(await client.sendBatchRequest(batchRequest));
+    // console.log(await client.sendRequest(errorRequest));
+
+    // let batchRequest = [validRequest, errorRequest];
+    // console.log('batchRequest', batchRequest);
+    // console.log(await client.sendBatchRequest(batchRequest));
   });
 </script>
 

@@ -100,12 +100,28 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
 }
 
 export class JsonRpcClient extends EventTarget {
-  private isConnected: Boolean = false;
+  private _isConnected: boolean = false;
   private ws: WebSocket;
+  private readyStateOpen = 1;
 
   public constructor(url: string | URL) {
     super();
     this.ws = new WebSocket(url);
+  }
+
+  public get isConnected(): boolean {
+    return this._isConnected;
+  }
+
+  public set isConnected(newValue: boolean) {
+    if (newValue != this._isConnected) {
+      this.dispatchEvent(
+        new CustomEvent<boolean>('isConnected', {
+          detail: newValue
+        })
+      );
+      this._isConnected = newValue;
+    }
   }
 
   public async connect(): Promise<boolean> {
@@ -133,10 +149,10 @@ export class JsonRpcClient extends EventTarget {
       this.ws.onmessage = (event: MessageEvent) => {
         const response: IJsonRpcErrorResponse | IJsonRpcSuccessResponse | IJsonRpcErrorResponse[] | IJsonRpcSuccessResponse[] = JSON.parse(event.data);
 
-        //console.log('connect ws.onmessage: single', response);
+        // console.log('connect ws.onmessage: single', response);
+        if (Array.isArray(response)) {
+          const responseArr = response as IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[];
 
-        const responseArr = response as IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[];
-        if (responseArr.length >= 1) {
           // batch response - send notification for every notification inside
           console.log('connect ws.onmessage: received batchResponse', responseArr);
           responseArr.forEach((singleResponse) => {
@@ -188,8 +204,8 @@ export class JsonRpcClient extends EventTarget {
     if (!this.isConnected) {
       console.log('sendRequest ws not connected');
       promise = Promise.reject('Reject: ws not connected');
-    } else if (this.ws.readyState <= 1) {
-      console.log('sendRequest ws.readyState <=1', request);
+    } else if (this.ws.readyState == this.readyStateOpen) {
+      console.log('sendRequest ws.readyState', request);
 
       promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
         let timeout = setTimeout(() => {
@@ -231,8 +247,8 @@ export class JsonRpcClient extends EventTarget {
     if (!this.isConnected) {
       console.log('sendBatchRequest ws not connected');
       promise = Promise.reject('Reject: ws not connected');
-    } else if (this.ws.readyState <= 1) {
-      console.log('sendBatchRequest ws.readyState <=1', requests);
+    } else if (this.ws.readyState == this.readyStateOpen) {
+      console.log('sendBatchRequest ws.readyState: open', requests);
 
       promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
         let timeout = setTimeout(() => {
@@ -246,7 +262,7 @@ export class JsonRpcClient extends EventTarget {
           const responses: IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[] = JSON.parse(event.data);
 
           // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
-          if (responses.length >= 1) {
+          if (Array.isArray(responses)) {
             console.log('BatchResponses', responses);
 
             // TODO result could have another order than requests.
@@ -282,7 +298,7 @@ export class JsonRpcClient extends EventTarget {
     return promise;
   }
 
-  public generateConnectionId(): string {
+  public static generateConnectionId(): string {
     return Math.floor(Math.random() * 1000000).toString();
   }
 }
