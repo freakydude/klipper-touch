@@ -1,20 +1,13 @@
 <script lang="ts">
-  import NavBar from './../lib/NavBar.svelte';
   import '../app.css';
-
-  import StatusBar from '../lib/StatusBar.svelte';
-  import MessageBar from '../lib/MessageBar.svelte';
-  import { onMount } from 'svelte';
-
-  import { MoonrakerRpcClient } from '$lib/MoonrakerRpcClient';
   import { JsonRpcClient, JsonRpcRequest } from '$lib/JsonRpcClient';
-
-  let client: JsonRpcClient;
-  let moonraker: MoonrakerRpcClient;
+  import MessageBar from '../lib/MessageBar.svelte';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { onMount } from 'svelte';
+  import NavBar from '$lib/NavBar.svelte';
+  import StatusBar from '$lib/StatusBar.svelte';
 
   onMount(async () => {
-    client = new JsonRpcClient(import.meta.env.VITE_MOONRAKER_WEBSOCKET);
-    moonraker = new MoonrakerRpcClient(client);
     await moonraker.connect();
     //console.log(await moonraker.requestIdentifyConnection());
 
