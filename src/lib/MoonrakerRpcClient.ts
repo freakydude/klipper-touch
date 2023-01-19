@@ -2,12 +2,13 @@ import { JsonRpcClient, JsonRpcRequest, type IJsonRpcSuccessResponse, type IJson
 import { writable, type Readable } from 'svelte/store';
 
 export class MoonrakerRpcClient extends EventTarget {
-  jsonRpcClient: JsonRpcClient;
+  _jsonRpcClient: JsonRpcClient;
   _isReady = writable(false);
+  _isConnecting = false;
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
-    this.jsonRpcClient = jsonRpcClient;
+    this._jsonRpcClient = jsonRpcClient;
 
     this.attachToEvents();
   }
@@ -29,27 +30,29 @@ export class MoonrakerRpcClient extends EventTarget {
       id: JsonRpcClient.generateConnectionId()
     };
 
-    let result = await this.jsonRpcClient.sendRequest(identifyConnectionRequest);
+    let result = await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
     // console.log('requestIdentifyConnection - isConnected', result);
 
     return result;
   }
 
   public async connect() {
+    this._isConnecting = true;
     while (true) {
       this._isReady.set(false);
       try {
-        if (await this.jsonRpcClient.connect()) {
+        if (await this._jsonRpcClient.connect()) {
           let klippyState: string = '';
           while (true) {
             let serverInfoRequest = new JsonRpcRequest('server.info', JsonRpcClient.generateConnectionId(), undefined);
 
             try {
-              let serverInfoResponse = (await this.jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
+              let serverInfoResponse = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
               klippyState = serverInfoResponse.result.klippy_state;
               console.log('klippy_state: ', klippyState);
 
               if (klippyState == 'ready') {
+                this._isConnecting = false;
                 break;
               } else {
                 await new Promise<void>((resolve) => {
@@ -77,8 +80,9 @@ export class MoonrakerRpcClient extends EventTarget {
   }
 
   public async disconnect() {
+    this._isConnecting = false;
     try {
-      await this.jsonRpcClient.disconnect();
+      await this._jsonRpcClient.disconnect();
     } catch (error) {
       console.log('MoonrakerRpcClient disconnect error: ', error);
     }
@@ -86,20 +90,20 @@ export class MoonrakerRpcClient extends EventTarget {
   }
 
   protected attachToEvents() {
-    this.jsonRpcClient.addEventListener('notification', (event: Event) => {
+    this._jsonRpcClient.addEventListener('notification', (event: Event) => {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
-    this.jsonRpcClient.addEventListener('isConnected', (event: Event) => {
+    this._jsonRpcClient.addEventListener('isConnected', (event: Event) => {
       if ((event as CustomEvent<boolean>).detail == false) {
-        //  this.reconnect(event as CustomEvent<boolean>);
+        this.reconnect();
         this._isReady.set(false);
       }
     });
   }
 
-  protected async reconnect(event: CustomEvent<boolean>): Promise<void> {
-    if ((event as CustomEvent<boolean>).detail == false) {
+  protected async reconnect(): Promise<void> {
+    if (this._isConnecting == false) {
       await this.connect();
     }
   }
