@@ -1,10 +1,16 @@
-import { JsonRpcClient, JsonRpcRequest, type IJsonRpcSuccessResponse, type IJsonRpcErrorResponse, type IJsonRpcRequest } from '$lib/JsonRpcClient';
+import { JsonRpcClient, JsonRpcRequest, type IJsonRpcErrorResponse, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
 import { writable, type Readable } from 'svelte/store';
 
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
   _isReady = writable(false);
   _isConnecting = false;
+  _printerStatus: IJsonRpcRequest = new JsonRpcRequest('notify_status_update', '2.0', [
+    {
+      heater_bed: {},
+      extruder: {}
+    }
+  ]);
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -55,11 +61,7 @@ export class MoonrakerRpcClient extends EventTarget {
                 this._isConnecting = false;
                 break;
               } else {
-                await new Promise<void>((resolve) => {
-                  setTimeout(() => {
-                    resolve();
-                  }, 1000 * 5);
-                });
+                await this.sleep(1000 * 5);
               }
             } catch (error) {
               console.log('MoonrakerRpcClient connect error: ', error);
@@ -74,6 +76,7 @@ export class MoonrakerRpcClient extends EventTarget {
       } catch (error) {
         console.log('MoonrakerRpcClient connect error: ', error);
       }
+      await this.sleep(1000 * 5);
     }
 
     this._isReady.set(true);
@@ -108,6 +111,10 @@ export class MoonrakerRpcClient extends EventTarget {
     }
   }
 
+  private sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     let notification = event.detail;
 
@@ -116,6 +123,12 @@ export class MoonrakerRpcClient extends EventTarget {
     switch (notification.method) {
       case 'notify_klippy_ready':
         this._isReady.set(true);
+        break;
+      case 'notify_status_update':
+        console.log('update', notification.params);
+        this._printerStatus.params[0] = { ...this._printerStatus.params[0], ...notification.params[0] };
+        this._printerStatus.params[1] = notification.params[1];
+        console.log('merged', this._printerStatus.params);
         break;
       case 'notify_klippy_disconnected ':
         console.log('notify_klippy_disconnected: ');

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import '../app.css';
-  import { JsonRpcClient, JsonRpcRequest } from '$lib/JsonRpcClient';
-  import MessageBar from '../lib/MessageBar.svelte';
   import { client, moonraker } from '$lib/base.svelte';
-  import { onMount } from 'svelte';
+  import { JsonRpcClient, JsonRpcRequest } from '$lib/JsonRpcClient';
   import NavBar from '$lib/NavBar.svelte';
   import StatusBar from '$lib/StatusBar.svelte';
+  import { onMount } from 'svelte';
+  import '../app.css';
+  import MessageBar from '../lib/MessageBar.svelte';
 
   onMount(async () => {
     await moonraker.connect();
@@ -61,10 +61,10 @@
       }
     });
     await client.sendRequest(objectSubscribeBedTempRequest);
-    let clearSubRequest = new JsonRpcRequest('printer.objects.subscribe', JsonRpcClient.generateConnectionId(), {
-      objects: {}
-    });
-    await client.sendRequest(clearSubRequest);
+    // let clearSubRequest = new JsonRpcRequest('printer.objects.subscribe', JsonRpcClient.generateConnectionId(), {
+    //   objects: {}
+    // });
+    // await client.sendRequest(clearSubRequest);
   });
 </script>
 

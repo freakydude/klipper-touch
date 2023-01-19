@@ -155,7 +155,7 @@ export class JsonRpcClient extends EventTarget {
         if (Array.isArray(request)) {
           // batch request - send notification for every notification inside
           console.log('connect ws.onmessage: received batchRequest', request);
-          request.forEach((singleRequest) => {
+         for(const singleRequest of request)  {
             if (!singleRequest.id) {
               // console.log('connect ws.onmessage: notification', request);
               this.dispatchEvent(
@@ -164,7 +164,7 @@ export class JsonRpcClient extends EventTarget {
                 })
               );
             }
-          });
+          };
         } else {
           // single request
           if (!request.id) {
@@ -267,9 +267,7 @@ export class JsonRpcClient extends EventTarget {
             // TODO result could have another order than requests.
             let responsesWithId: IJsonRpcResponse[] = new Array<IJsonRpcResponse>();
 
-            for (let index = 0; index < responses.length; index++) {
-              const element = responses[index];
-
+            for (const element of responses) {
               if (element.id) [responsesWithId.push(element)];
             }
 
