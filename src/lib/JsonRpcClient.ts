@@ -18,7 +18,7 @@ export class JsonRpcRequest implements IJsonRpcRequest {
    * @param method A String containing the name of the method to be invoked. Method names that begin with the word rpc followed by a period character (U+002E or ASCII 46) are reserved for rpc-internal methods and extensions and MUST NOT be used for anything else.
    * @param params A Structured value that holds the parameter values to be used during the invocation of the method. This member MAY be omitted.
    */
-  public constructor({ jsonrpc = '2.0', id, method, params }: IJsonRpcRequest) {
+  public constructor({ jsonrpc = '2.0', id = JsonRpcClient.generateConnectionId(), method, params }: IJsonRpcRequest) {
     this.jsonrpc = jsonrpc;
     this.id = id;
     this.method = method;
@@ -26,19 +26,47 @@ export class JsonRpcRequest implements IJsonRpcRequest {
   }
 }
 
+export class JsonRpcNotification implements IJsonRpcRequest {
+  jsonrpc: string;
+  method: string;
+  params?: object | any[];
+
+  /**
+   *
+   * @param jsonrpc A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
+   * @param method A String containing the name of the method to be invoked. Method names that begin with the word rpc followed by a period character (U+002E or ASCII 46) are reserved for rpc-internal methods and extensions and MUST NOT be used for anything else.
+   * @param params A Structured value that holds the parameter values to be used during the invocation of the method. This member MAY be omitted.
+   */
+  public constructor({ jsonrpc = '2.0', method, params }: IJsonRpcRequest) {
+    this.jsonrpc = jsonrpc;
+    this.method = method;
+    this.params = params;
+  }
+}
+
 export interface IJsonRpcResponse {
-  jsonrpc?: string;
-  id?: string | number | null;
+  jsonrpc?: string; // A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
+  id: string | number | null; // This member is REQUIRED. It MUST be the same as the value of the id member in the Request Object. If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
 }
 
 export interface IJsonRpcSuccessResponse extends IJsonRpcResponse {
-  result: any;
+  result: any; // This member is REQUIRED on success. This member MUST NOT exist if there was an error invoking the method. The value of this member is determined by the method invoked on the Server.
+}
+
+export interface IJsonRpcErrorResponse extends IJsonRpcResponse {
+  error: IJsonRpcErrorObject; // This member is REQUIRED on error. This member MUST NOT exist if there was no error triggered during invocation. The value for this member MUST be an Object as defined in IJsonRpcErrorObject.
+}
+
+export interface IJsonRpcErrorObject {
+  code: number;
+  message: string;
+  data?: object;
 }
 
 export class JsonRpcSuccessResponse implements IJsonRpcSuccessResponse {
   result: any;
   jsonrpc: string;
-  id?: string | number | null;
+  id: string | number | null;
 
   /**
    *
@@ -51,12 +79,6 @@ export class JsonRpcSuccessResponse implements IJsonRpcSuccessResponse {
     this.id = id;
     this.result = result;
   }
-}
-
-export interface IJsonRpcErrorObject {
-  code: number;
-  message: string;
-  data?: object;
 }
 
 export class JsonRpcErrorObject implements IJsonRpcErrorObject {
@@ -77,14 +99,10 @@ export class JsonRpcErrorObject implements IJsonRpcErrorObject {
   }
 }
 
-export interface IJsonRpcErrorResponse extends IJsonRpcResponse {
-  error: IJsonRpcErrorObject;
-}
-
 export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
   error: IJsonRpcErrorObject;
   jsonrpc: string;
-  id?: string | number | null;
+  id: string | number | null;
 
   /**
    *

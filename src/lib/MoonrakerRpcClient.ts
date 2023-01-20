@@ -47,7 +47,7 @@ export class MoonrakerRpcClient extends EventTarget {
 
   public async connect() {
     this._isConnecting = true;
-    while (true) {
+    while (this._isConnecting) {
       this._isReady.set(false);
       try {
         if (await this._jsonRpcClient.connect()) {

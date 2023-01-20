@@ -1,6 +1,6 @@
 <script lang="ts">
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcClient, JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import NavBar from '$lib/NavBar.svelte';
   import StatusBar from '$lib/StatusBar.svelte';
   import { onMount } from 'svelte';
@@ -14,25 +14,21 @@
     // client.addEventListener('notification', (event) => {
     //   console.log(event.detail);
     // });
-    let serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
+    let serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
     await client.sendRequest(serverInfoRequest);
 
-    // let validRequest = new JsonRpcRequest('printer.query_endstops.status', JsonRpcClient.generateConnectionId(), undefined);
+    let validRequest = new JsonRpcRequest({ method: 'printer.query_endstops.status' });
 
-    // console.log(await client.sendRequest(validRequest));
-    // let errorRequest = new JsonRpcRequest('printer.query_endsXtops.status', JsonRpcClient.generateConnectionId(), undefined);
+    let errorRequest = new JsonRpcRequest({ method: 'printer.query_endXstops.status' });
 
-    // console.log(await client.sendRequest(errorRequest));
+    let batchRequest = [validRequest, errorRequest];
+    console.log('batchRequest', batchRequest);
+    console.log(await client.sendBatchRequest(batchRequest));
 
-    // let batchRequest = [validRequest, errorRequest];
-    // console.log('batchRequest', batchRequest);
-    // console.log(await client.sendBatchRequest(batchRequest));
-
-    let objectListRequest = new JsonRpcRequest({ method: 'printer.objects.list', id: JsonRpcClient.generateConnectionId() });
+    let objectListRequest = new JsonRpcRequest({ method: 'printer.objects.list' });
     await client.sendRequest(objectListRequest);
     let objectQueryRequest = new JsonRpcRequest({
       method: 'printer.objects.query',
-      id: JsonRpcClient.generateConnectionId(),
       params: {
         objects: {
           webhooks: null,
@@ -53,7 +49,6 @@
 
     let objectQueryProbeRequest = new JsonRpcRequest({
       method: 'printer.objects.query',
-      id: JsonRpcClient.generateConnectionId(),
       params: {
         objects: {
           probe: ['last_z_result']
@@ -64,7 +59,6 @@
 
     let objectSubscribeBedTempRequest = new JsonRpcRequest({
       method: 'printer.objects.subscribe',
-      id: JsonRpcClient.generateConnectionId(),
       params: {
         objects: {
           heater_bed: ['temperature'],
