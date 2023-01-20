@@ -1,15 +1,17 @@
 <script lang="ts">
+  import { writable } from 'svelte/store';
   import '../app.css';
+  import { moonraker } from './base.svelte';
 
-  let extruderTemp = 210;
-  let heaterBedTemp = 65;
-  let printProgress = 42;
-  let eta = '20:11';
+  let extruderTemp = moonraker.extruderTemperature;
+  let heaterBedTemp = moonraker.heaterBedTemperature;
+  let printProgress = writable(42);
+  let eta = writable('20:11');
 </script>
 
 <div class="flex flex-row  justify-evenly bg-sky-800 px-2 py-0.5">
-  <p>E: {extruderTemp} °C</p>
-  <p>H: {heaterBedTemp} °C</p>
-  <p>P: {printProgress} %</p>
-  <p>ETA: {eta}</p>
+  <p>Extruder: {$extruderTemp.toFixed(1)} °C</p>
+  <p>Bed: {$heaterBedTemp.toFixed(1)} °C</p>
+  <p>Progress: {$printProgress} %</p>
+  <p>ETA: {$eta}</p>
 </div>

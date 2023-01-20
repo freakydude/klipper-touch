@@ -1,11 +1,41 @@
 <script lang="ts">
-  let distance = 10;
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/JsonRpcClient';
 
-  function incExtrudeRetract() {
-    // extrude selected increment
+  let distance = 10;
+  let extruderSpeed = 10;
+  let moveSpeed = 25;
+
+  let toolheadPosition = moonraker.toolheadPosition;
+
+  async function home() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28 0' // Home all untrusted axes
+      }
+    });
+    await client.sendRequest(homeRequest);
   }
-  function decExtrudeRetract() {
-    // retract selected increment
+
+  async function moveRelative(x: number = 0, y: number = 0, z: number = 0, e: number = 0) {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G0 X' + x + ' Y' + y + ' Z' + z + ' E' + e + ' F' + moveSpeed * 60
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
+
+  async function extrudeRelative(e: number = 0) {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G0 E' + e + ' F' + extruderSpeed * 60
+      }
+    });
+    await client.sendRequest(homeRequest);
   }
 </script>
 
@@ -15,40 +45,61 @@
       <p>Move X, Y, Z</p>
       <p>Distance: {distance}</p>
     </div>
-    <button class="btn-default x col-span-2 col-start-3 row-start-1 self-start">Home</button>
+    <button class="btn-default x col-span-2 col-start-3 row-start-1 self-start" on:click={home}>Home</button>
 
-    <div class="btn-default col-start-1 row-start-2 flex flex-col items-center justify-center">
+    <button class="btn-default col-start-1 row-start-2 flex flex-col items-center justify-center" on:click={async () => moveRelative(-distance, distance, 0)}>
       <p>X-</p>
       <p>Y+</p>
-    </div>
-    <div class="btn-default col-start-2 row-start-2 flex aspect-square items-center justify-center">Y+</div>
-    <div class="btn-default col-start-3 row-start-2 flex aspect-square flex-col items-center justify-center">
+    </button>
+    <button class="btn-default col-start-2 row-start-2 flex aspect-square items-center justify-center" on:click={async () => moveRelative(0, distance, 0)}
+      >Y+</button
+    >
+    <button
+      class="btn-default col-start-3 row-start-2 flex aspect-square flex-col items-center justify-center"
+      on:click={async () => moveRelative(distance, distance, 0)}
+    >
       <p>X+</p>
       <p>Y+</p>
-    </div>
+    </button>
 
-    <div class="btn-default col-start-1 row-start-3 flex aspect-square items-center justify-center">X-</div>
+    <button class="btn-default col-start-1 row-start-3 flex aspect-square items-center justify-center" on:click={async () => moveRelative(-distance, 0, 0)}
+      >X-</button
+    >
     <div class="col-start-2 row-start-3 flex aspect-square flex-col items-center justify-center">
-      <p>X: 134</p>
-      <p>Y: 256</p>
+      <p>X: {$toolheadPosition[0]}</p>
+      <p>Y: {$toolheadPosition[1]}</p>
     </div>
-    <div class="btn-default col-start-3 row-start-3 flex aspect-square items-center justify-center">X+</div>
+    <button class="btn-default col-start-3 row-start-3 flex aspect-square items-center justify-center" on:click={async () => moveRelative(distance, 0, 0)}
+      >X+</button
+    >
 
-    <div class="btn-default col-start-1 row-start-4 flex aspect-square flex-col items-center justify-center">
+    <button
+      class="btn-default col-start-1 row-start-4 flex aspect-square flex-col items-center justify-center"
+      on:click={async () => moveRelative(-distance, -distance, 0)}
+    >
       <p>X-</p>
       <p>Y-</p>
-    </div>
-    <div class="btn-default col-start-2 row-start-4 flex aspect-square items-center justify-center">Y-</div>
-    <div class="btn-default col-start-3 row-start-4 flex aspect-square flex-col items-center justify-center">
+    </button>
+    <button class="btn-default col-start-2 row-start-4 flex aspect-square items-center justify-center" on:click={async () => moveRelative(0, -distance, 0)}
+      >Y-</button
+    >
+    <button
+      class="btn-default col-start-3 row-start-4 flex aspect-square flex-col items-center justify-center"
+      on:click={async () => moveRelative(distance, -distance, 0)}
+    >
       <p>X+</p>
       <p>Y-</p>
-    </div>
+    </button>
 
-    <div class="btn-default col-start-4 row-start-2 flex aspect-square items-center justify-center">Z+</div>
+    <button class="btn-default col-start-4 row-start-2 flex aspect-square items-center justify-center" on:click={async () => moveRelative(0, 0, distance)}
+      >Z+</button
+    >
     <div class="col-start-4 row-start-3  flex flex-col  items-center justify-center">
-      <div>Z: 111</div>
+      <div>Z: {$toolheadPosition[2]}</div>
     </div>
-    <div class="btn-default col-start-4 row-start-4 flex aspect-square items-center justify-center">Z-</div>
+    <button class="btn-default col-start-4 row-start-4 flex aspect-square items-center justify-center" on:click={async () => moveRelative(0, 0, -distance)}
+      >Z-</button
+    >
   </div>
 
   <div class="flex flex-col gap-1 rounded bg-neutral-800 p-3">
@@ -99,11 +150,11 @@
 
   <div class="grid grid-cols-1 grid-rows-4 items-start gap-2 rounded bg-neutral-800 p-3 text-center">
     <p class="col-start-1 row-start-1 py-2">Filament</p>
-    <div class="btn-default col-start-1 row-start-2 flex items-center  justify-center">Retract</div>
+    <button class="btn-default col-start-1 row-start-2 flex items-center  justify-center" on:click={async () => extrudeRelative(-distance)}>Retract</button>
     <div class="col-start-1 row-start-3 flex flex-col items-center justify-center ">
       <p>Distance: {distance}</p>
-      <p>Speed: 5</p>
+      <p>Speed: {extruderSpeed}</p>
     </div>
-    <div class="btn-default col-start-1 row-start-4 flex items-center justify-center">Extrude</div>
+    <button class="btn-default col-start-1 row-start-4 flex items-center justify-center" on:click={async () => extrudeRelative(distance)}>Extrude</button>
   </div>
 </div>

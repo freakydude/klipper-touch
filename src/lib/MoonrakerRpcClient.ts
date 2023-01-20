@@ -5,15 +5,6 @@ export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
   _isReady = writable(false);
   _isConnecting = false;
-  _printerStatus: IJsonRpcRequest = new JsonRpcRequest({
-    method: 'notify_status_update',
-    params: [
-      {
-        heater_bed: {},
-        extruder: {}
-      }
-    ]
-  });
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -118,6 +109,10 @@ export class MoonrakerRpcClient extends EventTarget {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  public heaterBedTemperature = writable(0.0);
+  public extruderTemperature = writable(0.0);
+  public toolheadPosition = writable([0, 0, 0, 0]);
+
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     let notification = event.detail;
 
@@ -128,10 +123,21 @@ export class MoonrakerRpcClient extends EventTarget {
         this._isReady.set(true);
         break;
       case 'notify_status_update':
-        console.log('update', notification.params);
-        this._printerStatus.params[0] = { ...this._printerStatus.params[0], ...notification.params[0] };
-        this._printerStatus.params[1] = notification.params[1];
-        console.log('merged', this._printerStatus.params);
+        // console.log('update', notification.params);
+        if (Array.isArray(notification.params) && notification.params.length > 0) {
+          if (notification.params[0].heater_bed?.temperature) {
+            // console.log('heater_bed.temperature', notification.params[0].heater_bed?.temperature);
+            this.heaterBedTemperature.set(notification.params[0].heater_bed?.temperature);
+          }
+          if (notification.params[0].extruder?.temperature) {
+            // console.log('extruder.temperature', notification.params[0].extruder?.temperature);
+            this.extruderTemperature.set(notification.params[0].extruder?.temperature);
+          }
+          if (notification.params[0].toolhead?.position) {
+            // console.log('toolhead.position', notification.params[0].toolhead?.position);
+            this.toolheadPosition.set(notification.params[0].toolhead?.position);
+          }
+        }
         break;
       case 'notify_klippy_disconnected ':
         console.log('notify_klippy_disconnected: ');

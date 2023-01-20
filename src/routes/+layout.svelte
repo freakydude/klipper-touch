@@ -62,15 +62,24 @@
       params: {
         objects: {
           heater_bed: ['temperature'],
-          extruder: ['temperature']
+          extruder: ['temperature'],
+          toolhead: ['position']
         }
       }
     });
     await client.sendRequest(objectSubscribeBedTempRequest);
-    // let clearSubRequest = new JsonRpcRequest('printer.objects.subscribe', JsonRpcClient.generateConnectionId(), {
-    //   objects: {}
+
+    // Replace Subscription
+    //
+    // let objectUnSubscribeBedTempRequest = new JsonRpcRequest({
+    //   method: 'printer.objects.subscribe',
+    //   params: {
+    //     objects: {
+    //       extruder: ['temperature']
+    //     }
+    //   }
     // });
-    // await client.sendRequest(clearSubRequest);
+    // await client.sendRequest(objectUnSubscribeBedTempRequest);
   });
 </script>
 
