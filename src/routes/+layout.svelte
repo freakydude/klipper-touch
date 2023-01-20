@@ -14,7 +14,7 @@
     // client.addEventListener('notification', (event) => {
     //   console.log(event.detail);
     // });
-    let serverInfoRequest = new JsonRpcRequest('server.info', JsonRpcClient.generateConnectionId(), undefined);
+    let serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
     await client.sendRequest(serverInfoRequest);
 
     // let validRequest = new JsonRpcRequest('printer.query_endstops.status', JsonRpcClient.generateConnectionId(), undefined);
@@ -28,36 +28,48 @@
     // console.log('batchRequest', batchRequest);
     // console.log(await client.sendBatchRequest(batchRequest));
 
-    let objectListRequest = new JsonRpcRequest('printer.objects.list', JsonRpcClient.generateConnectionId(), undefined);
+    let objectListRequest = new JsonRpcRequest({ method: 'printer.objects.list', id: JsonRpcClient.generateConnectionId() });
     await client.sendRequest(objectListRequest);
-    let objectQueryRequest = new JsonRpcRequest('printer.objects.query', JsonRpcClient.generateConnectionId(), {
-      objects: {
-        webhooks: null,
-        gcode_move: null,
-        toolhead: null,
-        extruder: null,
-        heaters: null,
-        heater_bed: null,
-        probe: null,
-        print_stats: null,
-        virtual_sdcard: null,
-        motion_report: null,
-        mcu: null
+    let objectQueryRequest = new JsonRpcRequest({
+      method: 'printer.objects.query',
+      id: JsonRpcClient.generateConnectionId(),
+      params: {
+        objects: {
+          webhooks: null,
+          gcode_move: null,
+          toolhead: null,
+          extruder: null,
+          heaters: null,
+          heater_bed: null,
+          probe: null,
+          print_stats: null,
+          virtual_sdcard: null,
+          motion_report: null,
+          mcu: null
+        }
       }
     });
     await client.sendRequest(objectQueryRequest);
 
-    let objectQueryProbeRequest = new JsonRpcRequest('printer.objects.query', JsonRpcClient.generateConnectionId(), {
-      objects: {
-        probe: ['last_z_result']
+    let objectQueryProbeRequest = new JsonRpcRequest({
+      method: 'printer.objects.query',
+      id: JsonRpcClient.generateConnectionId(),
+      params: {
+        objects: {
+          probe: ['last_z_result']
+        }
       }
     });
     await client.sendRequest(objectQueryProbeRequest);
 
-    let objectSubscribeBedTempRequest = new JsonRpcRequest('printer.objects.subscribe', JsonRpcClient.generateConnectionId(), {
-      objects: {
-        heater_bed: ['temperature'],
-        extruder: ['temperature']
+    let objectSubscribeBedTempRequest = new JsonRpcRequest({
+      method: 'printer.objects.subscribe',
+      id: JsonRpcClient.generateConnectionId(),
+      params: {
+        objects: {
+          heater_bed: ['temperature'],
+          extruder: ['temperature']
+        }
       }
     });
     await client.sendRequest(objectSubscribeBedTempRequest);

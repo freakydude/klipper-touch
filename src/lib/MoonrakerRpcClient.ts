@@ -5,12 +5,15 @@ export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
   _isReady = writable(false);
   _isConnecting = false;
-  _printerStatus: IJsonRpcRequest = new JsonRpcRequest('notify_status_update', '2.0', [
-    {
-      heater_bed: {},
-      extruder: {}
-    }
-  ]);
+  _printerStatus: IJsonRpcRequest = new JsonRpcRequest({
+    method: 'notify_status_update',
+    params: [
+      {
+        heater_bed: {},
+        extruder: {}
+      }
+    ]
+  });
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -50,7 +53,7 @@ export class MoonrakerRpcClient extends EventTarget {
         if (await this._jsonRpcClient.connect()) {
           let klippyState: string = '';
           while (true) {
-            let serverInfoRequest = new JsonRpcRequest('server.info', JsonRpcClient.generateConnectionId(), undefined);
+            let serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
 
             try {
               let serverInfoResponse = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;

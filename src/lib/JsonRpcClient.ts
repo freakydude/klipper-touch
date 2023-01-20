@@ -1,7 +1,7 @@
 export interface IJsonRpcRequest {
-  jsonrpc: string;
+  jsonrpc?: string;
   method: string;
-  params?: any[] | object;
+  params?: object | any[];
   id?: string | number | null;
 }
 
@@ -18,8 +18,8 @@ export class JsonRpcRequest implements IJsonRpcRequest {
    * @param method A String containing the name of the method to be invoked. Method names that begin with the word rpc followed by a period character (U+002E or ASCII 46) are reserved for rpc-internal methods and extensions and MUST NOT be used for anything else.
    * @param params A Structured value that holds the parameter values to be used during the invocation of the method. This member MAY be omitted.
    */
-  public constructor(method: string, id?: string | number | null, params?: any[] | object) {
-    this.jsonrpc = '2.0';
+  public constructor({ jsonrpc = '2.0', id, method, params }: IJsonRpcRequest) {
+    this.jsonrpc = jsonrpc;
     this.id = id;
     this.method = method;
     this.params = params;
@@ -27,7 +27,7 @@ export class JsonRpcRequest implements IJsonRpcRequest {
 }
 
 export interface IJsonRpcResponse {
-  jsonrpc: string;
+  jsonrpc?: string;
   id?: string | number | null;
 }
 
@@ -46,8 +46,8 @@ export class JsonRpcSuccessResponse implements IJsonRpcSuccessResponse {
    * @param id This member is REQUIRED. It MUST be the same as the value of the id member in the Request Object. If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
    * @param result This member is REQUIRED on success. This member MUST NOT exist if there was an error invoking the method. The value of this member is determined by the method invoked on the Server.
    */
-  constructor(result: any, id?: string | number | null) {
-    this.jsonrpc = '2.0';
+  constructor({ jsonrpc = '2.0', id, result }: IJsonRpcSuccessResponse) {
+    this.jsonrpc = jsonrpc;
     this.id = id;
     this.result = result;
   }
@@ -70,7 +70,7 @@ export class JsonRpcErrorObject implements IJsonRpcErrorObject {
    * @param message A String providing a short description of the error. The message SHOULD be limited to a concise single sentence.
    * @param data A Primitive or Structured value that contains additional information about the error. This may be omitted. The value of this member is defined by the Server (e.g. detailed error information, nested errors etc.).
    */
-  public constructor(code: number, message: string, data?: object) {
+  public constructor({ code, message, data }: IJsonRpcErrorObject) {
     this.code = code;
     this.message = message;
     this.data = data;
@@ -92,9 +92,9 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
    * @param jsonrpc A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
    * @param id This member is REQUIRED. It MUST be the same as the value of the id member in the Request Object. If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
    */
-  public constructor(error: IJsonRpcErrorObject, id?: string | number | null) {
+  public constructor({ jsonrpc = '2.0', id, error }: IJsonRpcErrorResponse) {
     this.id = id;
-    this.jsonrpc = '2.0';
+    this.jsonrpc = jsonrpc;
     this.error = error;
   }
 }
@@ -155,7 +155,7 @@ export class JsonRpcClient extends EventTarget {
         if (Array.isArray(request)) {
           // batch request - send notification for every notification inside
           console.log('connect ws.onmessage: received batchRequest', request);
-         for(const singleRequest of request)  {
+          for (const singleRequest of request) {
             if (!singleRequest.id) {
               // console.log('connect ws.onmessage: notification', request);
               this.dispatchEvent(
@@ -164,7 +164,7 @@ export class JsonRpcClient extends EventTarget {
                 })
               );
             }
-          };
+          }
         } else {
           // single request
           if (!request.id) {
