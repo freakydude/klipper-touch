@@ -29,10 +29,9 @@ Type=simple
 User=$USER
 RemainAfterExit=yes
 WorkingDirectory=${SRCDIR}
-#ExecStart=${LAUNCH_CMD} -l ${LOG_PATH}
-ExecStart=${LAUNCH_CMD} 2>&1| tee ${LOG_PATH}
+ExecStart=${LAUNCH_CMD} 
 Restart=always
-RestartSec=10
+RestartSec=60
 EOF
 # Use systemctl to enable the klipper systemd service script
     sudo systemctl enable --now klipper-touch.service
