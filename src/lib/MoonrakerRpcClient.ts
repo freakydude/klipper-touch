@@ -112,6 +112,7 @@ export class MoonrakerRpcClient extends EventTarget {
   public heaterBedTemperature = writable(0.0);
   public extruderTemperature = writable(0.0);
   public toolheadPosition = writable([0, 0, 0, 0]);
+  public gcodeZOffset = writable(0.0);
 
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     let notification = event.detail;
@@ -136,6 +137,10 @@ export class MoonrakerRpcClient extends EventTarget {
           if (notification.params[0].toolhead?.position) {
             // console.log('toolhead.position', notification.params[0].toolhead?.position);
             this.toolheadPosition.set(notification.params[0].toolhead?.position);
+          }
+          if (notification.params[0].gcode_move?.homing_origin) {
+            // console.log('gcode_move.homing_origin', notification.params[0].gcode_move?.homing_origin);
+            this.gcodeZOffset.set(notification.params[0].gcode_move?.homing_origin[2]);
           }
         }
         break;
