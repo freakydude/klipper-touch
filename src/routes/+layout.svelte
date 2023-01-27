@@ -1,11 +1,8 @@
 <script lang="ts">
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import NavBar from '$lib/NavBar.svelte';
-  import StatusBar from '$lib/StatusBar.svelte';
   import { onMount } from 'svelte';
   import '../app.css';
-  import MessageBar from '../lib/MessageBar.svelte';
 
   onMount(async () => {
     await moonraker.connect();
