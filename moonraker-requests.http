@@ -1,0 +1,35 @@
+
+### List available printer objects
+GET http://192.168.40.6/printer/objects/list
+
+### Query printer object status
+GET http://192.168.40.6/printer/objects/query?extruder
+
+###
+
+GET http://192.168.40.6/printer/objects/query?toolhead
+
+###
+
+GET http://192.168.40.6/printer/objects/query?mcu
+
+###
+
+GET http://192.168.40.6/printer/objects/query?probe
+
+### Available Heaters and Sensors
+GET http://192.168.40.6/printer/objects/query?heaters
+
+###
+GET http://192.168.40.6/printer/objects/query?heater_bed=temperature&extruder=temperature&display_status=progress
+
+###
+GET http://192.168.40.6/printer/objects/query?fan
+
+###
+
+GET http://192.168.40.6/printer/objects/query?filament_switch_sensor filament
+
+###
+
+GET http://192.168.40.6/printer/objects/query?display_status=message
