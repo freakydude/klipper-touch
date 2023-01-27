@@ -84,6 +84,6 @@
   });
 </script>
 
-<div class="flex h-screen w-screen flex-col justify-between">
+<div class="flex h-screen w-screen">
   <slot />
 </div>
