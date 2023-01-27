@@ -67,7 +67,6 @@ set -e
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 LAUNCH_CMD="/usr/bin/npm run preview --prefix ${SRCDIR}"
 
-
 # Parse command line arguments
 while getopts "rfc:l:" arg; do
     case $arg in
