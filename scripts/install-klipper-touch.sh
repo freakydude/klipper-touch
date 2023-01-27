@@ -7,7 +7,8 @@ install_script()
 # Install dependencies
 #    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 #    sudo apt-get install -y nodejs
-    npm i --prefix ${SRCDIR}   #to force use ci instead of i, if configured write, enable_node_updates: true in moonraker.conf does the job
+    /usr/bin/npm install --prefix ${SRCDIR}   #to force use ci instead of i, if configured write, enable_node_updates: true in moonraker.conf does the job
+    /usr/bin/npm run build --prefix ${SRCDIR}
 
 # Create systemd service file
     SERVICE_FILE="${SYSTEMDDIR}/klipper-touch.service"
@@ -34,7 +35,7 @@ Restart=always
 RestartSec=10
 EOF
 # Use systemctl to enable the klipper systemd service script
-    sudo systemctl enable klipper-touch.service
+    sudo systemctl enable --now klipper-touch.service
     sudo systemctl daemon-reload
 }
 
@@ -64,7 +65,7 @@ set -e
 
 # Find SRCDIR from the pathname of this script
 SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
-LAUNCH_CMD="/usr/bin/npm run dev --prefix ${SRCDIR}"
+LAUNCH_CMD="/usr/bin/npm run preview --prefix ${SRCDIR}"
 
 
 # Parse command line arguments
