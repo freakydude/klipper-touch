@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
 
@@ -41,7 +42,8 @@
 </script>
 
 <div class="flex grow flex-wrap items-center justify-evenly gap-2 bg-neutral-800">
-  <div class="flex flex-col flex-wrap gap-1">
+  <div class="flex flex-col flex-wrap gap-1 gap-y-8 ">
+    <button class="btn-touch bg-red-900" on:click={() => goto('/')}>Menu</button>
     <button class="btn-touch" on:click={home}>Home XYZ</button>
   </div>
   <div class="flex flex-col flex-wrap gap-1 bg-red-900">

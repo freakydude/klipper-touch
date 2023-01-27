@@ -63,7 +63,8 @@
         objects: {
           heater_bed: ['temperature'],
           extruder: ['temperature'],
-          toolhead: ['position']
+          toolhead: ['position'],
+          gcode_move: ['homing_origin']
         }
       }
     });
