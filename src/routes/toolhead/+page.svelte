@@ -3,8 +3,8 @@
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
 
   let distance = 10;
-  let extruderSpeed = 10;
-  let moveSpeed = 25;
+  let extruderSpeed = 5;
+  let moveSpeed = 50;
 
   let toolheadPosition = moonraker.toolheadPosition;
 
@@ -12,17 +12,17 @@
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G28 0' // Home all untrusted axes
+        script: 'G28' // Home all untrusted axes
       }
     });
     await client.sendRequest(homeRequest);
   }
 
-  async function moveRelative(x: number = 0, y: number = 0, z: number = 0, e: number = 0) {
+  async function moveRelative(x: number = 0, y: number = 0, z: number = 0) {
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G0 X' + x + ' Y' + y + ' Z' + z + ' E' + e + ' F' + moveSpeed * 60
+        script: 'G91\nG0 X' + x + ' Y' + y + ' Z' + z + ' F' + moveSpeed * 60
       }
     });
     await client.sendRequest(homeRequest);
@@ -32,7 +32,7 @@
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G0 E' + e + ' F' + extruderSpeed * 60
+        script: 'G91\n G1 E' + e + ' F' + extruderSpeed * 60
       }
     });
     await client.sendRequest(homeRequest);
@@ -66,8 +66,8 @@
       >X-</button
     >
     <div class="col-start-2 row-start-3 flex aspect-square flex-col items-center justify-center">
-      <p>X: {$toolheadPosition[0]}</p>
-      <p>Y: {$toolheadPosition[1]}</p>
+      <p>X: {$toolheadPosition[0].toFixed(2)}</p>
+      <p>Y: {$toolheadPosition[1].toFixed(2)}</p>
     </div>
     <button class="btn-default col-start-3 row-start-3 flex aspect-square items-center justify-center" on:click={async () => moveRelative(distance, 0, 0)}
       >X+</button
@@ -95,7 +95,7 @@
       >Z+</button
     >
     <div class="col-start-4 row-start-3  flex flex-col  items-center justify-center">
-      <div>Z: {$toolheadPosition[2]}</div>
+      <div>Z: {$toolheadPosition[2].toFixed(2)}</div>
     </div>
     <button class="btn-default col-start-4 row-start-4 flex aspect-square items-center justify-center" on:click={async () => moveRelative(0, 0, -distance)}
       >Z-</button
