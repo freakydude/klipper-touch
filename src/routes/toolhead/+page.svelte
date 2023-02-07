@@ -14,7 +14,17 @@
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G28 X Y' // Home all untrusted axes
+        script: 'G28 X Y' // Home XY axies
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
+
+  async function homeXYZ() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28' // Home XY axies
       }
     });
     await client.sendRequest(homeRequest);
@@ -24,7 +34,7 @@
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G28 Z' // Home all untrusted axes
+        script: 'G28 Z' // Home Z axies
       }
     });
     await client.sendRequest(homeRequest);
@@ -49,129 +59,69 @@
     });
     await client.sendRequest(homeRequest);
   }
+
+  function increaseDistance() {
+    distance += 10;
+  }
+
+  function decreaseDistance() {
+    distance -= 10;
+  }
 </script>
 
-<div class="flex flex-row  bg-green-500">
-  <div class="  flex flex-col  bg-blue-800 ">
-    <button class="btn-touch flex flex-col" on:click={() => goto('/')}>
-      <i class="fa-solid fa-bars" />
-    </button>
-    <p class="label">teil2</p>
+<div class="flex flex-row bg-neutral-700 p-2">
+  <div class="flex flex-col justify-between   ">
+    <button class="btn-touch fa-solid fa-list flex flex-col bg-red-600  " on:click={() => goto('/')} />
   </div>
 
-  <div class="flex flex-col bg-yellow-500 ">
-    <div class="flex flex-row bg-red-500 ">
-      <p class="label">Test</p>
-      <p class="label">Test</p>
-      <p class="label">Test</p>
-      <p class="label">Test</p>
-      <p class="label">Test</p>
-    </div>
-    <div class="flex content-center justify-around justify-self-stretch bg-pink-500">
-      <div class="grid grid-cols-3 grid-rows-3 gap-1 bg-slate-300">
-        <button class="btn-touch col-start-2 row-start-1" on:click={async () => moveRelative(0, distance, 0)}>Y +</button>
-        <button class="btn-touch col-start-1 row-start-2" on:click={async () => moveRelative(-distance, 0, 0)}>X -</button>
-        <button class="btn-touch col-start-2 row-start-2" on:click={homeXY}><i class="fa-solid fa-house" /></button>
-        <button class="btn-touch col-start-3 row-start-2" on:click={async () => moveRelative(distance, 0, 0)}>X +</button>
-        <button class="btn-touch col-start-2 row-start-3" on:click={async () => moveRelative(0, -distance, 0)}>Y -</button>
+  <div class="flex grow flex-col">
+    <div class="flex grow flex-wrap content-center items-center justify-around  rounded">
+      <div class="flex flex-col">
+        <div class="flex flex-row flex-wrap justify-around rounded bg-red-600">
+          <p class="label">X {$toolheadPosition[0].toFixed(1)}</p>
+          <p class="label">Y {$toolheadPosition[1].toFixed(1)}</p>
+          <p class="label">Z {$toolheadPosition[2].toFixed(1)}</p>
+        </div>
+        <div class="flex content-center items-center justify-center gap-2 rounded bg-neutral-600 p-1">
+          <div class="grid grid-cols-3 grid-rows-3 gap-1">
+            <button class="btn-touch fa-solid fa-home col-start-1 row-start-1" on:click={homeXYZ} />
+            <button class="btn-touch col-start-2 row-start-1" on:click={async () => moveRelative(0, distance, 0)}>Y <i class="fa-solid fa-arrow-up" /></button>
+            <button class="btn-touch col-start-1 row-start-2" on:click={async () => moveRelative(-distance, 0, 0)}
+              >X <i class="fa-solid fa-arrow-left" /></button>
+            <button class="btn-touch fa-solid fa-arrows-up-down-left-right col-start-2 row-start-2" on:click={homeXY} />
+            <button class="btn-touch col-start-3 row-start-2" on:click={async () => moveRelative(distance, 0, 0)}
+              >X <i class="fa-solid fa-arrow-right" /></button>
+            <button class="btn-touch col-start-2 row-start-3" on:click={async () => moveRelative(0, -distance, 0)}
+              >Y <i class="fa-solid fa-arrow-down" /></button>
+          </div>
+          <div class="grid grid-cols-1 grid-rows-3 gap-1">
+            <button class="btn-touch col-start-1 row-start-1" on:click={async () => moveRelative(0, 0, distance)}>Z <i class="fa-solid fa-arrow-up" /></button>
+            <button class="btn-touch fa-solid fa-arrows-up-down col-start-1 row-start-2" on:click={homeZ} />
+            <button class="btn-touch col-start-1 row-start-3" on:click={async () => moveRelative(0, 0, -distance)}
+              >Z <i class="fa-solid fa-arrow-down" /></button>
+          </div>
+        </div>
       </div>
-      <div class="grid grid-cols-1 grid-rows-3 gap-1 bg-slate-500">
-        <button class="btn-touch col-start-1 row-start-1" on:click={async () => moveRelative(0, 0, distance)}>Z +</button>
-        <button class="btn-touch col-start-1 row-start-2" on:click={homeZ}><i class="fa-solid fa-house" /></button>
-        <button class="btn-touch col-start-1 row-start-3" on:click={async () => moveRelative(0, 0, -distance)}>Z -</button>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col rounded bg-neutral-600">
+          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
+            <p class="label">Extrude {$nozzleTemp.toFixed(0)} °C</p>
+          </div>
+          <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
+            <button class="btn-touch fa-solid fa-arrow-down col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)} />
+            <button class="btn-touch fa-solid fa-arrow-up col-start-2 row-start-1 " on:click={async () => extrudeRelative(distance)} />
+          </div>
+        </div>
+        <div class="flex flex-col rounded bg-neutral-600">
+          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
+            <p class="label">Distance {distance} mm</p>
+          </div>
+          <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
+            <button class="btn-touch fa-solid fa-plus col-start-1 row-start-1" on:click={increaseDistance} />
+            <button class="btn-touch fa-solid fa-minus col-start-2 row-start-1" on:click={decreaseDistance} />
+          </div>
+        </div>
       </div>
-
-      <div class="grid grid-cols-1 grid-rows-2 gap-1 bg-slate-700">
-        <button class="btn-touch col-start-1 row-start-1" on:click={async () => extrudeRelative(-distance)}>E +</button>
-        <button class="btn-touch col-start-1 row-start-2" on:click={async () => extrudeRelative(distance)}>E -</button>
-      </div>
-
-      <!-- <div class="flex flex-col flex-wrap ">
-    </div>
-    <div class="flex flex-col flex-wrap bg-red-900">      
-      <p class="label">{$toolheadPosition[0].toFixed(0)}</p>
-    </div>
-    <div class="flex flex-col flex-wrap  bg-red-900">
-      
-      <p class="label">{$toolheadPosition[1].toFixed(0)}</p>
-      
-    </div>
-    <div class="flex flex-col flex-wrap  bg-red-900">
-      <p class="label">{$toolheadPosition[2].toFixed(0)}</p>
-    </div>
-
-    <div class="flex flex-col flex-wrap  bg-red-900">
-      <p class="label">{$nozzleTemp.toFixed(0)} °C</p>
-    </div>
-
-    <div class="flex flex-row flex-wrap items-center bg-red-900 ">
-      <p class="label">E-Speed</p>
-      <button
-        class="btn-touch  {extruderSpeed === 1 ? 'selected' : ''}"
-        on:click={() => {
-          extruderSpeed = 1;
-        }}>1</button
-      >
-      <button
-        class="btn-touch {extruderSpeed === 2 ? 'selected' : ''}"
-        on:click={() => {
-          extruderSpeed = 2;
-        }}>2</button
-      >
-
-      <button
-        class="btn-touch  {extruderSpeed === 5 ? 'selected' : ''}"
-        on:click={() => {
-          extruderSpeed = 5;
-        }}>5</button
-      >
-      <button
-        class="btn-touch  {extruderSpeed === 10 ? 'selected' : ''}"
-        on:click={() => {
-          extruderSpeed = 10;
-        }}>10</button
-      >
-    </div>
-    <div class="flex flex-row flex-wrap items-center gap-1 bg-red-900">
-      <p class="label ">Distance</p>
-      <button
-        class="btn-touch {distance === 1 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 1;
-        }}>1</button
-      >
-      <button
-        class="btn-touch  {distance === 2 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 2;
-        }}>2</button
-      >
-      <button
-        class="btn-touch {distance === 5 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 5;
-        }}>5</button
-      >
-
-      <button
-        class="btn-touch  {distance === 10 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 10;
-        }}>10</button
-      >
-      <button
-        class="btn-touch  {distance === 20 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 20;
-        }}>20</button
-      >
-      <button
-        class="btn-touch  {distance === 50 ? 'selected' : ''}"
-        on:click={() => {
-          distance = 50;
-        }}>50</button
-      >
-    </div> -->
     </div>
   </div>
 </div>

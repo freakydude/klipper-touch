@@ -1,4 +1,6 @@
 {
+  "svelteBracketNewLine": false,
+  "svelteIndentScriptAndStyle": true,
   "useTabs": false,
   "singleQuote": true,
   "trailingComma": "none",

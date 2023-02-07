@@ -3,6 +3,7 @@
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { onMount } from 'svelte';
   import '../app.css';
+  import '../lib/fontawesome-free-6.3.0-web/css/all.min.css';
 
   onMount(async () => {
     await moonraker.connect();
@@ -81,6 +82,6 @@
   });
 </script>
 
-<div class="flex h-screen w-screen">
+<div class="grid h-screen w-screen">
   <slot />
 </div>
