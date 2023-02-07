@@ -3,7 +3,7 @@
 </script>
 
 <div class="flex grow flex-row bg-neutral-800 text-neutral-200">
-  <div class="flex  grow flex-col">Progress</div>
+  <div class="flex grow flex-col">Progress</div>
   <div class="ml-2 flex flex-col justify-evenly">
     <button
       class="py-1 {increment === 1 ? 'btn-primary' : 'btn-default'}"
