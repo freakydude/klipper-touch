@@ -3,7 +3,6 @@
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { onMount } from 'svelte';
   import '../app.css';
-  import '../lib/fontawesome-free-6.3.0-web/css/all.min.css';
 
   onMount(async () => {
     await moonraker.connect();

@@ -2,6 +2,19 @@
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import Fa from 'svelte-fa/src/fa.svelte';
+  import {
+    faArrowDown,
+    faArrowLeft,
+    faArrowRight,
+    faArrowsUpDown,
+    faArrowsUpDownLeftRight,
+    faArrowUp,
+    faHome,
+    faList,
+    faMinus,
+    faPlus
+  } from '@fortawesome/free-solid-svg-icons';
 
   let distance = 10;
   let extruderSpeed = 5;
@@ -71,7 +84,7 @@
 
 <div class="flex flex-row bg-neutral-700 p-2">
   <div class="flex flex-col justify-between   ">
-    <button class="btn-touch fa-solid fa-list flex flex-col bg-red-600  " on:click={() => goto('/')} />
+    <button class="btn-touch  flex flex-col bg-red-600  " on:click={() => goto('/')}> <Fa icon={faList} /> </button>
   </div>
 
   <div class="flex grow flex-col">
@@ -84,21 +97,17 @@
         </div>
         <div class="flex content-center items-center justify-center gap-2 rounded bg-neutral-600 p-1">
           <div class="grid grid-cols-3 grid-rows-3 gap-1">
-            <button class="btn-touch fa-solid fa-home col-start-1 row-start-1" on:click={homeXYZ} />
-            <button class="btn-touch col-start-2 row-start-1" on:click={async () => moveRelative(0, distance, 0)}>Y <i class="fa-solid fa-arrow-up" /></button>
-            <button class="btn-touch col-start-1 row-start-2" on:click={async () => moveRelative(-distance, 0, 0)}
-              >X <i class="fa-solid fa-arrow-left" /></button>
-            <button class="btn-touch fa-solid fa-arrows-up-down-left-right col-start-2 row-start-2" on:click={homeXY} />
-            <button class="btn-touch col-start-3 row-start-2" on:click={async () => moveRelative(distance, 0, 0)}
-              >X <i class="fa-solid fa-arrow-right" /></button>
-            <button class="btn-touch col-start-2 row-start-3" on:click={async () => moveRelative(0, -distance, 0)}
-              >Y <i class="fa-solid fa-arrow-down" /></button>
+            <button class="btn-touch  col-start-1 row-start-1" on:click={homeXYZ}> <Fa icon={faHome} /></button>
+            <button class="btn-touch col-start-2 row-start-1" on:click={async () => moveRelative(0, distance, 0)}>Y <Fa icon={faArrowUp} /></button>
+            <button class="btn-touch col-start-1 row-start-2" on:click={async () => moveRelative(-distance, 0, 0)}>X <Fa icon={faArrowLeft} /></button>
+            <button class="btn-touch col-start-2 row-start-2" on:click={homeXY}> <Fa icon={faArrowsUpDownLeftRight} /></button>
+            <button class="btn-touch col-start-3 row-start-2" on:click={async () => moveRelative(distance, 0, 0)}>X <Fa icon={faArrowRight} /></button>
+            <button class="btn-touch col-start-2 row-start-3" on:click={async () => moveRelative(0, -distance, 0)}>Y <Fa icon={faArrowDown} /></button>
           </div>
           <div class="grid grid-cols-1 grid-rows-3 gap-1">
-            <button class="btn-touch col-start-1 row-start-1" on:click={async () => moveRelative(0, 0, distance)}>Z <i class="fa-solid fa-arrow-up" /></button>
-            <button class="btn-touch fa-solid fa-arrows-up-down col-start-1 row-start-2" on:click={homeZ} />
-            <button class="btn-touch col-start-1 row-start-3" on:click={async () => moveRelative(0, 0, -distance)}
-              >Z <i class="fa-solid fa-arrow-down" /></button>
+            <button class="btn-touch col-start-1 row-start-1" on:click={async () => moveRelative(0, 0, distance)}>Z <Fa icon={faArrowUp} /></button>
+            <button class="btn-touch  col-start-1 row-start-2" on:click={homeZ}><Fa icon={faArrowsUpDown} /></button>
+            <button class="btn-touch col-start-1 row-start-3" on:click={async () => moveRelative(0, 0, -distance)}>Z <Fa icon={faArrowDown} /></button>
           </div>
         </div>
       </div>
@@ -108,8 +117,8 @@
             <p class="label">Extrude {$nozzleTemp.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch fa-solid fa-arrow-down col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)} />
-            <button class="btn-touch fa-solid fa-arrow-up col-start-2 row-start-1 " on:click={async () => extrudeRelative(distance)} />
+            <button class="btn-touch  col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
+            <button class="btn-touch  col-start-2 row-start-1 " on:click={async () => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
           </div>
         </div>
         <div class="flex flex-col rounded bg-neutral-600">
@@ -117,8 +126,8 @@
             <p class="label">Distance {distance} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch fa-solid fa-plus col-start-1 row-start-1" on:click={increaseDistance} />
-            <button class="btn-touch fa-solid fa-minus col-start-2 row-start-1" on:click={decreaseDistance} />
+            <button class="btn-touch  col-start-1 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
+            <button class="btn-touch  col-start-2 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
           </div>
         </div>
       </div>
