@@ -131,7 +131,8 @@
       <div class="flex flex-col items-center gap-2">
         <div class="flex flex-col rounded bg-neutral-600 ">
           <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
-            <p class="label">Extrude {$nozzleTemp.toFixed(0)} °C</p>
+            <p class="label">Extrude</p>
+            <p class="label">Current {$nozzleTemp.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
             <button class="btn-touch  col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
@@ -143,8 +144,8 @@
             <p class="label">Distance {distance} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch  col-start-1 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
-            <button class="btn-touch  col-start-2 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
+            <button class="btn-touch  col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
+            <button class="btn-touch  col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
           </div>
         </div>
       </div>
