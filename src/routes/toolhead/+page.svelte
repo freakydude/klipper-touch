@@ -13,15 +13,20 @@
     faHome,
     faList,
     faMinus,
-    faPlus
+    faPlus,
+    faSkull
   } from '@fortawesome/free-solid-svg-icons';
 
-  let distance = 10;
   let extruderSpeed = 5;
   let moveSpeed = 50;
 
   let toolheadPosition = moonraker.toolheadPosition;
   let nozzleTemp = moonraker.extruderTemperature;
+
+  let stepsArrIdx = 6;
+  let stepsArr = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
+
+  let distance = stepsArr[stepsArrIdx];
 
   async function homeXY() {
     let homeRequest = new JsonRpcRequest({
@@ -63,6 +68,14 @@
     await client.sendRequest(homeRequest);
   }
 
+  async function emergencyStop() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.emergency_stop',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
   async function extrudeRelative(e: number = 0) {
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
@@ -74,21 +87,25 @@
   }
 
   function increaseDistance() {
-    distance += 10;
+    stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
+    distance = stepsArr[stepsArrIdx];
   }
 
   function decreaseDistance() {
-    distance -= 10;
+    stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
+    distance = stepsArr[stepsArrIdx];
   }
 </script>
 
 <div class="flex flex-row bg-neutral-700 p-2">
-  <div class="flex flex-col justify-between   ">
-    <button class="btn-touch  flex flex-col bg-red-600  " on:click={() => goto('/')}> <Fa icon={faList} /> </button>
+  <div class="flex flex-col justify-start gap-1 ">
+    <button class="btn-touch  flex flex-col bg-red-600" on:click={() => goto('/')}> <Fa icon={faList} /></button>
+    <button class="btn-touch  flex flex-col bg-red-600" on:click={() => goto('/parameter/babysteps')}>BS</button>
+    <button class="btn-touch  flex flex-col bg-blue-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
-  <div class="flex grow flex-col">
-    <div class="flex grow flex-wrap content-center items-center justify-around  rounded">
+  <div class="flex grow flex-col flex-wrap justify-around">
+    <div class="flex flex-wrap content-center items-center justify-around  rounded">
       <div class="flex flex-col">
         <div class="flex flex-row flex-wrap justify-around rounded bg-red-600">
           <p class="label">X {$toolheadPosition[0].toFixed(1)}</p>
@@ -111,8 +128,8 @@
           </div>
         </div>
       </div>
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col rounded bg-neutral-600">
+      <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col rounded bg-neutral-600 ">
           <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
             <p class="label">Extrude {$nozzleTemp.toFixed(0)} °C</p>
           </div>
