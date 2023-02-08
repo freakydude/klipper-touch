@@ -58,9 +58,9 @@
       method: 'printer.objects.subscribe',
       params: {
         objects: {
-          heater_bed: ['temperature'],
-          extruder: ['temperature'],
-          toolhead: ['position'],
+          heater_bed: ['temperature', 'target'],
+          extruder: ['temperature', 'target'],
+          toolhead: ['position', 'homed_axes'],
           gcode_move: ['homing_origin']
         }
       }

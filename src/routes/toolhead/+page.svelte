@@ -21,12 +21,27 @@
   let moveSpeed = 50;
 
   let toolheadPosition = moonraker.toolheadPosition;
-  let nozzleTemp = moonraker.extruderTemperature;
+  let nozzleTemp = moonraker.extruderCurrentTemperature;
 
   let stepsArrIdx = 6;
   let stepsArr = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
 
   let distance = stepsArr[stepsArrIdx];
+  let isHomedXY = false;
+  let isHomedZ = false;
+
+  moonraker.homedAxes.subscribe((value) => {
+    if (value.includes('xy')) {
+      isHomedXY = true;
+    } else {
+      isHomedXY = false;
+    }
+    if (value.includes('z')) {
+      isHomedZ = true;
+    } else {
+      isHomedZ = false;
+    }
+  });
 
   async function homeXY() {
     let homeRequest = new JsonRpcRequest({
@@ -114,23 +129,40 @@
         </div>
         <div class="flex content-center items-center justify-center gap-2 rounded bg-neutral-600 p-1">
           <div class="grid grid-cols-3 grid-rows-3 gap-1">
-            <button class="btn-touch  col-start-1 row-start-1 " on:click={homeXYZ}> <Fa icon={faHome} /></button>
-            <button class="btn-touch col-start-2 row-start-1  " on:click={async () => moveRelative(0, distance, 0)}>
+            <button class="btn-touch col-start-1 row-start-1" on:click={homeXYZ}>
+              <Fa icon={faHome} />
+              <p>All</p>
+            </button>
+            <button class="btn-touch col-start-2 row-start-1" disabled={!isHomedXY} on:click={async () => moveRelative(0, distance, 0)}>
               <p>Y</p>
               <Fa icon={faArrowUp} />
             </button>
-            <button class="btn-touch col-start-1 row-start-2  " on:click={async () => moveRelative(-distance, 0, 0)}>X<Fa icon={faArrowLeft} /></button>
-            <button class="btn-touch col-start-2 row-start-2 " on:click={homeXY}> <Fa icon={faArrowsUpDownLeftRight} /></button>
-            <button class="btn-touch col-start-3 row-start-2 " on:click={async () => moveRelative(distance, 0, 0)}>
+            <button class="btn-touch col-start-1 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(-distance, 0, 0)}
+              >X<Fa icon={faArrowLeft} />
+            </button>
+            <button class="btn-touch col-start-2 row-start-2" on:click={homeXY}>
+              <Fa icon={faHome} />
+              <p>XY</p>
+            </button>
+            <button class="btn-touch col-start-3 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(distance, 0, 0)}>
               <p>X</p>
               <Fa icon={faArrowRight} />
             </button>
-            <button class="btn-touch col-start-2 row-start-3 " on:click={async () => moveRelative(0, -distance, 0)}>Y<Fa icon={faArrowDown} /></button>
+            <button class="btn-touch col-start-2 row-start-3 " disabled={!isHomedXY} on:click={async () => moveRelative(0, -distance, 0)}
+              >Y<Fa icon={faArrowDown} />
+            </button>
           </div>
           <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
-            <button class="btn-touch col-start-1 row-start-1 " on:click={async () => moveRelative(0, 0, distance)}>Z<Fa icon={faArrowUp} /></button>
-            <button class="btn-touch  col-start-1 row-start-2 " on:click={homeZ}><Fa icon={faArrowsUpDown} /></button>
-            <button class="btn-touch col-start-1 row-start-3" on:click={async () => moveRelative(0, 0, -distance)}>Z<Fa icon={faArrowDown} /></button>
+            <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, distance)}
+              >Z<Fa icon={faArrowUp} /></button
+            >
+            <button class="btn-touch  col-start-1 row-start-2 gap-1 " disabled={!isHomedXY} on:click={homeZ}>
+              <Fa icon={faHome} />
+              <p>Z</p>
+            </button>
+            <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, -distance)}
+              >Z<Fa icon={faArrowDown} /></button
+            >
           </div>
         </div>
       </div>

@@ -7,10 +7,12 @@
 
   let stepsArrIdx = 4;
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
-  let nozzleTemp = moonraker.extruderTemperature;
-  let bedTemp = moonraker.heaterBedTemperature;
-  let nozzleTempTarget = $nozzleTemp;
-  let bedTempTarget = $bedTemp;
+
+  let nozzleTemp = moonraker.extruderCurrentTemperature;
+  let nozzleTempTarget = moonraker.extruderTargetTemperature;
+
+  let bedTemp = moonraker.heaterBedCurrentTemperature;
+  let bedTempTarget = moonraker.heaterBedTargetTemperature;
 
   let distance = stepsArr[stepsArrIdx];
 
@@ -33,24 +35,24 @@
   }
 
   async function changeNozzleTemperature(tempSteps: number) {
-    nozzleTempTarget = Math.max(0, nozzleTempTarget + tempSteps);
+    let temperature = Math.max(0, $nozzleTempTarget + tempSteps);
 
     let nozzleTempRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'M104 S' + nozzleTempTarget
+        script: 'M104 S' + temperature
       }
     });
     await client.sendRequest(nozzleTempRequest);
   }
 
   async function changeBedTemperature(tempSteps: number) {
-    bedTempTarget = Math.max(0, bedTempTarget + tempSteps);
+    let temperature = Math.max(0, $bedTempTarget + tempSteps);
 
     let bedTempRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'M140 S' + bedTempTarget
+        script: 'M140 S' + temperature
       }
     });
     await client.sendRequest(bedTempRequest);
@@ -65,13 +67,13 @@
   </div>
 
   <div class="flex grow flex-col">
-    <div class="flex grow flex-wrap content-center items-center justify-around  rounded">
+    <div class="flex grow flex-wrap content-center items-center justify-around rounded">
       <div class="flex flex-row flex-wrap items-center gap-4">
         <div class="flex flex-col rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
             <p class="label">Current {$bedTemp.toFixed(0)} °C</p>
             <p class="label">Bed</p>
-            <p class="label">Target {bedTempTarget.toFixed(0)} °C</p>
+            <p class="label">Target {$bedTempTarget.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
             <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeBedTemperature(distance)}><Fa icon={faArrowUp} /></button>
@@ -82,7 +84,7 @@
           <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
             <p class="label">Current {$nozzleTemp.toFixed(0)} °C</p>
             <p class="label">Nozzle</p>
-            <p class="label">Target {nozzleTempTarget.toFixed(0)} °C</p>
+            <p class="label">Target {$nozzleTempTarget.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
             <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeNozzleTemperature(distance)}><Fa icon={faArrowUp} /></button>

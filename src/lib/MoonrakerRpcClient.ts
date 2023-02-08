@@ -30,7 +30,7 @@ export class MoonrakerRpcClient extends EventTarget {
       id: JsonRpcClient.generateConnectionId()
     };
 
-    let result = await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
+    const result = await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
     // console.log('requestIdentifyConnection - isConnected', result);
 
     return result;
@@ -42,12 +42,12 @@ export class MoonrakerRpcClient extends EventTarget {
       this._isReady.set(false);
       try {
         if (await this._jsonRpcClient.connect()) {
-          let klippyState: string = '';
+          let klippyState = '';
           while (true) {
-            let serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
+            const serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
 
             try {
-              let serverInfoResponse = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
+              const serverInfoResponse = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
               klippyState = serverInfoResponse.result.klippy_state;
               console.log('klippy_state: ', klippyState);
 
@@ -109,13 +109,16 @@ export class MoonrakerRpcClient extends EventTarget {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  public heaterBedTemperature = writable(0.0);
-  public extruderTemperature = writable(0.0);
+  public heaterBedTargetTemperature = writable(0.0);
+  public heaterBedCurrentTemperature = writable(0.0);
+  public extruderCurrentTemperature = writable(0.0);
+  public extruderTargetTemperature = writable(0.0);
   public toolheadPosition = writable([0, 0, 0, 0]);
   public gcodeZOffset = writable(0.0);
+  public homedAxes = writable('');
 
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
-    let notification = event.detail;
+    const notification = event.detail;
 
     // console.log('parseNotification: ', notification.method);
 
@@ -126,19 +129,31 @@ export class MoonrakerRpcClient extends EventTarget {
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
-          if (notification.params[0].heater_bed?.temperature) {
+          if (notification.params[0].heater_bed?.temperature != undefined) {
             // console.log('heater_bed.temperature', notification.params[0].heater_bed?.temperature);
-            this.heaterBedTemperature.set(notification.params[0].heater_bed?.temperature);
+            this.heaterBedCurrentTemperature.set(notification.params[0].heater_bed?.temperature);
           }
-          if (notification.params[0].extruder?.temperature) {
+          if (notification.params[0].heater_bed?.target != undefined) {
+            // console.log('heater_bed.temperature', notification.params[0].heater_bed?.target);
+            this.heaterBedTargetTemperature.set(notification.params[0].heater_bed?.target);
+          }
+          if (notification.params[0].extruder?.temperature != undefined) {
             // console.log('extruder.temperature', notification.params[0].extruder?.temperature);
-            this.extruderTemperature.set(notification.params[0].extruder?.temperature);
+            this.extruderCurrentTemperature.set(notification.params[0].extruder?.temperature);
           }
-          if (notification.params[0].toolhead?.position) {
+          if (notification.params[0].extruder?.target != undefined) {
+            // console.log('extruder.temperature', notification.params[0].extruder?.target);
+            this.extruderTargetTemperature.set(notification.params[0].extruder?.target);
+          }
+          if (notification.params[0].toolhead?.position != undefined) {
             // console.log('toolhead.position', notification.params[0].toolhead?.position);
             this.toolheadPosition.set(notification.params[0].toolhead?.position);
           }
-          if (notification.params[0].gcode_move?.homing_origin) {
+          if (notification.params[0].toolhead?.homed_axes != undefined) {
+            // console.log('toolhead.homed_axes', notification.params[0].toolhead?.homed_axes);
+            this.homedAxes.set(notification.params[0].toolhead?.homed_axes);
+          }
+          if (notification.params[0].gcode_move?.homing_origin != undefined) {
             // console.log('gcode_move.homing_origin', notification.params[0].gcode_move?.homing_origin);
             this.gcodeZOffset.set(notification.params[0].gcode_move?.homing_origin[2]);
           }

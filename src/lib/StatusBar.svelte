@@ -3,8 +3,8 @@
   import '../app.css';
   import { moonraker } from './base.svelte';
 
-  let extruderTemp = moonraker.extruderTemperature;
-  let heaterBedTemp = moonraker.heaterBedTemperature;
+  let extruderTemp = moonraker.extruderCurrentTemperature;
+  let heaterBedTemp = moonraker.heaterBedCurrentTemperature;
   let printProgress = writable(42);
   let eta = writable('20:11');
 </script>
