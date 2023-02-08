@@ -97,10 +97,10 @@
   }
 </script>
 
-<div class="flex flex-row bg-neutral-700 p-2">
+<div class="flex flex-row bg-neutral-800 p-2">
   <div class="flex flex-col justify-start gap-1 ">
     <button class="btn-touch  flex flex-col bg-red-600" on:click={() => goto('/')}> <Fa icon={faList} /></button>
-    <button class="btn-touch  flex flex-col bg-red-600" on:click={() => goto('/parameter/babysteps')}>BS</button>
+    <button class="btn-touch  flex flex-col bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <button class="btn-touch  flex flex-col bg-blue-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
