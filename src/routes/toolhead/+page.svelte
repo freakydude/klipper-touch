@@ -112,11 +112,11 @@
   }
 </script>
 
-<div class="flex flex-row bg-neutral-800 p-2">
+<div class="flex flex-row gap-1 bg-neutral-800 p-1">
   <div class="flex flex-col justify-start gap-1 ">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
-    <button class="btn-touch bg-blue-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex grow flex-col flex-wrap justify-around">
@@ -156,15 +156,13 @@
           </div>
           <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
             <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, distance)}
-              >Z<Fa icon={faArrowUp} /></button
-            >
-            <button class="btn-touch  col-start-1 row-start-2 gap-1 " disabled={!isHomedXY} on:click={homeZ}>
+              >Z<Fa icon={faArrowUp} /></button>
+            <button class="btn-touch  col-start-1 row-start-2 " disabled={!isHomedXY} on:click={homeZ}>
               <Fa icon={faHome} />
               <p>Z</p>
             </button>
             <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, -distance)}
-              >Z<Fa icon={faArrowDown} /></button
-            >
+              >Z<Fa icon={faArrowDown} /></button>
           </div>
         </div>
       </div>
