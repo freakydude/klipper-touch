@@ -59,15 +59,16 @@
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/parameter')}>PA</button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/toolhead')}>TH</button>
-    <button class="btn-touch flex flex-col bg-blue-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch flex flex-col bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex grow flex-col">
     <div class="flex grow flex-wrap content-center items-center justify-around  rounded">
       <div class="flex flex-row flex-wrap items-center gap-4">
         <div class="flex flex-col rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
-            <p class="label">Z-Offset {$zOffset.toFixed(3)} mm</p>
+          <div class="flex flex-col flex-wrap items-stretch">
+            <p class="label-head">Z-Offset</p>
+            <p class="label">Current: {$zOffset.toFixed(3)} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-2 gap-1 p-1">
             <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowUp} /></button>
@@ -77,8 +78,9 @@
           </div>
         </div>
         <div class="flex flex-col rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
-            <p class="label">Step {distance.toFixed(3)} mm</p>
+          <div class="flex flex-col flex-wrap items-stretch">
+            <p class="label-head">Step</p>
+            <p class="label">Current: {distance.toFixed(3)} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1 ">
             <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>

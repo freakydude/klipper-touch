@@ -120,14 +120,16 @@
   </div>
 
   <div class="flex grow flex-col flex-wrap justify-around">
-    <div class="flex flex-wrap content-center items-center justify-around  rounded">
-      <div class="flex flex-col">
-        <div class="flex flex-row flex-wrap justify-around rounded bg-red-600">
-          <p class="label">X {$toolheadPosition[0].toFixed(1)}</p>
-          <p class="label">Y {$toolheadPosition[1].toFixed(1)}</p>
-          <p class="label">Z {$toolheadPosition[2].toFixed(1)}</p>
+    <div class="flex flex-wrap content-center items-center justify-around  ">
+      <div class="flex flex-col rounded bg-neutral-600">
+        <div class="label-head flex flex-row flex-wrap justify-around">
+          <p>Position</p>
+
+          <p>X {$toolheadPosition[0].toFixed(1)}</p>
+          <p>Y {$toolheadPosition[1].toFixed(1)}</p>
+          <p>Z {$toolheadPosition[2].toFixed(1)}</p>
         </div>
-        <div class="flex content-center items-center justify-center gap-2 rounded bg-neutral-600 p-1">
+        <div class="flex content-center items-center justify-center gap-2  p-1">
           <div class="grid grid-cols-3 grid-rows-3 gap-1">
             <button class="btn-touch col-start-1 row-start-1" on:click={homeXYZ}>
               <Fa icon={faHome} />
@@ -168,9 +170,9 @@
       </div>
       <div class="flex flex-col items-center gap-2">
         <div class="flex flex-col rounded bg-neutral-600 ">
-          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
-            <p class="label">Extrude</p>
-            <p class="label">Current {$nozzleTemp.toFixed(0)} °C</p>
+          <div class="flex flex-col flex-wrap items-stretch ">
+            <p class="label-head">Extrude/Retract</p>
+            <p class="label">Current: {$nozzleTemp.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
             <button class="btn-touch  col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
@@ -178,8 +180,9 @@
           </div>
         </div>
         <div class="flex flex-col rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-center rounded bg-red-600">
-            <p class="label">Distance {distance} mm</p>
+          <div class="items-stetch flex flex-col flex-wrap ">
+            <p class="label-head">Distance</p>
+            <p class="label">Current: {distance} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
             <button class="btn-touch  col-start-1 row-start-1 " on:click={decreaseDistance}><Fa icon={faMinus} /></button>

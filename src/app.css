@@ -9,6 +9,10 @@
   }
 
   .label {
-    @apply py-1 px-2 text-white;
+    @apply py-1 px-2 text-center text-white;
+  }
+
+  .label-head {
+    @apply label rounded bg-red-600 text-center;
   }
 }
