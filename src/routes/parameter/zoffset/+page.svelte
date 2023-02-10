@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="flex flex-row bg-neutral-800 p-1 gap-1">
+<div class="flex flex-row gap-1 bg-neutral-800 p-1">
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/parameter')}>PA</button>

@@ -156,13 +156,15 @@
           </div>
           <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
             <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, distance)}
-              >Z<Fa icon={faArrowUp} /></button>
+              >Z<Fa icon={faArrowUp} /></button
+            >
             <button class="btn-touch  col-start-1 row-start-2 " disabled={!isHomedXY} on:click={homeZ}>
               <Fa icon={faHome} />
               <p>Z</p>
             </button>
             <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, -distance)}
-              >Z<Fa icon={faArrowDown} /></button>
+              >Z<Fa icon={faArrowDown} /></button
+            >
           </div>
         </div>
       </div>
