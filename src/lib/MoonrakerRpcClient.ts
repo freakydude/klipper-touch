@@ -91,8 +91,8 @@ export class MoonrakerRpcClient extends EventTarget {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
-    this._jsonRpcClient.addEventListener('isConnected', (event: Event) => {
-      if ((event as CustomEvent<boolean>).detail == false) {
+    this._jsonRpcClient.isConnected.subscribe((value) => {
+      if (value == false) {
         this.reconnect();
         this._isReady.set(false);
       }

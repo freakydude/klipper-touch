@@ -1,3 +1,5 @@
+import { writable } from 'svelte/store';
+
 export interface IJsonRpcRequest {
   jsonrpc?: string;
   method: string;
@@ -120,27 +122,13 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
 export class JsonRpcClient extends EventTarget {
   private _ws?: WebSocket;
   private _url;
-  private _isConnected = false;
-  requestTimeout = 30 * 1000;
+  private requestTimeout = 30 * 1000;
+
+  public isConnected = writable(false);
 
   public constructor(url: string | URL) {
     super();
     this._url = url;
-  }
-
-  public get isConnected(): boolean {
-    return this._isConnected;
-  }
-
-  public set isConnected(newValue: boolean) {
-    if (newValue != this._isConnected) {
-      this.dispatchEvent(
-        new CustomEvent<boolean>('isConnected', {
-          detail: newValue
-        })
-      );
-      this._isConnected = newValue;
-    }
   }
 
   public connect(): Promise<boolean> {
@@ -150,22 +138,22 @@ export class JsonRpcClient extends EventTarget {
       }
 
       try {
-        this.isConnected = false;
+        this.isConnected.set(false);
         this._ws = new WebSocket(this._url);
 
         this._ws.onopen = (event: Event) => {
           console.log('Websocket opened ', event);
-          this.isConnected = true;
+          this.isConnected.set(true);
           resolve(true);
         };
 
         this._ws.onclose = (event: CloseEvent) => {
-          this.isConnected = false;
+          this.isConnected.set(false);
           console.log('Websocket closed ', event);
         };
 
         this._ws.onerror = (event: Event) => {
-          this.isConnected = false;
+          this.isConnected.set(false);
           console.log('Websocket error ', event);
         };
 
