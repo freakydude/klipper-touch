@@ -118,7 +118,7 @@ export class JsonRpcErrorResponse implements IJsonRpcErrorResponse {
 }
 
 export class JsonRpcClient extends EventTarget {
-  private _isConnected: boolean = false;
+  private _isConnected = false;
   private _ws?: WebSocket;
   private _readyStateOpen = 1;
   private _url;
@@ -147,7 +147,7 @@ export class JsonRpcClient extends EventTarget {
     this._ws = new WebSocket(this._url);
     this.isConnected = false;
 
-    let result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
+    const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       this._ws!.onopen = (event: Event) => {
         console.log('connect ws.onopen', event);
         this.isConnected = true;
@@ -201,7 +201,7 @@ export class JsonRpcClient extends EventTarget {
   }
 
   public async disconnect(): Promise<boolean> {
-    let result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
+    const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       if (this.isConnected) {
         this._ws!.close();
         resolve(true);
@@ -225,14 +225,14 @@ export class JsonRpcClient extends EventTarget {
       console.log('sendRequest ws.readyState', request);
 
       promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
-        let timeout = setTimeout(() => {
+        const timeout = setTimeout(() => {
           this._ws!.removeEventListener('message', parser);
 
           console.log('sendRequest - timeout');
           reject('sendRequest - timeout');
         }, 30 * 1000);
 
-        let parser = (event: MessageEvent) => {
+        const parser = (event: MessageEvent) => {
           const response: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
 
           if (request.id == response.id) {
@@ -268,14 +268,14 @@ export class JsonRpcClient extends EventTarget {
       console.log('sendBatchRequest ws.readyState: open', requests);
 
       promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
-        let timeout = setTimeout(() => {
+        const timeout = setTimeout(() => {
           this._ws!.removeEventListener('message', parser);
 
           console.log('sendBatchRequest - timeout');
           reject('sendBatchRequest - timeout');
         }, 30 * 1000);
 
-        let parser = (event: MessageEvent) => {
+        const parser = (event: MessageEvent) => {
           const responses: IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[] = JSON.parse(event.data);
 
           // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
@@ -283,7 +283,7 @@ export class JsonRpcClient extends EventTarget {
             console.log('BatchResponses', responses);
 
             // TODO result could have another order than requests.
-            let responsesWithId: IJsonRpcResponse[] = new Array<IJsonRpcResponse>();
+            const responsesWithId: IJsonRpcResponse[] = new Array<IJsonRpcResponse>();
 
             for (const element of responses) {
               if (element.id) [responsesWithId.push(element)];
