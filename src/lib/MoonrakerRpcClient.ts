@@ -1,18 +1,12 @@
 import { JsonRpcClient, JsonRpcRequest, type IJsonRpcErrorResponse, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
 import { writable, type Readable } from 'svelte/store';
 
-export enum KlippyState {
-  Ready,
-  Error,
-  Shutdown,
-  Startup,
-  Disconnected
-}
+export type KlippyState = 'ready' | 'error' | 'shutdown' | 'startup' | 'disconnected';
 
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
   _isConnected = writable(false);
-  _klippyState = writable(KlippyState.Startup);
+  _klippyState = writable<KlippyState>('disconnected');
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -53,6 +47,19 @@ export class MoonrakerRpcClient extends EventTarget {
       successful = await this._jsonRpcClient.connect();
     } catch (error) {
       console.log(error);
+    }
+
+    if (successful) {
+      let serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
+
+      try {
+        let response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
+
+        let state: KlippyState = response.result.klippy_state;
+        this._klippyState.set(state);
+      } catch (error) {
+        console.log(error);
+      }
     }
 
     return successful;
@@ -129,19 +136,19 @@ export class MoonrakerRpcClient extends EventTarget {
         }
         break;
       case 'notify_klippy_ready':
-        this._klippyState.set(KlippyState.Ready);
+        this._klippyState.set('ready');
         break;
       case 'notify_klippy_disconnected':
-        this._klippyState.set(KlippyState.Disconnected);
+        this._klippyState.set('disconnected');
         break;
       case 'notify_klippy_error':
-        this._klippyState.set(KlippyState.Error);
+        this._klippyState.set('error');
         break;
       case 'notify_klippy_startup':
-        this._klippyState.set(KlippyState.Startup);
+        this._klippyState.set('startup');
         break;
       case 'notify_klippy_shutdown':
-        this._klippyState.set(KlippyState.Shutdown);
+        this._klippyState.set('shutdown');
         break;
       case 'notify_proc_stat_update':
         // TODO parse process stats

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { KlippyState } from './../../lib/MoonrakerRpcClient.ts';
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
@@ -10,7 +9,6 @@
   let bedTemp = moonraker.heaterBedCurrentTemperature;
   let nozzleTarget = moonraker.extruderTargetTemperature;
   let bedTarget = moonraker.heaterBedTargetTemperature;
-
   let klippyState = moonraker.klippyState;
 
   async function emergencyStop() {
@@ -58,7 +56,7 @@
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch">
             <p class="label-head">Klipper</p>
-            <p class="label">State: {KlippyState[$klippyState]}</p>
+            <p class="label">State: {$klippyState}</p>
           </div>
         </div>
       </div>
