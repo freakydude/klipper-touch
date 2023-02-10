@@ -3,19 +3,7 @@
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import Fa from 'svelte-fa/src/fa.svelte';
-  import {
-    faArrowDown,
-    faArrowLeft,
-    faArrowRight,
-    faArrowsUpDown,
-    faArrowsUpDownLeftRight,
-    faArrowUp,
-    faHome,
-    faList,
-    faMinus,
-    faPlus,
-    faSkull
-  } from '@fortawesome/free-solid-svg-icons';
+  import { faArrowDown, faArrowLeft, faArrowRight, faArrowUp, faHome, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
 
   let extruderSpeed = 5;
   let moveSpeed = 50;
@@ -124,7 +112,6 @@
       <div class="flex flex-col rounded bg-neutral-600">
         <div class="label-head flex flex-row flex-wrap justify-around">
           <p>Position</p>
-
           <p>X {$toolheadPosition[0].toFixed(1)}</p>
           <p>Y {$toolheadPosition[1].toFixed(1)}</p>
           <p>Z {$toolheadPosition[2].toFixed(1)}</p>

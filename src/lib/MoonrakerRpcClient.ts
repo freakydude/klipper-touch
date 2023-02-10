@@ -1,10 +1,18 @@
 import { JsonRpcClient, JsonRpcRequest, type IJsonRpcErrorResponse, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
 import { writable, type Readable } from 'svelte/store';
 
+export enum KlippyState {
+  Ready,
+  Error,
+  Shutdown,
+  Startup,
+  Disconnected
+}
+
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
-  _isReady = writable(false);
-  _isConnecting = false;
+  _isConnected = writable(false);
+  _klippyState = writable(KlippyState.Startup);
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -13,22 +21,24 @@ export class MoonrakerRpcClient extends EventTarget {
     this.attachToEvents();
   }
 
-  public get isReady(): Readable<boolean> {
-    return this._isReady as Readable<boolean>;
+  public get isConnected(): Readable<boolean> {
+    return this._isConnected as Readable<boolean>;
+  }
+
+  public get klippyState(): Readable<KlippyState> {
+    return this._klippyState as Readable<KlippyState>;
   }
 
   public async requestIdentifyConnection(): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
-    const identifyConnectionRequest: JsonRpcRequest = {
-      jsonrpc: '2.0',
+    const identifyConnectionRequest = new JsonRpcRequest({
       method: 'server.connection.identify',
       params: {
         client_name: 'klipper-touch',
         version: '0.0.1',
         type: 'display',
         url: 'https://github.com/freakydude/klipper-touch'
-      },
-      id: JsonRpcClient.generateConnectionId()
-    };
+      }
+    });
 
     const result = await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
     // console.log('requestIdentifyConnection - isConnected', result);
@@ -36,54 +46,28 @@ export class MoonrakerRpcClient extends EventTarget {
     return result;
   }
 
-  public async connect() {
-    this._isConnecting = true;
-    while (this._isConnecting) {
-      this._isReady.set(false);
-      try {
-        if (await this._jsonRpcClient.connect()) {
-          let klippyState = '';
-          while (true) {
-            const serverInfoRequest = new JsonRpcRequest({ method: 'server.info', id: JsonRpcClient.generateConnectionId() });
+  public async connect(): Promise<boolean> {
+    let successful = false;
 
-            try {
-              const serverInfoResponse = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
-              klippyState = serverInfoResponse.result.klippy_state;
-              console.log('klippy_state: ', klippyState);
-
-              if (klippyState == 'ready') {
-                this._isConnecting = false;
-                break;
-              } else {
-                await this.sleep(1000 * 5);
-              }
-            } catch (error) {
-              console.log('MoonrakerRpcClient connect error: ', error);
-            }
-          }
-          if (klippyState == 'ready') {
-            this._isReady.set(true);
-
-            break;
-          }
-        }
-      } catch (error) {
-        console.log('MoonrakerRpcClient connect error: ', error);
-      }
-      await this.sleep(1000 * 5);
+    try {
+      successful = await this._jsonRpcClient.connect();
+    } catch (error) {
+      console.log(error);
     }
 
-    this._isReady.set(true);
+    return successful;
   }
 
-  public async disconnect() {
-    this._isConnecting = false;
+  public async disconnect(): Promise<boolean> {
+    let successful = false;
+
     try {
-      await this._jsonRpcClient.disconnect();
+      successful = await this._jsonRpcClient.disconnect();
     } catch (error) {
-      console.log('MoonrakerRpcClient disconnect error: ', error);
+      console.log(error);
     }
-    this._isReady.set(false);
+
+    return successful;
   }
 
   protected attachToEvents() {
@@ -92,17 +76,8 @@ export class MoonrakerRpcClient extends EventTarget {
     });
 
     this._jsonRpcClient.isConnected.subscribe((value) => {
-      if (value == false) {
-        this.reconnect();
-        this._isReady.set(false);
-      }
+      this._isConnected.set(value);
     });
-  }
-
-  protected async reconnect(): Promise<void> {
-    if (this._isConnecting == false) {
-      await this.connect();
-    }
   }
 
   private sleep(ms: number) {
@@ -119,60 +94,60 @@ export class MoonrakerRpcClient extends EventTarget {
 
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     const notification = event.detail;
-
-    // console.log('parseNotification: ', notification.method);
-
     switch (notification.method) {
-      case 'notify_klippy_ready':
-        this._isReady.set(true);
-        break;
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
           if (notification.params[0].heater_bed?.temperature != undefined) {
-            // console.log('heater_bed.temperature', notification.params[0].heater_bed?.temperature);
+            // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.temperature);
             this.heaterBedCurrentTemperature.set(notification.params[0].heater_bed?.temperature);
           }
           if (notification.params[0].heater_bed?.target != undefined) {
-            // console.log('heater_bed.temperature', notification.params[0].heater_bed?.target);
+            // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.target);
             this.heaterBedTargetTemperature.set(notification.params[0].heater_bed?.target);
           }
           if (notification.params[0].extruder?.temperature != undefined) {
-            // console.log('extruder.temperature', notification.params[0].extruder?.temperature);
+            // console.log('extruder.temperature: ', notification.params[0].extruder?.temperature);
             this.extruderCurrentTemperature.set(notification.params[0].extruder?.temperature);
           }
           if (notification.params[0].extruder?.target != undefined) {
-            // console.log('extruder.temperature', notification.params[0].extruder?.target);
+            // console.log('extruder.temperature: ', notification.params[0].extruder?.target);
             this.extruderTargetTemperature.set(notification.params[0].extruder?.target);
           }
           if (notification.params[0].toolhead?.position != undefined) {
-            // console.log('toolhead.position', notification.params[0].toolhead?.position);
+            // console.log('toolhead.position: ', notification.params[0].toolhead?.position);
             this.toolheadPosition.set(notification.params[0].toolhead?.position);
           }
           if (notification.params[0].toolhead?.homed_axes != undefined) {
-            // console.log('toolhead.homed_axes', notification.params[0].toolhead?.homed_axes);
+            // console.log('toolhead.homed_axes: ', notification.params[0].toolhead?.homed_axes);
             this.homedAxes.set(notification.params[0].toolhead?.homed_axes);
           }
           if (notification.params[0].gcode_move?.homing_origin != undefined) {
-            // console.log('gcode_move.homing_origin', notification.params[0].gcode_move?.homing_origin);
+            // console.log('gcode_move.homing_origin: ', notification.params[0].gcode_move?.homing_origin);
             this.gcodeZOffset.set(notification.params[0].gcode_move?.homing_origin[2]);
           }
         }
         break;
-      case 'notify_klippy_disconnected ':
-        console.log('notify_klippy_disconnected: ');
-
-        try {
-          await this.disconnect();
-        } catch (error) {
-          console.log(error);
-        }
-        try {
-          await this.connect();
-        } catch (error) {
-          console.log(error);
-        }
-
+      case 'notify_klippy_ready':
+        this._klippyState.set(KlippyState.Ready);
+        break;
+      case 'notify_klippy_disconnected':
+        this._klippyState.set(KlippyState.Disconnected);
+        break;
+      case 'notify_klippy_error':
+        this._klippyState.set(KlippyState.Error);
+        break;
+      case 'notify_klippy_startup':
+        this._klippyState.set(KlippyState.Startup);
+        break;
+      case 'notify_klippy_shutdown':
+        this._klippyState.set(KlippyState.Shutdown);
+        break;
+      case 'notify_proc_stat_update':
+        // TODO parse process stats
+        break;
+      default:
+        console.log('Unknown notification: ', notification);
         break;
     }
   }

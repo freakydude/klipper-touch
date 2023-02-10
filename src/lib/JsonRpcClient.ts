@@ -187,6 +187,7 @@ export class JsonRpcClient extends EventTarget {
           }
         };
       } catch (error) {
+        console.log(error);
         reject('Websocket could not be initialized: ${error}');
       }
     });
@@ -200,6 +201,7 @@ export class JsonRpcClient extends EventTarget {
         if (this._ws != undefined) {
           this._ws!.close();
           this._ws = undefined;
+          this.isConnected.set(false);
         }
 
         resolve(true);
