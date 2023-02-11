@@ -10,6 +10,7 @@
   let nozzleTarget = moonraker.extruderTargetTemperature;
   let bedTarget = moonraker.heaterBedTargetTemperature;
   let klippyState = moonraker.klippyState;
+  // let klippyStateMessage = moonraker.klippyStateMessage;
 
   async function emergencyStop() {
     let stopRequest = new JsonRpcRequest({
@@ -57,6 +58,7 @@
           <div class="flex flex-col flex-wrap items-stretch">
             <p class="label-head">Klipper</p>
             <p class="label">State: {$klippyState}</p>
+            <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
           </div>
         </div>
       </div>

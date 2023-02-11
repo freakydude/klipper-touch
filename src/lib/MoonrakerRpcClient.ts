@@ -6,7 +6,6 @@ export type KlippyState = 'ready' | 'error' | 'shutdown' | 'startup' | 'disconne
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
   _isConnected = writable(false);
-  _klippyState = writable<KlippyState>('disconnected');
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -17,10 +16,6 @@ export class MoonrakerRpcClient extends EventTarget {
 
   public get isConnected(): Readable<boolean> {
     return this._isConnected as Readable<boolean>;
-  }
-
-  public get klippyState(): Readable<KlippyState> {
-    return this._klippyState as Readable<KlippyState>;
   }
 
   public async requestIdentifyConnection(): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
@@ -56,7 +51,7 @@ export class MoonrakerRpcClient extends EventTarget {
         let response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
 
         let state: KlippyState = response.result.klippy_state;
-        this._klippyState.set(state);
+        this.klippyState.set(state);
       } catch (error) {
         console.log(error);
       }
@@ -91,6 +86,8 @@ export class MoonrakerRpcClient extends EventTarget {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  public klippyState = writable<KlippyState>('disconnected');
+  // public klippyStateMessage = writable<string>('');
   public heaterBedTargetTemperature = writable(0.0);
   public heaterBedCurrentTemperature = writable(0.0);
   public extruderCurrentTemperature = writable(0.0);
@@ -105,6 +102,14 @@ export class MoonrakerRpcClient extends EventTarget {
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
+          // if (notification.params[0].webhooks?.state != undefined) {
+          //   console.log('webhooks.state: ', notification.params[0].webhooks?.state);
+          //   this.klippyState.set(notification.params[0].webhooks?.state);
+          // }
+          // if (notification.params[0].webhooks?.state_message != undefined) {
+          //   console.log('webhooks.state_message: ', notification.params[0].webhooks?.state_message);
+          //   this.klippyStateMessage.set(notification.params[0].webhooks?.state_message);
+          // }
           if (notification.params[0].heater_bed?.temperature != undefined) {
             // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.temperature);
             this.heaterBedCurrentTemperature.set(notification.params[0].heater_bed?.temperature);
@@ -136,19 +141,19 @@ export class MoonrakerRpcClient extends EventTarget {
         }
         break;
       case 'notify_klippy_ready':
-        this._klippyState.set('ready');
+        this.klippyState.set('ready');
         break;
       case 'notify_klippy_disconnected':
-        this._klippyState.set('disconnected');
+        this.klippyState.set('disconnected');
         break;
       case 'notify_klippy_error':
-        this._klippyState.set('error');
+        this.klippyState.set('error');
         break;
       case 'notify_klippy_startup':
-        this._klippyState.set('startup');
+        this.klippyState.set('startup');
         break;
       case 'notify_klippy_shutdown':
-        this._klippyState.set('shutdown');
+        this.klippyState.set('shutdown');
         break;
       case 'notify_proc_stat_update':
         // TODO parse process stats
