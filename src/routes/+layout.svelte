@@ -36,10 +36,17 @@
     isFull = true;
   }
 
+  function switchFullscreen() {
+    if (fullscreenSupport()) {
+      if (!isFull) {
+        requestFullscreen();
+      } else {
+        exitFullscreen();
+      }
+    }
+  }
+
   async function connectToMoonraker() {
-    // if (fullscreenSupport()) {
-    //   requestFullscreen();
-    // }
     await moonraker.disconnect();
     await moonraker.connect();
 
@@ -48,11 +55,13 @@
         method: 'printer.objects.subscribe',
         params: {
           objects: {
-            // webhooks: ['state', 'state_message'],
             heater_bed: ['temperature', 'target'],
             extruder: ['temperature', 'target'],
             toolhead: ['position', 'homed_axes'],
-            gcode_move: ['homing_origin']
+            fan: ['speed'],
+            gcode_move: ['homing_origin'],
+            print_stats: ['filename', 'state', 'message'],
+            virtual_sdcard: ['progress']
           }
         }
       });
@@ -62,8 +71,7 @@
   }
 </script>
 
-<div class="grid h-screen w-screen">
-  <!-- bind:this={fsContainer}> -->
+<div class="grid h-screen w-screen" bind:this={fsContainer}>
   {#if $isConnected && $klippyState == 'ready'}
     <slot />
   {:else}
@@ -74,6 +82,7 @@
           <p class="label">State: {$klippyState}</p>
           <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
           <button class="btn-touch " on:click={async () => connectToMoonraker()}>Connect</button>
+          <button class="btn-touch " on:click={() => switchFullscreen()}>Fullscreen</button>
         </div>
       </div>
       <div class="flex flex-col flex-wrap items-center justify-center gap-2">

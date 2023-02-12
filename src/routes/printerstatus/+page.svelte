@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import { faList, faSkull } from '@fortawesome/free-solid-svg-icons';
+  import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa/src/fa.svelte';
 
   let nozzleTemp = moonraker.extruderCurrentTemperature;
@@ -10,14 +10,42 @@
   let nozzleTarget = moonraker.extruderTargetTemperature;
   let bedTarget = moonraker.heaterBedTargetTemperature;
   let klippyState = moonraker.klippyState;
+  let fanSpeed = moonraker.fanSpeed;
+  let progress = moonraker.printStateProgress;
+  let printState = moonraker.printState;
+  let printFilename = moonraker.printStateFilename;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
   async function emergencyStop() {
-    let stopRequest = new JsonRpcRequest({
+    let emergencyStopRequest = new JsonRpcRequest({
       method: 'printer.emergency_stop',
       params: {}
     });
-    await client.sendRequest(stopRequest);
+    await client.sendRequest(emergencyStopRequest);
+  }
+
+  async function resumePrint() {
+    let resumeRequest = new JsonRpcRequest({
+      method: 'printer.print.resume',
+      params: {}
+    });
+    await client.sendRequest(resumeRequest);
+  }
+
+  async function pausePrint() {
+    let pauseRequest = new JsonRpcRequest({
+      method: 'printer.print.pause',
+      params: {}
+    });
+    await client.sendRequest(pauseRequest);
+  }
+
+  async function cancelPrint() {
+    let cancelRequest = new JsonRpcRequest({
+      method: 'printer.print.cancel',
+      params: {}
+    });
+    await client.sendRequest(cancelRequest);
   }
 </script>
 
@@ -32,26 +60,37 @@
       <div class="flex flex-row flex-wrap items-center gap-4">
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch ">
-            <p class="label-head">Temperatures</p>
-
+            <p class="label-head">Status</p>
             <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
             <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
+            <p class="label">Fan: {($fanSpeed * 100).toFixed(0)} %</p>
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch ">
-            <p class="label-head">Fans</p>
-            <p class="label">Nozzle: 100%</p>
-            <p class="label">Extruder: 66%</p>
-            <p class="label">Case: 100%</p>
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Progress</p>
-            <p class="label">ETA: 20:15</p>
-            <p class="label">Layer: 20/4242</p>
-            <p class="label">Printtime: 240min</p>
+            <p class="label-head ">Print</p>
+            {#if $printState != ('paused' || 'printing')}
+              <p class="label">State: {$printState}</p>
+            {:else}
+              <p class="label">File: {$printFilename}</p>
+              <p class="label">Progress: {($progress * 100).toFixed(0)} %</p>
+              <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
+                {#if $printState == 'paused'}
+                  <button class="btn-touch col-start-1" on:click={resumePrint}>
+                    <Fa icon={faPlay} />
+                  </button>
+                {:else if $printState == 'printing'}
+                  <button class="btn-touch col-start-1" on:click={pausePrint}>
+                    <Fa icon={faPause} />
+                  </button>
+                {/if}
+                {#if $printState == ('paused' || 'printing')}
+                  <button class="btn-touch col-start-2" on:click={cancelPrint}>
+                    <Fa icon={faStop} />
+                  </button>
+                {/if}
+              </div>
+            {/if}
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">

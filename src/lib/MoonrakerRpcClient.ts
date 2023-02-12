@@ -2,6 +2,7 @@ import { JsonRpcClient, JsonRpcRequest, type IJsonRpcErrorResponse, type IJsonRp
 import { writable, type Readable } from 'svelte/store';
 
 export type KlippyState = 'ready' | 'error' | 'shutdown' | 'startup' | 'disconnected';
+export type PrintState = 'standby' | 'printing' | 'paused' | 'complete' | 'cancelled' | 'error';
 
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
@@ -45,12 +46,12 @@ export class MoonrakerRpcClient extends EventTarget {
     }
 
     if (successful) {
-      let serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
+      const serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
 
       try {
-        let response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
+        const response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
 
-        let state: KlippyState = response.result.klippy_state;
+        const state: KlippyState = response.result.klippy_state;
         this.klippyState.set(state);
       } catch (error) {
         console.log(error);
@@ -94,7 +95,12 @@ export class MoonrakerRpcClient extends EventTarget {
   public extruderTargetTemperature = writable(0.0);
   public toolheadPosition = writable([0, 0, 0, 0]);
   public gcodeZOffset = writable(0.0);
+  public fanSpeed = writable(0.0);
   public homedAxes = writable('');
+  public printState = writable<PrintState>('standby');
+  public printStateErrorMessage = writable('');
+  public printStateFilename = writable('');
+  public printStateProgress = writable(0.0);
 
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     const notification = event.detail;
@@ -102,14 +108,6 @@ export class MoonrakerRpcClient extends EventTarget {
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
-          // if (notification.params[0].webhooks?.state != undefined) {
-          //   console.log('webhooks.state: ', notification.params[0].webhooks?.state);
-          //   this.klippyState.set(notification.params[0].webhooks?.state);
-          // }
-          // if (notification.params[0].webhooks?.state_message != undefined) {
-          //   console.log('webhooks.state_message: ', notification.params[0].webhooks?.state_message);
-          //   this.klippyStateMessage.set(notification.params[0].webhooks?.state_message);
-          // }
           if (notification.params[0].heater_bed?.temperature != undefined) {
             // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.temperature);
             this.heaterBedCurrentTemperature.set(notification.params[0].heater_bed?.temperature);
@@ -137,6 +135,26 @@ export class MoonrakerRpcClient extends EventTarget {
           if (notification.params[0].gcode_move?.homing_origin != undefined) {
             // console.log('gcode_move.homing_origin: ', notification.params[0].gcode_move?.homing_origin);
             this.gcodeZOffset.set(notification.params[0].gcode_move?.homing_origin[2]);
+          }
+          if (notification.params[0].fan?.speed != undefined) {
+            // console.log('fan.speed: ', notification.params[0].fan?.speed);
+            this.fanSpeed.set(notification.params[0].fan?.speed);
+          }
+          if (notification.params[0].print_stats?.filename != undefined) {
+            // console.log('print_stats.filename: ', notification.params[0].print_stats?.filename);
+            this.printStateFilename.set(notification.params[0].print_stats?.filename);
+          }
+          if (notification.params[0].print_stats?.state != undefined) {
+            // console.log('print_stats.state: ', notification.params[0].print_stats?.state);
+            this.printState.set(notification.params[0].print_stats?.state);
+          }
+          if (notification.params[0].print_stats?.message != undefined) {
+            // console.log('print_stats.message: ', notification.params[0].print_stats?.message);
+            this.printStateErrorMessage.set(notification.params[0].print_stats?.message);
+          }
+          if (notification.params[0].virtual_sdcard?.progress != undefined) {
+            // console.log('virtual_sdcard.progress: ', notification.params[0].virtual_sdcard?.progress);
+            this.printStateProgress.set(notification.params[0].virtual_sdcard?.progress);
           }
         }
         break;
