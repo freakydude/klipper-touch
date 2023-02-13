@@ -4,23 +4,15 @@
 @tailwind variants;
 
 @layer components {
-  .btn-primary {
-    @apply rounded bg-neutral-600 py-2 px-4 font-semibold text-sky-600 shadow-md hover:bg-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-opacity-75;
-  }
-
-  .btn-default {
-    @apply rounded bg-neutral-600 py-2 px-4 font-semibold text-gray-200 shadow-md hover:bg-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-opacity-75;
-  }
-
   .btn-touch {
-    @apply h-24 w-32 place-items-center rounded bg-neutral-600 py-2 px-4 text-center text-2xl font-semibold text-gray-200 shadow-md hover:bg-neutral-400  focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75;
-  }
-
-  .selected {
-    @apply font-bold text-red-400 ring-2 ring-red-900;
+    @apply flex flex-col place-items-center justify-center  rounded bg-neutral-500 py-6 px-6 text-center  text-white shadow-md disabled:opacity-50;
   }
 
   .label {
-    @apply py-2 px-2 text-center text-2xl text-gray-200;
+    @apply py-1 px-2 text-center text-white;
+  }
+
+  .label-head {
+    @apply label rounded bg-red-600 text-center;
   }
 }

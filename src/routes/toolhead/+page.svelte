@@ -2,19 +2,60 @@
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import Fa from 'svelte-fa/src/fa.svelte';
+  import { faArrowDown, faArrowLeft, faArrowRight, faArrowUp, faHome, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
 
-  let distance = 10;
   let extruderSpeed = 5;
   let moveSpeed = 50;
 
   let toolheadPosition = moonraker.toolheadPosition;
-  let nozzleTemp = moonraker.extruderTemperature;
+  let nozzleTemp = moonraker.extruderCurrentTemperature;
 
-  async function home() {
+  let stepsArrIdx = 6;
+  let stepsArr = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
+
+  let distance = stepsArr[stepsArrIdx];
+  let isHomedXY = false;
+  let isHomedZ = false;
+
+  moonraker.homedAxes.subscribe((value) => {
+    if (value.includes('xy')) {
+      isHomedXY = true;
+    } else {
+      isHomedXY = false;
+    }
+    if (value.includes('z')) {
+      isHomedZ = true;
+    } else {
+      isHomedZ = false;
+    }
+  });
+
+  async function homeXY() {
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'G28' // Home all untrusted axes
+        script: 'G28 X Y' // Home XY axies
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
+
+  async function homeXYZ() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28' // Home XY axies
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
+
+  async function homeZ() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28 Z' // Home Z axies
       }
     });
     await client.sendRequest(homeRequest);
@@ -30,6 +71,14 @@
     await client.sendRequest(homeRequest);
   }
 
+  async function emergencyStop() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.emergency_stop',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
   async function extrudeRelative(e: number = 0) {
     let homeRequest = new JsonRpcRequest({
       method: 'printer.gcode.script',
@@ -39,99 +88,95 @@
     });
     await client.sendRequest(homeRequest);
   }
+
+  function increaseDistance() {
+    stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
+    distance = stepsArr[stepsArrIdx];
+  }
+
+  function decreaseDistance() {
+    stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
+    distance = stepsArr[stepsArrIdx];
+  }
 </script>
 
-<div class="flex grow flex-wrap items-center justify-evenly gap-2 bg-neutral-800">
-  <div class="flex flex-col flex-wrap gap-1 gap-y-8 ">
-    <button class="btn-touch bg-red-900" on:click={() => goto('/')}>Menu</button>
-    <button class="btn-touch" on:click={home}>Home XYZ</button>
-  </div>
-  <div class="flex flex-col flex-wrap gap-1 bg-red-900">
-    <button class="btn-touch" on:click={async () => moveRelative(distance, 0, 0)}>X +</button>
-    <p class="label">{$toolheadPosition[0].toFixed(0)}</p>
-    <button class="btn-touch" on:click={async () => moveRelative(-distance, 0, 0)}>X -</button>
-  </div>
-  <div class="flex flex-col flex-wrap gap-1 bg-red-900">
-    <button class="btn-touch" on:click={async () => moveRelative(0, distance, 0)}>Y +</button>
-    <p class="label">{$toolheadPosition[1].toFixed(0)}</p>
-    <button class="btn-touch" on:click={async () => moveRelative(0, -distance, 0)}>Y -</button>
-  </div>
-  <div class="flex flex-col flex-wrap gap-1 bg-red-900">
-    <button class="btn-touch" on:click={async () => moveRelative(0, 0, distance)}>Z +</button>
-    <p class="label">{$toolheadPosition[2].toFixed(0)}</p>
-    <button class="btn-touch" on:click={async () => moveRelative(0, 0, -distance)}>Z -</button>
+<div class="flex flex-row gap-1 bg-neutral-800 p-1">
+  <div class="flex flex-col justify-start gap-1 ">
+    <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
+    <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
+    <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
-  <div class="flex flex-col flex-wrap gap-1 bg-red-900">
-    <button class="btn-touch" on:click={async () => extrudeRelative(-distance)}>Retract</button>
-    <p class="label">{$nozzleTemp.toFixed(0)} °C</p>
-    <button class="btn-touch" on:click={async () => extrudeRelative(distance)}>Extrude</button>
-  </div>
-
-  <div class="flex flex-row flex-wrap items-center gap-1 bg-red-900 ">
-    <button
-      class="btn-touch h-16 w-20 {extruderSpeed === 1 ? 'selected' : ''}"
-      on:click={() => {
-        extruderSpeed = 1;
-      }}>1</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {extruderSpeed === 2 ? 'selected' : ''}"
-      on:click={() => {
-        extruderSpeed = 2;
-      }}>2</button
-    >
-    <p class="label w-32">E-Speed</p>
-    <button
-      class="btn-touch h-16 w-20 {extruderSpeed === 5 ? 'selected' : ''}"
-      on:click={() => {
-        extruderSpeed = 5;
-      }}>5</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {extruderSpeed === 10 ? 'selected' : ''}"
-      on:click={() => {
-        extruderSpeed = 10;
-      }}>10</button
-    >
-  </div>
-  <div class="flex flex-row flex-wrap items-center gap-1 bg-red-900">
-    <button
-      class="btn-touch h-16 w-20 {distance === 1 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 1;
-      }}>1</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {distance === 2 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 2;
-      }}>2</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {distance === 5 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 5;
-      }}>5</button
-    >
-    <p class="label w-32">Distance</p>
-    <button
-      class="btn-touch h-16 w-20 {distance === 10 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 10;
-      }}>10</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {distance === 20 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 20;
-      }}>20</button
-    >
-    <button
-      class="btn-touch h-16 w-20 {distance === 50 ? 'selected' : ''}"
-      on:click={() => {
-        distance = 50;
-      }}>50</button
-    >
+  <div class="flex grow flex-col flex-wrap justify-around">
+    <div class="flex flex-wrap content-center items-center justify-around  ">
+      <div class="flex flex-col rounded bg-neutral-600">
+        <div class="label-head flex flex-row flex-wrap justify-around">
+          <p>Position</p>
+          <p>X {$toolheadPosition[0].toFixed(1)}</p>
+          <p>Y {$toolheadPosition[1].toFixed(1)}</p>
+          <p>Z {$toolheadPosition[2].toFixed(1)}</p>
+        </div>
+        <div class="flex content-center items-center justify-center gap-2  p-1">
+          <div class="grid grid-cols-3 grid-rows-3 gap-1">
+            <button class="btn-touch col-start-1 row-start-1" on:click={homeXYZ}>
+              <Fa icon={faHome} />
+              <p>All</p>
+            </button>
+            <button class="btn-touch col-start-2 row-start-1" disabled={!isHomedXY} on:click={async () => moveRelative(0, distance, 0)}>
+              <p>Y</p>
+              <Fa icon={faArrowUp} />
+            </button>
+            <button class="btn-touch col-start-1 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(-distance, 0, 0)}
+              >X<Fa icon={faArrowLeft} />
+            </button>
+            <button class="btn-touch col-start-2 row-start-2" on:click={homeXY}>
+              <Fa icon={faHome} />
+              <p>XY</p>
+            </button>
+            <button class="btn-touch col-start-3 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(distance, 0, 0)}>
+              <p>X</p>
+              <Fa icon={faArrowRight} />
+            </button>
+            <button class="btn-touch col-start-2 row-start-3 " disabled={!isHomedXY} on:click={async () => moveRelative(0, -distance, 0)}
+              >Y<Fa icon={faArrowDown} />
+            </button>
+          </div>
+          <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
+            <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, distance)}
+              >Z<Fa icon={faArrowUp} /></button
+            >
+            <button class="btn-touch  col-start-1 row-start-2 " disabled={!isHomedXY} on:click={homeZ}>
+              <Fa icon={faHome} />
+              <p>Z</p>
+            </button>
+            <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, -distance)}
+              >Z<Fa icon={faArrowDown} /></button
+            >
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col rounded bg-neutral-600 ">
+          <div class="flex flex-col flex-wrap items-stretch ">
+            <p class="label-head">Extrude/Retract</p>
+            <p class="label">Current: {$nozzleTemp.toFixed(0)} °C</p>
+          </div>
+          <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
+            <button class="btn-touch  col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
+            <button class="btn-touch  col-start-2 row-start-1 " on:click={async () => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
+          </div>
+        </div>
+        <div class="flex flex-col rounded bg-neutral-600">
+          <div class="items-stetch flex flex-col flex-wrap ">
+            <p class="label-head">Distance</p>
+            <p class="label">Current: {distance} mm</p>
+          </div>
+          <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
+            <button class="btn-touch  col-start-1 row-start-1 " on:click={decreaseDistance}><Fa icon={faMinus} /></button>
+            <button class="btn-touch  col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
