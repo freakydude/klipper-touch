@@ -67,37 +67,33 @@
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch ">
-            <p class="label-head ">Print</p>
-            {#if $printState != ('paused' || 'printing')}
-              <p class="label">State: {$printState}</p>
-            {:else}
-              <p class="label">File: {$printFilename}</p>
-              <p class="label">Progress: {($progress * 100).toFixed(0)} %</p>
-              <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
-                {#if $printState == 'paused'}
-                  <button class="btn-touch col-start-1" on:click={resumePrint}>
-                    <Fa icon={faPlay} />
-                  </button>
-                {:else if $printState == 'printing'}
-                  <button class="btn-touch col-start-1" on:click={pausePrint}>
-                    <Fa icon={faPause} />
-                  </button>
-                {/if}
-                {#if $printState == ('paused' || 'printing')}
-                  <button class="btn-touch col-start-2" on:click={cancelPrint}>
-                    <Fa icon={faStop} />
-                  </button>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch">
             <p class="label-head">Klipper</p>
             <p class="label">State: {$klippyState}</p>
-            <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 rounded bg-neutral-600">
+          <div class="flex flex-col flex-wrap items-stretch ">
+            <p class="label-head ">Print</p>
+            <p class="label">State: {$printState}</p>
+            <p class="label">File: {$printFilename}</p>
+            <p class="label">Progress: {($progress * 100).toFixed(1)} %</p>
+            <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
+              {#if $printState == 'paused'}
+                <button class="btn-touch col-start-1 p-4" on:click={resumePrint}>
+                  <Fa icon={faPlay} />
+                </button>
+              {:else if $printState == 'printing'}
+                <button class="btn-touch col-start-1 p-4" on:click={pausePrint}>
+                  <Fa icon={faPause} />
+                </button>
+              {/if}
+              {#if $printState == ('paused' || 'printing')}
+                <button class="btn-touch col-start-2 p-4" on:click={cancelPrint}>
+                  <Fa icon={faStop} />
+                </button>
+              {/if}
+            </div>
           </div>
         </div>
       </div>

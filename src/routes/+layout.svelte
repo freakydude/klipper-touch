@@ -49,25 +49,6 @@
   async function connectToMoonraker() {
     await moonraker.disconnect();
     await moonraker.connect();
-
-    if (isConnected) {
-      let subscribeRequest = new JsonRpcRequest({
-        method: 'printer.objects.subscribe',
-        params: {
-          objects: {
-            heater_bed: ['temperature', 'target'],
-            extruder: ['temperature', 'target'],
-            toolhead: ['position', 'homed_axes'],
-            fan: ['speed'],
-            gcode_move: ['homing_origin'],
-            print_stats: ['filename', 'state', 'message'],
-            virtual_sdcard: ['progress']
-          }
-        }
-      });
-
-      await client.sendRequest(subscribeRequest);
-    }
   }
 </script>
 

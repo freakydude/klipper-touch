@@ -56,6 +56,51 @@ export class MoonrakerRpcClient extends EventTarget {
       } catch (error) {
         console.log(error);
       }
+
+      const subscribeRequest = new JsonRpcRequest({
+        method: 'printer.objects.subscribe',
+        params: {
+          objects: {
+            heater_bed: ['temperature', 'target'],
+            extruder: ['temperature', 'target'],
+            toolhead: ['position', 'homed_axes'],
+            fan: ['speed'],
+            gcode_move: ['homing_origin'],
+            print_stats: ['filename', 'state', 'message'],
+            virtual_sdcard: ['progress']
+          }
+        }
+      });
+
+      try {
+        const response = (await this._jsonRpcClient.sendRequest(subscribeRequest)) as IJsonRpcSuccessResponse;
+        // console.log(response);
+      } catch (error) {
+        console.log(error);
+      }
+
+      const initialRequest = new JsonRpcRequest({
+        method: 'printer.objects.query',
+        params: {
+          objects: {
+            heater_bed: ['temperature', 'target'],
+            extruder: ['temperature', 'target'],
+            toolhead: ['position', 'homed_axes'],
+            fan: ['speed'],
+            gcode_move: ['homing_origin'],
+            print_stats: ['filename', 'state', 'message'],
+            virtual_sdcard: ['progress']
+          }
+        }
+      });
+
+      try {
+        const response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
+        // console.log(response);
+        this.parseState(response.result.status);
+      } catch (error) {
+        console.log(error);
+      }
     }
 
     return successful;
@@ -88,7 +133,6 @@ export class MoonrakerRpcClient extends EventTarget {
   }
 
   public klippyState = writable<KlippyState>('disconnected');
-  // public klippyStateMessage = writable<string>('');
   public heaterBedTargetTemperature = writable(0.0);
   public heaterBedCurrentTemperature = writable(0.0);
   public extruderCurrentTemperature = writable(0.0);
@@ -102,60 +146,64 @@ export class MoonrakerRpcClient extends EventTarget {
   public printStateFilename = writable('');
   public printStateProgress = writable(0.0);
 
+  private parseState(params: any) {
+    if (params.heater_bed?.temperature != undefined) {
+      // console.log('heater_bed.temperature: ', params.heater_bed?.temperature);
+      this.heaterBedCurrentTemperature.set(params.heater_bed?.temperature);
+    }
+    if (params.heater_bed?.target != undefined) {
+      // console.log('heater_bed.temperature: ', params.heater_bed?.target);
+      this.heaterBedTargetTemperature.set(params.heater_bed?.target);
+    }
+    if (params.extruder?.temperature != undefined) {
+      // console.log('extruder.temperature: ', params.extruder?.temperature);
+      this.extruderCurrentTemperature.set(params.extruder?.temperature);
+    }
+    if (params.extruder?.target != undefined) {
+      // console.log('extruder.temperature: ', params.extruder?.target);
+      this.extruderTargetTemperature.set(params.extruder?.target);
+    }
+    if (params.toolhead?.position != undefined) {
+      // console.log('toolhead.position: ', params.toolhead?.position);
+      this.toolheadPosition.set(params.toolhead?.position);
+    }
+    if (params.toolhead?.homed_axes != undefined) {
+      // console.log('toolhead.homed_axes: ', params.toolhead?.homed_axes);
+      this.homedAxes.set(params.toolhead?.homed_axes);
+    }
+    if (params.gcode_move?.homing_origin != undefined) {
+      // console.log('gcode_move.homing_origin: ', params.gcode_move?.homing_origin);
+      this.gcodeZOffset.set(params.gcode_move?.homing_origin[2]);
+    }
+    if (params.fan?.speed != undefined) {
+      // console.log('fan.speed: ', params.fan?.speed);
+      this.fanSpeed.set(params.fan?.speed);
+    }
+    if (params.print_stats?.filename != undefined) {
+      // console.log('print_stats.filename: ', params.print_stats?.filename);
+      this.printStateFilename.set(params.print_stats?.filename);
+    }
+    if (params.print_stats?.state != undefined) {
+      // console.log('print_stats.state: ', params.print_stats?.state);
+      this.printState.set(params.print_stats?.state);
+    }
+    if (params.print_stats?.message != undefined) {
+      // console.log('print_stats.message: ', params.print_stats?.message);
+      this.printStateErrorMessage.set(params.print_stats?.message);
+    }
+    if (params.virtual_sdcard?.progress != undefined) {
+      // console.log('virtual_sdcard.progress: ', params.virtual_sdcard?.progress);
+      this.printStateProgress.set(params.virtual_sdcard?.progress);
+    }
+  }
+
   private async parseNotification(event: CustomEvent<IJsonRpcRequest>): Promise<void> {
     const notification = event.detail;
     switch (notification.method) {
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
-          if (notification.params[0].heater_bed?.temperature != undefined) {
-            // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.temperature);
-            this.heaterBedCurrentTemperature.set(notification.params[0].heater_bed?.temperature);
-          }
-          if (notification.params[0].heater_bed?.target != undefined) {
-            // console.log('heater_bed.temperature: ', notification.params[0].heater_bed?.target);
-            this.heaterBedTargetTemperature.set(notification.params[0].heater_bed?.target);
-          }
-          if (notification.params[0].extruder?.temperature != undefined) {
-            // console.log('extruder.temperature: ', notification.params[0].extruder?.temperature);
-            this.extruderCurrentTemperature.set(notification.params[0].extruder?.temperature);
-          }
-          if (notification.params[0].extruder?.target != undefined) {
-            // console.log('extruder.temperature: ', notification.params[0].extruder?.target);
-            this.extruderTargetTemperature.set(notification.params[0].extruder?.target);
-          }
-          if (notification.params[0].toolhead?.position != undefined) {
-            // console.log('toolhead.position: ', notification.params[0].toolhead?.position);
-            this.toolheadPosition.set(notification.params[0].toolhead?.position);
-          }
-          if (notification.params[0].toolhead?.homed_axes != undefined) {
-            // console.log('toolhead.homed_axes: ', notification.params[0].toolhead?.homed_axes);
-            this.homedAxes.set(notification.params[0].toolhead?.homed_axes);
-          }
-          if (notification.params[0].gcode_move?.homing_origin != undefined) {
-            // console.log('gcode_move.homing_origin: ', notification.params[0].gcode_move?.homing_origin);
-            this.gcodeZOffset.set(notification.params[0].gcode_move?.homing_origin[2]);
-          }
-          if (notification.params[0].fan?.speed != undefined) {
-            // console.log('fan.speed: ', notification.params[0].fan?.speed);
-            this.fanSpeed.set(notification.params[0].fan?.speed);
-          }
-          if (notification.params[0].print_stats?.filename != undefined) {
-            // console.log('print_stats.filename: ', notification.params[0].print_stats?.filename);
-            this.printStateFilename.set(notification.params[0].print_stats?.filename);
-          }
-          if (notification.params[0].print_stats?.state != undefined) {
-            // console.log('print_stats.state: ', notification.params[0].print_stats?.state);
-            this.printState.set(notification.params[0].print_stats?.state);
-          }
-          if (notification.params[0].print_stats?.message != undefined) {
-            // console.log('print_stats.message: ', notification.params[0].print_stats?.message);
-            this.printStateErrorMessage.set(notification.params[0].print_stats?.message);
-          }
-          if (notification.params[0].virtual_sdcard?.progress != undefined) {
-            // console.log('virtual_sdcard.progress: ', notification.params[0].virtual_sdcard?.progress);
-            this.printStateProgress.set(notification.params[0].virtual_sdcard?.progress);
-          }
+          this.parseState(notification.params[0]);
         }
         break;
       case 'notify_klippy_ready':
