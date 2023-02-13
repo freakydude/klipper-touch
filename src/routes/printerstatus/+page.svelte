@@ -9,11 +9,10 @@
   let bedTemp = moonraker.heaterBedCurrentTemperature;
   let nozzleTarget = moonraker.extruderTargetTemperature;
   let bedTarget = moonraker.heaterBedTargetTemperature;
-  let klippyState = moonraker.klippyState;
   let fanSpeed = moonraker.fanSpeed;
   let progress = moonraker.printStateProgress;
   let printState = moonraker.printState;
-  let printFilename = moonraker.printStateFilename;
+  let printFilename = moonraker.currentPrintedFile;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
   async function emergencyStop() {
@@ -53,6 +52,7 @@
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
+    <button class="btn-touch bg-red-600" on:click={() => goto('/files')}>FI</button>
     <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
@@ -65,12 +65,6 @@
             <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
             <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
             <p class="label">Fan: {($fanSpeed * 100).toFixed(0)} %</p>
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Klipper</p>
-            <p class="label">State: {$klippyState}</p>
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
