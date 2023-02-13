@@ -1,86 +1,75 @@
 <script lang="ts">
+  import { writable } from 'svelte/store';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import { onMount } from 'svelte';
   import '../app.css';
 
-  onMount(async () => {
-    await moonraker.connect();
-    //console.log(await moonraker.requestIdentifyConnection());
+  // define initial component state
+  let isFull = false;
+  let fsContainer: any = null;
 
-    // client.addEventListener('notification', (event) => {
-    //   console.log(event.detail);
-    // });
-    // let serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
-    // await client.sendRequest(serverInfoRequest);
+  let isConnected = moonraker.isConnected;
+  let klippyState = moonraker.klippyState;
+  // let klippyStateMessage = moonraker.klippyStateMessage;
 
-    // let validRequest = new JsonRpcRequest({ method: 'printer.query_endstops.status' });
+  // boring plain js fullscreen support stuff below
+  const noop = () => {};
 
-    // let errorRequest = new JsonRpcRequest({ method: 'printer.query_endXstops.status' });
+  function fullscreenSupport(): boolean {
+    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled || false);
+  }
 
-    // let batchRequest = [validRequest, errorRequest];
-    // console.log('batchRequest', batchRequest);
-    // console.log(await client.sendBatchRequest(batchRequest));
+  function exitFullscreen(): void {
+    (document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen || noop).bind(document);
+    isFull = false;
+  }
 
-    // let objectListRequest = new JsonRpcRequest({ method: 'printer.objects.list' });
-    // await client.sendRequest(objectListRequest);
-    // let objectQueryRequest = new JsonRpcRequest({
-    //   method: 'printer.objects.query',
-    //   params: {
-    //     objects: {
-    //       webhooks: null,
-    //       gcode_move: null,
-    //       toolhead: null,
-    //       extruder: null,
-    //       heaters: null,
-    //       heater_bed: null,
-    //       probe: null,
-    //       print_stats: null,
-    //       virtual_sdcard: null,
-    //       motion_report: null,
-    //       mcu: null
-    //     }
-    //   }
-    // });
-    // await client.sendRequest(objectQueryRequest);
+  function requestFullscreen(): void {
+    const requestFS = (
+      fsContainer.requestFullscreen ||
+      fsContainer.mozRequestFullScreen ||
+      fsContainer.webkitRequestFullscreen ||
+      fsContainer.msRequestFullscreen ||
+      noop
+    ).bind(fsContainer);
+    requestFS();
+    isFull = true;
+  }
 
-    // let objectQueryProbeRequest = new JsonRpcRequest({
-    //   method: 'printer.objects.query',
-    //   params: {
-    //     objects: {
-    //       probe: ['last_z_result']
-    //     }
-    //   }
-    // });
-    // await client.sendRequest(objectQueryProbeRequest);
-
-    let objectSubscribeBedTempRequest = new JsonRpcRequest({
-      method: 'printer.objects.subscribe',
-      params: {
-        objects: {
-          heater_bed: ['temperature'],
-          extruder: ['temperature'],
-          toolhead: ['position'],
-          gcode_move: ['homing_origin']
-        }
+  function switchFullscreen() {
+    if (fullscreenSupport()) {
+      if (!isFull) {
+        requestFullscreen();
+      } else {
+        exitFullscreen();
       }
-    });
-    await client.sendRequest(objectSubscribeBedTempRequest);
+    }
+  }
 
-    // Replace Subscription
-    //
-    // let objectUnSubscribeBedTempRequest = new JsonRpcRequest({
-    //   method: 'printer.objects.subscribe',
-    //   params: {
-    //     objects: {
-    //       extruder: ['temperature']
-    //     }
-    //   }
-    // });
-    // await client.sendRequest(objectUnSubscribeBedTempRequest);
-  });
+  async function connectToMoonraker() {
+    await moonraker.disconnect();
+    await moonraker.connect();
+  }
 </script>
 
-<div class="flex h-screen w-screen">
-  <slot />
+<div class="grid h-screen w-screen" bind:this={fsContainer}>
+  {#if $isConnected && $klippyState == 'ready'}
+    <slot />
+  {:else}
+    <div class="flex grow flex-col flex-wrap place-content-around items-center bg-neutral-800">
+      <div class="flex flex-col gap-2 rounded bg-neutral-600">
+        <div class="flex flex-col flex-wrap items-stretch">
+          <p class="label-head">Klipper</p>
+          <p class="label">State: {$klippyState}</p>
+          <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
+          <button class="btn-touch " on:click={async () => connectToMoonraker()}>Connect</button>
+          <button class="btn-touch " on:click={() => switchFullscreen()}>Fullscreen</button>
+        </div>
+      </div>
+      <div class="flex flex-col flex-wrap items-center justify-center gap-2">
+        <p class="px-2 text-5xl font-bold text-white">Klipper Touch</p>
+        <p class="p-2 text-2xl font-bold text-red-600">by freakyDude</p>
+      </div>
+    </div>
+  {/if}
 </div>
