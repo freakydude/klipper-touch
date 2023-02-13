@@ -59,6 +59,7 @@
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/parameter')}>PA</button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/toolhead')}>TH</button>
+    <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
     <button class="btn-touch flex flex-col bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
