@@ -3,7 +3,8 @@
 
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import { faList, faSkull } from '@fortawesome/free-solid-svg-icons';
+  import { faList, faSkull, faPrint, faTrash } from '@fortawesome/free-solid-svg-icons';
+
   import { onMount } from 'svelte';
   import Fa from 'svelte-fa/src/fa.svelte';
 
@@ -14,6 +15,8 @@
     });
     await client.sendRequest(stopRequest);
   }
+
+  let printState = moonraker.printState;
 
   let activeFilename = '';
   let availableFiles = [''];
@@ -61,9 +64,25 @@
     // TODO set this only if print is not running
     activeFilename = fileName;
   }
+
+  async function printFile(fileName: string) {
+    let printRequest = new JsonRpcRequest({
+      method: 'printer.print.start',
+      params: { filename: fileName }
+    });
+    await client.sendRequest(printRequest);
+  }
+
+  async function deleteFile(fileName: string) {
+    let deleteRequest = new JsonRpcRequest({
+      method: 'server.files.delete_file',
+      params: { path: 'gcodes/' + fileName }
+    });
+    await client.sendRequest(deleteRequest);
+  }
 </script>
 
-<div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
+<div class="flex flex-grow flex-row gap-1 overflow-hidden bg-neutral-800 p-1">
   <div class="flex flex-col gap-1">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
@@ -71,27 +90,35 @@
     <button class="btn-touch bg-yellow-600 " on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
-  <div class="flex flex-grow flex-row items-center justify-around gap-2">
-    <div class="flex h-screen flex-col overflow-y-auto rounded  bg-neutral-600">
-      <div class="flex flex-col">
-        <p class="label-head">Files</p>
-        <div class="flex flex-col gap-1 py-1">
-          {#each availableFiles as avFile}
-            <button class="btn-list" on:click={async () => selectFile(avFile)}>{avFile.slice(0, -6)}</button>
-          {/each}
-        </div>
+  <div class="flex flex-col overflow-y-auto rounded bg-neutral-600">
+    <div class="flex flex-col">
+      <p class="label-head">Files</p>
+      <div class="flex flex-col gap-1 py-1">
+        {#each availableFiles as avFile}
+          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click={async () => selectFile(avFile)}
+            >{avFile.slice(0, -6)}</button
+          >
+        {/each}
       </div>
     </div>
-    <div class="flex w-1/3 flex-col rounded bg-neutral-600">
-      <p class="label-head">Details</p>
-      <div class="label">File: {activeFilename.slice(0, -6)}</div>
-      <img src={thumbnail} alt="" loading="lazy" />
-      <div class="label">
-        Printduration: {new Date(fileMeta.estimated_time * 1000).getHours()} h {new Date(fileMeta.estimated_time * 1000).getMinutes()} min
-      </div>
-      <div class="label">NozzleTemp: {fileMeta.first_layer_extr_temp} °C</div>
-      <div class="label">BedTemp: {fileMeta.first_layer_bed_temp} °C</div>
-      <div class="label">Layerheight: {fileMeta.layer_height}</div>
+  </div>
+
+  <div class="flex w-2/5 flex-col justify-between rounded bg-neutral-600">
+    <p class="label-head">Details</p>
+    <!-- <p class="label overflow-x-clip">File: {activeFilename.slice(0, -6)}</p> -->
+    <img src={thumbnail} alt="" loading="lazy" class="w-32 self-center" />
+    <!--  class="w-24 self-center" -->
+    <p class="label py-1">
+      {new Date(fileMeta.estimated_time * 1000).getHours()} h {new Date(fileMeta.estimated_time * 1000).getMinutes()} min
+    </p>
+    <p class="label py-1">Nozzle: {fileMeta.first_layer_extr_temp} °C</p>
+    <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
+    <p class="label py-1">Layer: {fileMeta.layer_height}</p>
+    <div class="flex flex-row justify-around gap-1">
+      <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={async () => printFile(activeFilename)}>
+        <Fa icon={faPrint} />
+      </button>
+      <button class="btn-touch" on:click={async () => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
     </div>
   </div>
 </div>
