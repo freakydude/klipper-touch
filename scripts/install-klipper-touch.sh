@@ -7,7 +7,7 @@ install_script()
 # Install dependencies
 #    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 #    sudo apt-get install -y nodejs
-    /usr/bin/npm install --prefix ${SRCDIR}   #to force use ci instead of i, if configured write, enable_node_updates: true in moonraker.conf does the job
+    /usr/bin/npm ci --prefix ${SRCDIR}   #to force use ci instead of i, if configured write, enable_node_updates: true in moonraker.conf does the job
     /usr/bin/npm run build --prefix ${SRCDIR}
 
 # Create systemd service file
