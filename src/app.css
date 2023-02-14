@@ -5,7 +5,11 @@
 
 @layer components {
   .btn-touch {
-    @apply flex flex-col place-items-center justify-center  rounded bg-neutral-500 py-6 px-6 text-center  text-white shadow-md disabled:opacity-50;
+    @apply flex flex-col place-items-center justify-center rounded bg-neutral-500 py-6 px-6  text-center text-white shadow-md disabled:opacity-50;
+  }
+
+  .btn-list {
+    @apply justify-start rounded bg-neutral-500 py-1 px-2 text-start text-white shadow-md disabled:opacity-50;
   }
 
   .label {
@@ -13,6 +17,6 @@
   }
 
   .label-head {
-    @apply label rounded bg-red-600 text-center;
+    @apply label rounded bg-red-600 py-1 px-2 text-center;
   }
 }

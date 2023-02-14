@@ -48,11 +48,12 @@
   }
 </script>
 
-<div class="flex flex-row gap-1 bg-neutral-800 p-1">
+<div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/files')}>FI</button>
+    <div class="grow" />
     <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
