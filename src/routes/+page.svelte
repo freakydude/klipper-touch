@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import '../app.css';
 </script>
 
-<div class="flex grow flex-col flex-wrap place-content-around items-center bg-neutral-800">
-  <div class="flex flex-row flex-wrap items-center justify-center gap-2 ">
-    <button class="btn-touch" on:click={() => goto('/toolhead')}>Toolhead</button>
-    <button class="btn-touch" on:click={() => goto('/printerstatus')}>Printerstatus</button>
-    <button class="btn-touch" on:click={() => goto('/parameter')}>Parameter</button>
-  </div>
+<div class="flex flex-grow flex-row flex-wrap place-content-center items-center gap-2 bg-neutral-800">
+  <button class="btn-touch" on:click={() => goto('/toolhead')}>Toolhead</button>
+  <button class="btn-touch" on:click={() => goto('/files')}>Files</button>
+  <button class="btn-touch" on:click={() => goto('/printerstatus')}>Printerstatus</button>
+  <button class="btn-touch" on:click={() => goto('/parameter')}>Parameter</button>
 </div>

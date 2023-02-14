@@ -89,7 +89,7 @@ export class MoonrakerRpcClient extends EventTarget {
             fan: ['speed'],
             gcode_move: ['homing_origin'],
             print_stats: ['filename', 'state', 'message'],
-            virtual_sdcard: ['progress']
+            display_status: ['progress']
           }
         }
       });
@@ -143,7 +143,7 @@ export class MoonrakerRpcClient extends EventTarget {
   public homedAxes = writable('');
   public printState = writable<PrintState>('standby');
   public printStateErrorMessage = writable('');
-  public printStateFilename = writable('');
+  public currentPrintedFile = writable('');
   public printStateProgress = writable(0.0);
 
   private parseState(params: any) {
@@ -181,7 +181,7 @@ export class MoonrakerRpcClient extends EventTarget {
     }
     if (params.print_stats?.filename != undefined) {
       // console.log('print_stats.filename: ', params.print_stats?.filename);
-      this.printStateFilename.set(params.print_stats?.filename);
+      this.currentPrintedFile.set(params.print_stats?.filename.slice(0, -6)); //cut ".gcode"
     }
     if (params.print_stats?.state != undefined) {
       // console.log('print_stats.state: ', params.print_stats?.state);
@@ -191,9 +191,9 @@ export class MoonrakerRpcClient extends EventTarget {
       // console.log('print_stats.message: ', params.print_stats?.message);
       this.printStateErrorMessage.set(params.print_stats?.message);
     }
-    if (params.virtual_sdcard?.progress != undefined) {
-      // console.log('virtual_sdcard.progress: ', params.virtual_sdcard?.progress);
-      this.printStateProgress.set(params.virtual_sdcard?.progress);
+    if (params.display_status?.progress != undefined) {
+      // console.log('display_status.progress: ', params.display_status?.progress);
+      this.printStateProgress.set(params.display_status?.progress);
     }
   }
 

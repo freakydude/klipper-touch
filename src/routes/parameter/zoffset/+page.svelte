@@ -54,40 +54,37 @@
   }
 </script>
 
-<div class="flex flex-row gap-1 bg-neutral-800 p-1">
+<div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/parameter')}>PA</button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/toolhead')}>TH</button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
+    <div class="grow" />
     <button class="btn-touch flex flex-col bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
-  <div class="flex grow flex-col">
-    <div class="flex grow flex-wrap content-center items-center justify-around  rounded">
-      <div class="flex flex-row flex-wrap items-center gap-4">
-        <div class="flex flex-col rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Z-Offset</p>
-            <p class="label">Current: {$zOffset.toFixed(3)} mm</p>
-          </div>
-          <div class="grid grid-cols-2 grid-rows-2 gap-1 p-1">
-            <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowUp} /></button>
-            <button class="btn-touch col-start-2 row-start-1 " on:click={async () => changeZOffset(distance)}><Fa icon={faArrowDown} /></button>
-            <button class="btn-touch col-start-1 row-start-2 px-3 py-5" on:click={saveOffset}>Save</button>
-            <button class="btn-touch col-start-2 row-start-2 px-3 py-5" on:click={clearOffset}>Clear</button>
-          </div>
-        </div>
-        <div class="flex flex-col rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Step</p>
-            <p class="label">Current: {distance.toFixed(3)} mm</p>
-          </div>
-          <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1 ">
-            <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
-            <button class="btn-touch col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
-          </div>
-        </div>
+  <div class="flex flex-grow flex-row flex-wrap items-center justify-around gap-4">
+    <div class="flex flex-col rounded bg-neutral-600">
+      <div class="flex flex-col items-stretch">
+        <p class="label-head">Z-Offset</p>
+        <p class="label">Current: {$zOffset.toFixed(3)} mm</p>
+      </div>
+      <div class="grid grid-cols-2 grid-rows-2 gap-1 p-1">
+        <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowUp} /></button>
+        <button class="btn-touch col-start-2 row-start-1 " on:click={async () => changeZOffset(distance)}><Fa icon={faArrowDown} /></button>
+        <button class="btn-touch col-start-1 row-start-2 px-3 py-5" on:click={saveOffset}>Save</button>
+        <button class="btn-touch col-start-2 row-start-2 px-3 py-5" on:click={clearOffset}>Clear</button>
+      </div>
+    </div>
+    <div class="flex flex-col rounded bg-neutral-600">
+      <div class="flex flex-col items-stretch">
+        <p class="label-head">Step</p>
+        <p class="label">Current: {distance.toFixed(3)} mm</p>
+      </div>
+      <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1 ">
+        <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
+        <button class="btn-touch col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
       </div>
     </div>
   </div>
