@@ -67,7 +67,7 @@ export class MoonrakerRpcClient extends EventTarget {
             fan: ['speed'],
             gcode_move: ['homing_origin'],
             print_stats: ['filename', 'state', 'message'],
-            virtual_sdcard: ['progress']
+            display_status: ['progress']
           }
         }
       });
