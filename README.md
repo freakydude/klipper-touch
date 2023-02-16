@@ -24,6 +24,14 @@ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
+### Alternative Install with Dockerfile
+
+```sh
+apt install docker.io
+docker build . -t klipper-touch
+docker run -p 4000:3000 klipper-touch
+```
+
 ### Start Process
 
 ```sh
