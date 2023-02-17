@@ -17,19 +17,25 @@ cd ~
 git clone https://github.com/freakydude/klipper-touch.git
 ```
 
-### Install NodeJS v18
+### Install with Docker
 
 ```sh
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+apt install docker.io docker-compose
 ```
 
-### Alternative Install with Dockerfile
+#### Run dev environment
 
 ```sh
-apt install docker.io
-docker build . -t klipper-touch
-docker run -p 4000:3000 klipper-touch
+# only initial or on package changes, or
+# if you have nodejs/npm installed, you can skip this and run npm locally
+docker-compose run klipper-touch npm install
+docker-compose up # -d if you like it deferred
+```
+
+#### Run prod environment
+
+```sh
+docker-compose -f docker-compose.yml up
 ```
 
 ### Start Process
