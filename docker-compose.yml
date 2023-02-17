@@ -10,7 +10,7 @@ services:
     #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket
     #   - HOST=0.0.0.0
     #   - PORT=3000
-    env_file: .env
+    # env_file: .env
     networks:
       - front-tier
 networks:

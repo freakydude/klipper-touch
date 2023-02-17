@@ -19,9 +19,8 @@ git clone https://github.com/freakydude/klipper-touch.git
 
 ### Install with Docker
 
-```sh
-apt install docker.io docker-compose
-```
+Install docker [official docs here](https://docs.docker.com/engine/install/debian/)
+Install docker compose [official docs here](https://docs.docker.com/compose/install/linux/#install-using-the-repository)
 
 #### Run dev environment
 
@@ -34,7 +33,12 @@ docker-compose up # -d if you like it deferred
 
 #### Run prod environment
 
+- Adapt ENV variables in `Dockerfile`.
+- (Re-)build docker klipper-touch container
+- Build and start it up
+
 ```sh
+docker-compose -f docker-compose.yml build
 docker-compose -f docker-compose.yml up
 ```
 
