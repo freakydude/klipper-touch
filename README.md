@@ -31,6 +31,13 @@ docker-compose run klipper-touch npm install
 docker-compose up # -d if you like it deferred
 ```
 
+Run `npm` commands within docker for example with:
+
+```sh
+docker compose run klipper-touch npm run format
+docker compose run klipper-touch npm i -D prettier prettier-plugin-sh
+```
+
 #### Run prod environment
 
 - Adapt ENV variables in `Dockerfile`.

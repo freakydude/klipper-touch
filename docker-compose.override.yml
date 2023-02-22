@@ -1,7 +1,7 @@
 services:
   klipper-touch:
-    build: 
-     context: .
-     dockerfile: Dockerfile.dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     volumes:
       - .:/app

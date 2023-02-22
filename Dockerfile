@@ -1,6 +1,6 @@
 FROM node:19 as build
 
-ENV NODE_ENV=production 
+ENV NODE_ENV=production
 
 WORKDIR /app
 
@@ -24,9 +24,7 @@ FROM node:19-alpine
 WORKDIR /app
 COPY --from=build /app .
 
-
-
 EXPOSE 3000
 
 CMD npm run prod-node
-#CMD npm run preview 
+#CMD npm run preview
