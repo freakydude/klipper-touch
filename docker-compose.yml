@@ -1,0 +1,17 @@
+services:
+  klipper-touch:
+    build: .
+    image: klipper-touch
+    container_name: klipper-touch
+    ports:
+      - '3000:3000'
+    # environment:
+    #   - VITE_MOONRAKER_API=http://192.168.40.6/
+    #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket
+    #   - HOST=0.0.0.0
+    #   - PORT=3000
+    # env_file: .env
+    networks:
+      - front-tier
+networks:
+  front-tier: {}
