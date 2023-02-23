@@ -2,10 +2,10 @@
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import Fa from 'svelte-fa/src/fa.svelte';
   import { faArrowDown, faArrowUp, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
+  import Fa from 'svelte-fa';
 
-  let zOffset = moonraker.gcodeZOffset;
+  let zOffset = moonraker.gcodeMoveHomeOrigin;
   let stepsArrIdx = 4;
   let stepsArr = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1];
 
@@ -71,8 +71,8 @@
         <p class="label">Current: {$zOffset.toFixed(3)} mm</p>
       </div>
       <div class="grid grid-cols-2 grid-rows-2 gap-1 p-1">
-        <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowUp} /></button>
-        <button class="btn-touch col-start-2 row-start-1 " on:click={async () => changeZOffset(distance)}><Fa icon={faArrowDown} /></button>
+        <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(distance)}><Fa icon={faArrowUp} /></button>
+        <button class="btn-touch col-start-2 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowDown} /></button>
         <button class="btn-touch col-start-1 row-start-2 px-3 py-5" on:click={saveOffset}>Save</button>
         <button class="btn-touch col-start-2 row-start-2 px-3 py-5" on:click={clearOffset}>Clear</button>
       </div>
