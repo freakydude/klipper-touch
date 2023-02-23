@@ -38,7 +38,7 @@
     let listFilesResponse = await client.sendRequest(listFilesRequest);
 
     //console.log(listFilesResponse.result.map(file => file.path));
-    availableFiles = listFilesResponse.result.map((file) => file.path);
+    availableFiles = await listFilesResponse.result.sort((n1, n2) => n2.modified - n1.modified).map((file) => file.path);
   }
 
   async function selectFile(fileName: string) {
@@ -88,7 +88,7 @@
     <button class="btn-touch bg-yellow-600 " on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
-  <div class="flex flex-col overflow-y-auto rounded bg-neutral-600">
+  <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-600">
     <div class="flex flex-col">
       <p class="label-head">Files</p>
       <div class="flex flex-col gap-1 py-1">
@@ -101,22 +101,24 @@
     </div>
   </div>
 
-  <div class="flex w-2/5 flex-col justify-between rounded bg-neutral-600">
-    <p class="label-head">Details</p>
-    <!-- <p class="label overflow-x-clip">File: {activeFilename.slice(0, -6)}</p> -->
-    <img src={thumbnail} alt="" loading="lazy" class="w-32 self-center" />
-    <!--  class="w-24 self-center" -->
-    <p class="label py-1">
-      {new Date(fileMeta.estimated_time * 1000).getHours()} h {new Date(fileMeta.estimated_time * 1000).getMinutes()} min
-    </p>
-    <p class="label py-1">Nozzle: {fileMeta.first_layer_extr_temp} °C</p>
-    <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
-    <p class="label py-1">Layer: {fileMeta.layer_height}</p>
-    <div class="flex flex-row justify-around gap-1">
-      <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={async () => printFile(activeFilename)}>
-        <Fa icon={faPrint} />
-      </button>
-      <button class="btn-touch" on:click={async () => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
+  <div class="flex flex-col items-center justify-around  rounded">
+    <div class="flex flex-col overflow-y-auto rounded bg-neutral-600">
+      <p class="label-head">Details</p>
+      <!-- <p class="label overflow-x-clip">File: {activeFilename.slice(0, -6)}</p> -->
+      <img src={thumbnail} alt="" loading="lazy" class="h-24 self-center" />
+      <!--  class="w-24 self-center" -->
+      <p class="label py-1">
+        {(fileMeta.estimated_time / 60.0).toFixed(0)} min
+      </p>
+      <p class="label py-1">Nozzle: {fileMeta.first_layer_extr_temp} °C</p>
+      <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
+      <p class="label py-1">Layer: {fileMeta.layer_height}</p>
+      <div class="flex flex-row justify-around gap-1">
+        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={async () => printFile(activeFilename)}>
+          <Fa icon={faPrint} />
+        </button>
+        <button class="btn-touch" on:click={async () => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
+      </div>
     </div>
   </div>
 </div>
