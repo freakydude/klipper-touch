@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
-  import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { moonraker } from '$lib/base.svelte';
   import '../app.css';
 
   // define initial component state

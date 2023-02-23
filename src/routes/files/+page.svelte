@@ -1,12 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
-  import { faList, faSkull, faPrint, faTrash } from '@fortawesome/free-solid-svg-icons';
-
+  import { faList, faPrint, faSkull, faTrash } from '@fortawesome/free-solid-svg-icons';
   import { onMount } from 'svelte';
-  import Fa from 'svelte-fa/src/fa.svelte';
+  import Fa from 'svelte-fa';
 
   async function emergencyStop() {
     let stopRequest = new JsonRpcRequest({
@@ -16,7 +14,7 @@
     await client.sendRequest(stopRequest);
   }
 
-  let printState = moonraker.printState;
+  let printState = moonraker.printStatsState;
 
   let activeFilename = '';
   let availableFiles = [''];

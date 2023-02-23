@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 export interface IJsonRpcRequest {
   jsonrpc?: string;
   method: string;
-  params?: object | any[];
+  params?: object | object[];
   id?: string | number | null;
 }
 
@@ -11,7 +11,7 @@ export class JsonRpcRequest implements IJsonRpcRequest {
   jsonrpc: string;
   id?: string | number | null;
   method: string;
-  params?: object | any[];
+  params?: object | object[];
 
   /**
    *
@@ -31,7 +31,7 @@ export class JsonRpcRequest implements IJsonRpcRequest {
 export class JsonRpcNotification implements IJsonRpcRequest {
   jsonrpc: string;
   method: string;
-  params?: object | any[];
+  params?: object | object[];
 
   /**
    *
@@ -52,7 +52,7 @@ export interface IJsonRpcResponse {
 }
 
 export interface IJsonRpcSuccessResponse extends IJsonRpcResponse {
-  result: any; // This member is REQUIRED on success. This member MUST NOT exist if there was an error invoking the method. The value of this member is determined by the method invoked on the Server.
+  result: object; // This member is REQUIRED on success. This member MUST NOT exist if there was an error invoking the method. The value of this member is determined by the method invoked on the Server.
 }
 
 export interface IJsonRpcErrorResponse extends IJsonRpcResponse {
@@ -66,7 +66,7 @@ export interface IJsonRpcErrorObject {
 }
 
 export class JsonRpcSuccessResponse implements IJsonRpcSuccessResponse {
-  result: any;
+  result: object;
   jsonrpc: string;
   id: string | number | null;
 
@@ -199,7 +199,7 @@ export class JsonRpcClient extends EventTarget {
     const result: Promise<boolean> = new Promise<boolean>((resolve) => {
       if (this.isConnected) {
         if (this._ws != undefined) {
-          this._ws!.close();
+          this._ws?.close();
           this._ws = undefined;
           this.isConnected.set(false);
         }
@@ -223,7 +223,7 @@ export class JsonRpcClient extends EventTarget {
     } else {
       promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this._ws!.removeEventListener('message', parser);
+          this._ws?.removeEventListener('message', parser);
 
           console.log('Websocket Timeout send request: ', request);
           reject('Websocket Timeout send request');
@@ -234,7 +234,7 @@ export class JsonRpcClient extends EventTarget {
 
           if (request.id == response.id) {
             clearTimeout(timeout);
-            this._ws!.removeEventListener('message', parser);
+            this._ws?.removeEventListener('message', parser);
 
             console.log('Websocket got response for request id:', response.id, 'response:', response);
 
@@ -244,10 +244,11 @@ export class JsonRpcClient extends EventTarget {
           //   console.log('parser some message - request: ', request, ' response:', response);
           // }
         };
-        this._ws!.addEventListener('message', parser);
+        this._ws?.addEventListener('message', parser);
       });
 
-      this._ws!.send(JSON.stringify(request));
+      // console.log("request", request)
+      this._ws?.send(JSON.stringify(request));
     }
 
     return promise;
@@ -265,7 +266,7 @@ export class JsonRpcClient extends EventTarget {
 
       promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this._ws!.removeEventListener('message', parser);
+          this._ws?.removeEventListener('message', parser);
 
           console.log('Websocket Timeout send batch request: ', requests);
           reject('Websocket Timeout send batch request');
@@ -285,7 +286,7 @@ export class JsonRpcClient extends EventTarget {
 
             if (responsesWithId.length >= 1) {
               clearTimeout(timeout);
-              this._ws!.removeEventListener('message', parser);
+              this._ws?.removeEventListener('message', parser);
               console.log('Websocket got response for request id:', responsesWithId[0].id, ' Responses:', responsesWithId);
               resolve(responses);
             }
@@ -294,10 +295,10 @@ export class JsonRpcClient extends EventTarget {
             // }
           }
         };
-        this._ws!.addEventListener('message', parser);
+        this._ws?.addEventListener('message', parser);
       });
 
-      this._ws!.send(JSON.stringify(requests));
+      this._ws?.send(JSON.stringify(requests));
     }
 
     return promise;
