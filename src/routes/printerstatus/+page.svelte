@@ -3,16 +3,16 @@
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
-  import Fa from 'svelte-fa/src/fa.svelte';
+  import Fa from 'svelte-fa';
 
-  let nozzleTemp = moonraker.extruderCurrentTemperature;
-  let bedTemp = moonraker.heaterBedCurrentTemperature;
-  let nozzleTarget = moonraker.extruderTargetTemperature;
-  let bedTarget = moonraker.heaterBedTargetTemperature;
+  let nozzleTemp = moonraker.extruderTemperature;
+  let bedTemp = moonraker.heaterBedTemperature;
+  let nozzleTarget = moonraker.extruderTarget;
+  let bedTarget = moonraker.heaterBedTarget;
   let fanSpeed = moonraker.fanSpeed;
-  let progress = moonraker.printStateProgress;
-  let printState = moonraker.printState;
-  let printFilename = moonraker.currentPrintedFile;
+  let progress = moonraker.displayStatusProgress;
+  let printState = moonraker.printStatsState;
+  let printFilename = moonraker.printStatsFilename;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
   async function emergencyStop() {

@@ -3,7 +3,7 @@
   import { client } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { faList, faSkull } from '@fortawesome/free-solid-svg-icons';
-  import Fa from 'svelte-fa/src/fa.svelte';
+  import Fa from 'svelte-fa';
 
   async function emergencyStop() {
     let stopRequest = new JsonRpcRequest({

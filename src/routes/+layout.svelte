@@ -1,59 +1,37 @@
 <script lang="ts">
-  import { writable } from 'svelte/store';
-  import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { moonraker } from '$lib/base.svelte';
   import '../app.css';
 
   // define initial component state
-  let isFull = false;
-  let fsContainer: any = null;
 
-  let isConnected = moonraker.isConnected;
+  let isFullscreen = false;
+  let outerElement: Element;
+
   let klippyState = moonraker.klippyState;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
-  // boring plain js fullscreen support stuff below
-  const noop = () => {};
-
-  function fullscreenSupport(): boolean {
-    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled || false);
-  }
-
-  function exitFullscreen(): void {
-    (document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen || noop).bind(document);
-    isFull = false;
-  }
-
-  function requestFullscreen(): void {
-    const requestFS = (
-      fsContainer.requestFullscreen ||
-      fsContainer.mozRequestFullScreen ||
-      fsContainer.webkitRequestFullscreen ||
-      fsContainer.msRequestFullscreen ||
-      noop
-    ).bind(fsContainer);
-    requestFS();
-    isFull = true;
-  }
-
-  function switchFullscreen() {
-    if (fullscreenSupport()) {
-      if (!isFull) {
-        requestFullscreen();
-      } else {
-        exitFullscreen();
-      }
+  async function switchFullscreen() {
+    if (isFullscreen) {
+      await document.exitFullscreen();
+      isFullscreen = false;
+    } else {
+      await outerElement.requestFullscreen();
+      isFullscreen = true;
     }
   }
 
-  async function connectToMoonraker() {
+  async function reconnectToMoonraker() {
     await moonraker.disconnect();
     await moonraker.connect();
   }
+
+  // onMount(async () => {
+  //   await connectToMoonraker();
+  // });
 </script>
 
-<div class="flex h-screen w-screen" bind:this={fsContainer}>
-  {#if $isConnected && $klippyState == 'ready'}
+<div class="flex h-screen w-screen" bind:this={outerElement}>
+  {#if $klippyState != 'disconnected'}
     <slot />
   {:else}
     <div class="flex grow flex-col flex-wrap place-content-center items-center gap-6 bg-neutral-800">
@@ -62,8 +40,8 @@
           <p class="label-head">Klipper</p>
           <p class="label">State: {$klippyState}</p>
           <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
-          <button class="btn-touch " on:click={async () => connectToMoonraker()}>Connect</button>
-          <button class="btn-touch " on:click={() => switchFullscreen()}>Fullscreen</button>
+          <button class="btn-touch " on:click={async () => switchFullscreen()}>Switch Fullscreen</button>
+          <button class="btn-touch " on:click={async () => reconnectToMoonraker()}>Reconnect</button>
         </div>
       </div>
       <div class="flex flex-col items-center justify-center gap-2">

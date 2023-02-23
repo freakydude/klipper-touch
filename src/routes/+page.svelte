@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import '../app.css';
 </script>
 
 <div class="flex flex-grow flex-row flex-wrap place-content-center items-center gap-2 bg-neutral-800">
