@@ -1,5 +1,5 @@
-import { JsonRpcClient, JsonRpcRequest, type IJsonRpcErrorResponse, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
-import { writable, type Readable } from 'svelte/store';
+import { JsonRpcClient, JsonRpcRequest, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
+import { writable } from 'svelte/store';
 import type { INotifyStatusUpdateParams } from './moonraker-types/INotifyStatusUpdate';
 import type { IPrinterObjects } from './moonraker-types/IPrinterObjects';
 import type { TKlippyState } from './moonraker-types/TKlippyState';
@@ -7,7 +7,6 @@ import type { TPrintState } from './moonraker-types/TPrintState';
 
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
-  _isConnected = writable(false);
 
   public klippyState = writable<TKlippyState>('disconnected');
   public heaterBedTarget = writable(0.0);
@@ -30,84 +29,32 @@ export class MoonrakerRpcClient extends EventTarget {
     this.attachToEvents();
   }
 
-  public get isConnected(): Readable<boolean> {
-    return this._isConnected as Readable<boolean>;
-  }
-
-  public async requestIdentifyConnection(): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
-    const identifyConnectionRequest = new JsonRpcRequest({
-      method: 'server.connection.identify',
-      params: {
-        client_name: 'klipper-touch',
-        version: '0.0.2',
-        type: 'display',
-        url: 'https://github.com/freakydude/klipper-touch'
-      }
-    });
-
-    const result = await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
-    // console.log('requestIdentifyConnection - isConnected', result);
-
-    return result;
-  }
-
   public async connect(): Promise<boolean> {
     let successful = false;
 
     try {
       successful = await this._jsonRpcClient.connect();
+
+      if (successful) {
+        const printerObjects: IPrinterObjects = {
+          objects: {
+            heater_bed: ['temperature', 'target'],
+            extruder: ['temperature', 'target'],
+            toolhead: ['position', 'homed_axes'],
+            fan: ['speed'],
+            gcode_move: ['homing_origin'],
+            print_stats: ['filename', 'state', 'message'],
+            display_status: ['progress']
+          }
+        };
+
+        await this.requestIdentifyConnection();
+        await this.requestKlippyState();
+        await this.subscribeToPrinterObjects(printerObjects);
+        await this.queryPrinterObjects(printerObjects);
+      }
     } catch (error) {
       console.log(error);
-    }
-
-    if (successful) {
-      const serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
-
-      try {
-        const response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
-
-        const state: TKlippyState = response.result.klippy_state;
-        this.klippyState.set(state);
-      } catch (error) {
-        console.log(error);
-      }
-
-      const printerObjects: IPrinterObjects = {
-        objects: {
-          heater_bed: ['temperature', 'target'],
-          extruder: ['temperature', 'target'],
-          toolhead: ['position', 'homed_axes'],
-          fan: ['speed'],
-          gcode_move: ['homing_origin'],
-          print_stats: ['filename', 'state', 'message'],
-          display_status: ['progress']
-        }
-      };
-
-      const subscribeRequest = new JsonRpcRequest({
-        method: 'printer.objects.subscribe',
-        params: printerObjects
-      });
-
-      try {
-        await this._jsonRpcClient.sendRequest(subscribeRequest);
-        // console.log(response);
-      } catch (error) {
-        console.log(error);
-      }
-
-      const initialRequest = new JsonRpcRequest({
-        method: 'printer.objects.query',
-        params: printerObjects
-      });
-
-      try {
-        const response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
-        // console.log(response);
-        this.parseState(response.result.status);
-      } catch (error) {
-        console.log(error);
-      }
     }
 
     return successful;
@@ -125,70 +72,132 @@ export class MoonrakerRpcClient extends EventTarget {
     return successful;
   }
 
+  private async requestIdentifyConnection() {
+    const identifyConnectionRequest = new JsonRpcRequest({
+      method: 'server.connection.identify',
+      params: {
+        client_name: 'klipper-touch',
+        version: '0.0.2',
+        type: 'display',
+        url: 'https://github.com/freakydude/klipper-touch'
+      }
+    });
+
+    try {
+      await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  private async queryPrinterObjects(printerObjects: IPrinterObjects) {
+    const initialRequest = new JsonRpcRequest({
+      method: 'printer.objects.query',
+      params: printerObjects
+    });
+
+    try {
+      const response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
+      this.parseNotifyStatusUpdateParams(response.result.status);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  private async subscribeToPrinterObjects(printerObjects: IPrinterObjects) {
+    const subscribeRequest = new JsonRpcRequest({
+      method: 'printer.objects.subscribe',
+      params: printerObjects
+    });
+
+    try {
+      await this._jsonRpcClient.sendRequest(subscribeRequest);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  private async requestKlippyState() {
+    const serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
+
+    try {
+      const response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
+
+      const state: TKlippyState = response.result.klippy_state;
+      this.klippyState.set(state);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   protected attachToEvents() {
     this._jsonRpcClient.addEventListener('notification', (event: Event) => {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
     this._jsonRpcClient.isConnected.subscribe((value) => {
-      this._isConnected.set(value);
+      this.rpcClientIsConnectedChanged(value);
     });
+  }
+
+  private rpcClientIsConnectedChanged(value: boolean) {
+    if (value === false) {
+      this.klippyState.set('disconnected');
+    }
   }
 
   private sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private parseState(objectsParamsRoot: INotifyStatusUpdateParams) {
-    const firstObject = objectsParamsRoot;
-
-    if (firstObject.heater_bed?.temperature != undefined) {
+  private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
+    if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
-      this.heaterBedTemperature.set(firstObject.heater_bed?.temperature);
+      this.heaterBedTemperature.set(param.heater_bed?.temperature);
     }
-    if (firstObject.heater_bed?.target != undefined) {
+    if (param.heater_bed?.target != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.target);
-      this.heaterBedTarget.set(firstObject.heater_bed?.target);
+      this.heaterBedTarget.set(param.heater_bed?.target);
     }
-    if (firstObject.extruder?.temperature != undefined) {
+    if (param.extruder?.temperature != undefined) {
       // console.log('extruder.temperature: ', firstObject.extruder?.temperature);
-      this.extruderTemperature.set(firstObject.extruder?.temperature);
+      this.extruderTemperature.set(param.extruder?.temperature);
     }
-    if (firstObject.extruder?.target != undefined) {
+    if (param.extruder?.target != undefined) {
       // console.log('extruder.temperature: ', firstObject.extruder?.target);
-      this.extruderTarget.set(firstObject.extruder?.target);
+      this.extruderTarget.set(param.extruder?.target);
     }
-    if (firstObject.toolhead?.position != undefined) {
+    if (param.toolhead?.position != undefined) {
       // console.log('toolhead.position: ', firstObject.toolhead?.position);
-      this.toolheadPosition.set(firstObject.toolhead?.position);
+      this.toolheadPosition.set(param.toolhead?.position);
     }
-    if (firstObject.toolhead?.homed_axes != undefined) {
+    if (param.toolhead?.homed_axes != undefined) {
       // console.log('toolhead.homed_axes: ', firstObject.toolhead?.homed_axes);
-      this.toolheadHomedAxes.set(firstObject.toolhead?.homed_axes);
+      this.toolheadHomedAxes.set(param.toolhead?.homed_axes);
     }
-    if (firstObject.gcode_move?.homing_origin != undefined) {
+    if (param.gcode_move?.homing_origin != undefined) {
       // console.log('gcode_move.homing_origin: ', firstObject.gcode_move?.homing_origin);
-      this.gcodeMoveHomeOrigin.set(firstObject.gcode_move?.homing_origin[2]);
+      this.gcodeMoveHomeOrigin.set(param.gcode_move?.homing_origin[2]);
     }
-    if (firstObject.fan?.speed != undefined) {
+    if (param.fan?.speed != undefined) {
       // console.log('fan.speed: ', firstObject.fan?.speed);
-      this.fanSpeed.set(firstObject.fan?.speed);
+      this.fanSpeed.set(param.fan?.speed);
     }
-    if (firstObject.print_stats?.filename != undefined) {
+    if (param.print_stats?.filename != undefined) {
       // console.log('print_stats.filename: ', firstObject.print_stats?.filename);
-      this.printStatsFilename.set(firstObject.print_stats?.filename.slice(0, -6)); //cut ".gcode"
+      this.printStatsFilename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
     }
-    if (firstObject.print_stats?.state != undefined) {
+    if (param.print_stats?.state != undefined) {
       // console.log('print_stats.state: ', firstObject.print_stats?.state);
-      this.printStatsState.set(firstObject.print_stats?.state);
+      this.printStatsState.set(param.print_stats?.state);
     }
-    if (firstObject.print_stats?.message != undefined) {
+    if (param.print_stats?.message != undefined) {
       // console.log('print_stats.message: ', firstObject.print_stats?.message);
-      this.printStatsMessage.set(firstObject.print_stats?.message);
+      this.printStatsMessage.set(param.print_stats?.message);
     }
-    if (firstObject.display_status?.progress != undefined) {
+    if (param.display_status?.progress != undefined) {
       // console.log('display_status.progress: ', firstObject.display_status?.progress);
-      this.displayStatusProgress.set(firstObject.display_status?.progress);
+      this.displayStatusProgress.set(param.display_status?.progress);
     }
   }
 
@@ -198,7 +207,7 @@ export class MoonrakerRpcClient extends EventTarget {
       case 'notify_status_update':
         // console.log('update', notification.params);
         if (Array.isArray(notification.params) && notification.params.length > 0) {
-          this.parseState(notification.params[0]);
+          this.parseNotifyStatusUpdateParams(notification.params[0]);
         }
         break;
       case 'notify_klippy_ready':

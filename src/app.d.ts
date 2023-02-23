@@ -19,5 +19,3 @@ declare module 'fortawesome/free-regular-svg-icons/index.es' {
 declare module 'fortawesome/free-brands-svg-icons/index.es' {
   export * from '@fortawesome/free-brands-svg-icons';
 }
-
-export {};

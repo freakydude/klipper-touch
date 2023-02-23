@@ -7,7 +7,6 @@
   let isFullscreen = false;
   let outerElement: Element;
 
-  let isConnected = moonraker.isConnected;
   let klippyState = moonraker.klippyState;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
@@ -21,14 +20,18 @@
     }
   }
 
-  async function connectToMoonraker() {
+  async function reconnectToMoonraker() {
     await moonraker.disconnect();
     await moonraker.connect();
   }
+
+  // onMount(async () => {
+  //   await connectToMoonraker();
+  // });
 </script>
 
 <div class="flex h-screen w-screen" bind:this={outerElement}>
-  {#if $isConnected && $klippyState == 'ready'}
+  {#if $klippyState != 'disconnected'}
     <slot />
   {:else}
     <div class="flex grow flex-col flex-wrap place-content-center items-center gap-6 bg-neutral-800">
@@ -37,8 +40,8 @@
           <p class="label-head">Klipper</p>
           <p class="label">State: {$klippyState}</p>
           <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
-          <button class="btn-touch " on:click={async () => connectToMoonraker()}>Connect</button>
-          <button class="btn-touch " on:click={async () => switchFullscreen()}>Fullscreen</button>
+          <button class="btn-touch " on:click={async () => switchFullscreen()}>Switch Fullscreen</button>
+          <button class="btn-touch " on:click={async () => reconnectToMoonraker()}>Reconnect</button>
         </div>
       </div>
       <div class="flex flex-col items-center justify-center gap-2">
