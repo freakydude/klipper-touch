@@ -3,44 +3,21 @@
   import '../app.css';
 
   // define initial component state
-  let isFull = false;
-  let fsContainer: any = null;
+
+  let isFullscreen = false;
+  let outerElement: Element;
 
   let isConnected = moonraker.isConnected;
   let klippyState = moonraker.klippyState;
   // let klippyStateMessage = moonraker.klippyStateMessage;
 
-  // boring plain js fullscreen support stuff below
-  const noop = () => {};
-
-  function fullscreenSupport(): boolean {
-    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled || false);
-  }
-
-  function exitFullscreen(): void {
-    (document.exitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen || document.msExitFullscreen || noop).bind(document);
-    isFull = false;
-  }
-
-  function requestFullscreen(): void {
-    const requestFS = (
-      fsContainer.requestFullscreen ||
-      fsContainer.mozRequestFullScreen ||
-      fsContainer.webkitRequestFullscreen ||
-      fsContainer.msRequestFullscreen ||
-      noop
-    ).bind(fsContainer);
-    requestFS();
-    isFull = true;
-  }
-
-  function switchFullscreen() {
-    if (fullscreenSupport()) {
-      if (!isFull) {
-        requestFullscreen();
-      } else {
-        exitFullscreen();
-      }
+  async function switchFullscreen() {
+    if (isFullscreen) {
+      await document.exitFullscreen();
+      isFullscreen = false;
+    } else {
+      await outerElement.requestFullscreen();
+      isFullscreen = true;
     }
   }
 
@@ -50,7 +27,7 @@
   }
 </script>
 
-<div class="flex h-screen w-screen" bind:this={fsContainer}>
+<div class="flex h-screen w-screen" bind:this={outerElement}>
   {#if $isConnected && $klippyState == 'ready'}
     <slot />
   {:else}
@@ -61,7 +38,7 @@
           <p class="label">State: {$klippyState}</p>
           <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
           <button class="btn-touch " on:click={async () => connectToMoonraker()}>Connect</button>
-          <button class="btn-touch " on:click={() => switchFullscreen()}>Fullscreen</button>
+          <button class="btn-touch " on:click={async () => switchFullscreen()}>Fullscreen</button>
         </div>
       </div>
       <div class="flex flex-col items-center justify-center gap-2">
