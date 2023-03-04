@@ -1,4 +1,5 @@
 export interface IPrinterObjectsParams {
+  webhooks: ('state' | 'state_message')[];
   heater_bed: ('temperature' | 'target')[];
   extruder: ('temperature' | 'target')[];
   toolhead: ('position' | 'homed_axes')[];

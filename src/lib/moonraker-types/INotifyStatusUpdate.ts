@@ -1,4 +1,10 @@
+import type { TKlippyState } from './TKlippyState';
 import type { TPrintState } from './TPrintState';
+
+export interface IWebhooks {
+  state: TKlippyState;
+  state_message: string;
+}
 
 export interface IHeaterBed {
   temperature: number;
@@ -34,6 +40,7 @@ export interface IProgress {
 }
 
 export interface INotifyStatusUpdateParams {
+  webhooks: IWebhooks;
   heater_bed: IHeaterBed;
   extruder: IExtruder;
   toolhead: IToolhead;

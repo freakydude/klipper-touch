@@ -9,6 +9,7 @@ export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
   public klippyState = writable<TKlippyState>('disconnected');
+  public klippyStateMessage = writable('');
   public heaterBedTarget = writable(0.0);
   public heaterBedTemperature = writable(0.0);
   public extruderTemperature = writable(0.0);
@@ -38,6 +39,7 @@ export class MoonrakerRpcClient extends EventTarget {
       if (successful) {
         const printerObjects: IPrinterObjects = {
           objects: {
+            webhooks: ['state', 'state_message'],
             heater_bed: ['temperature', 'target'],
             extruder: ['temperature', 'target'],
             toolhead: ['position', 'homed_axes'],
@@ -49,7 +51,6 @@ export class MoonrakerRpcClient extends EventTarget {
         };
 
         await this.requestIdentifyConnection();
-        await this.requestKlippyState();
         await this.subscribeToPrinterObjects(printerObjects);
         await this.queryPrinterObjects(printerObjects);
       }
@@ -117,19 +118,6 @@ export class MoonrakerRpcClient extends EventTarget {
     }
   }
 
-  private async requestKlippyState() {
-    const serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
-
-    try {
-      const response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
-
-      const state: TKlippyState = response.result.klippy_state;
-      this.klippyState.set(state);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
   protected attachToEvents() {
     this._jsonRpcClient.addEventListener('notification', (event: Event) => {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
@@ -151,6 +139,14 @@ export class MoonrakerRpcClient extends EventTarget {
   }
 
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
+    if (param.webhooks?.state != undefined) {
+      // console.log('webhooks.state: ', firstObject.webhooks?.state);
+      this.klippyState.set(param.webhooks?.state);
+    }
+    if (param.webhooks?.state_message != undefined) {
+      // console.log('webhooks.state_message: ', firstObject.webhooks?.state_message);
+      this.klippyStateMessage.set(param.webhooks?.state_message);
+    }
     if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
       this.heaterBedTemperature.set(param.heater_bed?.temperature);
