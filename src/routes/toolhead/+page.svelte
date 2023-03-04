@@ -105,7 +105,7 @@
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <div class="grow" />
-    <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex grow flex-col flex-wrap justify-around">
@@ -123,34 +123,34 @@
               <Fa icon={faHome} />
               <p>All</p>
             </button>
-            <button class="btn-touch col-start-2 row-start-1" disabled={!isHomedXY} on:click={async () => moveRelative(0, distance, 0)}>
+            <button class="btn-touch col-start-2 row-start-1" disabled={!isHomedXY} on:click={() => moveRelative(0, distance, 0)}>
               <p>Y</p>
               <Fa icon={faArrowUp} />
             </button>
-            <button class="btn-touch col-start-1 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(-distance, 0, 0)}
+            <button class="btn-touch col-start-1 row-start-2" disabled={!isHomedXY} on:click={() => moveRelative(-distance, 0, 0)}
               >X<Fa icon={faArrowLeft} />
             </button>
             <button class="btn-touch col-start-2 row-start-2" on:click={homeXY}>
               <Fa icon={faHome} />
               <p>XY</p>
             </button>
-            <button class="btn-touch col-start-3 row-start-2" disabled={!isHomedXY} on:click={async () => moveRelative(distance, 0, 0)}>
+            <button class="btn-touch col-start-3 row-start-2" disabled={!isHomedXY} on:click={() => moveRelative(distance, 0, 0)}>
               <p>X</p>
               <Fa icon={faArrowRight} />
             </button>
-            <button class="btn-touch col-start-2 row-start-3 " disabled={!isHomedXY} on:click={async () => moveRelative(0, -distance, 0)}
+            <button class="btn-touch col-start-2 row-start-3 " disabled={!isHomedXY} on:click={() => moveRelative(0, -distance, 0)}
               >Y<Fa icon={faArrowDown} />
             </button>
           </div>
           <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
-            <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, distance)}
+            <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={() => moveRelative(0, 0, distance)}
               >Z<Fa icon={faArrowUp} /></button
             >
             <button class="btn-touch  col-start-1 row-start-2 " disabled={!isHomedXY} on:click={homeZ}>
               <Fa icon={faHome} />
               <p>Z</p>
             </button>
-            <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={async () => moveRelative(0, 0, -distance)}
+            <button class="btn-touch col-start-1 row-start-3" disabled={!isHomedZ} on:click={() => moveRelative(0, 0, -distance)}
               >Z<Fa icon={faArrowDown} /></button
             >
           </div>
@@ -163,8 +163,8 @@
             <p class="label">Current: {$nozzleTemp.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch  col-start-1 row-start-1 " on:click={async () => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
-            <button class="btn-touch  col-start-2 row-start-1 " on:click={async () => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
+            <button class="btn-touch  col-start-1 row-start-1 " on:click={() => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
+            <button class="btn-touch  col-start-2 row-start-1 " on:click={() => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
           </div>
         </div>
         <div class="flex flex-col rounded bg-neutral-600">

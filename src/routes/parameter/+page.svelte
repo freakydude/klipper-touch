@@ -18,7 +18,7 @@
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <div class="grow" />
-    <button class="btn-touch flex flex-col bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch flex flex-col bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex flex-grow flex-col flex-wrap content-center items-center justify-center gap-6 rounded">
