@@ -6,7 +6,7 @@ install_script() {
   # Install dependencies
 
   report_status "Build Klipper-Touch docker container"
-  $BUILD_CMD
+  sudo /bin/sh -c $BUILD_CMD
 
   # Create systemd service file
   SERVICE_FILE="${SYSTEMDDIR}/klipper-touch.service"
@@ -60,8 +60,8 @@ set -e
 
 # Find SRCDIR from the pathname of this script
 SRCDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
-BUILD_CMD="/usr/bin/docker compose -f ${SRCDIR}/docker-compose.yml build"
-LAUNCH_CMD="/usr/bin/docker compose -f ${SRCDIR}/docker-compose.yml up"
+BUILD_CMD='/usr/bin/docker compose -f ${SRCDIR}/docker-compose.yml build'
+LAUNCH_CMD='/usr/bin/docker compose -f ${SRCDIR}/docker-compose.yml up -V --remove-orphans'
 
 # Parse command line arguments
 while getopts "rfc:l:" arg; do
