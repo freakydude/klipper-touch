@@ -64,7 +64,7 @@
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch flex flex-col bg-red-600" on:click={() => goto('/parameter')}>PA</button>
     <div class="grow" />
-    <button class="btn-touch flex flex-col bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch flex flex-col bg-yellow-600" on:click={ () => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex flex-grow flex-wrap content-center items-center justify-around rounded">
@@ -76,8 +76,8 @@
           <p class="label">Target: {$bedTempTarget.toFixed(0)} °C</p>
         </div>
         <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
-          <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeBedTemperature(distance)}><Fa icon={faArrowUp} /></button>
-          <button class="btn-touch col-start-1 row-start-2 " on:click={async () => changeBedTemperature(-distance)}><Fa icon={faArrowDown} /></button>
+          <button class="btn-touch col-start-1 row-start-1 " on:click={ () => changeBedTemperature(distance)}><Fa icon={faArrowUp} /></button>
+          <button class="btn-touch col-start-1 row-start-2 " on:click={ () => changeBedTemperature(-distance)}><Fa icon={faArrowDown} /></button>
         </div>
       </div>
       <div class="flex flex-col rounded bg-neutral-600">
@@ -87,8 +87,8 @@
           <p class="label">Target: {$nozzleTempTarget.toFixed(0)} °C</p>
         </div>
         <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
-          <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeNozzleTemperature(distance)}><Fa icon={faArrowUp} /></button>
-          <button class="btn-touch col-start-1 row-start-2 " on:click={async () => changeNozzleTemperature(-distance)}><Fa icon={faArrowDown} /></button>
+          <button class="btn-touch col-start-1 row-start-1 " on:click={ () => changeNozzleTemperature(distance)}><Fa icon={faArrowUp} /></button>
+          <button class="btn-touch col-start-1 row-start-2 " on:click={ () => changeNozzleTemperature(-distance)}><Fa icon={faArrowDown} /></button>
         </div>
       </div>
       <div class="flex flex-col rounded bg-neutral-600">

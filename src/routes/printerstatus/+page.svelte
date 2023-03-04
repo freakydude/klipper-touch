@@ -54,7 +54,7 @@
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/files')}>FI</button>
     <div class="grow" />
-    <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex grow flex-col">

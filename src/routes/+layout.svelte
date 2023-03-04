@@ -40,8 +40,8 @@
           <p class="label-head">Klipper</p>
           <p class="label">State: {$klippyState}</p>
           <!-- <p class="label">Message: {$klippyStateMessage}</p> -->
-          <button class="btn-touch " on:click={async () => switchFullscreen()}>Switch Fullscreen</button>
-          <button class="btn-touch " on:click={async () => reconnectToMoonraker()}>Reconnect</button>
+          <button class="btn-touch " on:click={() => switchFullscreen()}>Switch Fullscreen</button>
+          <button class="btn-touch " on:click={() => reconnectToMoonraker()}>Reconnect</button>
         </div>
       </div>
       <div class="flex flex-col items-center justify-center gap-2">
