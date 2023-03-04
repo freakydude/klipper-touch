@@ -4,6 +4,7 @@
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
+  import { writable } from 'svelte/store';
 
   let nozzleTemp = moonraker.extruderTemperature;
   let bedTemp = moonraker.heaterBedTemperature;
@@ -12,8 +13,28 @@
   let fanSpeed = moonraker.fanSpeed;
   let progress = moonraker.displayStatusProgress;
   let printState = moonraker.printStatsState;
+  let printStatsMessage = moonraker.printStatsMessage;
+  let printStatsPrintDuration = moonraker.printStatsPrintDuration;
   let printFilename = moonraker.printStatsFilename;
-  // let klippyStateMessage = moonraker.klippyStateMessage;
+  let fileEstimatedPrintTime = 0.0;
+  let remainingPrintingTime = 0.0;
+
+  // let hours = new Date(Date.now() / 100.0 + remainingPrintingTime).getHours();
+  // let minutes = new Date(Date.now() / 100.0 + remainingPrintingTime).getMinutes();
+
+  printStatsPrintDuration.subscribe((value) => {
+    remainingPrintingTime = Math.max(0, fileEstimatedPrintTime - value);
+  });
+
+  printFilename.subscribe(async (value) => {
+    if (value !== '') {
+      try {
+        fileEstimatedPrintTime = await getEstimatedPrintTime(value + '.gcode');
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
 
   async function emergencyStop() {
     let emergencyStopRequest = new JsonRpcRequest({
@@ -46,6 +67,22 @@
     });
     await client.sendRequest(cancelRequest);
   }
+
+  async function getEstimatedPrintTime(fileName: string): Promise<number> {
+    let fileMetaRequest = new JsonRpcRequest({
+      method: 'server.files.metadata',
+      params: {
+        filename: fileName
+      }
+    });
+
+    console.log(fileName);
+    let fileMetaResponse = await client.sendRequest(fileMetaRequest);
+
+    let fileMeta = fileMetaResponse.result;
+
+    return fileMeta.estimated_time;
+  }
 </script>
 
 <div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
@@ -54,7 +91,7 @@
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/files')}>FI</button>
     <div class="grow" />
-    <button class="btn-touch bg-yellow-600" on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex grow flex-col">
@@ -65,15 +102,21 @@
             <p class="label-head">Status</p>
             <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
             <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
-            <p class="label">Fan: {($fanSpeed * 100).toFixed(0)} %</p>
+            <p class="label">Fan: {($fanSpeed * 100.0).toFixed(0)} %</p>
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch ">
             <p class="label-head ">Print</p>
             <p class="label">State: {$printState}</p>
-            <p class="label">File: {$printFilename}</p>
-            <p class="label">Progress: {($progress * 100).toFixed(1)} %</p>
+            {#if $printState === 'error'}
+              <p class="label">{$printStatsMessage}</p>
+            {/if}
+            {#if $printFilename}
+              <p class="label">File: {$printFilename}</p>
+              <p class="label">Progress: {($progress * 100.0).toFixed(1)} %</p>
+              <p class="label">Remaining: {(remainingPrintingTime / 60.0).toFixed(0)} min</p>
+            {/if}
             <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
               {#if $printState == 'paused'}
                 <button class="btn-touch col-start-1 p-4" on:click={resumePrint}>

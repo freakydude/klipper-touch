@@ -85,7 +85,7 @@
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
     <div class="grow" />
-    <button class="btn-touch bg-yellow-600 " on:click={async () => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600 " on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-600">
@@ -114,10 +114,10 @@
       <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
       <p class="label py-1">Layer: {fileMeta.layer_height}</p>
       <div class="flex flex-row justify-around gap-1">
-        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={async () => printFile(activeFilename)}>
+        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={() => printFile(activeFilename)}>
           <Fa icon={faPrint} />
         </button>
-        <button class="btn-touch" on:click={async () => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
+        <button class="btn-touch" on:click={() => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
       </div>
     </div>
   </div>

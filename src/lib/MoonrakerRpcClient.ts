@@ -9,6 +9,7 @@ export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
   public klippyState = writable<TKlippyState>('disconnected');
+  public klippyStateMessage = writable('');
   public heaterBedTarget = writable(0.0);
   public heaterBedTemperature = writable(0.0);
   public extruderTemperature = writable(0.0);
@@ -20,6 +21,7 @@ export class MoonrakerRpcClient extends EventTarget {
   public printStatsState = writable<TPrintState>('standby');
   public printStatsMessage = writable('');
   public printStatsFilename = writable('');
+  public printStatsPrintDuration = writable(0.0);
   public displayStatusProgress = writable(0.0);
 
   public constructor(jsonRpcClient: JsonRpcClient) {
@@ -38,18 +40,18 @@ export class MoonrakerRpcClient extends EventTarget {
       if (successful) {
         const printerObjects: IPrinterObjects = {
           objects: {
+            webhooks: ['state', 'state_message'],
             heater_bed: ['temperature', 'target'],
             extruder: ['temperature', 'target'],
             toolhead: ['position', 'homed_axes'],
             fan: ['speed'],
             gcode_move: ['homing_origin'],
-            print_stats: ['filename', 'state', 'message'],
+            print_stats: ['filename', 'print_duration', 'state', 'message'],
             display_status: ['progress']
           }
         };
 
         await this.requestIdentifyConnection();
-        await this.requestKlippyState();
         await this.subscribeToPrinterObjects(printerObjects);
         await this.queryPrinterObjects(printerObjects);
       }
@@ -117,19 +119,6 @@ export class MoonrakerRpcClient extends EventTarget {
     }
   }
 
-  private async requestKlippyState() {
-    const serverInfoRequest = new JsonRpcRequest({ method: 'server.info' });
-
-    try {
-      const response = (await this._jsonRpcClient.sendRequest(serverInfoRequest)) as IJsonRpcSuccessResponse;
-
-      const state: TKlippyState = response.result.klippy_state;
-      this.klippyState.set(state);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
   protected attachToEvents() {
     this._jsonRpcClient.addEventListener('notification', (event: Event) => {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
@@ -151,6 +140,14 @@ export class MoonrakerRpcClient extends EventTarget {
   }
 
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
+    if (param.webhooks?.state != undefined) {
+      // console.log('webhooks.state: ', firstObject.webhooks?.state);
+      this.klippyState.set(param.webhooks?.state);
+    }
+    if (param.webhooks?.state_message != undefined) {
+      // console.log('webhooks.state_message: ', firstObject.webhooks?.state_message);
+      this.klippyStateMessage.set(param.webhooks?.state_message);
+    }
     if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
       this.heaterBedTemperature.set(param.heater_bed?.temperature);
@@ -186,6 +183,10 @@ export class MoonrakerRpcClient extends EventTarget {
     if (param.print_stats?.filename != undefined) {
       // console.log('print_stats.filename: ', firstObject.print_stats?.filename);
       this.printStatsFilename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
+    }
+    if (param.print_stats?.print_duration != undefined) {
+      // console.log('print_stats.print_duration: ', firstObject.print_stats?.print_duration);
+      this.printStatsPrintDuration.set(param.print_stats?.print_duration);
     }
     if (param.print_stats?.state != undefined) {
       // console.log('print_stats.state: ', firstObject.print_stats?.state);
