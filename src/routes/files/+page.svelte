@@ -108,7 +108,7 @@
       <img src={thumbnail} alt="" loading="lazy" class="h-24 self-center" />
       <!--  class="w-24 self-center" -->
       <p class="label py-1">
-        {(fileMeta.estimated_time / 60.0).toFixed(0)} min
+        {new Date(fileMeta.estimated_time * 1000).getUTCHours()}h {new Date(fileMeta.estimated_time * 1000).getUTCMinutes()}min
       </p>
       <p class="label py-1">Nozzle: {fileMeta.first_layer_extr_temp} °C</p>
       <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
