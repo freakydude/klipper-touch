@@ -31,6 +31,9 @@ export interface IGCodeMove {
 
 export interface IPrintStats {
   filename: string;
+  total_duration: number;
+  print_duration: number;
+  filament_used: number;
   state: TPrintState;
   message: string;
 }

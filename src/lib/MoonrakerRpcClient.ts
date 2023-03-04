@@ -21,6 +21,7 @@ export class MoonrakerRpcClient extends EventTarget {
   public printStatsState = writable<TPrintState>('standby');
   public printStatsMessage = writable('');
   public printStatsFilename = writable('');
+  public printStatsPrintDuration = writable(0.0);
   public displayStatusProgress = writable(0.0);
 
   public constructor(jsonRpcClient: JsonRpcClient) {
@@ -45,7 +46,7 @@ export class MoonrakerRpcClient extends EventTarget {
             toolhead: ['position', 'homed_axes'],
             fan: ['speed'],
             gcode_move: ['homing_origin'],
-            print_stats: ['filename', 'state', 'message'],
+            print_stats: ['filename', 'print_duration', 'state', 'message'],
             display_status: ['progress']
           }
         };
@@ -182,6 +183,10 @@ export class MoonrakerRpcClient extends EventTarget {
     if (param.print_stats?.filename != undefined) {
       // console.log('print_stats.filename: ', firstObject.print_stats?.filename);
       this.printStatsFilename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
+    }
+    if (param.print_stats?.print_duration != undefined) {
+      // console.log('print_stats.print_duration: ', firstObject.print_stats?.print_duration);
+      this.printStatsPrintDuration.set(param.print_stats?.print_duration);
     }
     if (param.print_stats?.state != undefined) {
       // console.log('print_stats.state: ', firstObject.print_stats?.state);
