@@ -4,7 +4,6 @@
   import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
-  import { writable } from 'svelte/store';
 
   let nozzleTemp = moonraker.extruderTemperature;
   let bedTemp = moonraker.heaterBedTemperature;
@@ -103,19 +102,27 @@
             <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
             <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
             <p class="label">Fan: {($fanSpeed * 100.0).toFixed(0)} %</p>
+            <p class="label">State: {$printState}</p>
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
           <div class="flex flex-col flex-wrap items-stretch ">
             <p class="label-head ">Print</p>
-            <p class="label">State: {$printState}</p>
             {#if $printState === 'error'}
               <p class="label">{$printStatsMessage}</p>
             {/if}
             {#if $printFilename}
               <p class="label">File: {$printFilename}</p>
-              <p class="label">Progress: {($progress * 100.0).toFixed(1)} %</p>
-              <p class="label">Remaining: {(remainingPrintingTime / 60.0).toFixed(0)} min</p>
+              {#if $progress === 0.0}
+                <p class="label">
+                  Estimated: {new Date(fileEstimatedPrintTime * 1000).getUTCHours()}h {new Date(fileEstimatedPrintTime * 1000).getUTCMinutes()}min
+                </p>
+              {:else}
+                <p class="label">Progress: {($progress * 100.0).toFixed(1)} %</p>
+                <p class="label">
+                  Remaining: {new Date(remainingPrintingTime * 1000).getUTCHours()}h {new Date(remainingPrintingTime * 1000).getUTCMinutes()}min
+                </p>
+              {/if}
             {/if}
             <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
               {#if $printState == 'paused'}
