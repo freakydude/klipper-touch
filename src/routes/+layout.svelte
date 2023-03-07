@@ -8,8 +8,8 @@
   let isFullscreen = false;
   let outerElement: Element;
 
-  let klippyState = moonraker.klippyState;
-  let klippyStateMessage = moonraker.klippyStateMessage;
+  let klippyState = moonraker.klippyState.klippyState;
+  let klippyStateMessage = moonraker.klippyState.klippyStateMessage;
 
   async function switchFullscreen() {
     if (isFullscreen) {

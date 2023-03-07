@@ -1,19 +1,22 @@
-import { JsonRpcClient, JsonRpcRequest, type IJsonRpcRequest, type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
+import { JsonRpcClient,JsonRpcRequest,type IJsonRpcRequest,type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
 import { writable } from 'svelte/store';
+import { HeaterBed } from './HeaterBed';
+import { KlipperState } from './KlipperState';
 import type { INotifyStatusUpdateParams } from './moonraker-types/INotifyStatusUpdate';
 import type { IPrinterObjects } from './moonraker-types/IPrinterObjects';
-import type { TKlippyState } from './moonraker-types/TKlippyState';
 import type { TPrintState } from './moonraker-types/TPrintState';
+
+export class Extruder {
+  public Temperature = writable(0.0);
+  public Target = writable(0.0);
+}
 
 export class MoonrakerRpcClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
-  public klippyState = writable<TKlippyState>('disconnected');
-  public klippyStateMessage = writable('');
-  public heaterBedTarget = writable(0.0);
-  public heaterBedTemperature = writable(0.0);
-  public extruderTemperature = writable(0.0);
-  public extruderTarget = writable(0.0);
+  public klippyState = new KlipperState();
+  public heaterBed = new HeaterBed();
+  public extruder = new Extruder()
   public toolheadPosition = writable([0, 0, 0, 0]);
   public gcodeMoveHomeOrigin = writable(0.0);
   public fanSpeed = writable(0.0);
@@ -131,7 +134,7 @@ export class MoonrakerRpcClient extends EventTarget {
 
   private rpcClientIsConnectedChanged(value: boolean) {
     if (value === false) {
-      this.klippyState.set('disconnected');
+      this.klippyState.klippyState.set('disconnected');
     }
   }
 
@@ -142,27 +145,27 @@ export class MoonrakerRpcClient extends EventTarget {
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
     if (param.webhooks?.state != undefined) {
       // console.log('webhooks.state: ', firstObject.webhooks?.state);
-      this.klippyState.set(param.webhooks?.state);
+      this.klippyState.klippyState.set(param.webhooks?.state);
     }
     if (param.webhooks?.state_message != undefined) {
       // console.log('webhooks.state_message: ', firstObject.webhooks?.state_message);
-      this.klippyStateMessage.set(param.webhooks?.state_message);
+      this.klippyState.klippyStateMessage.set(param.webhooks?.state_message);
     }
     if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
-      this.heaterBedTemperature.set(param.heater_bed?.temperature);
+      this.heaterBed.Temperature.set(param.heater_bed?.temperature);
     }
     if (param.heater_bed?.target != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.target);
-      this.heaterBedTarget.set(param.heater_bed?.target);
+      this.heaterBed.Target.set(param.heater_bed?.target);
     }
     if (param.extruder?.temperature != undefined) {
       // console.log('extruder.temperature: ', firstObject.extruder?.temperature);
-      this.extruderTemperature.set(param.extruder?.temperature);
+      this.extruder.Temperature.set(param.extruder?.temperature);
     }
     if (param.extruder?.target != undefined) {
       // console.log('extruder.temperature: ', firstObject.extruder?.target);
-      this.extruderTarget.set(param.extruder?.target);
+      this.extruder.Target.set(param.extruder?.target);
     }
     if (param.toolhead?.position != undefined) {
       // console.log('toolhead.position: ', firstObject.toolhead?.position);
@@ -212,19 +215,19 @@ export class MoonrakerRpcClient extends EventTarget {
         }
         break;
       case 'notify_klippy_ready':
-        this.klippyState.set('ready');
+        this.klippyState.klippyState.set('ready');
         break;
       case 'notify_klippy_disconnected':
-        this.klippyState.set('disconnected');
+        this.klippyState.klippyState.set('disconnected');
         break;
       case 'notify_klippy_error':
-        this.klippyState.set('error');
+        this.klippyState.klippyState.set('error');
         break;
       case 'notify_klippy_startup':
-        this.klippyState.set('startup');
+        this.klippyState.klippyState.set('startup');
         break;
       case 'notify_klippy_shutdown':
-        this.klippyState.set('shutdown');
+        this.klippyState.klippyState.set('shutdown');
         break;
       case 'notify_proc_stat_update':
         // TODO parse process stats
