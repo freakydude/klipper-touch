@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faList, faSkull } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
