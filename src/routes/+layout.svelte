@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
   import '../app.css';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 
   // define initial component state
 
   let isFullscreen = false;
   let outerElement: Element;
 
-  let klippyState = moonraker.klippyState.klippyState;
-  let klippyStateMessage = moonraker.klippyState.klippyStateMessage;
+  let klippyState = moonraker.klippyState.state;
+  let klippyStateMessage = moonraker.klippyState.message;
 
   async function switchFullscreen() {
     if (isFullscreen) {

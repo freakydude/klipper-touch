@@ -1,15 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faArrowDown, faArrowLeft, faArrowRight, faArrowUp, faHome, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
   let extruderSpeed = 5;
   let moveSpeed = 50;
 
-  let toolheadPosition = moonraker.toolheadPosition;
-  let nozzleTemp = moonraker.extruderTemperature;
+  let toolheadPosition = moonraker.toolhead.Position;
+  let nozzleTemp = moonraker.extruder.Temperature;
 
   let stepsArrIdx = 6;
   let stepsArr = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
@@ -18,7 +18,7 @@
   let isHomedXY = false;
   let isHomedZ = false;
 
-  moonraker.toolheadHomedAxes.subscribe((value) => {
+  moonraker.toolhead.HomedAxes.subscribe((value) => {
     if (value.includes('xy')) {
       isHomedXY = true;
     } else {

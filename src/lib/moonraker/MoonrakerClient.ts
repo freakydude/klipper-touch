@@ -1,31 +1,29 @@
-import { JsonRpcClient,JsonRpcRequest,type IJsonRpcRequest,type IJsonRpcSuccessResponse } from '$lib/JsonRpcClient';
-import { writable } from 'svelte/store';
-import { HeaterBed } from './HeaterBed';
-import { KlipperState } from './KlipperState';
-import type { INotifyStatusUpdateParams } from './moonraker-types/INotifyStatusUpdate';
-import type { IPrinterObjects } from './moonraker-types/IPrinterObjects';
-import type { TPrintState } from './moonraker-types/TPrintState';
+import type { JsonRpcClient } from '$lib/jsonrpc/JsonRpcClient';
+import type { IJsonRpcRequest } from '$lib/jsonrpc/types/IJsonRpcRequest';
+import type { IJsonRpcSuccessResponse } from '$lib/jsonrpc/types/IJsonRpcSuccessResponse';
+import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+import { DisplayStatus } from './modules/DisplayStatus';
+import { Extruder } from './modules/Extruder';
+import { Fan } from './modules/Fan';
+import { GCodeMove } from './modules/GCodeMove';
+import { HeaterBed } from './modules/HeaterBed';
+import { KlipperState } from './modules/KlipperState';
+import { PrintStats } from './modules/PrintStats';
+import { Toolhead } from './modules/Toolhead';
+import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdate';
+import type { IPrinterObjects } from './types/IPrinterObjects';
 
-export class Extruder {
-  public Temperature = writable(0.0);
-  public Target = writable(0.0);
-}
-
-export class MoonrakerRpcClient extends EventTarget {
+export class MoonrakerClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
   public klippyState = new KlipperState();
   public heaterBed = new HeaterBed();
-  public extruder = new Extruder()
-  public toolheadPosition = writable([0, 0, 0, 0]);
-  public gcodeMoveHomeOrigin = writable(0.0);
-  public fanSpeed = writable(0.0);
-  public toolheadHomedAxes = writable('');
-  public printStatsState = writable<TPrintState>('standby');
-  public printStatsMessage = writable('');
-  public printStatsFilename = writable('');
-  public printStatsPrintDuration = writable(0.0);
-  public displayStatusProgress = writable(0.0);
+  public extruder = new Extruder();
+  public toolhead = new Toolhead();
+  public gcodeMove = new GCodeMove();
+  public fan = new Fan();
+  public printStats = new PrintStats();
+  public displayStatus = new DisplayStatus();
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -134,7 +132,7 @@ export class MoonrakerRpcClient extends EventTarget {
 
   private rpcClientIsConnectedChanged(value: boolean) {
     if (value === false) {
-      this.klippyState.klippyState.set('disconnected');
+      this.klippyState.state.set('disconnected');
     }
   }
 
@@ -145,11 +143,11 @@ export class MoonrakerRpcClient extends EventTarget {
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
     if (param.webhooks?.state != undefined) {
       // console.log('webhooks.state: ', firstObject.webhooks?.state);
-      this.klippyState.klippyState.set(param.webhooks?.state);
+      this.klippyState.state.set(param.webhooks?.state);
     }
     if (param.webhooks?.state_message != undefined) {
       // console.log('webhooks.state_message: ', firstObject.webhooks?.state_message);
-      this.klippyState.klippyStateMessage.set(param.webhooks?.state_message);
+      this.klippyState.message.set(param.webhooks?.state_message);
     }
     if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
@@ -169,39 +167,39 @@ export class MoonrakerRpcClient extends EventTarget {
     }
     if (param.toolhead?.position != undefined) {
       // console.log('toolhead.position: ', firstObject.toolhead?.position);
-      this.toolheadPosition.set(param.toolhead?.position);
+      this.toolhead.Position.set(param.toolhead?.position);
     }
     if (param.toolhead?.homed_axes != undefined) {
       // console.log('toolhead.homed_axes: ', firstObject.toolhead?.homed_axes);
-      this.toolheadHomedAxes.set(param.toolhead?.homed_axes);
+      this.toolhead.HomedAxes.set(param.toolhead?.homed_axes);
     }
     if (param.gcode_move?.homing_origin != undefined) {
       // console.log('gcode_move.homing_origin: ', firstObject.gcode_move?.homing_origin);
-      this.gcodeMoveHomeOrigin.set(param.gcode_move?.homing_origin[2]);
+      this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin[2]);
     }
     if (param.fan?.speed != undefined) {
       // console.log('fan.speed: ', firstObject.fan?.speed);
-      this.fanSpeed.set(param.fan?.speed);
+      this.fan.Speed.set(param.fan?.speed);
     }
     if (param.print_stats?.filename != undefined) {
       // console.log('print_stats.filename: ', firstObject.print_stats?.filename);
-      this.printStatsFilename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
+      this.printStats.Filename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
     }
     if (param.print_stats?.print_duration != undefined) {
       // console.log('print_stats.print_duration: ', firstObject.print_stats?.print_duration);
-      this.printStatsPrintDuration.set(param.print_stats?.print_duration);
+      this.printStats.PrintDuration.set(param.print_stats?.print_duration);
     }
     if (param.print_stats?.state != undefined) {
       // console.log('print_stats.state: ', firstObject.print_stats?.state);
-      this.printStatsState.set(param.print_stats?.state);
+      this.printStats.State.set(param.print_stats?.state);
     }
     if (param.print_stats?.message != undefined) {
       // console.log('print_stats.message: ', firstObject.print_stats?.message);
-      this.printStatsMessage.set(param.print_stats?.message);
+      this.printStats.Message.set(param.print_stats?.message);
     }
     if (param.display_status?.progress != undefined) {
       // console.log('display_status.progress: ', firstObject.display_status?.progress);
-      this.displayStatusProgress.set(param.display_status?.progress);
+      this.displayStatus.Progress.set(param.display_status?.progress);
     }
   }
 
@@ -215,19 +213,19 @@ export class MoonrakerRpcClient extends EventTarget {
         }
         break;
       case 'notify_klippy_ready':
-        this.klippyState.klippyState.set('ready');
+        this.klippyState.state.set('ready');
         break;
       case 'notify_klippy_disconnected':
-        this.klippyState.klippyState.set('disconnected');
+        this.klippyState.state.set('disconnected');
         break;
       case 'notify_klippy_error':
-        this.klippyState.klippyState.set('error');
+        this.klippyState.state.set('error');
         break;
       case 'notify_klippy_startup':
-        this.klippyState.klippyState.set('startup');
+        this.klippyState.state.set('startup');
         break;
       case 'notify_klippy_shutdown':
-        this.klippyState.klippyState.set('shutdown');
+        this.klippyState.state.set('shutdown');
         break;
       case 'notify_proc_stat_update':
         // TODO parse process stats
