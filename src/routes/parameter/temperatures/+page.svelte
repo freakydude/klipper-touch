@@ -11,8 +11,8 @@
   let nozzleTemp = moonraker.extruderTemperature;
   let nozzleTempTarget = moonraker.extruderTarget;
 
-  let bedTemp = moonraker.heaterBedTemperature;
-  let bedTempTarget = moonraker.heaterBedTarget;
+  let bedTemp = moonraker.heaterBed.Temperature;
+  let bedTempTarget = moonraker.heater.BedTarget;
 
   let distance = stepsArr[stepsArrIdx];
 

@@ -5,10 +5,10 @@
   import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
-  let nozzleTemp = moonraker.extruderTemperature;
-  let bedTemp = moonraker.heaterBedTemperature;
-  let nozzleTarget = moonraker.extruderTarget;
-  let bedTarget = moonraker.heaterBedTarget;
+  let nozzleTemp = moonraker.extruder.Temperature;
+  let bedTemp = moonraker.heaterBed.Temperature;
+  let nozzleTarget = moonraker.extruder.Target;
+  let bedTarget = moonraker.heaterBed.Target;
   let fanSpeed = moonraker.fanSpeed;
   let progress = moonraker.displayStatusProgress;
   let printState = moonraker.printStatsState;
