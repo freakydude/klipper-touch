@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faArrowDown, faArrowUp, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
-  let zOffset = moonraker.gcodeMoveHomeOrigin;
+  let zOffset = moonraker.gcodeMove.HomeOrigin;
   let stepsArrIdx = 4;
   let stepsArr = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1];
 

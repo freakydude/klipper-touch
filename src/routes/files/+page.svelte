@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faList, faPrint, faSkull, faTrash } from '@fortawesome/free-solid-svg-icons';
   import { onMount } from 'svelte';
   import Fa from 'svelte-fa';
@@ -14,12 +14,12 @@
     await client.sendRequest(stopRequest);
   }
 
-  let printState = moonraker.printStatsState;
+  let printState = moonraker.printStats.State;
 
   let activeFilename = '';
   let availableFiles = [''];
   let fileMeta = {};
-  let thumbnail;
+  let thumbnail: any;
 
   onMount(async () => {
     await listFiles();

@@ -1,20 +1,20 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
-  let nozzleTemp = moonraker.extruderTemperature;
-  let bedTemp = moonraker.heaterBedTemperature;
-  let nozzleTarget = moonraker.extruderTarget;
-  let bedTarget = moonraker.heaterBedTarget;
-  let fanSpeed = moonraker.fanSpeed;
-  let progress = moonraker.displayStatusProgress;
-  let printState = moonraker.printStatsState;
-  let printStatsMessage = moonraker.printStatsMessage;
-  let printStatsPrintDuration = moonraker.printStatsPrintDuration;
-  let printFilename = moonraker.printStatsFilename;
+  let nozzleTemp = moonraker.extruder.Temperature;
+  let bedTemp = moonraker.heaterBed.Temperature;
+  let nozzleTarget = moonraker.extruder.Target;
+  let bedTarget = moonraker.heaterBed.Target;
+  let fanSpeed = moonraker.fan.Speed;
+  let progress = moonraker.displayStatus.Progress;
+  let printState = moonraker.printStats.State;
+  let printStatsMessage = moonraker.printStats.Message;
+  let printStatsPrintDuration = moonraker.printStats.PrintDuration;
+  let printFilename = moonraker.printStats.Filename;
   let fileEstimatedPrintTime = 0.0;
   let remainingPrintingTime = 0.0;
 

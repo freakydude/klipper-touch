@@ -1,18 +1,18 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/JsonRpcClient';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { faArrowDown, faArrowUp, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
   let stepsArrIdx = 4;
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
 
-  let nozzleTemp = moonraker.extruderTemperature;
-  let nozzleTempTarget = moonraker.extruderTarget;
+  let nozzleTemp = moonraker.extruder.Temperature;
+  let nozzleTempTarget = moonraker.extruder.Target;
 
-  let bedTemp = moonraker.heaterBedTemperature;
-  let bedTempTarget = moonraker.heaterBedTarget;
+  let bedTemp = moonraker.heaterBed.Temperature;
+  let bedTempTarget = moonraker.heaterBed.Target;
 
   let distance = stepsArr[stepsArrIdx];
 
