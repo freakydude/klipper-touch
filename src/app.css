@@ -5,18 +5,18 @@
 
 @layer components {
   .btn-touch {
-    @apply flex flex-col place-items-center justify-center rounded bg-neutral-500 py-6 px-6  text-center text-white shadow-md disabled:opacity-50;
+    @apply flex flex-col place-items-center justify-center rounded bg-neutral-500 px-6 py-6  text-center text-white shadow-md disabled:opacity-50;
   }
 
   .btn-list {
-    @apply justify-start rounded bg-neutral-500 py-1 px-2 text-start text-white shadow-md disabled:opacity-50;
+    @apply justify-start rounded bg-neutral-500 px-2 py-1 text-start text-white shadow-md disabled:opacity-50;
   }
 
   .label {
-    @apply py-1 px-2 text-center text-white;
+    @apply px-2 py-1 text-center text-white;
   }
 
   .label-head {
-    @apply label rounded bg-red-600 py-1 px-2 text-center;
+    @apply label rounded bg-red-600 px-2 py-1 text-center;
   }
 }

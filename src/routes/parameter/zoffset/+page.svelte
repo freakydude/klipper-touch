@@ -71,8 +71,8 @@
         <p class="label">Current: {$zOffset.toFixed(3)} mm</p>
       </div>
       <div class="grid grid-cols-2 grid-rows-2 gap-1 p-1">
-        <button class="btn-touch col-start-1 row-start-1 " on:click={async () => changeZOffset(distance)}><Fa icon={faArrowUp} /></button>
-        <button class="btn-touch col-start-2 row-start-1 " on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowDown} /></button>
+        <button class="btn-touch col-start-1 row-start-1" on:click={async () => changeZOffset(distance)}><Fa icon={faArrowUp} /></button>
+        <button class="btn-touch col-start-2 row-start-1" on:click={async () => changeZOffset(-distance)}><Fa icon={faArrowDown} /></button>
         <button class="btn-touch col-start-1 row-start-2 px-3 py-5" on:click={saveOffset}>Save</button>
         <button class="btn-touch col-start-2 row-start-2 px-3 py-5" on:click={clearOffset}>Clear</button>
       </div>
@@ -82,7 +82,7 @@
         <p class="label-head">Step</p>
         <p class="label">Current: {distance.toFixed(3)} mm</p>
       </div>
-      <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1 ">
+      <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
         <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
         <button class="btn-touch col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
       </div>

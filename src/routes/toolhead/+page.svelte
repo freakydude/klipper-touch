@@ -101,7 +101,7 @@
 </script>
 
 <div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
-  <div class="flex flex-col justify-start gap-1 ">
+  <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
     <div class="grow" />
@@ -109,7 +109,7 @@
   </div>
 
   <div class="flex grow flex-col flex-wrap justify-around">
-    <div class="flex flex-wrap content-center items-center justify-around  ">
+    <div class="flex flex-wrap content-center items-center justify-around">
       <div class="flex flex-col rounded bg-neutral-600">
         <div class="label-head flex flex-row flex-wrap justify-around">
           <p>Position</p>
@@ -117,7 +117,7 @@
           <p>Y {$toolheadPosition[1].toFixed(1)}</p>
           <p>Z {$toolheadPosition[2].toFixed(1)}</p>
         </div>
-        <div class="flex content-center items-center justify-center gap-2  p-1">
+        <div class="flex content-center items-center justify-center gap-2 p-1">
           <div class="grid grid-cols-3 grid-rows-3 gap-1">
             <button class="btn-touch col-start-1 row-start-1" on:click={homeXYZ}>
               <Fa icon={faHome} />
@@ -138,15 +138,15 @@
               <p>X</p>
               <Fa icon={faArrowRight} />
             </button>
-            <button class="btn-touch col-start-2 row-start-3 " disabled={!isHomedXY} on:click={() => moveRelative(0, -distance, 0)}
+            <button class="btn-touch col-start-2 row-start-3" disabled={!isHomedXY} on:click={() => moveRelative(0, -distance, 0)}
               >Y<Fa icon={faArrowDown} />
             </button>
           </div>
-          <div class="grid grid-cols-1 grid-rows-3 gap-1 ">
-            <button class="btn-touch col-start-1 row-start-1 " disabled={!isHomedZ} on:click={() => moveRelative(0, 0, distance)}
+          <div class="grid grid-cols-1 grid-rows-3 gap-1">
+            <button class="btn-touch col-start-1 row-start-1" disabled={!isHomedZ} on:click={() => moveRelative(0, 0, distance)}
               >Z<Fa icon={faArrowUp} /></button
             >
-            <button class="btn-touch  col-start-1 row-start-2 " disabled={!isHomedXY} on:click={homeZ}>
+            <button class="btn-touch col-start-1 row-start-2" disabled={!isHomedXY} on:click={homeZ}>
               <Fa icon={faHome} />
               <p>Z</p>
             </button>
@@ -157,24 +157,24 @@
         </div>
       </div>
       <div class="flex flex-col items-center gap-2">
-        <div class="flex flex-col rounded bg-neutral-600 ">
-          <div class="flex flex-col flex-wrap items-stretch ">
+        <div class="flex flex-col rounded bg-neutral-600">
+          <div class="flex flex-col flex-wrap items-stretch">
             <p class="label-head">Extrude/Retract</p>
             <p class="label">Current: {$nozzleTemp.toFixed(0)} °C</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch  col-start-1 row-start-1 " on:click={() => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
-            <button class="btn-touch  col-start-2 row-start-1 " on:click={() => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
+            <button class="btn-touch col-start-1 row-start-1" on:click={() => extrudeRelative(-distance)}><Fa icon={faArrowDown} /></button>
+            <button class="btn-touch col-start-2 row-start-1" on:click={() => extrudeRelative(distance)}><Fa icon={faArrowUp} /></button>
           </div>
         </div>
         <div class="flex flex-col rounded bg-neutral-600">
-          <div class="items-stetch flex flex-col flex-wrap ">
+          <div class="items-stetch flex flex-col flex-wrap">
             <p class="label-head">Distance</p>
             <p class="label">Current: {distance} mm</p>
           </div>
           <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-            <button class="btn-touch  col-start-1 row-start-1 " on:click={decreaseDistance}><Fa icon={faMinus} /></button>
-            <button class="btn-touch  col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
+            <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
+            <button class="btn-touch col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
           </div>
         </div>
       </div>

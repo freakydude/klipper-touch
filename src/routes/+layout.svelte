@@ -51,16 +51,16 @@
   {#if $klippyState === 'ready'}
     <slot />
   {:else}
-    <div class="flex grow flex-col flex-wrap place-content-center  items-center gap-6 bg-neutral-800">
+    <div class="flex grow flex-col flex-wrap place-content-center items-center gap-6 bg-neutral-800">
       <div class="flex flex-col rounded bg-neutral-600">
-        <div class="flex flex-row flex-wrap  justify-center gap-1">
+        <div class="flex flex-row flex-wrap justify-center gap-1">
           {#if $klippyState === 'disconnected'}
-            <button class="btn-touch " on:click={() => reconnectToMoonraker()}>Reconnect</button>
-            <button class="btn-touch " on:click={() => switchFullscreen()}>Fullscreen</button>
+            <button class="btn-touch" on:click={() => reconnectToMoonraker()}>Reconnect</button>
+            <button class="btn-touch" on:click={() => switchFullscreen()}>Fullscreen</button>
           {:else}
             <p class="label">{$klippyStateMessage}</p>
-            <button class="btn-touch " on:click={() => printerRestart()}>Restart Printer</button>
-            <button class="btn-touch " on:click={() => firmwareRestart()}>Restart Firmware</button>
+            <button class="btn-touch" on:click={() => printerRestart()}>Restart Printer</button>
+            <button class="btn-touch" on:click={() => firmwareRestart()}>Restart Firmware</button>
           {/if}
         </div>
       </div>

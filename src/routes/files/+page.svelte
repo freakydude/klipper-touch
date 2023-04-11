@@ -85,7 +85,7 @@
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
     <button class="btn-touch bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
     <div class="grow" />
-    <button class="btn-touch bg-yellow-600 " on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
   </div>
 
   <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-600">
@@ -101,7 +101,7 @@
     </div>
   </div>
 
-  <div class="flex flex-col items-center justify-around  rounded">
+  <div class="flex flex-col items-center justify-around rounded">
     <div class="flex flex-col overflow-y-auto rounded bg-neutral-600">
       <p class="label-head">Details</p>
       <!-- <p class="label overflow-x-clip">File: {activeFilename.slice(0, -6)}</p> -->
