@@ -76,8 +76,8 @@
           <p class="label">Target: {$bedTempTarget.toFixed(0)} °C</p>
         </div>
         <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
-          <button class="btn-touch col-start-1 row-start-1 " on:click={() => changeBedTemperature(distance)}><Fa icon={faArrowUp} /></button>
-          <button class="btn-touch col-start-1 row-start-2 " on:click={() => changeBedTemperature(-distance)}><Fa icon={faArrowDown} /></button>
+          <button class="btn-touch col-start-1 row-start-1" on:click={() => changeBedTemperature(distance)}><Fa icon={faArrowUp} /></button>
+          <button class="btn-touch col-start-1 row-start-2" on:click={() => changeBedTemperature(-distance)}><Fa icon={faArrowDown} /></button>
         </div>
       </div>
       <div class="flex flex-col rounded bg-neutral-600">
@@ -87,8 +87,8 @@
           <p class="label">Target: {$nozzleTempTarget.toFixed(0)} °C</p>
         </div>
         <div class="grid grid-cols-1 grid-rows-2 gap-1 p-1">
-          <button class="btn-touch col-start-1 row-start-1 " on:click={() => changeNozzleTemperature(distance)}><Fa icon={faArrowUp} /></button>
-          <button class="btn-touch col-start-1 row-start-2 " on:click={() => changeNozzleTemperature(-distance)}><Fa icon={faArrowDown} /></button>
+          <button class="btn-touch col-start-1 row-start-1" on:click={() => changeNozzleTemperature(distance)}><Fa icon={faArrowUp} /></button>
+          <button class="btn-touch col-start-1 row-start-2" on:click={() => changeNozzleTemperature(-distance)}><Fa icon={faArrowDown} /></button>
         </div>
       </div>
       <div class="flex flex-col rounded bg-neutral-600">
@@ -96,7 +96,7 @@
           <p class="label-head">Steps</p>
           <p class="label">Current: {distance.toFixed(0)} °C</p>
         </div>
-        <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1 ">
+        <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
           <button class="btn-touch col-start-1 row-start-1" on:click={decreaseDistance}><Fa icon={faMinus} /></button>
           <button class="btn-touch col-start-2 row-start-1" on:click={increaseDistance}><Fa icon={faPlus} /></button>
         </div>

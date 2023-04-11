@@ -97,7 +97,7 @@
     <div class="flex grow flex-wrap content-center items-center justify-center rounded">
       <div class="flex flex-row flex-wrap items-center gap-4">
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch ">
+          <div class="flex flex-col flex-wrap items-stretch">
             <p class="label-head">Status</p>
             <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
             <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
@@ -106,8 +106,8 @@
           </div>
         </div>
         <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch ">
-            <p class="label-head ">Print</p>
+          <div class="flex flex-col flex-wrap items-stretch">
+            <p class="label-head">Print</p>
             {#if $printState === 'error'}
               <p class="label">{$printStatsMessage}</p>
             {/if}
@@ -124,7 +124,7 @@
                 </p>
               {/if}
             {/if}
-            <div class="grid grid-cols-2 grid-rows-1  gap-1 p-1 ">
+            <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
               {#if $printState == 'paused'}
                 <button class="btn-touch col-start-1 p-4" on:click={resumePrint}>
                   <Fa icon={faPlay} />

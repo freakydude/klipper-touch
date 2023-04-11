@@ -24,8 +24,8 @@
   <div class="flex flex-grow flex-col flex-wrap content-center items-center justify-center gap-6 rounded">
     <p class="label text-4xl">Parameters</p>
     <div class="flex flex-row flex-wrap items-center gap-2">
-      <button class="btn-touch " on:click={() => goto('/parameter/zoffset')}>Z Offset</button>
-      <button class="btn-touch " on:click={() => goto('/parameter/temperatures')}>Temperatures</button>
+      <button class="btn-touch" on:click={() => goto('/parameter/zoffset')}>Z Offset</button>
+      <button class="btn-touch" on:click={() => goto('/parameter/temperatures')}>Temperatures</button>
     </div>
   </div>
 </div>
