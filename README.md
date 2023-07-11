@@ -1,80 +1,38 @@
-# Klipper Touch
+# create-svelte
 
-A svelte, vite and typescript based web ui for touch style input and control the klipper3d firmware.
+Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
 
-## Status
+## Creating a project
 
-This are very very early steps developing this ...
+If you're seeing this, you've probably already done this step. Congrats!
 
-## Setup on MainsailOS (Debian 11)
+```bash
+# create a new project in the current directory
+npm create svelte@latest
 
-Log into your klipper raspberry pi
-
-## Clone Repository
-
-```sh
-cd ~
-git clone https://github.com/freakydude/klipper-touch.git
+# create a new project in my-app
+npm create svelte@latest my-app
 ```
 
-### Install with Docker
+## Developing
 
-Install docker [official docs here](https://docs.docker.com/engine/install/debian/)
-Install docker compose [official docs here](https://docs.docker.com/compose/install/linux/#install-using-the-repository)
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
-#### Run dev environment
-
-```sh
-# only initial or on package changes, or
-# if you have nodejs/npm installed, you can skip this and run npm locally
-docker-compose run klipper-touch npm install
-docker-compose up # -d if you like it deferred
-```
-
-Run `npm` commands within docker for example with:
-
-```sh
-docker compose run klipper-touch npm run format
-docker compose run klipper-touch npm i -D prettier prettier-plugin-sh
-```
-
-#### Run prod environment
-
-- Adapt ENV variables in `Dockerfile`.
-- (Re-)build docker klipper-touch container
-- Build and start it up
-
-```sh
-docker-compose -f docker-compose.yml build
-docker-compose -f docker-compose.yml up
-```
-
-### Start Process
-
-```sh
-cd ~/klipper-touch
+```bash
 npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
 ```
 
-### Configure Moonraker Updates
+## Building
 
-Add following section to moonraker.conf
+To create a production version of your app:
 
-```yaml
-[update_manager klipper-touch]
-type: git_repo
-channel: dev
-primary_branch: main
-path: ~/klipper-touch
-origin: https://github.com/freakydude/klipper-touch.git
-is_system_service: True
-enable_node_updates: True
-install_script: scripts/install-klipper-touch.sh
+```bash
+npm run build
 ```
 
-## Finally
+You can preview the production build with `npm run preview`.
 
-Find the dev version unter `http://<your-maschine>:3000`
-
-Enjoy,
-freakyDude
+> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
