@@ -8,3 +8,9 @@
   <button class="btn-touch" on:click={() => goto('/printerstatus')}>Printerstatus</button>
   <button class="btn-touch" on:click={() => goto('/parameter')}>Parameter</button>
 </div>
+
+<style lang="postcss">
+  :global(html) {
+    background-color: theme(colors.gray.100);
+  }
+</style>
