@@ -14,6 +14,7 @@ And yes, help and improve if you find something.
 ## Prequisities
 
 - Docker & Docker Compose
+  see: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
 - NPM Package manager (nodejs installation)
   see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
 
