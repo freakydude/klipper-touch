@@ -1,38 +1,50 @@
-# create-svelte
+# Klipper-Touch
+Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse. 
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+This is currently nothing more than a personal experiment and a project to learn - even if it works.
 
-## Creating a project
+## Caution
 
-If you're seeing this, you've probably already done this step. Congrats!
+First of all, and as always with my other posts and projects. I am not a company. I'm doing this in my spare time and mostly because I'm really excited about making these things work and improving them.
+
+I have tested all this stuff only with my own printer and the constellation around it. I have done my best to make it all work without problems. However, this is a work in progress. There is no guarantee. Be careful, watch your printer, double check things. Use it as is. I am not responsible for any damage or consequences of any kind.
+
+And yes, help and improve if you find something.
+
+## Prequisities
+
+- Docker & Docker Compose
+- NPM Package manager (nodejs installation)
+  see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
+
+## Development
+
+### Configure
+
+- Configure `Dockerfile.dev`, adapt `VITE_MOONRAKER_API` and `VITE_MOONRAKER_MOONRAKER` to your needs. Link either a real klipper installation or use the [virtual-klipper-printer project of the Mainsail team](https://github.com/mainsail-crew/virtual-klipper-printer)
+
+### Install
+Install depenencies in the project root folder with 
+```bash
+npm install
+``` 
+
+### Run local development version
 
 ```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
+docker compose -f docker-compose.yml -f docker-compose.override.yml up
 ```
 
-## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Final words
 
-```bash
-npm run dev
+Feel free to create pull requests and discussions. I can't solve anything alone.
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+Have fun!
 
-## Building
+If you like, buy me a coffee
 
-To create a production version of your app:
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F2F7GC8PC)
 
-```bash
-npm run build
-```
+freakyDude
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
