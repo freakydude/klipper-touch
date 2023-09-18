@@ -5,3 +5,14 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - .:/app
+  # printer:
+  #   container_name: printer
+  #   build:
+  #     context: ../virtual-klipper-printer/.
+  #     dockerfile: ../virtual-klipper-printer/Dockerfile
+  #   volumes:
+  #     - ../virtual-klipper-printer/printer_data:/home/printer/printer_data:delegated
+  #   ports:
+  #     - "7125:7125"
+  #     - "8110:8080"
+
