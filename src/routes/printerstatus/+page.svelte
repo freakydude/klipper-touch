@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-  import { faList, faPause, faPlay, faSkull, faStop } from '@fortawesome/free-solid-svg-icons';
-  import Fa from 'svelte-fa';
 
   let nozzleTemp = moonraker.extruder.Temperature;
   let bedTemp = moonraker.heaterBed.Temperature;
@@ -84,65 +81,70 @@
   }
 </script>
 
-<div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
-  <div class="flex flex-col justify-start gap-1">
-    <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
-    <button class="btn-touch bg-red-600" on:click={() => goto('/parameter/zoffset')}>ZO</button>
-    <button class="btn-touch bg-red-600" on:click={() => goto('/files')}>FI</button>
-    <div class="grow" />
-    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
+<div class="flex w-full flex-col items-stretch justify-between   gap-2 bg-neutral-800 p-2">
+  <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
+    <button class="flex rounded border-l-4 border-blue-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Nozzle</div>
+      <div class="flex-grow pl-2 pr-1 text-end">180 / 210 °C</div>
+    </button>
+    <button class="flex rounded border-l-4 border-red-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Bed</div>
+      <div class="flex-grow pl-2 pr-1 text-end">70 / 60 °C</div>
+    </button>
   </div>
-
-  <div class="flex grow flex-col">
-    <div class="flex grow flex-wrap content-center items-center justify-center rounded">
-      <div class="flex flex-row flex-wrap items-center gap-4">
-        <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Status</p>
-            <p class="label">Nozzle: {$nozzleTemp.toFixed(0)}/{$nozzleTarget.toFixed(0)} °C</p>
-            <p class="label">Bed: {$bedTemp.toFixed(0)}/{$bedTarget.toFixed(0)} °C</p>
-            <p class="label">Fan: {($fanSpeed * 100.0).toFixed(0)} %</p>
-            <p class="label">State: {$printState}</p>
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 rounded bg-neutral-600">
-          <div class="flex flex-col flex-wrap items-stretch">
-            <p class="label-head">Print</p>
-            {#if $printState === 'error'}
-              <p class="label">{$printStatsMessage}</p>
-            {/if}
-            {#if $printFilename}
-              <p class="label">File: {$printFilename}</p>
-              {#if $progress === 0.0}
-                <p class="label">
-                  Estimated: {new Date(fileEstimatedPrintTime * 1000).getUTCHours()}h {new Date(fileEstimatedPrintTime * 1000).getUTCMinutes()}min
-                </p>
-              {:else}
-                <p class="label">Progress: {($progress * 100.0).toFixed(1)} %</p>
-                <p class="label">
-                  Remaining: {new Date(remainingPrintingTime * 1000).getUTCHours()}h {new Date(remainingPrintingTime * 1000).getUTCMinutes()}min
-                </p>
-              {/if}
-            {/if}
-            <div class="grid grid-cols-2 grid-rows-1 gap-1 p-1">
-              {#if $printState == 'paused'}
-                <button class="btn-touch col-start-1 p-4" on:click={resumePrint}>
-                  <Fa icon={faPlay} />
-                </button>
-              {:else if $printState == 'printing'}
-                <button class="btn-touch col-start-1 p-4" on:click={pausePrint}>
-                  <Fa icon={faPause} />
-                </button>
-              {/if}
-              {#if $printState == ('paused' || 'printing')}
-                <button class="btn-touch col-start-2 p-4" on:click={cancelPrint}>
-                  <Fa icon={faStop} />
-                </button>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div>
+  <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
+    <button class="flex rounded border-l-4 border-gray-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Fan</div>
+      <div class="flex-grow pl-2 pr-1 text-end">75 %</div>
+    </button>
+    <button class=" flex rounded border-l-4 border-gray-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Speed</div>
+      <div class="flex-grow pl-2 pr-1 text-end">100 %</div>
+    </button>
+    <button class="flex rounded border-l-4 border-gray-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Flow</div>
+      <div class="flex-grow pl-2 pr-1 text-end">98 %</div>
+    </button>
+  </div>
+  <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Layer</div>
+      <div class="flex-grow pl-2 pr-1 text-end">10 / 2300</div>
     </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Height</div>
+      <div class="flex-grow pl-2 pr-1 text-end">40.2 mm</div>
+    </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Printed</div>
+      <div class="flex-grow pl-2 pr-1 text-end">1 h 13 min</div>
+    </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Estimation</div>
+      <div class="flex-grow pl-2 pr-1 text-end">2 h 46 min</div>
+    </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">ETA</div>
+      <div class="flex-grow pl-2 pr-1 text-end">20:45</div>
+    </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Progress</div>
+      <div class="flex-grow pl-2 pr-1 text-end">60 %</div>
+    </div>
+    <div class="flex rounded bg-neutral-700 px-1 py-2 text-white shadow">
+      <div class="px-1">Filament</div>
+      <div class="flex-grow pl-2 pr-1 text-end">30 / 91 m</div>
+    </div>
+  </div>
+  <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
+    <button class="flex rounded border-l-4 border-yellow-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Pause</div>
+    </button>
+    <button class="flex rounded border-l-4 border-purple-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">Machine</div>
+    </button>
+    <button class="flex rounded border-l-4 border-red-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1">EM</div>
+    </button>
   </div>
 </div>

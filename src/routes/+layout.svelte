@@ -2,13 +2,14 @@
   import '../app.css';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+    import { writable } from 'svelte/store';
 
   // define initial component state
 
   let isFullscreen = false;
   let outerElement: Element;
 
-  let klippyState = moonraker.klippyState.state;
+  let klippyState = writable('ready') // moonraker.klippyState.state;
   let klippyStateMessage = moonraker.klippyState.message;
 
   async function switchFullscreen() {
