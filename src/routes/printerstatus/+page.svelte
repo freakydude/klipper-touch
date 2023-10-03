@@ -1,6 +1,9 @@
 <script lang="ts">
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { faSquareFull } from '@fortawesome/free-regular-svg-icons';
+  import { faPause, faStop, faSkull, faGear, faPenNib } from '@fortawesome/free-solid-svg-icons';
+  import Fa from 'svelte-fa';
 
   let nozzleTemp = moonraker.extruder.Temperature;
   let bedTemp = moonraker.heaterBed.Temperature;
@@ -81,21 +84,21 @@
   }
 </script>
 
-<div class="flex w-full flex-col items-stretch justify-between   gap-2 bg-neutral-800 p-2">
+<div class="flex w-full flex-col items-stretch justify-between gap-2 bg-neutral-800 p-2">
   <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
     <button class="flex rounded border-l-4 border-blue-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
-      <div class="px-1">Nozzle</div>
-      <div class="flex-grow pl-2 pr-1 text-end">180 / 210 °C</div>
+      <div class="px-1 self-center"><Fa icon={faPenNib}/></div>
+      <div class="flex-grow pl-2 pr-1 text-end">{$nozzleTemp.toFixed(1)} / {$nozzleTarget.toFixed(0)} °C</div>
     </button>
     <button class="flex rounded border-l-4 border-red-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
-      <div class="px-1">Bed</div>
-      <div class="flex-grow pl-2 pr-1 text-end">70 / 60 °C</div>
+      <div class="px-1 self-center"><Fa icon={faSquareFull}/></div>
+      <div class="flex-grow pl-2 pr-1 text-end">{$bedTemp.toFixed(1)} / {$bedTarget.toFixed(0)} °C</div>
     </button>
   </div>
   <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
     <button class="flex rounded border-l-4 border-gray-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
       <div class="px-1">Fan</div>
-      <div class="flex-grow pl-2 pr-1 text-end">75 %</div>
+      <div class="flex-grow pl-2 pr-1 text-end">{$fanSpeed.toFixed(1)} %</div>
     </button>
     <button class=" flex rounded border-l-4 border-gray-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500">
       <div class="px-1">Speed</div>
@@ -138,13 +141,16 @@
   </div>
   <div class="flex flex-row flex-wrap items-center justify-start gap-1 p-1">
     <button class="flex rounded border-l-4 border-yellow-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
-      <div class="px-1">Pause</div>
+      <div class="px-1"><Fa icon={faPause} /></div>
     </button>
-    <button class="flex rounded border-l-4 border-purple-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
-      <div class="px-1">Machine</div>
+    <button class="flex rounded border-l-4 border-yellow-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1"><Fa icon={faStop} /></div>
     </button>
     <button class="flex rounded border-l-4 border-red-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
-      <div class="px-1">EM</div>
+      <div class="px-1"><Fa icon={faSkull} /></div>
+    </button>
+    <button class="flex rounded border-l-4 border-purple-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500">
+      <div class="px-1"><Fa icon={faGear} /></div>
     </button>
   </div>
 </div>
