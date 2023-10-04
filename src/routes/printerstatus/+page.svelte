@@ -6,6 +6,7 @@
   import { faPause, faStop, faSkull, faGear, faPenNib } from '@fortawesome/free-solid-svg-icons';
   import Fa from 'svelte-fa';
 
+  let toolheadPosition = moonraker.toolhead.Position;
   let nozzleTemp = moonraker.extruder.Temperature;
   let bedTemp = moonraker.heaterBed.Temperature;
   let nozzleTarget = moonraker.extruder.Target;
@@ -117,7 +118,7 @@
     </div>
     <div class="flex border-b-2 border-neutral-600 px-1 py-1 text-white">
       <div class="px-1">Z</div>
-      <div class="flex-grow pl-2 pr-1 text-end">3.20 mm</div>
+      <div class="flex-grow pl-2 pr-1 text-end">{$toolheadPosition[2].toFixed(2)} mm</div>
     </div>
     <div class="flex border-b-2 border-neutral-600 px-1 py-1 text-white">
       <div class="px-1">Filament</div>

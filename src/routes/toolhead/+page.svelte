@@ -100,6 +100,48 @@
   }
 </script>
 
+<div class="flex w-full flex-col flex-wrap items-stretch gap-2 bg-neutral-800 p-1">
+  <div class="grid grid-cols-3 grid-rows-3 items-stretch justify-start gap-1 p-1">
+    <button
+      class="col-start-1 row-start-2 flex rounded border-l-4 border-yellow-400 bg-neutral-700 px-1 py-2 text-white hover:bg-neutral-500"
+      disabled={!isHomedXY}
+      on:click={() => moveRelative(0, -distance, 0)}
+    >
+      <div class="self-center px-1"><Fa icon={faArrowLeft} /></div>
+      <div class="flex-grow pl-2 pr-1 text-end">Left</div>
+    </button>
+    <button
+      class="col-start-3 row-start-2 flex rounded border-l-4 border-yellow-400 bg-neutral-700 px-1 py-2 text-white hover:bg-neutral-500"
+      disabled={!isHomedXY}
+      on:click={() => moveRelative(0, distance, 0)}
+    >
+      <div class="self-center px-1"><Fa icon={faArrowRight} /></div>
+      <div class="flex-grow pl-2 pr-1 text-end">Right</div>
+    </button>
+    <button
+      class="col-start-2 row-start-1 flex rounded border-l-4 border-yellow-400 bg-neutral-700 px-1 py-2 text-white hover:bg-neutral-500"
+      disabled={!isHomedXY}
+      on:click={() => moveRelative(distance, 0, 0)}
+    >
+      <div class="self-center px-1"><Fa icon={faArrowUp} /></div>
+      <div class="flex-grow pl-2 pr-1 text-end">Back</div>
+    </button>
+    <button
+      class="col-start-2 row-start-3 flex rounded border-l-4 border-yellow-400 bg-neutral-700 px-1 py-2 text-white hover:bg-neutral-500"
+      disabled={!isHomedXY}
+      on:click={() => moveRelative(-distance, 0, 0)}
+    >
+      <div class="self-center px-1"><Fa icon={faArrowDown} /></div>
+      <div class="flex-grow pl-2 pr-1 text-end">Front</div>
+    </button>
+  </div>
+</div>
+
+
+
+
+<!--
+
 <div class="flex flex-grow flex-row gap-1 bg-neutral-800 p-1">
   <div class="flex flex-col justify-start gap-1">
     <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
@@ -181,3 +223,7 @@
     </div>
   </div>
 </div>
+
+
+
+-->
