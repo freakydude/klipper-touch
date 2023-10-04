@@ -1,8 +1,8 @@
 <script lang="ts">
-  import '../app.css';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-    import { writable } from 'svelte/store';
+  import { onMount } from 'svelte';
+  import '../app.css';
 
   // define initial component state
 
@@ -43,9 +43,9 @@
     await client.sendRequest(stopRequest);
   }
 
-  // onMount(async () => {
-  //   await connectToMoonraker();
-  // });
+  onMount(async () => {
+    await reconnectToMoonraker();
+  });
 </script>
 
 <div class="flex h-screen w-screen" bind:this={outerElement}>
