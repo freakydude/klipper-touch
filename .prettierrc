@@ -1,11 +1,7 @@
 {
-  "jsonRecursiveSort": true,
   "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
-  "pluginSearchDirs": ["."],
-  "plugins": ["prettier-plugin-svelte", "prettier-plugin-organize-imports", "prettier-plugin-tailwindcss"],
   "printWidth": 160,
   "singleQuote": true,
-  "svelteIndentScriptAndStyle": true,
   "trailingComma": "none",
   "useTabs": false
 }
