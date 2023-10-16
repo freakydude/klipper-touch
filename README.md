@@ -1,5 +1,6 @@
 # Klipper-Touch
-Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse. 
+
+Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse.
 
 This is currently nothing more than a personal experiment and a project to learn - even if it works.
 
@@ -25,17 +26,18 @@ And yes, help and improve if you find something.
 - Configure `Dockerfile.dev`, adapt `VITE_MOONRAKER_API` and `VITE_MOONRAKER_MOONRAKER` to your needs. Link either a real klipper installation or use the [virtual-klipper-printer project of the Mainsail team](https://github.com/mainsail-crew/virtual-klipper-printer)
 
 ### Install
-Install depenencies in the project root folder with 
+
+Install depenencies in the project root folder with
+
 ```bash
 npm install
-``` 
+```
 
 ### Run local development version
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.override.yml up
 ```
-
 
 ## Final words
 
@@ -48,4 +50,3 @@ If you like, buy me a coffee
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F2F7GC8PC)
 
 freakyDude
-
