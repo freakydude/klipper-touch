@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Debian Bundle
-          path: ${{ github.workspace }}/target/release/bundle/deb/klipper-touch_0.1.0_arm64.deb
+          path: /klipper-touch/src-tauri/target/release/bundle/deb/klipper-touch_0.1.0_arm64.deb
