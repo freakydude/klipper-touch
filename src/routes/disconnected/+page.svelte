@@ -43,7 +43,7 @@ async function firmwareRestart() {
 }
 
 onMount(async () => {
-  await reconnectToMoonraker();
+  // await reconnectToMoonraker();
 });
 </script>
 
