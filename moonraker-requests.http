@@ -2,6 +2,17 @@
 ### List available printer objects
 GET http://192.168.40.6/printer/objects/list
 
+
+
+### Get Printer info / klipper state
+GET http://192.168.40.6/printer/info
+
+### Get print_stats
+http://192.168.40.6/printer/objects/query?print_stats
+
+### Get idle_timeout
+http://192.168.40.6/printer/objects/query?idle_timeout
+
 ### Query printer object status
 GET http://192.168.40.6/printer/objects/query?extruder
 
