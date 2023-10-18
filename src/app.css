@@ -4,8 +4,22 @@
 @tailwind variants;
 
 @layer components {
+  .page-dark {
+      @apply flex flex-grow items-center justify-around bg-neutral-800;
+  }
+
+  .btn-touch1 {
+    @apply flex items-center justify-center rounded border-l-2 border-gray-400 bg-neutral-700 px-3 py-2 font-semibold text-gray-300 shadow hover:bg-neutral-500 hover:shadow-md;
+  }
+
+  .label1 {
+      @apply flex items-end justify-start bg-neutral-700 text-sm px-2 py-1 text-gray-300 ;
+  }
+
+
+
   .btn-touch {
-    @apply flex flex-col place-items-center justify-center rounded bg-neutral-500 px-6 py-6  text-center text-white shadow-md disabled:opacity-50;
+    @apply flex flex-col place-items-center justify-center rounded bg-neutral-500 px-6 py-6 text-center text-white shadow-md disabled:opacity-50;
   }
 
   .btn-list {
