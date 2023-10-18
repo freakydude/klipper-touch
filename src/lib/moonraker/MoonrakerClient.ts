@@ -1,4 +1,5 @@
 import type { JsonRpcClient } from '$lib/jsonrpc/JsonRpcClient';
+import type { IJsonRpcErrorResponse } from '$lib/jsonrpc/types/IJsonRpcErrorResponse';
 import type { IJsonRpcRequest } from '$lib/jsonrpc/types/IJsonRpcRequest';
 import type { IJsonRpcSuccessResponse } from '$lib/jsonrpc/types/IJsonRpcSuccessResponse';
 import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
@@ -52,12 +53,14 @@ export class MoonrakerClient extends EventTarget {
           }
         };
 
-        await this.requestIdentifyConnection();
-        await this.subscribeToPrinterObjects(printerObjects);
-        await this.queryPrinterObjects(printerObjects);
+        successful =
+          (await this.requestIdentifyConnection()) &&
+          (await this.subscribeToPrinterObjects(printerObjects)) &&
+          (await this.queryPrinterObjects(printerObjects));
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      successful = false;
     }
 
     return successful;
@@ -69,13 +72,14 @@ export class MoonrakerClient extends EventTarget {
     try {
       successful = await this._jsonRpcClient.disconnect();
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      successful = false;
     }
 
     return successful;
   }
 
-  private async requestIdentifyConnection() {
+  private async requestIdentifyConnection(): Promise<boolean> {
     const identifyConnectionRequest = new JsonRpcRequest({
       method: 'server.connection.identify',
       params: {
@@ -86,38 +90,62 @@ export class MoonrakerClient extends EventTarget {
       }
     });
 
+    let successful = true;
+
     try {
       await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
     } catch (error) {
-      console.log(error);
+      successful = false;
+      console.error(error);
     }
+
+    return successful;
   }
 
-  private async queryPrinterObjects(printerObjects: IPrinterObjects) {
+  private async queryPrinterObjects(printerObjects: IPrinterObjects): Promise<boolean> {
     const initialRequest = new JsonRpcRequest({
       method: 'printer.objects.query',
       params: printerObjects
     });
 
+    let successful = true;
+
+    let response;
     try {
-      const response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
+      response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
+
       this.parseNotifyStatusUpdateParams(response.result.status);
     } catch (error) {
-      console.log(error);
+      successful = false;
+      console.error(error, response);
     }
+
+    return successful;
   }
 
-  private async subscribeToPrinterObjects(printerObjects: IPrinterObjects) {
+  private async subscribeToPrinterObjects(printerObjects: IPrinterObjects): Promise<boolean> {
     const subscribeRequest = new JsonRpcRequest({
       method: 'printer.objects.subscribe',
       params: printerObjects
     });
-
+    let successful = true;
     try {
-      await this._jsonRpcClient.sendRequest(subscribeRequest);
+      const response = await this._jsonRpcClient.sendRequest(subscribeRequest);
+
+      // TODO no good solution but works for now - error handling
+      const errorResponse = response as IJsonRpcErrorResponse;
+      if (errorResponse?.error) {
+        successful = false;
+        this.klippyState.state.set('error');
+        this.klippyState.message.set(errorResponse.error.message);
+        console.warn(errorResponse);
+      }
     } catch (error) {
-      console.log(error);
+      successful = false;
+      console.error(error);
     }
+
+    return successful;
   }
 
   protected attachToEvents() {
@@ -126,7 +154,7 @@ export class MoonrakerClient extends EventTarget {
     });
 
     this._jsonRpcClient.isConnected.subscribe((value) => {
-      this.rpcClientIsConnectedChanged(value);
+      // this.rpcClientIsConnectedChanged(value);
     });
   }
 
@@ -214,21 +242,29 @@ export class MoonrakerClient extends EventTarget {
         break;
       case 'notify_klippy_ready':
         this.klippyState.state.set('ready');
+        console.log('notify_klippy: ready');
         break;
       case 'notify_klippy_disconnected':
         this.klippyState.state.set('disconnected');
+        console.log('notify_klippy: disconnected');
         break;
       case 'notify_klippy_error':
         this.klippyState.state.set('error');
+        console.log('notify_klippy: error');
         break;
       case 'notify_klippy_startup':
         this.klippyState.state.set('startup');
+        console.log('notify_klippy: startup');
         break;
       case 'notify_klippy_shutdown':
         this.klippyState.state.set('shutdown');
+        console.log('notify_klippy: shutdown');
         break;
       case 'notify_proc_stat_update':
         // TODO parse process stats
+        break;
+      case 'notify_gcode_response':
+        // TODO parse gcode response
         break;
       default:
         console.log('Unknown notification: ', notification);

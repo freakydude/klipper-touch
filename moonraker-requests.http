@@ -8,6 +8,12 @@ GET http://192.168.40.6/printer/objects/list
 GET http://192.168.40.6/printer/info
 
 ### Get print_stats
+http://192.168.40.6/printer/objects/query
+
+### Get print_stats
+http://192.168.40.6/printer/objects/query?webhooks
+
+### Get print_stats
 http://192.168.40.6/printer/objects/query?print_stats
 
 ### Get idle_timeout

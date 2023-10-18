@@ -49,7 +49,7 @@
     },
     "windows": [
       {
-        "fullscreen": true,
+        "fullscreen": false,
         "height": 320,
         "resizable": true,
         "title": "klipper-touch",

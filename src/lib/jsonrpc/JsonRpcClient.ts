@@ -19,7 +19,9 @@ export class JsonRpcClient extends EventTarget {
   public connect(): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       if (this._ws != undefined) {
-        reject('Websocket already initialized');
+        const message = 'Websocket already initialized';
+        console.error(message);
+        reject(message);
       }
 
       try {
@@ -39,7 +41,7 @@ export class JsonRpcClient extends EventTarget {
 
         this._ws.onerror = (event: Event) => {
           this.isConnected.set(false);
-          console.log('Websocket error ', event);
+          console.error('Websocket error ', event);
         };
 
         this._ws.onmessage = (event: MessageEvent) => {
@@ -72,7 +74,7 @@ export class JsonRpcClient extends EventTarget {
           }
         };
       } catch (error) {
-        console.log(error);
+        console.error(error);
         reject('Websocket could not be initialized: ${error}');
       }
     });
@@ -81,17 +83,23 @@ export class JsonRpcClient extends EventTarget {
   }
 
   public disconnect(): Promise<boolean> {
-    const result: Promise<boolean> = new Promise<boolean>((resolve) => {
-      if (this.isConnected) {
-        if (this._ws != undefined) {
-          this._ws?.close();
-          this._ws = undefined;
-          this.isConnected.set(false);
-        }
+    const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
+      try {
+        if (this.isConnected) {
+          if (this._ws != undefined) {
+            this._ws?.close();
+            this._ws = undefined;
+            this.isConnected.set(false);
+          }
 
-        resolve(true);
-      } else {
-        resolve(false);
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      } catch (error) {
+        console.error(error);
+        this.isConnected.set(false);
+        reject('Websocket could not be disconnected: ${error}');
       }
     });
 
@@ -110,7 +118,7 @@ export class JsonRpcClient extends EventTarget {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
 
-          console.log('Websocket Timeout send request: ', request);
+          console.warn('Websocket Timeout send request: ', request);
           reject('Websocket Timeout send request');
         }, this.requestTimeout);
 
@@ -132,8 +140,13 @@ export class JsonRpcClient extends EventTarget {
         this._ws?.addEventListener('message', parser);
       });
 
-      // console.log("request", request)
-      this._ws?.send(JSON.stringify(request));
+      try {
+        // console.log("request", request)
+        this._ws?.send(JSON.stringify(request));
+      } catch (error) {
+        console.log(error);
+        promise = Promise.reject(error);
+      }
     }
 
     return promise;
@@ -153,7 +166,7 @@ export class JsonRpcClient extends EventTarget {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
 
-          console.log('Websocket Timeout send batch request: ', requests);
+          console.warn('Websocket Timeout send batch request: ', requests);
           reject('Websocket Timeout send batch request');
         }, this.requestTimeout);
 
@@ -183,7 +196,13 @@ export class JsonRpcClient extends EventTarget {
         this._ws?.addEventListener('message', parser);
       });
 
-      this._ws?.send(JSON.stringify(requests));
+      try {
+        // console.log("request", request)
+        this._ws?.send(JSON.stringify(requests));
+      } catch (error) {
+        console.log(error);
+        promise = Promise.reject(error);
+      }
     }
 
     return promise;
