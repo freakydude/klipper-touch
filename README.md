@@ -21,23 +21,59 @@ And yes, help and improve if you find something.
 
 ## Development
 
-### Configure
+### Install dependencies on ArchLinux / WSL2 ArchLinux
 
-- Configure `Dockerfile.dev`, adapt `VITE_MOONRAKER_API` and `VITE_MOONRAKER_MOONRAKER` to your needs. Link either a real klipper installation or use the [virtual-klipper-printer project of the Mainsail team](https://github.com/mainsail-crew/virtual-klipper-printer)
+- ```bash
+  pacman -S docker docker-compose docker-buildx
+  ```
 
-### Install
+- CrossCompile:
 
-Install depenencies in the project root folder with
+  ```bash
+  pacman -S qemu-user-static
+  ```
 
-```bash
-npm install
-```
+- Install CrossArchs (optional):
 
-### Run local development version
+  ```bash
+  docker run --privileged --rm tonistiigi/binfmt --install arm64,arm
+  ```
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.override.yml up
-```
+- Install depenencies in the project root folder with
+
+  ```bash
+  npm install && npm install --save-dev @tauri-apps/cli
+  ```
+
+### Run or Build project local
+
+- Run:
+
+  ```bash
+  npm run tauri deb
+  ```
+
+- Build:
+
+  ```bash
+  npm run tauri build
+  ```
+
+### CrossCompile with docker
+
+- Build debian bullseye arm32v7 package (RPi 32 bit)
+
+  ```bash
+  docker compose build klipper-touch_build_arm32v7
+  docker compose run klipper-touch_build_arm32v7
+  ```
+
+- Build debian bullseye arm64v8 package (RPi 64 bit)
+
+  ```bash
+  docker compose build klipper-touch_build_arm64v8
+  docker compose run klipper-touch_build_arm64v8
+  ```
 
 ## Final words
 

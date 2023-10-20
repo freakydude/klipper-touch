@@ -33,12 +33,12 @@
         "signingIdentity": null
       },
       "resources": [],
-      "shortDescription": "",
-      "targets": ["deb", "nsis", "msi", "app", "dmg", "updater"],
+      "shortDescription": "klipper-touch",
+      "targets": ["deb", "msi", "nsis"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
       }
     },
     "security": {
