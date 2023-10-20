@@ -33,6 +33,7 @@ jobs:
             npm install
             npm install --save-dev @tauri-apps/cli
             npm run tauri build
+            pwd
 
       - name: Upload deb bundle
         uses: actions/upload-artifact@v3
