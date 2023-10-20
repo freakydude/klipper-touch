@@ -1,10 +1,32 @@
 services:
-  klipper-touch:
+  klipper-touch_build_arm32v7:
     build: .
-    image: klipper-touch
-    container_name: klipper-touch
+    image: klipper-touch_build_arm32v7
+    container_name: klipper-touch_build_arm32v7
+    platform: linux/arm/v7
+    user: "1000:1000"
+    volumes:
+      - ./:/app
     ports:
-      - '3000:3000'
+      - '3000:3000'    
+    # environment:
+    #   - VITE_MOONRAKER_API=http://192.168.40.6/
+    #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket
+    #   - HOST=0.0.0.0
+    #   - PORT=3000
+    # env_file: .env
+    networks:
+      - front-tier
+  klipper-touch_build_arm64v8:
+    build: .
+    image: klipper-touch_build_arm64v8
+    container_name: klipper-touch_build_arm64v8
+    platform: linux/arm64/v8
+    user: "1000:1000"
+    volumes:
+      - ./:/app
+    ports:
+      - '3000:3000'    
     # environment:
     #   - VITE_MOONRAKER_API=http://192.168.40.6/
     #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket
