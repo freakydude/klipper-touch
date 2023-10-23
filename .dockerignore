@@ -1,3 +1,8 @@
+.svelte-kit
+.vscode
+.github
 node_modules
 docs
 scripts
+scr-tauri/target
+build
