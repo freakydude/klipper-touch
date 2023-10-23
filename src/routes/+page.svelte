@@ -37,38 +37,105 @@ onMount(async () => {
 });
 </script>
 
-<div class="page-dark flex-col flex-wrap" bind:this="{outerElement}">
-  {#if $isConnected}
-    <p class="label1">Moonraker: connected</p>
-
-    {#if $klippyState === 'disconnected'}
-      <p class="label1">Firmware: disconnected</p>
-      <p class="label1">{$klippyStateMessage}</p>
-      <button class="btn-touch1" on:click="{() => reconnectToMoonraker()}">Reconnect</button>
-    {:else if $klippyState === 'startup'}
-      <p class="label1">Firmware: startup</p>
-      <p class="label1">{$klippyStateMessage}</p>
-      <button class="btn-touch1" on:click="{() => printerRestart()}">Restart</button>
-      <button class="btn-touch1" on:click="{() => firmwareRestart()}">Firmware Restart</button>
-    {:else if $klippyState === 'ready'}
-      <p class="label1">Firmware: ready</p>
-      <!-- <p class="label1">{$klippyStateMessage}</p> -->
-      <!-- <button class="btn-touch1" on:click="{() => printerRestart()}">Restart</button> -->
-      <button class="btn-touch1" on:click="{() => goto('/printstate')}">Printer state</button>
-    {:else if $klippyState === 'shutdown'}
-      <p class="label1">Firmware: shutdown</p>
-      <p class="label1">{$klippyStateMessage}</p>
-      <button class="btn-touch1" on:click="{() => printerRestart()}">Restart</button>
-      <button class="btn-touch1" on:click="{() => firmwareRestart()}">Firmware Restart</button>
-    {:else if $klippyState === 'error'}
-      <p class="label1">Firmware: error</p>
-      <p class="label1">{$klippyStateMessage}</p>
-      <button class="btn-touch1" on:click="{() => printerRestart()}">Restart</button>
-      <button class="btn-touch1" on:click="{() => firmwareRestart()}">Firmware Restart</button>
+<div class="page-dark flex-row content-between items-stretch gap-3 p-3" bind:this="{outerElement}">
+  <p class="fixed -left-2 top-5 -rotate-90 text-sm text-neutral-100">v0.1.0</p>
+  <p class="fixed -left-3 top-10 -rotate-90 text-sm text-neutral-100">experimental</p>
+  <div class="flex flex-grow flex-col justify-around">
+    <span class="flex flex-col items-center">
+      <h1 class="text-center text-4xl font-bold text-neutral-100">Klipper-Touch</h1>
+      <h1 class="text-center text-xl text-red-600">by freakyDude</h1>
+    </span>
+    <span class="flex flex-col items-center">
+      <table class="table-auto">
+        {#if $isConnected}
+          <tr>
+            <td class="pr-2 text-end text-neutral-100">Moonraker:</td>
+            <td class="text-green-600">Connected</td>
+          </tr>
+          {#if $klippyState === 'disconnected'}
+            <tr>
+              <td class="pr-2 text-end text-neutral-100">Firmware:</td>
+              <td class="text-purple-600">Disconnected</td>
+            </tr>
+          {:else if $klippyState === 'startup'}
+            <tr>
+              <td class="pr-2 text-end text-neutral-100">Firmware:</td>
+              <td class="text-yellow-600">Startup</td>
+            </tr>
+          {:else if $klippyState === 'ready'}
+            <tr>
+              <td class="pr-2 text-end text-neutral-100">Firmware:</td>
+              <td class="text-green-600">Ready</td>
+            </tr>
+          {:else if $klippyState === 'shutdown'}
+            <tr>
+              <td class="pr-2 text-end text-neutral-100">Firmware:</td>
+              <td class="text-orange-600">Shutdown</td>
+            </tr>
+          {:else if $klippyState === 'error'}
+            <tr>
+              <td class="pr-2 text-end text-neutral-100">Firmware:</td>
+              <td class="text-red-600">Error</td>
+            </tr>
+          {/if}
+        {:else}
+          <tr>
+            <td class="pr-2 text-end text-neutral-100">Moonraker: </td>
+            <td class="text-purple-600">Disconnected </td>
+          </tr>
+        {/if}
+      </table>
+    </span>
+    <span class="flex flex-col text-center">
+      {#if $isConnected}
+        {#if $klippyState === 'disconnected'}
+          <p class="flex text-neutral-100">{$klippyStateMessage}</p>
+        {:else if $klippyState === 'startup'}
+          <p class="flex text-neutral-100">{$klippyStateMessage}</p>
+        {:else if $klippyState === 'shutdown'}
+          <p class="flex text-neutral-100">{$klippyStateMessage}</p>
+        {:else if $klippyState === 'error'}
+          <p class="flex text-neutral-100">{$klippyStateMessage}</p>
+        {/if}
+      {/if}
+    </span>
+  </div>
+  <div class="flex flex-col justify-around">
+    {#if $isConnected}
+      {#if $klippyState === 'disconnected'}
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => reconnectToMoonraker()}">Reconnect</button>
+      {:else if $klippyState === 'startup'}
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => printerRestart()}">Restart</button>
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => firmwareRestart()}">Firmware Restart</button>
+      {:else if $klippyState === 'ready'}
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => goto('/printstate')}">Printer State</button>
+      {:else if $klippyState === 'shutdown'}
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => printerRestart()}">Restart</button>
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => firmwareRestart()}">Firmware Restart</button>
+      {:else if $klippyState === 'error'}
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => printerRestart()}">Restart</button>
+        <button
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          on:click="{() => firmwareRestart()}">Firmware Restart</button>
+      {/if}
+    {:else}
+      <button
+        class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+        on:click="{() => reconnectToMoonraker()}">Reconnect</button>
     {/if}
-  {:else}
-    <p class="label1">Moonraker: disconnected</p>
-    <button class="btn-touch1" on:click="{() => reconnectToMoonraker()}">Reconnect</button>
-    <!-- <button class="btn-touch1" on:click="{() => switchFullscreen()}">Fullscreen</button> -->
-  {/if}
+  </div>
 </div>
