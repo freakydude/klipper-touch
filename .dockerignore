@@ -4,5 +4,5 @@
 node_modules
 docs
 scripts
-scr-tauri/target
+src-tauri/target
 build
