@@ -19,6 +19,43 @@ And yes, help and improve if you find something.
 - NPM Package manager (nodejs installation)
   see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
 
+## Bigtreetech CB1
+
+- Install Btt image with panfrost support. >= v 2.3.3
+
+- Update to debian bookworm
+
+- ```bash
+  sudo nano /etc/apt/sources.list
+  ```
+
+  replace bullseye by bookworm, add non-free-firmware to all entries
+
+  ```bash
+  deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+
+  # deb-src <http://deb.debian.org/debian> bookworm main contrib non-free non-free-firmware
+
+  deb <http://deb.debian.org/debian> bookworm-updates main contrib non-free non-free-firmware
+  # deb-src <http://deb.debian.org/debian> bookworm-updates main contrib non-free non-free-firmware
+
+  deb <http://deb.debian.org/debian> bookworm-backports main contrib non-free non-free-firmware
+  # deb-src <http://deb.debian.org/debian> bookworm-backports main contrib non-free non-free-firmware
+
+  deb <http://deb.debian.org/debian-security> bookworm-security main contrib non-free non-free-firmware
+  # deb-src <http://deb.debian.org/debian-security> bookworm-security main contrib non-free non-free-firmware
+  ```
+
+- Upgrade system from bullseye to bookworm
+
+  ```bash
+  sudo apt update
+  sudo apt dist-upgrade
+  sudo apt autoremove
+  ```  
+
+-
+
 ## Development
 
 ### Install dependencies on ArchLinux / WSL2 ArchLinux
