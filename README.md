@@ -87,7 +87,7 @@ And yes, help and improve if you find something.
 - Run:
 
   ```bash
-  npm run tauri deb
+  npm run tauri dev
   ```
 
 - Build:
