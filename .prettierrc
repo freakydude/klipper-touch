@@ -1,21 +1,22 @@
 {
   "plugins": [
     "prettier-plugin-svelte",
-    "prettier-plugin-organize-imports",    
+    "prettier-plugin-organize-imports",
     "prettier-plugin-sh",
     "prettier-plugin-sort-json",
     "prettier-plugin-toml",
     "prettier-plugin-toml",
     "prettier-plugin-rust",
-    "prettier-plugin-tailwindcss"],
-  "svelteSortOrder": "options-styles-scripts-markup",
-  "svelteStrictMode": true,
-  "svelteBracketNewLine": false,
-  "svelteAllowShorthand": false,  
-  "svelteIndentScriptAndStyle": true,
+    "prettier-plugin-tailwindcss"
+  ],
   "printWidth": 160,
   "singleQuote": true,
+  "svelteAllowShorthand": false,
+  "svelteBracketNewLine": false,
+  "svelteIndentScriptAndStyle": true,
+  "svelteSortOrder": "options-styles-scripts-markup",
+  "svelteStrictMode": true,
+  "tailwindFunctions": ["clsx,tw"],
   "trailingComma": "none",
-  "useTabs": false,
-  "tailwindFunctions": ["clsx,tw"]
+  "useTabs": false
 }
