@@ -38,8 +38,7 @@
 </script>
 
 <div class="page-dark flex-row content-between items-stretch gap-3 p-3" bind:this="{outerElement}">
-  <p class="fixed -left-2 top-5 -rotate-90 text-sm text-neutral-100">v0.1.0</p>
-  <p class="fixed -left-3 top-10 -rotate-90 text-sm text-neutral-100">experimental</p>
+  <p class="fixed bottom-1 right-1 text-sm text-neutral-100">v0.1.0 experimental</p>
 
   <div class="flex flex-grow flex-col justify-around">
     <span class="flex flex-col items-center">
