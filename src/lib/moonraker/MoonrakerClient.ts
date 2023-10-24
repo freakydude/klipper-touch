@@ -44,11 +44,11 @@ export class MoonrakerClient extends EventTarget {
           objects: {
             webhooks: ['state', 'state_message'],
             heater_bed: ['temperature', 'target'],
-            extruder: ['temperature', 'target'],
-            toolhead: ['position', 'homed_axes'],
+            extruder: ['temperature', 'target', 'pressure_advance'],
+            toolhead: ['position', 'homed_axes', 'max_accel'],
             fan: ['speed'],
-            gcode_move: ['homing_origin'],
-            print_stats: ['filename', 'print_duration', 'state', 'message'],
+            gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
+            print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
             display_status: ['progress']
           }
         };
@@ -169,65 +169,136 @@ export class MoonrakerClient extends EventTarget {
   }
 
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
-    if (param.webhooks?.state != undefined) {
-      // console.log('webhooks.state: ', firstObject.webhooks?.state);
-      this.klippyState.state.set(param.webhooks?.state);
-    }
-    if (param.webhooks?.state_message != undefined) {
-      // console.log('webhooks.state_message: ', firstObject.webhooks?.state_message);
-      this.klippyState.message.set(param.webhooks?.state_message);
-    }
-    if (param.heater_bed?.temperature != undefined) {
-      // console.log('heater_bed.temperature: ', firstObject.heater_bed?.temperature);
-      this.heaterBed.Temperature.set(param.heater_bed?.temperature);
-    }
-    if (param.heater_bed?.target != undefined) {
-      // console.log('heater_bed.temperature: ', firstObject.heater_bed?.target);
-      this.heaterBed.Target.set(param.heater_bed?.target);
-    }
+    this.parseWebhooks(param);
+    this.parseHeaterBed(param);
+    this.parseExtruder(param);
+    this.parseToolhead(param);
+    this.parseGcodeMove(param);
+    this.parseFan(param);
+    this.parsePrintStats(param);
+    this.parseDisplayStatus(param);
+  }
+
+  private parseExtruder(param: INotifyStatusUpdateParams) {
     if (param.extruder?.temperature != undefined) {
-      // console.log('extruder.temperature: ', firstObject.extruder?.temperature);
+      // console.log('extruder.temperature: ', param.extruder?.temperature);
       this.extruder.Temperature.set(param.extruder?.temperature);
     }
     if (param.extruder?.target != undefined) {
-      // console.log('extruder.temperature: ', firstObject.extruder?.target);
+      // console.log('extruder.temperature: ', param.extruder?.target);
       this.extruder.Target.set(param.extruder?.target);
     }
+    if (param.extruder?.pressure_advance != undefined) {
+      // console.log('extruder.pressure_advance: ', param.extruder?.pressure_advance);
+      this.extruder.PressureAdvance.set(param.extruder?.pressure_advance);
+    }
+  }
+
+  private parseToolhead(param: INotifyStatusUpdateParams) {
+    if (param.toolhead?.max_accel != undefined) {
+      // console.log('toolhead.position: ', param.toolhead?.position);
+      this.toolhead.MaxAcceleration.set(param.toolhead?.max_accel);
+    }
     if (param.toolhead?.position != undefined) {
-      // console.log('toolhead.position: ', firstObject.toolhead?.position);
+      // console.log('toolhead.position: ', param.toolhead?.position);
       this.toolhead.Position.set(param.toolhead?.position);
     }
     if (param.toolhead?.homed_axes != undefined) {
-      // console.log('toolhead.homed_axes: ', firstObject.toolhead?.homed_axes);
+      // console.log('toolhead.homed_axes: ', param.toolhead?.homed_axes);
       this.toolhead.HomedAxes.set(param.toolhead?.homed_axes);
     }
+  }
+
+  private parseGcodeMove(param: INotifyStatusUpdateParams) {
     if (param.gcode_move?.homing_origin != undefined) {
-      // console.log('gcode_move.homing_origin: ', firstObject.gcode_move?.homing_origin);
+      // console.log('gcode_move.homing_origin: ', param.gcode_move?.homing_origin);
       this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin[2]);
     }
+    if (param.gcode_move?.speed != undefined) {
+      // console.log('gcode_move.speed: ', param.gcode_move?.speed);
+      this.gcodeMove.Speed.set(param.gcode_move?.speed);
+    }
+    if (param.gcode_move?.speed_factor != undefined) {
+      // console.log('gcode_move.speed_factor: ', param.gcode_move?.speed_factor);
+      this.gcodeMove.SpeedFactor.set(param.gcode_move?.speed_factor);
+    }
+    if (param.gcode_move?.extrude_factor != undefined) {
+      // console.log('gcode_move.extrude_factor: ', param.gcode_move?.extrude_factor);
+      this.gcodeMove.ExtrudeFactor.set(param.gcode_move?.extrude_factor);
+    }
+  }
+
+  private parseFan(param: INotifyStatusUpdateParams) {
     if (param.fan?.speed != undefined) {
-      // console.log('fan.speed: ', firstObject.fan?.speed);
+      console.log('fan.speed: ', param.fan?.speed);
       this.fan.Speed.set(param.fan?.speed);
     }
+    if (param.fan?.rpm != undefined) {
+      console.log('fan.rpm: ', param.fan?.rpm);
+      this.fan.Rpm.set(param.fan?.rpm);
+    }
+  }
+
+  private parsePrintStats(param: INotifyStatusUpdateParams) {
     if (param.print_stats?.filename != undefined) {
-      // console.log('print_stats.filename: ', firstObject.print_stats?.filename);
+      // console.log('print_stats.filename: ', param.print_stats?.filename);
       this.printStats.Filename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
     }
     if (param.print_stats?.print_duration != undefined) {
-      // console.log('print_stats.print_duration: ', firstObject.print_stats?.print_duration);
+      // console.log('print_stats.print_duration: ', param.print_stats?.print_duration);
       this.printStats.PrintDuration.set(param.print_stats?.print_duration);
     }
     if (param.print_stats?.state != undefined) {
-      // console.log('print_stats.state: ', firstObject.print_stats?.state);
+      // console.log('print_stats.state: ', param.print_stats?.state);
       this.printStats.State.set(param.print_stats?.state);
     }
     if (param.print_stats?.message != undefined) {
-      // console.log('print_stats.message: ', firstObject.print_stats?.message);
+      // console.log('print_stats.message: ', param.print_stats?.message);
       this.printStats.Message.set(param.print_stats?.message);
     }
+    if (param.print_stats?.filament_used != undefined) {
+      // console.log('print_stats.filament_used: ', param.print_stats?.filament_used);
+      this.printStats.FilamentUsed.set(param.print_stats?.filament_used);
+    }
+    if (param.print_stats?.info != undefined) {
+      const info = param.print_stats?.info;
+      if (info?.current_layer != undefined) {
+        // console.log('print_stats.info.current_layer: ', param.print_stats?.info?.current_layer);
+        this.printStats.Info.CurrentLayer.set(info?.current_layer);
+      }
+      if (info?.total_layer != undefined) {
+        // console.log('print_stats.info.total_layer: ', param.print_stats?.info?.total_layer);
+        this.printStats.Info.TotalLayer.set(info?.total_layer);
+      }
+    }
+  }
+
+  private parseDisplayStatus(param: INotifyStatusUpdateParams) {
     if (param.display_status?.progress != undefined) {
-      // console.log('display_status.progress: ', firstObject.display_status?.progress);
+      // console.log('display_status.progress: ', param.display_status?.progress);
       this.displayStatus.Progress.set(param.display_status?.progress);
+    }
+  }
+
+  private parseWebhooks(param: INotifyStatusUpdateParams) {
+    if (param.webhooks?.state != undefined) {
+      // console.log('webhooks.state: ', param.webhooks?.state);
+      this.klippyState.state.set(param.webhooks?.state);
+    }
+    if (param.webhooks?.state_message != undefined) {
+      // console.log('webhooks.state_message: ', param.webhooks?.state_message);
+      this.klippyState.message.set(param.webhooks?.state_message);
+    }
+  }
+
+  parseHeaterBed(param: INotifyStatusUpdateParams) {
+    if (param.heater_bed?.temperature != undefined) {
+      // console.log('heater_bed.temperature: ', param.heater_bed?.temperature);
+      this.heaterBed.Temperature.set(param.heater_bed?.temperature);
+    }
+    if (param.heater_bed?.target != undefined) {
+      // console.log('heater_bed.temperature: ', param.heater_bed?.target);
+      this.heaterBed.Target.set(param.heater_bed?.target);
     }
   }
 

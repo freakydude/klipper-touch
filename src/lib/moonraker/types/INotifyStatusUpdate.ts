@@ -14,19 +14,25 @@ export interface IHeaterBed {
 export interface IExtruder {
   temperature: number;
   target: number;
+  pressure_advance: number;
 }
 
 export interface IToolhead {
   position: number[];
   homed_axes: string;
+  max_accel: number;
 }
 
 export interface IFan {
   speed: number;
+  rpm: number;
 }
 
 export interface IGCodeMove {
   homing_origin: number[];
+  speed: number;
+  speed_factor: number;
+  extrude_factor: number;
 }
 
 export interface IPrintStats {
@@ -36,6 +42,12 @@ export interface IPrintStats {
   filament_used: number;
   state: TPrintState;
   message: string;
+  info: IInfo;
+}
+
+export interface IInfo {
+  current_layer: number;
+  total_layer: number;
 }
 
 export interface IProgress {
