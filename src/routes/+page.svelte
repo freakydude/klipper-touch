@@ -1,45 +1,46 @@
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { client, moonraker } from '$lib/base.svelte';
-import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { onMount } from 'svelte';
 
-let isFullscreen = false;
-let outerElement: Element;
+  let isFullscreen = false;
+  let outerElement: Element;
 
-let isConnected = client.isConnected;
-let klippyState = moonraker.klippyState.state;
-let klippyStateMessage = moonraker.klippyState.message;
+  let isConnected = client.isConnected;
+  let klippyState = moonraker.klippyState.state;
+  let klippyStateMessage = moonraker.klippyState.message;
 
-async function reconnectToMoonraker() {
-  await moonraker.disconnect();
-  await moonraker.connect();
-}
+  async function reconnectToMoonraker() {
+    await moonraker.disconnect();
+    await moonraker.connect();
+  }
 
-async function printerRestart() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.restart',
-    params: {}
+  async function printerRestart() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.restart',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
+  async function firmwareRestart() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.firmware_restart',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
+  onMount(async () => {
+    // await reconnectToMoonraker();
   });
-  await client.sendRequest(stopRequest);
-}
-
-async function firmwareRestart() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.firmware_restart',
-    params: {}
-  });
-  await client.sendRequest(stopRequest);
-}
-
-onMount(async () => {
-  // await reconnectToMoonraker();
-});
 </script>
 
 <div class="page-dark flex-row content-between items-stretch gap-3 p-3" bind:this="{outerElement}">
   <p class="fixed -left-2 top-5 -rotate-90 text-sm text-neutral-100">v0.1.0</p>
   <p class="fixed -left-3 top-10 -rotate-90 text-sm text-neutral-100">experimental</p>
+
   <div class="flex flex-grow flex-col justify-around">
     <span class="flex flex-col items-center">
       <h1 class="text-center text-4xl font-bold text-neutral-100">Klipper-Touch</h1>
@@ -104,37 +105,37 @@ onMount(async () => {
     {#if $isConnected}
       {#if $klippyState === 'disconnected'}
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => reconnectToMoonraker()}">Reconnect</button>
       {:else if $klippyState === 'startup'}
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => printerRestart()}">Restart</button>
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => firmwareRestart()}">Firmware Restart</button>
       {:else if $klippyState === 'ready'}
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => goto('/printstate')}">Printer State</button>
       {:else if $klippyState === 'shutdown'}
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => printerRestart()}">Restart</button>
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => firmwareRestart()}">Firmware Restart</button>
       {:else if $klippyState === 'error'}
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => printerRestart()}">Restart</button>
         <button
-          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+          class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
           on:click="{() => firmwareRestart()}">Firmware Restart</button>
       {/if}
     {:else}
       <button
-        class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 text-neutral-300 drop-shadow-md hover:bg-neutral-500"
+        class="flex h-1/4 items-center justify-center rounded-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-400"
         on:click="{() => reconnectToMoonraker()}">Reconnect</button>
     {/if}
   </div>
