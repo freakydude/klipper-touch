@@ -18,7 +18,7 @@ services:
       binfmt:
         condition: service_completed_successfully
     #ports:
-    #  - '3000:3000'    
+    #  - '3000:3000'
     # environment:
     #   - VITE_MOONRAKER_API=http://192.168.40.6/
     #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket
@@ -35,11 +35,11 @@ services:
     #user: "1000:1000"
     volumes:
       - ./src-tauri/target/release/bundle/deb/:/app/src-tauri/target/release/bundle/deb/
-    depends_on:  
+    depends_on:
       binfmt:
         condition: service_completed_successfully
     #ports:
-    #  - '3000:3000'    
+    #  - '3000:3000'
     # environment:
     #   - VITE_MOONRAKER_API=http://192.168.40.6/
     #   - VITE_MOONRAKER_WEBSOCKET=ws://192.168.40.6/websocket

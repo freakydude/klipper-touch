@@ -52,7 +52,7 @@ And yes, help and improve if you find something.
   sudo apt update
   sudo apt dist-upgrade
   sudo apt autoremove
-  ```  
+  ```
 
 -
 
