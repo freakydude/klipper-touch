@@ -6,4 +6,11 @@ export class PrintStats {
   public Message = writable('');
   public Filename = writable('');
   public PrintDuration = writable(0.0);
+  public FilamentUsed = writable(0.0);
+  public Info = new Info();
+}
+
+export class Info {
+  public TotalLayer = writable(0);
+  public CurrentLayer = writable(0);
 }
