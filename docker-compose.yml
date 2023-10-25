@@ -13,7 +13,8 @@ services:
     platform: linux/arm/v7
     #user: "1000:1000"
     volumes:
-      - ./src-tauri/target/release/bundle/deb/:/app/src-tauri/target/release/bundle/deb/
+      #- ./src-tauri/target/release/bundle/deb/:/app/src-tauri/target/release/bundle/deb/
+      - ./:/app/
     depends_on:
       binfmt:
         condition: service_completed_successfully
@@ -34,7 +35,8 @@ services:
     platform: linux/arm64/v8
     #user: "1000:1000"
     volumes:
-      - ./src-tauri/target/release/bundle/deb/:/app/src-tauri/target/release/bundle/deb/
+      #- ./src-tauri/target/release/bundle/deb/:/app/src-tauri/target/release/bundle/deb/
+      - ./:/app/
     depends_on:
       binfmt:
         condition: service_completed_successfully
