@@ -2,13 +2,14 @@
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import { writable } from 'svelte/store';
-  import type { TPrintState } from '$lib/moonraker/types/TPrintState';
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.toolhead.Position;
   let nozzleTemp = moonraker.extruder.Temperature;
+  // let nozzleTemp = writable(240);
   let bedTemp = moonraker.heaterBed.Temperature;
   let nozzleTarget = moonraker.extruder.Target;
+  // let nozzleTarget = writable(200);
   let pressureAdvance = moonraker.extruder.PressureAdvance;
   let bedTarget = moonraker.heaterBed.Target;
   let fanSpeed = moonraker.fan.Speed;
@@ -17,10 +18,11 @@
   let speedFactor = moonraker.gcodeMove.SpeedFactor;
   let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
 
-  let printState = moonraker.printStats.State;
-  // let printState = writable<TPrintState>('printing');
+  let printStatsState = moonraker.printStats.State;
+  // let printStatsState = writable<TPrintState>('printing');
   let printStatsMessage = moonraker.printStats.Message;
-  let printFilename = moonraker.printStats.Filename;
+  let printStatsFilename = moonraker.printStats.Filename;
+  // let printStatsFilename = writable('slejslkghdfkjghdkfjgjdfkjghdölfkgjdfölkgjdföljkbgxclvkbjdfkiolgjhsdlötkjzröstlkzhjfölgkhj');
   let printStatsPrintDuration = moonraker.printStats.PrintDuration;
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
@@ -28,25 +30,13 @@
 
   let progress = moonraker.displayStatus.Progress;
 
-  let fileEstimatedPrintTime = 0.0;
-  let remainingPrintingTime = 0.0;
+  let selectedFile = writable('');
 
-  // let hours = new Date(Date.now() / 100.0 + remainingPrintingTime).getHours();
-  // let minutes = new Date(Date.now() / 100.0 + remainingPrintingTime).getMinutes();
-
-  printStatsPrintDuration.subscribe((value) => {
-    remainingPrintingTime = Math.max(0, fileEstimatedPrintTime - value);
-  });
-
-  printFilename.subscribe(async (value) => {
-    if (value !== '') {
-      try {
-        fileEstimatedPrintTime = await getEstimatedPrintTime(value + '.gcode');
-      } catch (error) {
-        console.log(error);
-      }
-    }
-  });
+  // progress == print_time in sec
+  // 1        ==  print_time_finished in sec
+  // eta = now in sec + (finished-printtime in sec)
+  // eta = now in sec + (print_time in sec / progress )
+  // left in sec = print_time / progress
 
   async function emergencyStop() {
     let emergencyStopRequest = new JsonRpcRequest({
@@ -54,6 +44,16 @@
       params: {}
     });
     await client.sendRequest(emergencyStopRequest);
+  }
+
+  async function startPrint() {
+    let resumeRequest = new JsonRpcRequest({
+      method: 'printer.print.start',
+      params: {
+        filename: { $printFilename: $selectedFile }
+      }
+    });
+    await client.sendRequest(resumeRequest);
   }
 
   async function resumePrint() {
@@ -79,178 +79,153 @@
     });
     await client.sendRequest(cancelRequest);
   }
-
-  async function getEstimatedPrintTime(fileName: string): Promise<number> {
-    let fileMetaRequest = new JsonRpcRequest({
-      method: 'server.files.metadata',
-      params: {
-        filename: fileName
-      }
-    });
-
-    console.log(fileName);
-    let fileMetaResponse = await client.sendRequest(fileMetaRequest);
-
-    let fileMeta = fileMetaResponse.result;
-
-    return fileMeta.estimated_time;
-  }
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex flex-grow flex-row justify-between gap-3">
-    <span class="flex flex-grow flex-row justify-around p-1">
-      <div class="flex flex-col items-end justify-center gap-3 py-2 pr-1">
-        <div class="flex flex-col items-stretch gap-1 rounded-lg bg-neutral-600 px-3 py-2">
+  <div class="flex flex-grow flex-row justify-between">
+    <span class="flex flex-grow flex-row justify-around">
+      <div class="flex flex-col items-stretch justify-center gap-2">
+        <div class="flex flex-col items-stretch rounded-lg bg-neutral-600 px-2 py-2">
           <table class="table-auto text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Nozzle</td>
-              <td class="pr-1 text-end">{$nozzleTemp.toFixed(1)} / {$nozzleTarget}</td>
-              <td class="text-start">°C</td>
+              <td class="text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
             </tr>
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Bed</td>
-              <td class="pr-1 text-end">{$bedTemp.toFixed(1)} / {$bedTarget}</td>
-              <td class="text-start">°C</td>
+              <td class="text-startt">{$bedTemp.toFixed(1)} / {$bedTarget} °C</td>
             </tr>
             <tr>
               <td class="pr-2 text-end">Fan</td>
-              <td class="pr-1 text-end">{($fanSpeed * 100.0).toFixed(1)}</td>
-              <td class="text-start">%</td>
+              <td class="text-start">{($fanSpeed * 100.0).toFixed(1)} %</td>
             </tr>
-            {#if $printState === 'printing'}
+            {#if $printStatsState === 'printing'}
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="pr-1 text-end">{$speed.toFixed(0)}</td>
-                <td class="text-start">mm/s</td>
+                <td class="text-start">{$speed.toFixed(0)} mm/s</td>
               </tr>
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
-                <td class="pr-1 text-end">0.00</td>
-                <td class="text-start">mm³/s</td>
+                <td class="text-start">21.0 mm³/s</td>
               </tr>
             {/if}
           </table>
         </div>
-        <div class="flex flex-col items-stretch gap-1 rounded-lg bg-neutral-600 px-3 py-2">
+        <div class="flex flex-col items-stretch rounded-lg bg-neutral-600 px-2 py-2">
           <table class="table-auto text-sm text-neutral-50">
-            {#if $printState === 'standby' || $printState === 'cancelled' || $printState === 'complete' || $printState === 'error'}
+            {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">X</td>
-                <td class="pr-1 text-end">{$toolheadPosition[0].toFixed(2)}</td>
-                <td class="text-start">mm</td>
+                <td class="text-start">{$toolheadPosition[0].toFixed(2)} mm</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Y</td>
-                <td class="pr-1 text-end">{$toolheadPosition[1].toFixed(2)}</td>
-                <td class="text-start">mm</td>
+                <td class="text-start">{$toolheadPosition[1].toFixed(2)} mm</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Z</td>
-                <td class="pr-1 text-end">{$toolheadPosition[2].toFixed(2)}</td>
-                <td class="text-start">mm</td>
+                <td class="text-start">{$toolheadPosition[2].toFixed(2)} mm</td>
               </tr>
               <tr>
                 <td class="pr-2 text-end">Baby</td>
-                <td class="pr-1 text-end">{$baby.toFixed(3)}</td>
-                <td class="text-start">mm</td>
+                <td class="text-start">{$baby.toFixed(3)} mm</td>
               </tr>
-            {:else if $printState === 'printing' || $printState === 'paused'}
+            {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="pr-1 text-end">{($speedFactor * 100.0).toFixed(0)}</td>
-                <td class="text-start">%</td>
+                <td class="text-start">{($speedFactor * 100.0).toFixed(0)} %</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Extrude</td>
-                <td class="pr-1 text-end">{($extrudeFactor * 100.0).toFixed(0)}</td>
-                <td class="text-start">%</td>
+                <td class="text-start">{($extrudeFactor * 100.0).toFixed(0)} %</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Accel</td>
-                <td class="pr-1 text-end">{$maxAcceleration.toFixed(0)}</td>
-                <td class="text-start">mm/s²</td>
+                <td class="text-start">{$maxAcceleration.toFixed(0)} mm/s²</td>
               </tr>
               <tr>
                 <td class="pr-2 text-end">Pressure</td>
-                <td class="pr-1 text-end">{$pressureAdvance.toFixed(3)}</td>
-                <td class="text-start">x</td>
+                <td class="text-start">{$pressureAdvance.toFixed(3)} x</td>
               </tr>
             {/if}
           </table>
         </div>
       </div>
-      <div class="flex flex-col items-center justify-center gap-3 py-2 pl-1">
-        <div class="flex flex-col items-center gap-1 rounded-lg bg-neutral-600 px-3 py-2">
-          {#if $printState === 'standby' || $printState === 'cancelled' || $printState === 'complete' || $printState === 'printing' || $printState === 'paused' || $printState === 'error'}
-            <p class="overflow-hidden text-center text-sm text-neutral-50">{$printFilename.replace('.gcode', '').substring(0, 20)}</p>
-            <div class="flex h-36 w-36 flex-col items-stretch justify-center rounded-lg bg-orange-400">
-              <p class="text-center">Loaded Print</p>
-              <p class="text-center">Preview Picture</p>
-              <p class="text-center">here</p>
-            </div>
-          {/if}
+      {#if $selectedFile !== '' || $printStatsState !== 'standby'}
+        <div class="flex flex-col items-stretch justify-center gap-2">
+          <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+            {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'printing' || $printStatsState === 'paused' || $printStatsState === 'error'}
+              <p class="overflow-clip text-center text-sm text-neutral-50">{$selectedFile.replace('.gcode', '').substring(0, 30)}</p>
+              <div class="flex h-36 w-36 flex-col items-stretch justify-center rounded-lg bg-orange-400">
+                <p class="text-center">Loaded Print</p>
+                <p class="text-center">Preview Picture</p>
+                <p class="text-center">here</p>
+              </div>
+            {/if}
 
-          <table class="table-auto text-sm text-neutral-50">
-            {#if $printState === 'standby' || $printState === 'cancelled' || $printState === 'complete' || $printState === 'error'}
-              <tr class="border-b border-neutral-800">
-                <td class="pr-2 text-end">ETA</td>
-                <td>3h15 - 20:47</td>
-              </tr>
-              <tr>
-                <td class="pr-2 text-end">Weight</td>
-                <td>105 g</td>
-              </tr>
-            {:else if $printState === 'printing' || $printState === 'paused'}
-              <tr class="border-b border-neutral-800">
-                <td class="pr-2 text-end">Progress</td>
-                <td>{($progress * 100.0).toFixed(1)}</td>
-              </tr>
-              <tr class="border-b border-neutral-800">
-                <td class="pr-2 text-end">Layer</td>
-                <td>{$currentLayer} / {$totalLayer}</td>
-              </tr>
-              <tr class="">
-                <td class="pr-2 text-end">Filament</td>
-                <td>{($filamentUsed / 100.0).toFixed(2)} m</td>
-              </tr>
-            {/if}
-          </table>
+            <table class="table-auto text-sm text-neutral-50">
+              {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">ETA</td>
+                  <td>3h15 - 20:47</td>
+                </tr>
+                <tr>
+                  <td class="pr-2 text-end">Weight</td>
+                  <td>105 g</td>
+                </tr>
+              {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Progress</td>
+                  <td>{($progress * 100.0).toFixed(1)} %</td>
+                </tr>
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Filament</td>
+                  <td>{($filamentUsed / 1000.0).toFixed(1)} m</td>
+                </tr>
+                <tr>
+                  <td class="pr-2 text-end">Layer</td>
+                  <td>{$currentLayer} / {$totalLayer}</td>
+                </tr>
+              {/if}
+            </table>
+          </div>
         </div>
-      </div>
+      {/if}
     </span>
-    <div class="flex flex-col items-end justify-center gap-3 py-2">
-      {#if $printState === 'standby' || $printState === 'cancelled' || $printState === 'complete'}
+    <div class="flex flex-col items-end justify-center gap-3">
+      {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Load
         </button>
+        {#if $selectedFile !== ''}
+          <button
+            on:click="{startPrint}"
+            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+            Start
+          </button>
+        {/if}
+      {:else if $printStatsState === 'printing'}
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
-          Start
-        </button>
-      {:else if $printState === 'printing'}
-        <button
+          on:click="{pausePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Pause
         </button>
         <button
+          on:click="{cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Cancel
         </button>
-      {:else if $printState === 'paused'}
+      {:else if $printStatsState === 'paused'}
         <button
+          on:click="{resumePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Continue
         </button>
         <button
+          on:click="{cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Cancel
-        </button>
-      {:else if $printState === 'error'}
-        <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-red-800 drop-shadow-md hover:bg-neutral-500">
-          Error
         </button>
       {/if}
     </div>
@@ -261,7 +236,7 @@
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
       State
     </button>
-    {#if $printState !== 'printing'}
+    {#if $printStatsState !== 'printing'}
       <button
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
         Move
@@ -275,7 +250,7 @@
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
       Baby
     </button>
-    {#if $printState !== 'printing'}
+    {#if $printStatsState !== 'printing'}
       <button
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
         Prep
@@ -284,7 +259,9 @@
     <div class="flex flex-grow items-end justify-end">
       <p class="pb-1 pr-1 text-sm text-neutral-50">15:32</p>
     </div>
-    <button class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-800 drop-shadow-md hover:bg-neutral-500">
+    <button
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-800 drop-shadow-md hover:bg-neutral-500"
+      on:click="{emergencyStop}">
       Kill
     </button>
   </div>
