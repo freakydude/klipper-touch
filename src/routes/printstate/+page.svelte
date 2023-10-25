@@ -1,6 +1,7 @@
 <script lang="ts">
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import type { TPrintState } from '$lib/moonraker/types/TPrintState';
   import { writable } from 'svelte/store';
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
@@ -24,19 +25,35 @@
   let printStatsFilename = moonraker.printStats.Filename;
   // let printStatsFilename = writable('slejslkghdfkjghdkfjgjdfkjghdölfkgjdfölkgjdföljkbgxclvkbjdfkiolgjhsdlötkjzröstlkzhjfölgkhj');
   let printStatsPrintDuration = moonraker.printStats.PrintDuration;
+  // let printStatsPrintDuration = writable(60);
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
 
   let progress = moonraker.displayStatus.Progress;
+  // let progress = writable(0.25);
+  let selectedFile = writable(''); // writable($printStatsFilename);
 
-  let selectedFile = writable('');
+  let remainingDuration = 0;
+  let eta = new Date(Date.now()).toLocaleTimeString();
 
-  // progress == print_time in sec
-  // 1        ==  print_time_finished in sec
-  // eta = now in sec + (finished-printtime in sec)
-  // eta = now in sec + (print_time in sec / progress )
-  // left in sec = print_time / progress
+  $: {
+    if ($printStatsFilename !== '') {
+      $selectedFile = $printStatsFilename;
+    }
+  }
+
+  $: {
+    if ($progress === 0.0) {
+      //TODO from Metadata
+      remainingDuration = 0;
+      eta = '-';
+    } else {
+      let dur = $printStatsPrintDuration;
+      remainingDuration = Math.round(dur / $progress - dur);
+      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString();
+    }
+  }
 
   async function emergencyStop() {
     let emergencyStopRequest = new JsonRpcRequest({
@@ -102,7 +119,7 @@
             {#if $printStatsState === 'printing'}
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="text-start">{$speed.toFixed(0)} mm/s</td>
+                <td class="text-start">{($speed / 60.0).toFixed(0)} mm/s</td>
               </tr>
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
@@ -167,13 +184,23 @@
               {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">ETA</td>
-                  <td>3h15 - 20:47</td>
+                  <td>3h15m - 23:23</td>
+                  <!-- from metadata -->
                 </tr>
                 <tr>
                   <td class="pr-2 text-end">Weight</td>
                   <td>105 g</td>
+                  <!-- from metadata -->
                 </tr>
               {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">ETA</td>
+                  <td>{eta}</td>
+                </tr>
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Remains</td>
+                  <td>{remainingDuration} s</td>
+                </tr>
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Progress</td>
                   <td>{($progress * 100.0).toFixed(1)} %</td>
