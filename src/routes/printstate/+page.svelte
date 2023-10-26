@@ -1,8 +1,9 @@
 <script lang="ts">
   import { client, moonraker } from '$lib/base.svelte';
+  import type { IJsonRpcSuccessResponse } from '$lib/jsonrpc/types/IJsonRpcSuccessResponse';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-  import type { TPrintState } from '$lib/moonraker/types/TPrintState';
-  import { writable } from 'svelte/store';
+  import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
+  import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.toolhead.Position;
@@ -32,42 +33,75 @@
 
   let progress = moonraker.displayStatus.Progress;
   // let progress = writable(0.25);
-  let selectedFile = writable(''); // writable($printStatsFilename);
+  let selectedFile = ''; // writable($printStatsFilename);
 
+  let filamentTotal = 0;
   let remainingDuration = 0;
   let eta = new Date(Date.now()).toLocaleTimeString();
+  let localTime: string = calcClock();
 
-  $: {
-    if ($printStatsFilename !== '') {
-      $selectedFile = $printStatsFilename;
-    }
-  }
-
-  $: {
-    if ($progress === 0.0) {
+  function calcPrintRemainingTimes() {
+    if ($progress <= 0.0) {
       //TODO from Metadata
       remainingDuration = 0;
       eta = '-';
     } else {
-      let dur = $printStatsPrintDuration;
-      remainingDuration = Math.round(dur / $progress - dur);
+      remainingDuration = Math.round($printStatsPrintDuration / $progress - $printStatsPrintDuration);
       eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString();
     }
   }
 
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
+  function calcClock(): string {
+    return new Date(Date.now()).toLocaleTimeString();
+  }
+
+  setInterval(() => {
+    calcPrintRemainingTimes();
+    localTime = calcClock();
+  }, 1000);
+
+  $: {
+    if ($printStatsFilename !== '') {
+      selectedFile = $printStatsFilename;
+    }
+  }
+
+  let selectedFileMeta: IFileMetadata;
+  let selectedFileThumbnailPath: string;
+
+  async function updateSelectedFileMeta(filename: string) {
+    let resumeRequest = new JsonRpcRequest({
+      method: 'server.files.metadata',
+      params: {
+        filename: filename + '.gcode'
+      }
     });
-    await client.sendRequest(emergencyStopRequest);
+    let x = (await client.sendRequest(resumeRequest)) as IJsonRpcSuccessResponse;
+    selectedFileMeta = x.result as IFileMetadata;
+    let thumbnail: IThumbnail;
+    // get thumbnail with largest width
+    if (Array.isArray(selectedFileMeta.thumbnails) && selectedFileMeta.thumbnails.length > 0) {
+      thumbnail = selectedFileMeta.thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
+      selectedFileThumbnailPath = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
+    } else {
+      selectedFileThumbnailPath = '';
+    }
+
+    remainingDuration = selectedFileMeta.estimated_time;
+    filamentTotal = selectedFileMeta.filament_total;
+  }
+
+  $: {
+    if (selectedFile != '') {
+      updateSelectedFileMeta(selectedFile);
+    }
   }
 
   async function startPrint() {
     let resumeRequest = new JsonRpcRequest({
       method: 'printer.print.start',
       params: {
-        filename: { $printFilename: $selectedFile }
+        filename: selectedFile + '.gcode'
       }
     });
     await client.sendRequest(resumeRequest);
@@ -95,6 +129,14 @@
       params: {}
     });
     await client.sendRequest(cancelRequest);
+  }
+
+  async function emergencyStop() {
+    let emergencyStopRequest = new JsonRpcRequest({
+      method: 'printer.emergency_stop',
+      params: {}
+    });
+    await client.sendRequest(emergencyStopRequest);
   }
 </script>
 
@@ -168,29 +210,23 @@
           </table>
         </div>
       </div>
-      {#if $selectedFile !== '' || $printStatsState !== 'standby'}
+      {#if selectedFile !== '' || $printStatsState !== 'standby'}
         <div class="flex flex-col items-stretch justify-center gap-2">
           <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
             {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'printing' || $printStatsState === 'paused' || $printStatsState === 'error'}
-              <p class="overflow-clip text-center text-sm text-neutral-50">{$selectedFile.replace('.gcode', '').substring(0, 30)}</p>
-              <div class="flex h-36 w-36 flex-col items-stretch justify-center rounded-lg bg-orange-400">
-                <p class="text-center">Loaded Print</p>
-                <p class="text-center">Preview Picture</p>
-                <p class="text-center">here</p>
-              </div>
+              <p class="overflow-clip text-center text-sm text-neutral-50">{selectedFile.substring(0, 30)}</p>
+              <img src="{selectedFileThumbnailPath}" alt="{selectedFile}" loading="lazy" class="h-24 justify-center rounded-lg" />
             {/if}
 
             <table class="table-auto text-sm text-neutral-50">
               {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
                 <tr class="border-b border-neutral-800">
-                  <td class="pr-2 text-end">ETA</td>
-                  <td>3h15m - 23:23</td>
-                  <!-- from metadata -->
+                  <td class="pr-2 text-end">Remaining</td>
+                  <td>{Math.round(remainingDuration / 60)} min</td>
                 </tr>
                 <tr>
-                  <td class="pr-2 text-end">Weight</td>
-                  <td>105 g</td>
-                  <!-- from metadata -->
+                  <td class="pr-2 text-end">Filament</td>
+                  <td>{(filamentTotal / 1000.0).toFixed(1)} m</td>
                 </tr>
               {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
                 <tr class="border-b border-neutral-800">
@@ -225,7 +261,7 @@
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
           Load
         </button>
-        {#if $selectedFile !== ''}
+        {#if selectedFile !== ''}
           <button
             on:click="{startPrint}"
             class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
@@ -284,7 +320,7 @@
       </button>
     {/if}
     <div class="flex flex-grow items-end justify-end">
-      <p class="pb-1 pr-1 text-sm text-neutral-50">15:32</p>
+      <p class="pb-1 pr-1 text-sm text-neutral-50">{localTime}</p>
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-800 drop-shadow-md hover:bg-neutral-500"
