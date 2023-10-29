@@ -214,7 +214,7 @@
         <div class="flex flex-col items-stretch justify-center gap-2">
           <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
             {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'printing' || $printStatsState === 'paused' || $printStatsState === 'error'}
-              <p class="overflow-clip text-center text-sm text-neutral-50">{selectedFile.substring(0, 30)}</p>
+              <p class="overflow-clip w-36 text-center text-sm text-neutral-50">{selectedFile.substring(0, 20)}</p>
               <img src="{selectedFileThumbnailPath}" alt="{selectedFile}" loading="lazy" class="h-24 justify-center rounded-lg" />
             {/if}
 

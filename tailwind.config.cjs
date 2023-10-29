@@ -4,9 +4,9 @@ module.exports = {
   theme: {
     extend: {},
     screens: {
-      'tft35': '480px',
-      'tft50': '800px',
-      'tft70': '1024px',
+      'xs': '480px',
+      'sm': '800px',
+      'md': '1024px',
     },
   },
   plugins: []
