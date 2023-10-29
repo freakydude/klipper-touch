@@ -1,57 +1,57 @@
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { client, moonraker } from '$lib/base.svelte';
-import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-import { faArrowDown, faArrowUp, faArrowsUpDownLeftRight, faBarsProgress, faGear, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
-import Fa from 'svelte-fa';
+  import { goto } from '$app/navigation';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { faArrowDown, faArrowUp, faArrowsUpDownLeftRight, faBarsProgress, faGear, faList, faMinus, faPlus, faSkull } from '@fortawesome/free-solid-svg-icons';
+  import Fa from 'svelte-fa';
 
-let zOffset = moonraker.gcodeMove.HomeOrigin;
-let stepsArrIdx = 4;
-let stepsArr = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1];
+  let zOffset = moonraker.gcodeMove.HomeOrigin;
+  let stepsArrIdx = 4;
+  let stepsArr = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1];
 
-let distance = stepsArr[stepsArrIdx];
+  let distance = stepsArr[stepsArrIdx];
 
-async function changeZOffset(offsetSteps: number) {
-  let zAdjustRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'SET_GCODE_OFFSET Z_ADJUST=' + offsetSteps + ' MOVE=1'
-    }
-  });
-  await client.sendRequest(zAdjustRequest);
-}
+  async function changeZOffset(offsetSteps: number) {
+    let zAdjustRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'SET_GCODE_OFFSET Z_ADJUST=' + offsetSteps + ' MOVE=1'
+      }
+    });
+    await client.sendRequest(zAdjustRequest);
+  }
 
-async function emergencyStop() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.emergency_stop',
-    params: {}
-  });
-  await client.sendRequest(stopRequest);
-}
+  async function emergencyStop() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.emergency_stop',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
 
-function increaseDistance() {
-  stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
-  distance = stepsArr[stepsArrIdx];
-}
+  function increaseDistance() {
+    stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
+    distance = stepsArr[stepsArrIdx];
+  }
 
-function decreaseDistance() {
-  stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
-  distance = stepsArr[stepsArrIdx];
-}
+  function decreaseDistance() {
+    stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
+    distance = stepsArr[stepsArrIdx];
+  }
 
-async function saveOffset() {
-  // TODO
-}
+  async function saveOffset() {
+    // TODO
+  }
 
-async function clearOffset() {
-  let zAdjustRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'SET_GCODE_OFFSET Z=0' + ' MOVE=1'
-    }
-  });
-  await client.sendRequest(zAdjustRequest);
-}
+  async function clearOffset() {
+    let zAdjustRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'SET_GCODE_OFFSET Z=0' + ' MOVE=1'
+      }
+    });
+    await client.sendRequest(zAdjustRequest);
+  }
 </script>
 
 <div class="flex flex-grow flex-row border-t border-pink-400 bg-neutral-800">
@@ -104,7 +104,7 @@ async function clearOffset() {
       </button>
     </span>
     <button
-      class="flex rounded border-l-4 border-red-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500 disabled:text-neutral-500"
+      class="flex rounded border-l-4 border-red-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500 disabled:text-neutral-500"
       disabled
       on:click="{() => emergencyStop()}">
       <div class="self-center px-1"><Fa icon="{faSkull}" /></div>

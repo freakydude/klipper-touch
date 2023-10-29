@@ -52,6 +52,7 @@ export interface IInfo {
 
 export interface IProgress {
   progress: number;
+  message: string;
 }
 
 export interface INotifyStatusUpdateParams {
