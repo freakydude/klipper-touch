@@ -49,7 +49,7 @@ export class MoonrakerClient extends EventTarget {
             fan: ['speed'],
             gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
             print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
-            display_status: ['progress']
+            display_status: ['progress', 'message']
           }
         };
 
@@ -230,11 +230,11 @@ export class MoonrakerClient extends EventTarget {
 
   private parseFan(param: INotifyStatusUpdateParams) {
     if (param.fan?.speed != undefined) {
-      console.log('fan.speed: ', param.fan?.speed);
+      // console.log('fan.speed: ', param.fan?.speed);
       this.fan.Speed.set(param.fan?.speed);
     }
     if (param.fan?.rpm != undefined) {
-      console.log('fan.rpm: ', param.fan?.rpm);
+      // console.log('fan.rpm: ', param.fan?.rpm);
       this.fan.Rpm.set(param.fan?.rpm);
     }
   }
@@ -277,6 +277,10 @@ export class MoonrakerClient extends EventTarget {
     if (param.display_status?.progress != undefined) {
       // console.log('display_status.progress: ', param.display_status?.progress);
       this.displayStatus.Progress.set(param.display_status?.progress);
+    }
+    if (param.display_status?.message != undefined) {
+      // console.log('display_status.message: ', param.display_status?.message);
+      this.displayStatus.Message.set(param.display_status?.message);
     }
   }
 

@@ -1,118 +1,118 @@
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { client, moonraker } from '$lib/base.svelte';
-import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-import {
-  faArrowDown,
-  faArrowLeft,
-  faArrowRight,
-  faArrowUp,
-  faArrowsToDot,
-  faArrowsUpDown,
-  faBarsProgress,
-  faSkull,
-  faSort
-} from '@fortawesome/free-solid-svg-icons';
-import Fa from 'svelte-fa';
+  import { goto } from '$app/navigation';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import {
+    faArrowDown,
+    faArrowLeft,
+    faArrowRight,
+    faArrowUp,
+    faArrowsToDot,
+    faArrowsUpDown,
+    faBarsProgress,
+    faSkull,
+    faSort
+  } from '@fortawesome/free-solid-svg-icons';
+  import Fa from 'svelte-fa';
 
-let extruderSpeed = 5;
-let moveSpeed = 50;
+  let extruderSpeed = 5;
+  let moveSpeed = 50;
 
-let toolheadPosition = moonraker.toolhead.Position;
-let nozzleTemp = moonraker.extruder.Temperature;
+  let toolheadPosition = moonraker.toolhead.Position;
+  let nozzleTemp = moonraker.extruder.Temperature;
 
-let stepsArrIdx = 6;
-let stepsArr = [0.1, 0.5, 1, 5, 10, 50, 100];
-let speedArr = [0.5, 1, 2, 5, 10, 20, 50];
+  let stepsArrIdx = 6;
+  let stepsArr = [0.1, 0.5, 1, 5, 10, 50, 100];
+  let speedArr = [0.5, 1, 2, 5, 10, 20, 50];
 
-let distance = stepsArr[stepsArrIdx];
-let isHomedXY = false;
-let isHomedZ = false;
+  let distance = stepsArr[stepsArrIdx];
+  let isHomedXY = false;
+  let isHomedZ = false;
 
-moonraker.toolhead.HomedAxes.subscribe((value) => {
-  if (value.includes('xy')) {
-    isHomedXY = true;
-  } else {
-    isHomedXY = false;
+  moonraker.toolhead.HomedAxes.subscribe((value) => {
+    if (value.includes('xy')) {
+      isHomedXY = true;
+    } else {
+      isHomedXY = false;
+    }
+    if (value.includes('z')) {
+      isHomedZ = true;
+    } else {
+      isHomedZ = false;
+    }
+  });
+
+  async function homeXY() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28 X Y' // Home XY axies
+      }
+    });
+    await client.sendRequest(homeRequest);
   }
-  if (value.includes('z')) {
-    isHomedZ = true;
-  } else {
-    isHomedZ = false;
+
+  async function homeXYZ() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28' // Home XY axies
+      }
+    });
+    await client.sendRequest(homeRequest);
   }
-});
 
-async function homeXY() {
-  let homeRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'G28 X Y' // Home XY axies
-    }
-  });
-  await client.sendRequest(homeRequest);
-}
+  async function homeZ() {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G28 Z' // Home Z axies
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
 
-async function homeXYZ() {
-  let homeRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'G28' // Home XY axies
-    }
-  });
-  await client.sendRequest(homeRequest);
-}
+  async function moveRelative(x: number = 0, y: number = 0, z: number = 0) {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G91\nG0 X' + x + ' Y' + y + ' Z' + z + ' F' + moveSpeed * 60
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
 
-async function homeZ() {
-  let homeRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'G28 Z' // Home Z axies
-    }
-  });
-  await client.sendRequest(homeRequest);
-}
+  async function emergencyStop() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.emergency_stop',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
 
-async function moveRelative(x: number = 0, y: number = 0, z: number = 0) {
-  let homeRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'G91\nG0 X' + x + ' Y' + y + ' Z' + z + ' F' + moveSpeed * 60
-    }
-  });
-  await client.sendRequest(homeRequest);
-}
+  async function extrudeRelative(e: number = 0) {
+    let homeRequest = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G91\n G1 E' + e + ' F' + extruderSpeed * 60
+      }
+    });
+    await client.sendRequest(homeRequest);
+  }
 
-async function emergencyStop() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.emergency_stop',
-    params: {}
-  });
-  await client.sendRequest(stopRequest);
-}
+  function increaseDistance() {
+    stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
+    distance = stepsArr[stepsArrIdx];
+  }
 
-async function extrudeRelative(e: number = 0) {
-  let homeRequest = new JsonRpcRequest({
-    method: 'printer.gcode.script',
-    params: {
-      script: 'G91\n G1 E' + e + ' F' + extruderSpeed * 60
-    }
-  });
-  await client.sendRequest(homeRequest);
-}
+  function decreaseDistance() {
+    stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
+    distance = stepsArr[stepsArrIdx];
+  }
 
-function increaseDistance() {
-  stepsArrIdx = Math.min(stepsArrIdx + 1, stepsArr.length - 1);
-  distance = stepsArr[stepsArrIdx];
-}
-
-function decreaseDistance() {
-  stepsArrIdx = Math.max(stepsArrIdx - 1, 0);
-  distance = stepsArr[stepsArrIdx];
-}
-
-function setIdxDistance(idx: number = 0) {
-  distance = stepsArr[idx];
-}
+  function setIdxDistance(idx: number = 0) {
+    distance = stepsArr[idx];
+  }
 </script>
 
 <div class="flex flex-grow flex-row border-t border-purple-400 bg-neutral-800">
@@ -244,7 +244,7 @@ function setIdxDistance(idx: number = 0) {
       </button>
     </span>
     <button
-      class="flex rounded border-l-4 border-red-400 bg-neutral-600 px-1 py-2 text-white shadow hover:bg-neutral-500 disabled:text-neutral-500"
+      class="flex rounded border-l-4 border-red-400 bg-neutral-700 px-1 py-2 text-white shadow hover:bg-neutral-500 disabled:text-neutral-500"
       disabled
       on:click="{() => emergencyStop()}">
       <div class="self-center px-1"><Fa icon="{faSkull}" /></div>

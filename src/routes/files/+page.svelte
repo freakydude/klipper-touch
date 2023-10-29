@@ -82,30 +82,29 @@
 
 <div class="flex flex-grow flex-row gap-1 overflow-hidden bg-neutral-800 p-1">
   <div class="flex flex-col gap-1">
-    <button class="btn-touch bg-red-600" on:click={() => goto('/')}><Fa icon={faList} /></button>
-    <button class="btn-touch bg-red-600" on:click={() => goto('/printerstatus')}>PS</button>
-    <div class="grow" />
-    <button class="btn-touch bg-yellow-600" on:click={() => emergencyStop()}><Fa icon={faSkull} /></button>
+    <button class="btn-touch bg-red-600" on:click="{() => goto('/')}"><Fa icon="{faList}" /></button>
+    <button class="btn-touch bg-red-600" on:click="{() => goto('/printerstatus')}">PS</button>
+    <div class="grow"></div>
+    <button class="btn-touch bg-yellow-600" on:click="{() => emergencyStop()}"><Fa icon="{faSkull}" /></button>
   </div>
 
-  <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-600">
+  <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-700">
     <div class="flex flex-col">
       <p class="label-head">Files</p>
       <div class="flex flex-col gap-1 py-1">
         {#each availableFiles as avFile}
-          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click={async () => selectFile(avFile)}
-            >{avFile.slice(0, -6)}</button
-          >
+          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click="{async () => selectFile(avFile)}"
+            >{avFile.slice(0, -6)}</button>
         {/each}
       </div>
     </div>
   </div>
 
   <div class="flex flex-col items-center justify-around rounded">
-    <div class="flex flex-col overflow-y-auto rounded bg-neutral-600">
+    <div class="flex flex-col overflow-y-auto rounded bg-neutral-700">
       <p class="label-head">Details</p>
       <!-- <p class="label overflow-x-clip">File: {activeFilename.slice(0, -6)}</p> -->
-      <img src={thumbnail} alt="" loading="lazy" class="h-24 self-center" />
+      <img src="{thumbnail}" alt="" loading="lazy" class="h-24 self-center" />
       <!--  class="w-24 self-center" -->
       <p class="label py-1">
         {new Date(fileMeta.estimated_time * 1000).getUTCHours()}h {new Date(fileMeta.estimated_time * 1000).getUTCMinutes()}min
@@ -114,10 +113,10 @@
       <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
       <p class="label py-1">Layer: {fileMeta.layer_height}</p>
       <div class="flex flex-row justify-around gap-1">
-        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click={() => printFile(activeFilename)}>
-          <Fa icon={faPrint} />
+        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click="{() => printFile(activeFilename)}">
+          <Fa icon="{faPrint}" />
         </button>
-        <button class="btn-touch" on:click={() => deleteFile(activeFilename)}><Fa icon={faTrash} /></button>
+        <button class="btn-touch" on:click="{() => deleteFile(activeFilename)}"><Fa icon="{faTrash}" /></button>
       </div>
     </div>
   </div>

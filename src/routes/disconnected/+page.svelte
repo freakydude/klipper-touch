@@ -1,56 +1,56 @@
 <script lang="ts">
-import { client, moonraker } from '$lib/base.svelte';
-import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-import { onMount } from 'svelte';
+  import { client, moonraker } from '$lib/base.svelte';
+  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { onMount } from 'svelte';
 
-// define initial component state
+  // define initial component state
 
-let isFullscreen = false;
-let outerElement: Element;
+  let isFullscreen = false;
+  let outerElement: Element;
 
-let klippyState = moonraker.klippyState.state;
-let klippyStateMessage = moonraker.klippyState.message;
+  let klippyState = moonraker.klippyState.state;
+  let klippyStateMessage = moonraker.klippyState.message;
 
-async function switchFullscreen() {
-  if (isFullscreen) {
-    await document.exitFullscreen();
-    isFullscreen = false;
-  } else {
-    await outerElement.requestFullscreen();
-    isFullscreen = true;
+  async function switchFullscreen() {
+    if (isFullscreen) {
+      await document.exitFullscreen();
+      isFullscreen = false;
+    } else {
+      await outerElement.requestFullscreen();
+      isFullscreen = true;
+    }
   }
-}
 
-async function reconnectToMoonraker() {
-  await moonraker.disconnect();
-  await moonraker.connect();
-}
+  async function reconnectToMoonraker() {
+    await moonraker.disconnect();
+    await moonraker.connect();
+  }
 
-async function printerRestart() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.restart',
-    params: {}
+  async function printerRestart() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.restart',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
+  async function firmwareRestart() {
+    let stopRequest = new JsonRpcRequest({
+      method: 'printer.firmware_restart',
+      params: {}
+    });
+    await client.sendRequest(stopRequest);
+  }
+
+  onMount(async () => {
+    // await reconnectToMoonraker();
   });
-  await client.sendRequest(stopRequest);
-}
-
-async function firmwareRestart() {
-  let stopRequest = new JsonRpcRequest({
-    method: 'printer.firmware_restart',
-    params: {}
-  });
-  await client.sendRequest(stopRequest);
-}
-
-onMount(async () => {
-  // await reconnectToMoonraker();
-});
 </script>
 
 <div class="flex h-screen w-screen" bind:this="{outerElement}">
   {#if $klippyState !== 'ready'}
     <div class="flex grow flex-col flex-wrap place-content-center items-center gap-6 bg-neutral-800">
-      <div class="flex flex-col rounded bg-neutral-600">
+      <div class="flex flex-col rounded bg-neutral-700">
         <div class="flex flex-row flex-wrap justify-center gap-1">
           {#if $klippyState === 'disconnected'}
             <button class="btn-touch" on:click="{() => reconnectToMoonraker()}">Reconnect</button>
