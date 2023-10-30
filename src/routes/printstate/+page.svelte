@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
   import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
-  let toolheadPosition = moonraker.toolhead.Position;
+  let toolheadPosition = moonraker.motionReport.LivePosition;
   let nozzleTemp = moonraker.extruder.Temperature;
   // let nozzleTemp = writable(240);
   let bedTemp = moonraker.heaterBed.Temperature;
@@ -15,7 +16,8 @@
   let bedTarget = moonraker.heaterBed.Target;
   let fanSpeed = moonraker.fan.Speed;
   let baby = moonraker.gcodeMove.HomeOrigin;
-  let speed = moonraker.gcodeMove.Speed;
+  let liveVelocity = moonraker.motionReport.LiveVelocity;
+  let requestedSpeed = moonraker.gcodeMove.Speed;
   let speedFactor = moonraker.gcodeMove.SpeedFactor;
   let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
 
@@ -172,7 +174,8 @@
             {#if $printStatsState === 'printing'}
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="text-start">{($speed / 60.0).toFixed(0)} mm/s</td>
+                <td class="text-start">{$liveVelocity.toFixed(0)} mm/s</td>
+                <!-- {$requestedSpeed.toFixed(0)} -->
               </tr>
               <!-- <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
@@ -268,36 +271,36 @@
     <div class="flex flex-col items-end justify-center gap-3">
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Load
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click="{startPrint}"
-            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+            on:click="{async () => startPrint()}"
+            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click="{pausePrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+          on:click="{async () => pausePrint()}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click="{cancelPrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+          on:click="{async () => cancelPrint()}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click="{resumePrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+          on:click="{async () => resumePrint()}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click="{cancelPrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+          on:click="{async () => cancelPrint()}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Cancel
         </button>
       {/if}
@@ -306,26 +309,27 @@
 
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+        on:click="{async () => goto('/move')}">
         Move
       </button>
     {/if}
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Prep
       </button>
     {/if}
@@ -333,8 +337,8 @@
       <p class="pb-1 pr-1 text-sm text-neutral-50">{localTime}</p>
     </div>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500"
-      on:click="{emergencyStop}">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+      on:click="{async () => emergencyStop()}">
       Kill
     </button>
   </div>

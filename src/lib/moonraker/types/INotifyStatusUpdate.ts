@@ -21,6 +21,19 @@ export interface IToolhead {
   position: number[];
   homed_axes: string;
   max_accel: number;
+  axis_minimum: number[];
+  axis_maximum: number[];
+  max_velocity: number;
+  square_corner_velocity: number;
+  max_accel_to_decel: number;
+}
+
+export interface IMotionReport {
+  live_position: number[];
+  live_velocity: number;
+  live_extruder_velocity: number;
+  steppers: string[];
+  trapq: string[];
 }
 
 export interface IFan {
@@ -64,6 +77,7 @@ export interface INotifyStatusUpdateParams {
   gcode_move: IGCodeMove;
   print_stats: IPrintStats;
   display_status: IProgress;
+  motion_report: IMotionReport;
 }
 
 export interface INotifyStatusUpdate {

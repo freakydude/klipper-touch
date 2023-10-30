@@ -7,6 +7,7 @@ import { Fan } from './modules/Fan';
 import { GCodeMove } from './modules/GCodeMove';
 import { HeaterBed } from './modules/HeaterBed';
 import { KlipperState } from './modules/KlipperState';
+import { MotionReport } from './modules/MotionReport';
 import { PrintStats } from './modules/PrintStats';
 import { Toolhead } from './modules/Toolhead';
 import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdate';
@@ -23,6 +24,7 @@ export class MoonrakerClient extends EventTarget {
   public fan = new Fan();
   public printStats = new PrintStats();
   public displayStatus = new DisplayStatus();
+  public motionReport = new MotionReport();
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -43,11 +45,12 @@ export class MoonrakerClient extends EventTarget {
             webhooks: ['state', 'state_message'],
             heater_bed: ['temperature', 'target'],
             extruder: ['temperature', 'target', 'pressure_advance'],
-            toolhead: ['position', 'homed_axes', 'max_accel'],
+            toolhead: ['position', 'homed_axes', 'max_accel', 'axis_maximum', 'axis_minimum'],
             fan: ['speed'],
             gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
             print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
-            display_status: ['progress', 'message']
+            display_status: ['progress', 'message'],
+            motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity']
           }
         };
 
@@ -174,6 +177,7 @@ export class MoonrakerClient extends EventTarget {
     this.parseFan(param);
     this.parsePrintStats(param);
     this.parseDisplayStatus(param);
+    this.parseMotionReport(param);
   }
 
   private parseExtruder(param: INotifyStatusUpdateParams) {
@@ -203,6 +207,26 @@ export class MoonrakerClient extends EventTarget {
     if (param.toolhead?.homed_axes != undefined) {
       // console.log('toolhead.homed_axes: ', param.toolhead?.homed_axes);
       this.toolhead.HomedAxes.set(param.toolhead?.homed_axes);
+    }
+    if (param.toolhead?.axis_minimum != undefined) {
+      // console.log('toolhead.axis_minimum: ', param.toolhead?.axis_minimum);
+      this.toolhead.AxisMinimum.set(param.toolhead?.axis_minimum);
+    }
+    if (param.toolhead?.axis_maximum != undefined) {
+      // console.log('toolhead.axis_maximum: ', param.toolhead?.axis_maximum);
+      this.toolhead.AxisMaximum.set(param.toolhead?.axis_maximum);
+    }
+    if (param.toolhead?.max_velocity != undefined) {
+      // console.log('toolhead.max_velocity: ', param.toolhead?.max_velocity);
+      this.toolhead.MaxVelocity.set(param.toolhead?.max_velocity);
+    }
+    if (param.toolhead?.square_corner_velocity != undefined) {
+      // console.log('toolhead.square_corner_velocity: ', param.toolhead?.square_corner_velocity);
+      this.toolhead.SquareCornerVelocity.set(param.toolhead?.square_corner_velocity);
+    }
+    if (param.toolhead?.max_accel_to_decel != undefined) {
+      // console.log('toolhead.max_accel_to_decel: ', param.toolhead?.max_accel_to_decel);
+      this.toolhead.MaxDeceleration.set(param.toolhead?.max_accel_to_decel);
     }
   }
 
@@ -292,7 +316,7 @@ export class MoonrakerClient extends EventTarget {
     }
   }
 
-  parseHeaterBed(param: INotifyStatusUpdateParams) {
+  private parseHeaterBed(param: INotifyStatusUpdateParams) {
     if (param.heater_bed?.temperature != undefined) {
       // console.log('heater_bed.temperature: ', param.heater_bed?.temperature);
       this.heaterBed.Temperature.set(param.heater_bed?.temperature);
@@ -300,6 +324,24 @@ export class MoonrakerClient extends EventTarget {
     if (param.heater_bed?.target != undefined) {
       // console.log('heater_bed.temperature: ', param.heater_bed?.target);
       this.heaterBed.Target.set(param.heater_bed?.target);
+    }
+  }
+
+  private parseMotionReport(param: INotifyStatusUpdateParams) {
+    if (param.motion_report?.live_extruder_velocity != undefined) {
+      this.motionReport.LiveExtruderVelocity.set(param.motion_report?.live_extruder_velocity);
+    }
+    if (param.motion_report?.live_position != undefined) {
+      this.motionReport.LivePosition.set(param.motion_report?.live_position);
+    }
+    if (param.motion_report?.live_velocity != undefined) {
+      this.motionReport.LiveVelocity.set(param.motion_report?.live_velocity);
+    }
+    if (param.motion_report?.steppers != undefined) {
+      this.motionReport.Steppers.set(param.motion_report?.steppers);
+    }
+    if (param.motion_report?.trapq != undefined) {
+      this.motionReport.Trapq.set(param.motion_report?.trapq);
     }
   }
 
