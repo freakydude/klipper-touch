@@ -24,10 +24,6 @@ GET http://192.168.40.6/printer/objects/query?extruder
 
 ###
 
-GET http://192.168.40.6/printer/objects/query?toolhead
-
-###
-
 GET http://192.168.40.6/printer/objects/query?mcu
 
 ###
@@ -50,3 +46,16 @@ GET http://192.168.40.6/printer/objects/query?filament_switch_sensor filament
 ###
 
 GET http://192.168.40.6/printer/objects/query?display_status=message
+###
+
+
+GET http://192.168.40.6/printer/objects/query?motion_report
+###
+GET http://192.168.40.6/printer/objects/query?toolhead
+###
+GET http://192.168.40.6/printer/objects/query?configfile
+###
+GET http://192.168.40.6/printer/objects/query?stepper_x
+
+
+###
