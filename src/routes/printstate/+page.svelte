@@ -1,8 +1,5 @@
 <script lang="ts">
-  import { DisplayStatus } from './../../lib/moonraker/modules/DisplayStatus.ts';
-  import { PrintStats } from './../../lib/moonraker/modules/PrintStats.ts';
   import { client, moonraker } from '$lib/base.svelte';
-  import type { IJsonRpcSuccessResponse } from '$lib/jsonrpc/types/IJsonRpcSuccessResponse';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
   import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
@@ -40,26 +37,29 @@
 
   let filamentTotal = 0;
   let remainingDuration = 0;
-  let eta = new Date(Date.now()).toLocaleTimeString('de', { timeStyle: "short"});
+  let eta = new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
   let localTime: string = calcClock();
 
   function calcPrintRemainingTimes() {
     if ($progress <= 0.0) {
       //TODO from Metadata
       remainingDuration = 0;
-      eta = new Date(Date.now() + selectedFileMeta.estimated_time).toLocaleTimeString('de', { timeStyle: "short"});
+      eta = new Date(Date.now() + selectedFileMeta.estimated_time).toLocaleTimeString('de', { timeStyle: 'short' });
     } else {
       remainingDuration = Math.round($printStatsPrintDuration / $progress - $printStatsPrintDuration);
-      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: "short"});
+      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
     }
   }
 
   function calcClock(): string {
-    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: "short"});
+    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
   }
 
   setInterval(() => {
-    calcPrintRemainingTimes();
+    if (selectedFile !== '') {
+      calcPrintRemainingTimes();
+    }
+
     localTime = calcClock();
   }, 1000);
 
@@ -79,19 +79,26 @@
         filename: filename + '.gcode'
       }
     });
-    let x = (await client.sendRequest(resumeRequest)) as IJsonRpcSuccessResponse;
-    selectedFileMeta = x.result as IFileMetadata;
-    let thumbnail: IThumbnail;
-    // get thumbnail with largest width
-    if (Array.isArray(selectedFileMeta.thumbnails) && selectedFileMeta.thumbnails.length > 0) {
-      thumbnail = selectedFileMeta.thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-      selectedFileThumbnailPath = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
-    } else {
-      selectedFileThumbnailPath = '';
-    }
+    let response = await client.sendRequest(resumeRequest);
 
-    remainingDuration = selectedFileMeta.estimated_time;
-    filamentTotal = selectedFileMeta.filament_total;
+    if (response.error === undefined) {
+      selectedFileMeta = response.result as IFileMetadata;
+      let thumbnail: IThumbnail;
+      // get thumbnail with largest width
+      if (Array.isArray(selectedFileMeta.thumbnails) && selectedFileMeta.thumbnails.length > 0) {
+        thumbnail = selectedFileMeta.thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
+        selectedFileThumbnailPath = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
+      } else {
+        selectedFileThumbnailPath = '';
+      }
+
+      remainingDuration = selectedFileMeta.estimated_time;
+      filamentTotal = selectedFileMeta.filament_total;
+    } else {
+      remainingDuration = 0;
+      filamentTotal = 0;
+      console.warn('Could not get metadata for file ' + filename);
+    }
   }
 
   $: {

@@ -23,7 +23,6 @@
     "@fortawesome/free-regular-svg-icons": "^6.4.2",
     "@fortawesome/free-solid-svg-icons": "^6.4.2",
     "@playwright/test": "^1.39.0",
-    "@sveltejs/adapter-auto": "^2.1.0",
     "@sveltejs/adapter-static": "^2.0.3",
     "@sveltejs/kit": "^1.27.0",
     "@tauri-apps/cli": "^1.5.6",
