@@ -1,7 +1,5 @@
 import type { JsonRpcClient } from '$lib/jsonrpc/JsonRpcClient';
-import type { IJsonRpcErrorResponse } from '$lib/jsonrpc/types/IJsonRpcErrorResponse';
 import type { IJsonRpcRequest } from '$lib/jsonrpc/types/IJsonRpcRequest';
-import type { IJsonRpcSuccessResponse } from '$lib/jsonrpc/types/IJsonRpcSuccessResponse';
 import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 import { DisplayStatus } from './modules/DisplayStatus';
 import { Extruder } from './modules/Extruder';
@@ -112,9 +110,10 @@ export class MoonrakerClient extends EventTarget {
 
     let response;
     try {
-      response = (await this._jsonRpcClient.sendRequest(initialRequest)) as IJsonRpcSuccessResponse;
-
-      this.parseNotifyStatusUpdateParams(response.result.status);
+      response = await this._jsonRpcClient.sendRequest(initialRequest);
+      if (response.result) {
+        this.parseNotifyStatusUpdateParams(response.result.status);
+      }
     } catch (error) {
       successful = false;
       console.error(error, response);
@@ -132,13 +131,11 @@ export class MoonrakerClient extends EventTarget {
     try {
       const response = await this._jsonRpcClient.sendRequest(subscribeRequest);
 
-      // TODO no good solution but works for now - error handling
-      const errorResponse = response as IJsonRpcErrorResponse;
-      if (errorResponse?.error) {
+      if (response.error) {
         successful = false;
         this.klippyState.state.set('error');
-        this.klippyState.message.set(errorResponse.error.message);
-        console.warn(errorResponse);
+        this.klippyState.message.set(response.error.message);
+        console.warn(response);
       }
     } catch (error) {
       successful = false;
