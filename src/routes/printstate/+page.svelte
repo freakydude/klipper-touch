@@ -8,105 +8,106 @@
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.motionReport.LivePosition;
   let nozzleTemp = moonraker.extruder.Temperature;
-  // let nozzleTemp = writable(240);
   let bedTemp = moonraker.heaterBed.Temperature;
   let nozzleTarget = moonraker.extruder.Target;
-  // let nozzleTarget = writable(200);
   let pressureAdvance = moonraker.extruder.PressureAdvance;
   let bedTarget = moonraker.heaterBed.Target;
   let fanSpeed = moonraker.fan.Speed;
   let baby = moonraker.gcodeMove.HomeOrigin;
   let liveVelocity = moonraker.motionReport.LiveVelocity;
+  let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
   let requestedSpeed = moonraker.gcodeMove.Speed;
   let speedFactor = moonraker.gcodeMove.SpeedFactor;
   let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
 
   let printStatsState = moonraker.printStats.State;
-  // let printStatsState = writable<TPrintState>('printing');
   let printStatsMessage = moonraker.printStats.Message;
   let printStatsFilename = moonraker.printStats.Filename;
-  // let printStatsFilename = writable('slejslkghdfkjghdkfjgjdfkjghdölfkgjdfölkgjdföljkbgxclvkbjdfkiolgjhsdlötkjzröstlkzhjfölgkhj');
   let printStatsPrintDuration = moonraker.printStats.PrintDuration;
-  // let printStatsPrintDuration = writable(60);
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
   let displayStatusMessage = moonraker.displayStatus.Message;
 
   let progress = moonraker.displayStatus.Progress;
-  // let progress = writable(0.25);
-  let selectedFile = ''; // writable($printStatsFilename);
-
-  let filamentTotal = 0;
+  let selectedFile = '';
+  let selectedFileThumbnailPath = '';
   let remainingDuration = 0;
-  let eta = new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
-  let localTime: string = calcClock();
+  let filamentTotal = 0;
+  let estimatedTime = 0;
+  let layerHeight = 0;
+  let objectHeight = 0;
+  let eta = '';
 
-  function calcPrintRemainingTimes() {
-    if ($progress <= 0.0) {
-      //TODO from Metadata
-      remainingDuration = 0;
-      eta = new Date(Date.now() + selectedFileMeta.estimated_time).toLocaleTimeString('de', { timeStyle: 'short' });
-    } else {
-      remainingDuration = Math.round($printStatsPrintDuration / $progress - $printStatsPrintDuration);
-      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
-    }
-  }
-
-  function calcClock(): string {
-    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
-  }
+  let localTime = calcCurrentTime();
 
   setInterval(() => {
-    if (selectedFile !== '') {
-      calcPrintRemainingTimes();
-    }
+    localTime = calcCurrentTime();
+  }, 10 * 1000); // all 10 sec
 
-    localTime = calcClock();
-  }, 1000);
+  printStatsFilename.subscribe(async (name) => {
+    if (name !== '') {
+      selectedFile = name;
 
-  $: {
-    if ($printStatsFilename !== '') {
-      selectedFile = $printStatsFilename;
+      let meta = getSelectedFileMeta(selectedFile);
+      meta.then(async (m) => {
+        if (m !== null) {
+          estimatedTime = m.estimated_time;
+          filamentTotal = m.filament_total;
+          layerHeight = m.layer_height;
+          objectHeight = m.object_height;
+          selectedFileThumbnailPath = await getSelectedFileThumbnailPath(m.thumbnails);
+        }
+      });
     }
+  });
+
+  $: updateEta($progress);
+
+  function updateEta(progress: number) {
+    console.log('progress', progress, 'duration', $printStatsPrintDuration);
+    if (progress > 0 && $printStatsPrintDuration > 60) {
+      // wait 60sec before update eta dynamic
+      remainingDuration = Math.floor($printStatsPrintDuration / progress - $printStatsPrintDuration);
+      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
+    } else {
+      remainingDuration = estimatedTime;
+      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
+    }
+    console.log('eta', eta);
   }
 
-  let selectedFileMeta: IFileMetadata;
-  let selectedFileThumbnailPath: string;
+  async function getSelectedFileThumbnailPath(thumbnails: IThumbnail[]): Promise<string> {
+    let path = '';
+    if (Array.isArray(thumbnails) && thumbnails.length > 0) {
+      let thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
+      path = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
+    } else {
+      path = '';
+    }
+    return path;
+  }
 
-  async function updateSelectedFileMeta(filename: string) {
-    let resumeRequest = new JsonRpcRequest({
+  async function getSelectedFileMeta(filename: string): Promise<IFileMetadata | null> {
+    let requestMetadata = new JsonRpcRequest({
       method: 'server.files.metadata',
       params: {
         filename: filename + '.gcode'
       }
     });
-    let response = await client.sendRequest(resumeRequest);
+    let response = await client.sendRequest(requestMetadata);
+    let metadata: IFileMetadata | null = null;
 
-    if (response.error === undefined) {
-      selectedFileMeta = response.result as IFileMetadata;
-      let thumbnail: IThumbnail;
-      // get thumbnail with largest width
-      if (Array.isArray(selectedFileMeta.thumbnails) && selectedFileMeta.thumbnails.length > 0) {
-        thumbnail = selectedFileMeta.thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-        selectedFileThumbnailPath = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
-      } else {
-        selectedFileThumbnailPath = '';
-      }
+    console.log(response);
 
-      remainingDuration = selectedFileMeta.estimated_time;
-      filamentTotal = selectedFileMeta.filament_total;
-    } else {
-      remainingDuration = 0;
-      filamentTotal = 0;
-      console.warn('Could not get metadata for file ' + filename);
+    if (!response.error) {
+      metadata = response.result as IFileMetadata;
     }
+    return metadata;
   }
 
-  $: {
-    if (selectedFile != '') {
-      updateSelectedFileMeta(selectedFile);
-    }
+  function calcCurrentTime(): string {
+    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
   }
 
   async function startPrint() {
@@ -177,10 +178,10 @@
                 <td class="text-start">{$liveVelocity.toFixed(0)} mm/s</td>
                 <!-- {$requestedSpeed.toFixed(0)} -->
               </tr>
-              <!-- <tr class="border-t border-neutral-800">
+              <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
-                <td class="text-start">21.0 mm³/s</td>
-              </tr> -->
+                <td class="text-start">{(Math.pow(1.75 / 2, 2) * Math.PI * $liveExtruderVelocity).toFixed(1)} mm³/s</td>
+              </tr>
             {/if}
           </table>
         </div>
@@ -226,9 +227,9 @@
       </div>
       {#if selectedFile !== '' || $printStatsState !== 'standby'}
         <div class="flex flex-col items-stretch justify-center gap-2">
-          <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
+          <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 pb-2">
             {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'printing' || $printStatsState === 'paused' || $printStatsState === 'error'}
-              <img src="{selectedFileThumbnailPath}" alt="{selectedFile}" loading="lazy" class="h-28 justify-center rounded-lg" />
+              <img src="{selectedFileThumbnailPath}" alt="{selectedFile}" loading="lazy" class="h-32 justify-center" />
             {/if}
 
             <table class="table-auto text-sm text-neutral-50">
