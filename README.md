@@ -33,16 +33,16 @@ And yes, help and improve if you find something.
 
   ```bash
   deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
-
+  
   # deb-src <http://deb.debian.org/debian> bookworm main contrib non-free non-free-firmware
-
-  deb <http://deb.debian.org/debian> bookworm-updates main contrib non-free non-free-firmware
+  
+  deb < http://deb.debian.org/debian > bookworm-updates main contrib non-free non-free-firmware
   # deb-src <http://deb.debian.org/debian> bookworm-updates main contrib non-free non-free-firmware
-
-  deb <http://deb.debian.org/debian> bookworm-backports main contrib non-free non-free-firmware
+  
+  deb < http://deb.debian.org/debian > bookworm-backports main contrib non-free non-free-firmware
   # deb-src <http://deb.debian.org/debian> bookworm-backports main contrib non-free non-free-firmware
-
-  deb <http://deb.debian.org/debian-security> bookworm-security main contrib non-free non-free-firmware
+  
+  deb < http://deb.debian.org/debian-security > bookworm-security main contrib non-free non-free-firmware
   # deb-src <http://deb.debian.org/debian-security> bookworm-security main contrib non-free non-free-firmware
   ```
 

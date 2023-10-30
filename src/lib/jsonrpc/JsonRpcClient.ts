@@ -1,8 +1,7 @@
 import { writable } from 'svelte/store';
-import type { IJsonRpcErrorResponse } from './types/IJsonRpcErrorResponse';
 import type { IJsonRpcRequest } from './types/IJsonRpcRequest';
 import type { IJsonRpcResponse } from './types/IJsonRpcResponse';
-import type { IJsonRpcSuccessResponse } from './types/IJsonRpcSuccessResponse';
+import type { JsonRpcResponse } from './types/JsonRpcResponse';
 
 export class JsonRpcClient extends EventTarget {
   private _ws?: WebSocket;
@@ -106,15 +105,15 @@ export class JsonRpcClient extends EventTarget {
     return result;
   }
 
-  public sendRequest(request: IJsonRpcRequest): Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse> {
-    let promise: Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>;
+  public sendRequest(request: IJsonRpcRequest): Promise<IJsonRpcResponse> {
+    let promise: Promise<JsonRpcResponse>;
 
     if (!this.isConnected) {
       const notConnected = 'Websocket is not connected, send request failed';
       console.log(notConnected);
       promise = Promise.reject(notConnected);
     } else {
-      promise = new Promise<IJsonRpcSuccessResponse | IJsonRpcErrorResponse>((resolve, reject) => {
+      promise = new Promise<JsonRpcResponse>((resolve, reject) => {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
 
@@ -123,7 +122,7 @@ export class JsonRpcClient extends EventTarget {
         }, this.requestTimeout);
 
         const parser = (event: MessageEvent) => {
-          const response: IJsonRpcSuccessResponse | IJsonRpcErrorResponse = JSON.parse(event.data);
+          const response: JsonRpcResponse = JSON.parse(event.data);
 
           if (request.id == response.id) {
             clearTimeout(timeout);
@@ -152,8 +151,8 @@ export class JsonRpcClient extends EventTarget {
     return promise;
   }
 
-  public sendBatchRequest(requests: IJsonRpcRequest[]): Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]> {
-    let promise: Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>;
+  public sendBatchRequest(requests: IJsonRpcRequest[]): Promise<IJsonRpcResponse[]> {
+    let promise: Promise<JsonRpcResponse[]>;
 
     if (!this.isConnected) {
       const notConnected = 'Websocket is not connected, send batch request failed';
@@ -162,7 +161,7 @@ export class JsonRpcClient extends EventTarget {
     } else {
       //console.log('Websocket send patch requests:', requests);
 
-      promise = new Promise<IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[]>((resolve, reject) => {
+      promise = new Promise<JsonRpcResponse[]>((resolve, reject) => {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
 
@@ -171,12 +170,12 @@ export class JsonRpcClient extends EventTarget {
         }, this.requestTimeout);
 
         const parser = (event: MessageEvent) => {
-          const responses: IJsonRpcSuccessResponse[] | IJsonRpcErrorResponse[] = JSON.parse(event.data);
+          const responses: JsonRpcResponse[] = JSON.parse(event.data);
 
           // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
           if (Array.isArray(responses)) {
             console.log('Websocket received batch responses', responses);
-            const responsesWithId: IJsonRpcResponse[] = new Array<IJsonRpcResponse>();
+            const responsesWithId: JsonRpcResponse[] = new Array<JsonRpcResponse>();
 
             for (const element of responses) {
               if (element.id) [responsesWithId.push(element)];
