@@ -254,7 +254,7 @@
       Temp
     </button>
     <button
-      disabled="{true}"
+      on:click="{async () => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>

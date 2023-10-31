@@ -100,12 +100,12 @@
       <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
         <table class="self-stretch text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="px-2 text-center">Nozzle</td>
+            <td class="px-2 text-end">Nozzle</td>
 
             <td class=" text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
-            <td class="px-2 text-center">Target</td>
+            <td class="px-2 text-end">Target</td>
 
             <td class=" text-start">{$nozzleTargetTemperature.toFixed(0)} °C</td>
           </tr>
@@ -126,11 +126,11 @@
       <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
         <table class="self-stretch text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="px-2 text-center">Bed</td>
+            <td class="px-2 text-end">Bed</td>
             <td class="text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
-            <td class="px-2 text-center">Target</td>
+            <td class="px-2 text-end">Target</td>
             <td class="text-start">{$heaterBedTargetTemperature.toFixed(0)} °C</td>
           </tr>
         </table>
@@ -151,7 +151,7 @@
     <span class="flex flex-col">
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
-          class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
           on:click="{() => {
             disableNozzleTemperature();
             disableBedTemperature();
@@ -161,7 +161,7 @@
       </span>
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Preset
         </button>
       </span>
@@ -203,7 +203,7 @@
       Temp
     </button>
     <button
-      disabled="{true}"
+      on:click="{async () => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>
