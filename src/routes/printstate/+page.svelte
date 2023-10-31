@@ -16,18 +16,15 @@
   let baby = moonraker.gcodeMove.HomeOrigin;
   let liveVelocity = moonraker.motionReport.LiveVelocity;
   let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
-  let requestedSpeed = moonraker.gcodeMove.Speed;
   let speedFactor = moonraker.gcodeMove.SpeedFactor;
   let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
 
   let printStatsState = moonraker.printStats.State;
-  let printStatsMessage = moonraker.printStats.Message;
   let printStatsFilename = moonraker.printStats.Filename;
   let printStatsPrintDuration = moonraker.printStats.PrintDuration;
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
-  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let progress = moonraker.displayStatus.Progress;
   let selectedFile = '';
@@ -321,15 +318,18 @@
       </button>
     {/if}
     <button
+      on:click="{async () => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
     <button
+      disabled="{true}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
+        disabled="{true}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Prep
       </button>
