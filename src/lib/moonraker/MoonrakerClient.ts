@@ -233,7 +233,7 @@ export class MoonrakerClient extends EventTarget {
   private parseGcodeMove(param: INotifyStatusUpdateParams) {
     if (param.gcode_move?.homing_origin != undefined) {
       // console.log('gcode_move.homing_origin: ', param.gcode_move?.homing_origin);
-      this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin[2]);
+      this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin);
     }
     if (param.gcode_move?.speed != undefined) {
       // console.log('gcode_move.speed: ', param.gcode_move?.speed);
