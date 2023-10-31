@@ -136,7 +136,7 @@
   <div class="flex flex-row">
     <div class="flex flex-grow justify-center">
       <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
-        <table class="w-80 self-center text-sm text-neutral-50">
+        <table class="self-center text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-2 text-end">Current</td>
             <td class="pr-1 text-start">X {$motionReportLivePosition[0].toFixed(2)} mm</td>
