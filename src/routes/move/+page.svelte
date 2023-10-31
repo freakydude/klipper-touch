@@ -201,18 +201,18 @@
       </button>
       <span class="flex flex-grow flex-col justify-center gap-3">
         <button
-          on:click="{() => homeZ()}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
-            ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Z 0
-        </button>
-        <button
           on:click="{() => homeXY()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
             : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          XY 0
+          HomeXY
+        </button>
+        <button
+          on:click="{() => homeZ()}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
+            ? 'bg-neutral-500'
+            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          HomeZ
         </button>
       </span>
     </span>
@@ -222,10 +222,10 @@
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
         <button
-          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50 {i ===
+          class="hover:bg-neutral-000 flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'} "
+            : 'bg-neutral-600'} "
           on:click="{() => {
             selectedStep = i;
           }}">
@@ -236,26 +236,29 @@
   </span>
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
       on:click="{async () => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Move
       </button>
     {/if}
     <button
+      on:click="{async () => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
     <button
+      disabled="{true}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
+        disabled="{true}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Prep
       </button>
