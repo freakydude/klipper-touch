@@ -130,76 +130,78 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-center gap-3">
-    <p class="text-center text-sm text-neutral-50">Position</p>
-    <p class="text-center text-sm text-neutral-50">
-      X {$motionReportLivePosition[0].toFixed(2)}
-    </p>
-    <p class="text-center text-sm text-neutral-50">
-      Y {$motionReportLivePosition[1].toFixed(2)}
-    </p>
-    <p class="text-center text-sm text-neutral-50">
-      Z {$motionReportLivePosition[2].toFixed(2)}
-    </p>
+  <div class="flex w-full flex-row items-center justify-end gap-3 p-1">
+    <p class="text-sm text-neutral-50">M117 Status Message</p>
   </div>
-  <div class="flex flex-grow flex-row justify-between">
-    <div class="flex flex-grow flex-row justify-center gap-3">
-      <span class="flex flex-col items-center justify-center gap-3"
-        ><p class="flex text-sm text-neutral-50">X {$toolheadPosition[0].toFixed(1)}</p>
-        <button
-          disabled="{!isHomedZ}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-          on:click="{() => moveZ(-stepsArr[selectedStep])}">
-          Down
-        </button>
-        <button
-          disabled="{!isHomedXY}"
-          on:click="{() => moveX(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Left
-        </button>
-      </span>
+  <div class="flex flex-row">
+    <div class="flex flex-grow justify-center">
+      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+        <table class="w-80 self-center text-sm text-neutral-50">
+          <tr class="border-b border-neutral-800">
+            <td class="pr-2 text-end">Current</td>
+            <td class="pr-1 text-start">X {$motionReportLivePosition[0].toFixed(2)} mm</td>
+            <td class="pr-1 text-start">Y {$motionReportLivePosition[1].toFixed(2)} mm</td>
+            <td class="pr-1 text-start">Z {$motionReportLivePosition[2].toFixed(2)} mm</td>
+          </tr>
+          <tr>
+            <td class="pr-2 text-end">Target</td>
+            <td class="pr-1 text-start">X {$toolheadPosition[0].toFixed(1)} mm</td>
+            <td class="pr-1 text-start">Y {$toolheadPosition[1].toFixed(1)} mm</td>
+            <td class="pr-1 text-start">Z {$toolheadPosition[2].toFixed(1)} mm</td>
+          </tr>
+        </table>
 
-      <span class="flex flex-col items-center justify-center gap-3">
-        <p class="flex text-sm text-neutral-50">Y {$toolheadPosition[1].toFixed(1)}</p>
-        <button
-          disabled="{!isHomedXY}"
-          on:click="{() => moveY(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Back
-        </button>
-        <button
-          disabled="{!isHomedXY}"
-          on:click="{() => moveY(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Front
-        </button>
-      </span>
+        <span class="flex flex-row items-center justify-center gap-3">
+          <button
+            disabled="{!isHomedZ}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+            on:click="{() => moveZ(-stepsArr[selectedStep])}">
+            Down
+          </button>
+          <button
+            disabled="{!isHomedXY}"
+            on:click="{() => moveY(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            Back
+          </button>
+          <button
+            disabled="{!isHomedZ}"
+            on:click="{() => moveZ(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            Up
+          </button>
+        </span>
 
-      <span class="flex flex-col items-center justify-center gap-3">
-        <p class="flex text-sm text-neutral-50">Z {$toolheadPosition[2].toFixed(1)}</p>
-        <button
-          disabled="{!isHomedZ}"
-          on:click="{() => moveZ(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Up
-        </button>
+        <span class="flex flex-row items-center justify-center gap-3">
+          <button
+            disabled="{!isHomedXY}"
+            on:click="{() => moveX(-stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            Left
+          </button>
 
-        <button
-          disabled="{!isHomedXY}"
-          on:click="{() => moveX(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          Right
-        </button>
-      </span>
+          <button
+            disabled="{!isHomedXY}"
+            on:click="{() => moveY(-stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            Front
+          </button>
+          <button
+            disabled="{!isHomedXY}"
+            on:click="{() => moveX(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            Right
+          </button>
+        </span>
+      </div>
     </div>
-    <span class="flex flex-col gap-3">
+    <span class="flex flex-col">
       <button
         on:click="{() => disableSteppers()}"
         class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Off
       </button>
-      <span class="flex flex-grow flex-col justify-center gap-3">
+      <span class="flex flex-grow flex-col justify-end gap-3">
         <button
           on:click="{() => homeXY()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY

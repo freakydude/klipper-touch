@@ -92,137 +92,87 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex flex-row justify-center">
-    <p class=" text-sm text-neutral-50">Temp Screen Status</p>
+  <div class="flex w-full flex-row items-center justify-end gap-3 p-1">
+    <p class="text-sm text-neutral-50">M117 Status Message</p>
   </div>
-  <div class="flex flex-grow flex-row">
-    <div class="flex flex-grow flex-col">
-      <div class="flex flex-grow flex-col items-center justify-center">
-        <div class="flex flex-col items-center gap-1">
-          <p class="flex flex-row text-center text-sm text-neutral-50">
-            Nozzle {$nozzleCurrentTemperature.toFixed(1)} / {$nozzleTargetTemperature.toFixed(0)} °C
-          </p>
-          <div class="flex items-center gap-3">
-            <button
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-              on:click="{() => disableNozzleTemperature()}">
-              Off
-            </button>
-            <button
-              on:click="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-              Less
-            </button>
-            <button
-              on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-              More
-            </button>
-          </div>
-          <p class="flex flex-row text-center text-sm text-neutral-50">
-            Bed {$heaterBedCurrentTemperature.toFixed(1)} / {$heaterBedTargetTemperature.toFixed(0)} °C
-          </p>
-          <div class="flex items-center gap-3">
-            <button
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-              on:click="{() => disableBedTemperature()}">
-              Off
-            </button>
-            <button
-              on:click="{() => changeBedTemperature(-stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-              Less
-            </button>
-            <button
-              on:click="{() => changeBedTemperature(stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-              More
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="flex flex-col justify-center">
-      <button
-        disabled="{true}"
-        class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-        Preset
-      </button>
-    </div>
-  </div>
+  <div class="flex flex-row">
+    <div class="flex flex-grow justify-evenly">
+      <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+        <table class="self-stretch text-sm text-neutral-50">
+          <tr class="border-b border-neutral-800">
+            <td class="px-2 text-center">Nozzle</td>
 
-  <!-- Statusbar -->
-  <!-- <div class="flex w-full flex-row items-center justify-center gap-3">
-    <p class="text-center text-sm text-neutral-50">
-      Nozzle {$nozzleCurrentTemperature.toFixed(1)} °C
-    </p>
-    <p class="text-center text-sm text-neutral-50">
-      Bed {$heaterBedCurrentTemperature.toFixed(1)} °C
-    </p>
-  </div> -->
-  <!-- Temperature -->
-  <!-- <div class="flex flex-grow flex-row justify-between">
-    <div class="flex flex-grow flex-row justify-center gap-3">
-      <span class="flex flex-col items-center justify-center gap-3">
-        <p class="flex text-sm text-neutral-50">Off</p>
-        <button
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-          on:click="{() => disableNozzleTemperature()}">
-          NOff
-        </button>
-        <button
-          on:click="{() => disableBedTemperature()}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          BOff
-        </button>
-      </span>
+            <td class=" text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
+          </tr>
+          <tr>
+            <td class="px-2 text-center">Target</td>
 
-      <span class="flex flex-col items-center justify-center gap-3">
-        <p class="flex text-sm text-neutral-50">N {$nozzleTargetTemperature.toFixed(0)} °C</p>
-        <button
-          on:click="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          NLess
-        </button>
-        <button
-          on:click="{() => changeBedTemperature(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          BLess
-        </button>
-      </span>
+            <td class=" text-start">{$nozzleTargetTemperature.toFixed(0)} °C</td>
+          </tr>
+        </table>
 
-      <span class="flex flex-col items-center justify-center gap-3">
-        <p class="flex text-sm text-neutral-50">B {$heaterBedTargetTemperature.toFixed(0)} °C</p>
         <button
           on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          NMore
+          Up
         </button>
+
+        <button
+          on:click="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          Down
+        </button>
+      </div>
+      <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+        <table class="self-stretch text-sm text-neutral-50">
+          <tr class="border-b border-neutral-800">
+            <td class="px-2 text-center">Bed</td>
+            <td class="text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
+          </tr>
+          <tr>
+            <td class="px-2 text-center">Target</td>
+            <td class="text-start">{$heaterBedTargetTemperature.toFixed(0)} °C</td>
+          </tr>
+        </table>
 
         <button
           on:click="{() => changeBedTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
-          BMore
+          Up
+        </button>
+
+        <button
+          on:click="{() => changeBedTemperature(-stepsArr[selectedStep])}"
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          Down
+        </button>
+      </div>
+    </div>
+    <span class="flex flex-col">
+      <span class="flex flex-grow flex-col justify-start gap-2">
+        <button
+          class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+          on:click="{() => {
+            disableNozzleTemperature();
+            disableBedTemperature();
+          }}">
+          Off
         </button>
       </span>
-    </div>
-    <span class="flex flex-col gap-3">
-      <span class="flex flex-grow flex-col justify-center gap-3">
+      <span class="flex flex-grow flex-col justify-end gap-2">
         <button
-          disabled="{true}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Preset
         </button>
       </span>
     </span>
-  </div> -->
-  <!-- Steps -->
-  <span class="flex flex-row items-center justify-center py-2">
+  </div>
+  <span class="flex flex-grow flex-row items-center justify-center py-2">
     <div class="flex items-center gap-1 rounded-lg bg-neutral-700 pl-3">
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
         <button
-          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50 {i ===
+          class="hover:bg-neutral-000 flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
