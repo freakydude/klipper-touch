@@ -144,20 +144,20 @@
         <span class="flex flex-row items-center justify-center gap-3">
           <button
             disabled="{!isHomedZ}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50  active:bg-blue-500 "
             on:click="{() => moveZ(-stepsArr[selectedStep])}">
             Down
           </button>
           <button
             disabled="{!isHomedXY}"
             on:click="{() => moveY(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50  active:bg-blue-500  ">
             Back
           </button>
           <button
             disabled="{!isHomedZ}"
             on:click="{() => moveZ(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
             Up
           </button>
         </span>
@@ -166,20 +166,20 @@
           <button
             disabled="{!isHomedXY}"
             on:click="{() => moveX(-stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
             Left
           </button>
 
           <button
             disabled="{!isHomedXY}"
             on:click="{() => moveY(-stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
             Front
           </button>
           <button
             disabled="{!isHomedXY}"
             on:click="{() => moveX(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
             Right
           </button>
         </span>
@@ -188,7 +188,7 @@
     <span class="flex flex-col">
       <button
         on:click="{() => disableSteppers()}"
-        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
@@ -196,14 +196,14 @@
           on:click="{() => homeXY()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
           HomeXY
         </button>
         <button
           on:click="{() => homeZ()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
           HomeZ
         </button>
       </span>
@@ -214,7 +214,7 @@
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
         <button
-          class="hover:bg-neutral-000 flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 {i ===
+          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50  active:bg-blue-500  {i ===
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
@@ -228,30 +228,30 @@
   </span>
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 "
       on:click="{ () => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
         Move
       </button>
     {/if}
     <button
       on:click="{ () => goto('/temperature')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
       Temp
     </button>
     <button
       on:click="{ () => goto('/babysteps')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
         disabled="{true}"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
         Prep
       </button>
     {/if}
@@ -259,7 +259,7 @@
       <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 "
       on:click="{emergencyStop}">
       Kill
     </button>
