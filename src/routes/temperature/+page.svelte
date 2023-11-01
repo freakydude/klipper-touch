@@ -102,7 +102,7 @@
         </table>
 
         <button
-          on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
+          on:click="{ () => changeNozzleTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Up
         </button>
@@ -178,12 +178,12 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-      on:click="{async () => goto('/printstate')}">
+      on:click="{ () => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click="{async () => goto('/move')}"
+        on:click="{ () => goto('/move')}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Move
       </button>
@@ -193,7 +193,7 @@
       Temp
     </button>
     <button
-      on:click="{async () => goto('/babysteps')}"
+      on:click="{ () => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>

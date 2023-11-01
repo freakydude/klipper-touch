@@ -42,7 +42,7 @@
     await client.sendRequest(stopRequest);
   }
 
-  onMount(async () => {
+  onMount( () => {
     // await reconnectToMoonraker();
   });
 </script>

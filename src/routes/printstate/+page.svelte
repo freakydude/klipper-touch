@@ -36,8 +36,9 @@
   let objectHeight = 0;
   let eta = '';
 
+  $: updatePropertiesOnPrintingFile($printStatsFilename);
 
-  printStatsFilename.subscribe(async (name) => {
+  function updatePropertiesOnPrintingFile(name: string) {
     if (name !== '') {
       selectedFile = name;
 
@@ -52,7 +53,7 @@
         }
       });
     }
-  });
+  }
 
   $: updateEta($progress);
 
@@ -61,10 +62,10 @@
     if (progress > 0 && $printStatsPrintDuration > 60) {
       // wait 60sec before update eta dynamic
       remainingDuration = Math.floor($printStatsPrintDuration / progress - $printStatsPrintDuration);
-      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
+      eta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000));
     } else {
       remainingDuration = estimatedTime;
-      eta = new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000).toLocaleTimeString('de', { timeStyle: 'short' });
+      eta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000));
     }
     console.log('eta', eta);
   }
@@ -96,10 +97,6 @@
       metadata = response.result as IFileMetadata;
     }
     return metadata;
-  }
-
-  function calcCurrentTime(): string {
-    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
   }
 
   async function startPrint() {
@@ -269,30 +266,30 @@
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click="{async () => startPrint()}"
+            on:click="{() => startPrint()}"
             class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click="{async () => pausePrint()}"
+          on:click="{() => pausePrint()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click="{async () => cancelPrint()}"
+          on:click="{() => cancelPrint()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click="{async () => resumePrint()}"
+          on:click="{() => resumePrint()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click="{async () => cancelPrint()}"
+          on:click="{() => cancelPrint()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
           Cancel
         </button>
@@ -308,17 +305,17 @@
     {#if $printStatsState !== 'printing'}
       <button
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-        on:click="{async () => goto('/move')}">
+        on:click="{() => goto('/move')}">
         Move
       </button>
     {/if}
     <button
-      on:click="{async () => goto('/temperature')}"
+      on:click="{() => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click="{async () => goto('/babysteps')}"
+      on:click="{() => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>
@@ -334,7 +331,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-      on:click="{async () => emergencyStop()}">
+      on:click="{() => emergencyStop()}">
       Kill
     </button>
   </div>

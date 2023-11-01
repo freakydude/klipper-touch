@@ -93,7 +93,7 @@
       <p class="label-head">Files</p>
       <div class="flex flex-col gap-1 py-1">
         {#each availableFiles as avFile}
-          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click="{async () => selectFile(avFile)}"
+          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click="{ () => selectFile(avFile)}"
             >{avFile.slice(0, -6)}</button>
         {/each}
       </div>
