@@ -153,9 +153,9 @@ export class MoonrakerClient extends EventTarget {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
-    this._jsonRpcClient.isConnected.subscribe((value) => {
-      // this.rpcClientIsConnectedChanged(value);
-    });
+    // this._jsonRpcClient.isConnected.subscribe((value) => {
+    //    this.rpcClientIsConnectedChanged(value);
+    // });
   }
 
   private rpcClientIsConnectedChanged(value: boolean) {

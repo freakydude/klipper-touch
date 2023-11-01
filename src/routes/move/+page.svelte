@@ -229,7 +229,7 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-      on:click="{async () => goto('/printstate')}">
+      on:click="{ () => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
@@ -239,12 +239,12 @@
       </button>
     {/if}
     <button
-      on:click="{async () => goto('/temperature')}"
+      on:click="{ () => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click="{async () => goto('/babysteps')}"
+      on:click="{ () => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Baby
     </button>

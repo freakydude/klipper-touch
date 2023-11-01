@@ -4,14 +4,7 @@
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 
   let printStatsState = moonraker.printStats.State;
-  let heaterBedTargetTemperature = moonraker.heaterBed.Target;
-  let nozzleTargetTemperature = moonraker.extruder.Target;
-  let heaterBedCurrentTemperature = moonraker.heaterBed.Temperature;
-  let nozzleCurrentTemperature = moonraker.extruder.Temperature;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
-  let toolheadAxisMaximum = moonraker.toolhead.AxisMaximum;
-  let toolheadAxisMinimum = moonraker.toolhead.AxisMinimum;
-  let toolheadPosition = moonraker.toolhead.Position;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
 
@@ -153,18 +146,18 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-      on:click="{async () => goto('/printstate')}">
+      on:click="{ () => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click="{async () => goto('/move')}"
+        on:click="{ () => goto('/move')}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
         Move
       </button>
     {/if}
     <button
-      on:click="{async () => goto('/temperature')}"
+      on:click="{ () => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
       Temp
     </button>
