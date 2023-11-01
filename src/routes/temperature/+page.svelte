@@ -102,14 +102,14 @@
         </table>
 
         <button
-          on:click="{ () => changeNozzleTemperature(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
           on:click="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
       </div>
@@ -127,13 +127,13 @@
 
         <button
           on:click="{() => changeBedTemperature(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
           on:click="{() => changeBedTemperature(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
       </div>
@@ -141,7 +141,7 @@
     <span class="flex flex-col">
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
-          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
           on:click="{() => {
             disableNozzleTemperature();
             disableBedTemperature();
@@ -151,7 +151,7 @@
       </span>
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Preset
         </button>
       </span>
@@ -162,7 +162,7 @@
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
         <button
-          class="hover:bg-neutral-000 flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 {i ===
+          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
@@ -177,30 +177,30 @@
   <!-- Nav -->
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
-      on:click="{ () => goto('/printstate')}">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
+      on:click="{() => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click="{ () => goto('/move')}"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        on:click="{() => goto('/move')}"
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Move
       </button>
     {/if}
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click="{ () => goto('/babysteps')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+      on:click="{() => goto('/babysteps')}"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
         disabled="{true}"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Prep
       </button>
     {/if}
@@ -208,7 +208,7 @@
       <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
       on:click="{emergencyStop}">
       Kill
     </button>
