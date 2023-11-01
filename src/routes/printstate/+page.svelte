@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { client, moonraker } from '$lib/base.svelte';
+  import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
   import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
@@ -36,11 +36,6 @@
   let objectHeight = 0;
   let eta = '';
 
-  let localTime = calcCurrentTime();
-
-  setInterval(() => {
-    localTime = calcCurrentTime();
-  }, 10 * 1000); // all 10 sec
 
   printStatsFilename.subscribe(async (name) => {
     if (name !== '') {
@@ -335,7 +330,7 @@
       </button>
     {/if}
     <div class="flex flex-grow items-end justify-end">
-      <p class="pb-1 pr-1 text-sm text-neutral-50">{localTime}</p>
+      <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"

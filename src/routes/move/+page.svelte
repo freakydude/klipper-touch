@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { client, moonraker } from '$lib/base.svelte';
+  import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 
   let printStatsState = moonraker.printStats.State;
@@ -9,8 +9,6 @@
   let toolheadAxisMinimum = moonraker.toolhead.AxisMinimum;
   let toolheadPosition = moonraker.toolhead.Position;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
-
-  let localTime: string = calcClock();
 
   let stepsArr = [0.1, 1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 6;
@@ -24,14 +22,6 @@
     isHomedXY = $toolheadHomedAxes.includes('xy');
     isHomedZ = $toolheadHomedAxes.includes('z');
   }
-
-  function calcClock(): string {
-    return new Date(Date.now()).toLocaleTimeString('de', { timeStyle: 'short' });
-  }
-
-  setInterval(() => {
-    localTime = calcClock();
-  }, 1000);
 
   async function emergencyStop() {
     let emergencyStopRequest = new JsonRpcRequest({
@@ -266,7 +256,7 @@
       </button>
     {/if}
     <div class="flex flex-grow items-end justify-end">
-      <p class="pb-1 pr-1 text-sm text-neutral-50">{localTime}</p>
+      <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md hover:bg-neutral-500 disabled:opacity-50"
