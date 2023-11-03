@@ -12,13 +12,6 @@ I have tested all this stuff only with my own printer and the constellation arou
 
 And yes, help and improve if you find something.
 
-## Prequisities
-
-- Docker & Docker Compose
-  see: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-- NPM Package manager (nodejs installation)
-  see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
-
 ## Bigtreetech CB1
 
 - Install Btt image with panfrost support. >= v 2.3.3
@@ -54,35 +47,46 @@ And yes, help and improve if you find something.
   sudo apt autoremove
   ```
 
--
+- Install xinit and input drivers
+  sudo apt install xinit xf86-input-evdev
 
 ## Development
 
+### Prequisities
+
+- Common
+
+- Docker & Docker Compose
+  see: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+- NPM Package manager (nodejs installation)
+  see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
+- Tauri
+  see: [https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux](https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux)
+
+  If you are using Archlinux, you can skip the rust paragraph
+  
 ### Install dependencies on ArchLinux / WSL2 ArchLinux
 
-- ```bash
-  pacman -S docker docker-compose docker-buildx
-  ```
-
-- CrossCompile:
+- Install docker and docker-compose
 
   ```bash
-  pacman -S qemu-user-static
+  pacman -S docker docker-compose 
   ```
 
-- Install CrossArchs (optional):
+- Install rust (if skipped before)
 
   ```bash
-  docker run --privileged --rm tonistiigi/binfmt --install arm64,arm
+  pacman -S rustup
+  rustup default stable
   ```
 
-- Install depenencies in the project root folder with
+### Run or Build project local
+
+- Install dependencies in the project root folder with
 
   ```bash
   npm install && npm install --save-dev @tauri-apps/cli
   ```
-
-### Run or Build project local
 
 - Run:
 
@@ -98,18 +102,22 @@ And yes, help and improve if you find something.
 
 ### CrossCompile with docker
 
+- CrossCompile:
+
+  ```bash
+  pacman -S qemu-user-static docker-buildx
+  ```
+
 - Build debian bullseye arm32v7 package (RPi 32 bit)
 
   ```bash
-  docker compose build klipper-touch_build_arm32v7
-  docker compose run klipper-touch_build_arm32v7
+  docker compose up klipper-touch_build_arm32v7
   ```
 
 - Build debian bullseye arm64v8 package (RPi 64 bit)
 
   ```bash
-  docker compose build klipper-touch_build_arm64v8
-  docker compose run klipper-touch_build_arm64v8
+  docker compose up klipper-touch_build_arm64v8
   ```
 
 ## Final words
