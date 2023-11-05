@@ -5,7 +5,8 @@ import type { JsonRpcResponse } from './types/JsonRpcResponse';
 
 export class JsonRpcClient extends EventTarget {
   private _ws?: WebSocket;
-  private _url;
+  private _url: string | URL;
+  private static _id: number = 0;
   private requestTimeout = 30 * 1000;
 
   public isConnected = writable(false);
@@ -13,34 +14,36 @@ export class JsonRpcClient extends EventTarget {
   public constructor(url: string | URL) {
     super();
     this._url = url;
+    console.log('JsonRpcClient.URL ', url);
   }
 
   public connect(): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
-      if (this._ws != undefined) {
-        const message = 'Websocket already initialized';
-        console.error(message);
-        reject(message);
-      }
-
       try {
-        this.isConnected.set(false);
-        this._ws = new WebSocket(this._url);
+        if (this._ws === undefined) {
+          this.isConnected.set(false);
+          console.log('JsonRpcClient.connect() Create new WebSocket');
+          this._ws = new WebSocket(this._url);
+        } else {
+          console.log('JsonRpcClient.connect() WebSocket already initialized');
+        }
 
         this._ws.onopen = (event: Event) => {
-          console.log('Websocket opened ', event);
+          console.log('JsonRpcClient.WebSocket.onopen ', event);
           this.isConnected.set(true);
           resolve(true);
         };
 
         this._ws.onclose = (event: CloseEvent) => {
           this.isConnected.set(false);
-          console.log('Websocket closed ', event);
+          this._ws = undefined;
+          console.log('JsonRpcClient.WebSocket.onclose ', event);
         };
 
         this._ws.onerror = (event: Event) => {
           this.isConnected.set(false);
-          console.error('Websocket error ', event);
+          this._ws = undefined;
+          console.warn('JsonRpcClient.WebSocket.onerror ', event);
         };
 
         this._ws.onmessage = (event: MessageEvent) => {
@@ -49,7 +52,7 @@ export class JsonRpcClient extends EventTarget {
           // console.log('connect ws.onmessage: single', request);
           if (Array.isArray(request)) {
             // batch request - send notification for every notification inside
-            console.log('connect ws.onmessage: received batch request', request);
+            console.log('JsonRpcClient.WebSocket.onmessage received batch request', request);
             for (const singleRequest of request) {
               if (!singleRequest.id) {
                 // console.log('connect ws.onmessage: notification', request);
@@ -73,7 +76,7 @@ export class JsonRpcClient extends EventTarget {
           }
         };
       } catch (error) {
-        console.error(error);
+        console.error('JsonRpcClient.connect() Websocket could not be initialized: ', error);
         reject('Websocket could not be initialized: ${error}');
       }
     });
@@ -84,20 +87,15 @@ export class JsonRpcClient extends EventTarget {
   public disconnect(): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       try {
-        if (this.isConnected) {
-          if (this._ws != undefined) {
-            this._ws?.close();
-            this._ws = undefined;
-            this.isConnected.set(false);
-          }
-
+        if (this._ws !== undefined) {
+          this._ws.close();
           resolve(true);
         } else {
+          console.warn('JsonRpcClient.disconnect() WS ws not OPEN');
           resolve(false);
         }
       } catch (error) {
-        console.error(error);
-        this.isConnected.set(false);
+        console.error('JsonRpcClient.disconnect() Websocket could not be disconnected: ', error);
         reject('Websocket could not be disconnected: ${error}');
       }
     });
@@ -108,16 +106,16 @@ export class JsonRpcClient extends EventTarget {
   public sendRequest(request: IJsonRpcRequest): Promise<IJsonRpcResponse> {
     let promise: Promise<JsonRpcResponse>;
 
-    if (!this.isConnected) {
+    if (!this._ws?.OPEN) {
       const notConnected = 'Websocket is not connected, send request failed';
-      console.log(notConnected);
+      console.error('JsonRpcClient.sendRequest() ', notConnected);
       promise = Promise.reject(notConnected);
     } else {
       promise = new Promise<JsonRpcResponse>((resolve, reject) => {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
 
-          console.warn('Websocket Timeout send request: ', request);
+          console.warn('JsonRpcClient.sendRequest() Timeout send request: ', request);
           reject('Websocket Timeout send request');
         }, this.requestTimeout);
 
@@ -141,7 +139,7 @@ export class JsonRpcClient extends EventTarget {
 
       try {
         // console.log("request", request)
-        this._ws?.send(JSON.stringify(request));
+        this._ws.send(JSON.stringify(request));
       } catch (error) {
         console.log(error);
         promise = Promise.reject(error);
@@ -154,13 +152,11 @@ export class JsonRpcClient extends EventTarget {
   public sendBatchRequest(requests: IJsonRpcRequest[]): Promise<IJsonRpcResponse[]> {
     let promise: Promise<JsonRpcResponse[]>;
 
-    if (!this.isConnected) {
+    if (!this._ws?.OPEN) {
       const notConnected = 'Websocket is not connected, send batch request failed';
       console.log(notConnected);
       promise = Promise.reject(notConnected);
     } else {
-      //console.log('Websocket send patch requests:', requests);
-
       promise = new Promise<JsonRpcResponse[]>((resolve, reject) => {
         const timeout = setTimeout(() => {
           this._ws?.removeEventListener('message', parser);
@@ -197,7 +193,7 @@ export class JsonRpcClient extends EventTarget {
 
       try {
         // console.log("request", request)
-        this._ws?.send(JSON.stringify(requests));
+        this._ws.send(JSON.stringify(requests));
       } catch (error) {
         console.log(error);
         promise = Promise.reject(error);
@@ -208,6 +204,8 @@ export class JsonRpcClient extends EventTarget {
   }
 
   public static generateConnectionId(): string {
-    return Math.floor(Math.random() * 1000000).toString();
+    this._id++;
+
+    return this._id.toString();
   }
 }

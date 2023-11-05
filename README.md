@@ -64,13 +64,13 @@ And yes, help and improve if you find something.
   see: [https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux](https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux)
 
   If you are using Archlinux, you can skip the rust paragraph
-  
+
 ### Install dependencies on ArchLinux / WSL2 ArchLinux
 
 - Install docker and docker-compose
 
   ```bash
-  pacman -S docker docker-compose 
+  pacman -S docker docker-compose
   ```
 
 - Install rust (if skipped before)
