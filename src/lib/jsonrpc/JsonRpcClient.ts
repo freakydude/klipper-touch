@@ -76,7 +76,7 @@ export class JsonRpcClient extends EventTarget {
           }
         };
       } catch (error) {
-        console.error('JsonRpcClient.connect() Websocket could not be initialized: ', error);
+        console.error('JsonRpcClient.connect() ', error);
         reject('Websocket could not be initialized: ${error}');
       }
     });
@@ -95,7 +95,7 @@ export class JsonRpcClient extends EventTarget {
           resolve(false);
         }
       } catch (error) {
-        console.error('JsonRpcClient.disconnect() Websocket could not be disconnected: ', error);
+        console.error('JsonRpcClient.disconnect() ', error);
         reject('Websocket could not be disconnected: ${error}');
       }
     });
@@ -171,17 +171,13 @@ export class JsonRpcClient extends EventTarget {
           // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
           if (Array.isArray(responses)) {
             console.log('Websocket received batch responses', responses);
-            const responsesWithId: JsonRpcResponse[] = new Array<JsonRpcResponse>();
+            const responsesWithId: JsonRpcResponse[] = [...responses.filter((response) => response.id !== null)];
 
-            for (const element of responses) {
-              if (element.id) [responsesWithId.push(element)];
-            }
-
-            if (responsesWithId.length >= 1) {
+            if (responsesWithId.length) {
               clearTimeout(timeout);
               this._ws?.removeEventListener('message', parser);
               console.log('Websocket got response for request id:', responsesWithId[0].id, ' Responses:', responsesWithId);
-              resolve(responses);
+              resolve(responsesWithId);
             }
             // else {
             //   console.log('parser some message - requests:', requests, ' responses:', responses);

@@ -261,36 +261,36 @@
     <div class="flex flex-col items-end justify-center gap-3">
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Load
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click="{() => startPrint()}"
-            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+            on:click|preventDefault="{startPrint}"
+            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click="{() => pausePrint()}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
+          on:click|preventDefault="{pausePrint}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click="{() => cancelPrint()}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md disabled:opacity-50 active:bg-blue-500 ">
+          on:click|preventDefault="{cancelPrint}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click="{() => resumePrint()}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+          on:click|preventDefault="{resumePrint}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click="{() => cancelPrint()}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+          on:click|preventDefault="{cancelPrint}"
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Cancel
         </button>
       {/if}
@@ -299,30 +299,30 @@
 
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 "
-        on:click="{() => goto('/move')}">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
+        on:click|preventDefault="{() => goto('/move')}">
         Move
       </button>
     {/if}
     <button
-      on:click="{() => goto('/temperature')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+      on:click|preventDefault="{() => goto('/temperature')}"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click="{() => goto('/babysteps')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+      on:click|preventDefault="{() => goto('/babysteps')}"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
     {#if $printStatsState !== 'printing'}
       <button
         disabled="{true}"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md  disabled:opacity-50 active:bg-blue-500 ">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Prep
       </button>
     {/if}
@@ -330,8 +330,8 @@
       <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md disabled:opacity-50 active:bg-blue-500 "
-      on:click="{() => emergencyStop()}">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
+      on:click|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>

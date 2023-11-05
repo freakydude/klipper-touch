@@ -60,7 +60,7 @@ export class MoonrakerClient extends EventTarget {
           (await this.queryPrinterObjects(printerObjects));
       }
     } catch (error) {
-      console.error(error);
+      console.error('MoonrakerClient.connect() ', error);
       successful = false;
     }
 
@@ -73,7 +73,7 @@ export class MoonrakerClient extends EventTarget {
     try {
       successful = await this._jsonRpcClient.disconnect();
     } catch (error) {
-      console.error(error);
+      console.error('MoonrakerClient.disconnect() ', error);
       successful = false;
     }
 
@@ -97,7 +97,7 @@ export class MoonrakerClient extends EventTarget {
       await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
     } catch (error) {
       successful = false;
-      console.error(error);
+      console.error('MoonrakerClient.requestIdentifyConnection() ', error);
     }
 
     return successful;
@@ -119,7 +119,7 @@ export class MoonrakerClient extends EventTarget {
       }
     } catch (error) {
       successful = false;
-      console.error(error, response);
+      console.error('MoonrakerClient.queryPrinterObjects() ', error, response);
     }
 
     return successful;
@@ -142,7 +142,7 @@ export class MoonrakerClient extends EventTarget {
       }
     } catch (error) {
       successful = false;
-      console.error(error);
+      console.error('MoonrakerClient.subscribeToPrinterObjects() ', error);
     }
 
     return successful;
@@ -153,19 +153,15 @@ export class MoonrakerClient extends EventTarget {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
-    // this._jsonRpcClient.isConnected.subscribe((value) => {
-    //    this.rpcClientIsConnectedChanged(value);
-    // });
+    this._jsonRpcClient.isConnected.subscribe((value) => {
+      this.rpcClientIsConnectedChanged(value);
+    });
   }
 
   private rpcClientIsConnectedChanged(value: boolean) {
-    if (value === false) {
+    if (!value) {
       this.klippyState.state.set('disconnected');
     }
-  }
-
-  private sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
@@ -350,7 +346,7 @@ export class MoonrakerClient extends EventTarget {
     switch (notification.method) {
       case 'notify_status_update':
         // console.log('update', notification.params);
-        if (Array.isArray(notification.params) && notification.params.length > 0) {
+        if (Array.isArray(notification.params) && notification.params.length) {
           this.parseNotifyStatusUpdateParams(notification.params[0]);
         }
         break;
