@@ -89,6 +89,7 @@ export class JsonRpcClient extends EventTarget {
       try {
         if (this._ws !== undefined) {
           this._ws.close();
+          this._ws = undefined;
           resolve(true);
         } else {
           console.warn('JsonRpcClient.disconnect() WS ws not OPEN');

@@ -28,16 +28,6 @@
     });
     await client.sendRequest(stopRequest);
   }
-
-  $: {
-    if ($isConnected === false || $klippyState !== 'ready') {
-      goto('/');
-    }
-  }
-
-  onMount(() => {
-    // await reconnectToMoonraker();
-  });
 </script>
 
 <div class="page-dark flex-row content-between items-stretch gap-3">
@@ -108,19 +98,19 @@
       {#if $klippyState !== 'ready'}
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500"
-          on:click|preventDefault="{() => printerRestart()}">Restart</button>
+          on:pointerdown|preventDefault="{() => printerRestart()}">Restart</button>
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500"
-          on:click|preventDefault="{() => firmwareRestart()}">Firmware Restart</button>
+          on:pointerdown|preventDefault="{() => firmwareRestart()}">Firmware Restart</button>
       {:else}
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500"
-          on:click|preventDefault="{() => goto('/printstate')}">Printer State</button>
+          on:pointerdown|preventDefault="{() => goto('/printstate')}">Printer State</button>
       {/if}
     {:else}
       <button
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500"
-        on:click|preventDefault="{() => reconnectToMoonraker()}">Reconnect</button>
+        on:pointerdown|preventDefault="{() => reconnectToMoonraker()}">Reconnect</button>
     {/if}
   </div>
 </div>

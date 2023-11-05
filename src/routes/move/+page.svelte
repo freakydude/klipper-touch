@@ -145,18 +145,18 @@
           <button
             disabled="{!isHomedZ}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-            on:click|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
+            on:pointerdown|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
             Down
           </button>
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveY(stepsArr[selectedStep])}"
+            on:pointerdown|preventDefault="{() => moveY(stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Back
           </button>
           <button
             disabled="{!isHomedZ}"
-            on:click|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
+            on:pointerdown|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Up
           </button>
@@ -165,20 +165,20 @@
         <span class="flex flex-row items-center justify-center gap-3">
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
+            on:pointerdown|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Left
           </button>
 
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
+            on:pointerdown|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Front
           </button>
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveX(stepsArr[selectedStep])}"
+            on:pointerdown|preventDefault="{() => moveX(stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Right
           </button>
@@ -187,20 +187,20 @@
     </div>
     <span class="flex flex-col">
       <button
-        on:click|preventDefault="{disableSteppers}"
+        on:pointerdown|preventDefault="{disableSteppers}"
         class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
-          on:click|preventDefault="{homeXY}"
+          on:pointerdown|preventDefault="{homeXY}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
             : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           HomeXY
         </button>
         <button
-          on:click|preventDefault="{homeZ}"
+          on:pointerdown|preventDefault="{homeZ}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
             ? 'bg-neutral-500'
             : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
@@ -218,7 +218,7 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click|preventDefault="{() => {
+          on:pointerdown|preventDefault="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -229,7 +229,7 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click|preventDefault="{() => goto('/printstate')}">
+      on:pointerdown|preventDefault="{() => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
@@ -239,12 +239,12 @@
       </button>
     {/if}
     <button
-      on:click|preventDefault="{() => goto('/temperature')}"
+      on:pointerdown|preventDefault="{() => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click|preventDefault="{() => goto('/babysteps')}"
+      on:pointerdown|preventDefault="{() => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
@@ -260,7 +260,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:pointerdown|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>
