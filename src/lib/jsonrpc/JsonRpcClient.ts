@@ -14,67 +14,67 @@ export class JsonRpcClient extends EventTarget {
   public constructor(url: string | URL) {
     super();
     this._url = url;
-    console.log('JsonRpcClient.URL ', url);
   }
 
   public connect(): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       try {
-        if (this._ws === undefined) {
+        if (!this._ws) {
           this.isConnected.set(false);
           console.log('JsonRpcClient.connect() Create new WebSocket');
           this._ws = new WebSocket(this._url);
-        } else {
-          console.log('JsonRpcClient.connect() WebSocket already initialized');
-        }
 
-        this._ws.onopen = (event: Event) => {
-          console.log('JsonRpcClient.WebSocket.onopen ', event);
-          this.isConnected.set(true);
-          resolve(true);
-        };
+          this._ws.onopen = (event: Event) => {
+            console.log('JsonRpcClient.WebSocket.onopen ', event);
+            this.isConnected.set(true);
+            resolve(true);
+          };
 
-        this._ws.onclose = (event: CloseEvent) => {
-          this.isConnected.set(false);
-          this._ws = undefined;
-          console.log('JsonRpcClient.WebSocket.onclose ', event);
-        };
+          this._ws.onclose = (event: CloseEvent) => {
+            this.isConnected.set(false);
+            this._ws = undefined;
+            console.log('JsonRpcClient.WebSocket.onclose ', event);
+          };
 
-        this._ws.onerror = (event: Event) => {
-          this.isConnected.set(false);
-          this._ws = undefined;
-          console.warn('JsonRpcClient.WebSocket.onerror ', event);
-        };
+          this._ws.onerror = (event: Event) => {
+            this.isConnected.set(false);
+            this._ws = undefined;
+            console.warn('JsonRpcClient.WebSocket.onerror ', event);
+          };
 
-        this._ws.onmessage = (event: MessageEvent) => {
-          const request: IJsonRpcRequest | IJsonRpcRequest[] = JSON.parse(event.data);
+          this._ws.onmessage = (event: MessageEvent) => {
+            const request: IJsonRpcRequest | IJsonRpcRequest[] = JSON.parse(event.data);
 
-          // console.log('connect ws.onmessage: single', request);
-          if (Array.isArray(request)) {
-            // batch request - send notification for every notification inside
-            console.log('JsonRpcClient.WebSocket.onmessage received batch request', request);
-            for (const singleRequest of request) {
-              if (!singleRequest.id) {
-                // console.log('connect ws.onmessage: notification', request);
+            // console.log('connect ws.onmessage: single', request);
+            if (Array.isArray(request)) {
+              // batch request - send notification for every notification inside
+              console.log('JsonRpcClient.WebSocket.onmessage received batch request', request);
+              for (const singleRequest of request) {
+                if (!singleRequest.id) {
+                  // console.log('connect ws.onmessage: notification', request);
+                  this.dispatchEvent(
+                    new CustomEvent<IJsonRpcRequest[]>('notification', {
+                      detail: request
+                    })
+                  );
+                }
+              }
+            } else {
+              // single request
+              if (!request.id) {
+                // console.log('connect ws.onmessage: received singleRequest', request);
                 this.dispatchEvent(
-                  new CustomEvent<IJsonRpcRequest[]>('notification', {
+                  new CustomEvent<IJsonRpcRequest>('notification', {
                     detail: request
                   })
                 );
               }
             }
-          } else {
-            // single request
-            if (!request.id) {
-              // console.log('connect ws.onmessage: received singleRequest', request);
-              this.dispatchEvent(
-                new CustomEvent<IJsonRpcRequest>('notification', {
-                  detail: request
-                })
-              );
-            }
-          }
-        };
+          };
+        } else {
+          console.log('JsonRpcClient.connect() WebSocket already initialized');
+          resolve(true);
+        }
       } catch (error) {
         console.error('JsonRpcClient.connect() ', error);
         reject('Websocket could not be initialized: ${error}');
@@ -87,9 +87,8 @@ export class JsonRpcClient extends EventTarget {
   public disconnect(): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       try {
-        if (this._ws !== undefined) {
+        if (this._ws) {
           this._ws.close();
-          this._ws = undefined;
           resolve(true);
         } else {
           console.warn('JsonRpcClient.disconnect() WS ws not OPEN');
