@@ -85,7 +85,7 @@ export class MoonrakerClient extends EventTarget {
       method: 'server.connection.identify',
       params: {
         client_name: 'klipper-touch',
-        version: '0.0.2',
+        version: '0.1.0',
         type: 'display',
         url: 'https://github.com/freakydude/klipper-touch'
       }
