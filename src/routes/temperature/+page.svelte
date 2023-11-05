@@ -102,13 +102,13 @@
         </table>
 
         <button
-          on:click|preventDefault="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
+          on:pointerdown="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click|preventDefault="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
+          on:pointerdown|preventDefault="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
@@ -126,13 +126,13 @@
         </table>
 
         <button
-          on:click|preventDefault="{() => changeBedTemperature(stepsArr[selectedStep])}"
+          on:pointerdown|preventDefault="{() => changeBedTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click|preventDefault="{() => changeBedTemperature(-stepsArr[selectedStep])}"
+          on:pointerdown|preventDefault="{() => changeBedTemperature(-stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
@@ -142,7 +142,7 @@
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-          on:click|preventDefault="{() => {
+          on:pointerdown|preventDefault="{() => {
             disableNozzleTemperature();
             disableBedTemperature();
           }}">
@@ -166,7 +166,7 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click|preventDefault="{() => {
+          on:pointerdown|preventDefault="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -178,12 +178,12 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click|preventDefault="{() => goto('/printstate')}">
+      on:pointerdown|preventDefault="{() => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click|preventDefault="{() => goto('/move')}"
+        on:pointerdown|preventDefault="{() => goto('/move')}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Move
       </button>
@@ -193,7 +193,7 @@
       Temp
     </button>
     <button
-      on:click|preventDefault="{() => goto('/babysteps')}"
+      on:pointerdown|preventDefault="{() => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
@@ -209,7 +209,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:pointerdown|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>

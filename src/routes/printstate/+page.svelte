@@ -266,30 +266,30 @@
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click|preventDefault="{startPrint}"
+            on:pointerdown|preventDefault="{startPrint}"
             class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click|preventDefault="{pausePrint}"
+          on:pointerdown|preventDefault="{pausePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click|preventDefault="{cancelPrint}"
+          on:pointerdown|preventDefault="{cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click|preventDefault="{resumePrint}"
+          on:pointerdown|preventDefault="{resumePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click|preventDefault="{cancelPrint}"
+          on:pointerdown|preventDefault="{cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Cancel
         </button>
@@ -305,17 +305,17 @@
     {#if $printStatsState !== 'printing'}
       <button
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-        on:click|preventDefault="{() => goto('/move')}">
+        on:pointerdown|preventDefault="{() => goto('/move')}">
         Move
       </button>
     {/if}
     <button
-      on:click|preventDefault="{() => goto('/temperature')}"
+      on:pointerdown|preventDefault="{() => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Temp
     </button>
     <button
-      on:click|preventDefault="{() => goto('/babysteps')}"
+      on:pointerdown|preventDefault="{() => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
@@ -331,7 +331,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:pointerdown|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>
