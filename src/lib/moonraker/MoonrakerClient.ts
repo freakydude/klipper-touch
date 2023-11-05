@@ -16,6 +16,20 @@ import type { IPrinterObjects } from './types/IPrinterObjects';
 export class MoonrakerClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
+  subscription: IPrinterObjects = {
+    objects: {
+      webhooks: ['state', 'state_message'],
+      heater_bed: ['temperature', 'target'],
+      extruder: ['temperature', 'target', 'pressure_advance'],
+      toolhead: ['position', 'homed_axes', 'max_accel', 'axis_maximum', 'axis_minimum'],
+      fan: ['speed'],
+      gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
+      print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
+      display_status: ['progress', 'message'],
+      motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity']
+    }
+  };
+
   public klippyState = new KlipperState();
   public heaterBed = new HeaterBed();
   public extruder = new Extruder();
@@ -40,24 +54,7 @@ export class MoonrakerClient extends EventTarget {
       successful = await this._jsonRpcClient.connect();
 
       if (successful) {
-        const printerObjects: IPrinterObjects = {
-          objects: {
-            webhooks: ['state', 'state_message'],
-            heater_bed: ['temperature', 'target'],
-            extruder: ['temperature', 'target', 'pressure_advance'],
-            toolhead: ['position', 'homed_axes', 'max_accel', 'axis_maximum', 'axis_minimum'],
-            fan: ['speed'],
-            gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
-            print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
-            display_status: ['progress', 'message'],
-            motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity']
-          }
-        };
-
-        successful =
-          (await this.requestIdentifyConnection()) &&
-          (await this.subscribeToPrinterObjects(printerObjects)) &&
-          (await this.queryPrinterObjects(printerObjects));
+        successful = (await this.requestIdentifyConnection()) && (await this.subscribeAndParseParams(this.subscription));
       }
     } catch (error) {
       console.error('MoonrakerClient.connect() ', error);
@@ -95,6 +92,7 @@ export class MoonrakerClient extends EventTarget {
 
     try {
       await this._jsonRpcClient.sendRequest(identifyConnectionRequest);
+      console.log('MoonrakerClient.requestIdentifyConnection');
     } catch (error) {
       successful = false;
       console.error('MoonrakerClient.requestIdentifyConnection() ', error);
@@ -114,6 +112,7 @@ export class MoonrakerClient extends EventTarget {
     let response;
     try {
       response = await this._jsonRpcClient.sendRequest(initialRequest);
+      console.log('MoonrakerClient.queryPrinterObjects');
       if (response.result) {
         this.parseNotifyStatusUpdateParams(response.result.status);
       }
@@ -125,7 +124,7 @@ export class MoonrakerClient extends EventTarget {
     return successful;
   }
 
-  private async subscribeToPrinterObjects(printerObjects: IPrinterObjects): Promise<boolean> {
+  private async subscribeAndParseParams(printerObjects: IPrinterObjects): Promise<boolean> {
     const subscribeRequest = new JsonRpcRequest({
       method: 'printer.objects.subscribe',
       params: printerObjects
@@ -133,12 +132,14 @@ export class MoonrakerClient extends EventTarget {
     let successful = true;
     try {
       const response = await this._jsonRpcClient.sendRequest(subscribeRequest);
-
-      if (response.error) {
+      console.log('MoonrakerClient.subscribeToPrinterObjects');
+      if (response.result) {
+        this.parseNotifyStatusUpdateParams(response.result.status);
+      } else if (response.error) {
         successful = false;
         this.klippyState.state.set('error');
         this.klippyState.message.set(response.error.message);
-        console.warn(response);
+        console.warn('Error on subscribeToPrinterObjects: ', response);
       }
     } catch (error) {
       successful = false;
@@ -153,16 +154,16 @@ export class MoonrakerClient extends EventTarget {
       this.parseNotification(event as CustomEvent<IJsonRpcRequest>);
     });
 
-    this._jsonRpcClient.isConnected.subscribe((value) => {
-      this.rpcClientIsConnectedChanged(value);
-    });
+    // this._jsonRpcClient.isConnected.subscribe((value) => {
+    //   this.rpcClientIsConnectedChanged(value);
+    // });
   }
 
-  private rpcClientIsConnectedChanged(value: boolean) {
-    if (!value) {
-      this.klippyState.state.set('disconnected');
-    }
-  }
+  // private rpcClientIsConnectedChanged(value: boolean) {
+  //   if (!value) {
+  //     this.klippyState.state.set('disconnected');
+  //   }
+  // }
 
   private parseNotifyStatusUpdateParams(param: INotifyStatusUpdateParams) {
     this.parseWebhooks(param);
@@ -353,6 +354,7 @@ export class MoonrakerClient extends EventTarget {
       case 'notify_klippy_ready':
         this.klippyState.state.set('ready');
         console.log('notify_klippy: ready');
+        await this.subscribeAndParseParams(this.subscription);
         break;
       case 'notify_klippy_disconnected':
         this.klippyState.state.set('disconnected');
