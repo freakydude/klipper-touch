@@ -21,24 +21,24 @@
   }
 
   function getAbsoluteNozzleTemperature(relativeSteps: number): number {
-    let position = $nozzleTargetTemperature + relativeSteps;
-    position = Math.max(position, 0);
-    position = Math.min(position, 500);
+    let target = $nozzleTargetTemperature + relativeSteps;
+    target = Math.max(target, 0);
+    target = Math.min(target, 500);
 
-    return position;
+    return target;
   }
 
   function getAbsoluteBedTemperature(relativeSteps: number): number {
-    let position = $heaterBedTargetTemperature + relativeSteps;
-    position = Math.max(position, 0);
-    position = Math.min(position, 150);
+    let target = $heaterBedTargetTemperature + relativeSteps;
+    target = Math.max(target, 0);
+    target = Math.min(target, 150);
 
-    return position;
+    return target;
   }
 
   async function changeNozzleTemperature(relativeSteps: number) {
     let temp = getAbsoluteNozzleTemperature(relativeSteps);
-    console.log(temp);
+
     let request = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
@@ -97,18 +97,18 @@
           <tr>
             <td class="px-2 text-end">Target</td>
 
-            <td class=" text-start">{$nozzleTargetTemperature.toFixed(0)} °C</td>
+            <td class=" text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
         <button
-          on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
@@ -121,18 +121,18 @@
           </tr>
           <tr>
             <td class="px-2 text-end">Target</td>
-            <td class="text-start">{$heaterBedTargetTemperature.toFixed(0)} °C</td>
+            <td class="text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
         <button
-          on:click="{() => changeBedTemperature(stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeBedTemperature(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click="{() => changeBedTemperature(-stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeBedTemperature(-stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
@@ -142,7 +142,7 @@
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-          on:click="{() => {
+          on:click|preventDefault="{() => {
             disableNozzleTemperature();
             disableBedTemperature();
           }}">
@@ -166,7 +166,7 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click="{() => {
+          on:click|preventDefault="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -178,12 +178,12 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click="{() => goto('/printstate')}">
+      on:click|preventDefault="{() => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click="{() => goto('/move')}"
+        on:click|preventDefault="{() => goto('/move')}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Move
       </button>
@@ -193,7 +193,7 @@
       Temp
     </button>
     <button
-      on:click="{() => goto('/babysteps')}"
+      on:click|preventDefault="{() => goto('/babysteps')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Baby
     </button>
@@ -209,7 +209,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click="{emergencyStop}">
+      on:click|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>

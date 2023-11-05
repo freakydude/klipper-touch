@@ -2,9 +2,12 @@
   import { goto } from '$app/navigation';
   import { client, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
+  import type { TPrintState } from '$lib/moonraker/types/TPrintState';
   import { faList, faPrint, faSkull, faTrash } from '@fortawesome/free-solid-svg-icons';
   import { onMount } from 'svelte';
   import Fa from 'svelte-fa';
+  import { writable, type Writable } from 'svelte/store';
 
   async function emergencyStop() {
     let stopRequest = new JsonRpcRequest({
@@ -14,21 +17,22 @@
     await client.sendRequest(stopRequest);
   }
 
-  let printState = moonraker.printStats.State;
+  // todo outcommented
+  let printState: Writable<TPrintState> = writable('standby');
 
   let activeFilename = '';
   let availableFiles = [''];
-  let fileMeta = {};
+  let fileMeta: IFileMetadata;
   let thumbnail: any;
 
-  onMount(async () => {
-    await listFiles();
-    if (activeFilename == '') {
-      if (availableFiles.length > 0) {
-        selectFile(availableFiles[0]);
-      }
-    }
-  });
+  // onMount(async () => {
+  //   await listFiles();
+  //   if (activeFilename == '') {
+  //     if (availableFiles.length > 0) {
+  //       selectFile(availableFiles[0]);
+  //     }
+  //   }
+  // });
 
   async function listFiles() {
     let listFilesRequest = new JsonRpcRequest({
@@ -82,10 +86,10 @@
 
 <div class="flex flex-grow flex-row gap-1 overflow-hidden bg-neutral-800 p-1">
   <div class="flex flex-col gap-1">
-    <button class="btn-touch bg-red-600" on:click="{() => goto('/')}"><Fa icon="{faList}" /></button>
-    <button class="btn-touch bg-red-600" on:click="{() => goto('/printerstatus')}">PS</button>
+    <button class="btn-touch bg-red-600" on:click|preventDefault="{() => goto('/')}"><Fa icon="{faList}" /></button>
+    <button class="btn-touch bg-red-600" on:click|preventDefault="{() => goto('/printerstatus')}">PS</button>
     <div class="grow"></div>
-    <button class="btn-touch bg-yellow-600" on:click="{() => emergencyStop()}"><Fa icon="{faSkull}" /></button>
+    <button class="btn-touch bg-yellow-600" on:click|preventDefault="{emergencyStop}"><Fa icon="{faSkull}" /></button>
   </div>
 
   <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-700">
@@ -93,7 +97,7 @@
       <p class="label-head">Files</p>
       <div class="flex flex-col gap-1 py-1">
         {#each availableFiles as avFile}
-          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click="{ () => selectFile(avFile)}"
+          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click|preventDefault="{() => selectFile(avFile)}"
             >{avFile.slice(0, -6)}</button>
         {/each}
       </div>
@@ -113,10 +117,10 @@
       <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
       <p class="label py-1">Layer: {fileMeta.layer_height}</p>
       <div class="flex flex-row justify-around gap-1">
-        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click="{() => printFile(activeFilename)}">
+        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click|preventDefault="{() => printFile(activeFilename)}">
           <Fa icon="{faPrint}" />
         </button>
-        <button class="btn-touch" on:click="{() => deleteFile(activeFilename)}"><Fa icon="{faTrash}" /></button>
+        <button class="btn-touch" on:click|preventDefault="{() => deleteFile(activeFilename)}"><Fa icon="{faTrash}" /></button>
       </div>
     </div>
   </div>

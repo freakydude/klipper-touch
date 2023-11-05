@@ -87,13 +87,13 @@
         </table>
 
         <button
-          on:click="{() => changeOffset(stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeOffset(stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click="{() => changeOffset(-stepsArr[selectedStep])}"
+          on:click|preventDefault="{() => changeOffset(-stepsArr[selectedStep])}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
           Down
         </button>
@@ -103,18 +103,14 @@
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-          on:click="{() => {
-            resetOffset();
-          }}">
+          on:click|preventDefault="{resetOffset}">
           Reset
         </button>
       </span>
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-          on:click="{() => {
-            homeZ();
-          }}">
+          on:click|preventDefault="{homeZ}">
           HomeZ
         </button>
         <button
@@ -134,7 +130,7 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click="{() => {
+          on:click|preventDefault="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -146,18 +142,18 @@
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click="{() => goto('/printstate')}">
+      on:click|preventDefault="{() => goto('/printstate')}">
       State
     </button>
     {#if $printStatsState !== 'printing'}
       <button
-        on:click="{() => goto('/move')}"
+        on:click|preventDefault="{() => goto('/move')}"
         class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
         Move
       </button>
     {/if}
     <button
-      on:click="{() => goto('/temperature')}"
+      on:click|preventDefault="{() => goto('/temperature')}"
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
       Temp
     </button>
@@ -177,7 +173,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:click="{emergencyStop}">
+      on:click|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>
