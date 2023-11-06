@@ -86,10 +86,10 @@
 
 <div class="flex flex-grow flex-row gap-1 overflow-hidden bg-neutral-800 p-1">
   <div class="flex flex-col gap-1">
-    <button class="btn-touch bg-red-600" on:pointerdown|preventDefault="{() => goto('/')}"><Fa icon="{faList}" /></button>
-    <button class="btn-touch bg-red-600" on:pointerdown|preventDefault="{() => goto('/printerstatus')}">PS</button>
+    <button class="btn-touch bg-red-600" on:click|preventDefault="{() => goto('/')}"><Fa icon="{faList}" /></button>
+    <button class="btn-touch bg-red-600" on:click|preventDefault="{() => goto('/printerstatus')}">PS</button>
     <div class="grow"></div>
-    <button class="btn-touch bg-yellow-600" on:pointerdown|preventDefault="{emergencyStop}"><Fa icon="{faSkull}" /></button>
+    <button class="btn-touch bg-yellow-600" on:click|preventDefault="{emergencyStop}"><Fa icon="{faSkull}" /></button>
   </div>
 
   <div class="flex flex-col overflow-y-auto overflow-x-hidden rounded bg-neutral-700">
@@ -97,7 +97,7 @@
       <p class="label-head">Files</p>
       <div class="flex flex-col gap-1 py-1">
         {#each availableFiles as avFile}
-          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:pointerdown|preventDefault="{() => selectFile(avFile)}"
+          <button class="btn-list {avFile == activeFilename ? ' border-2 border-red-600' : ''}" on:click|preventDefault="{() => selectFile(avFile)}"
             >{avFile.slice(0, -6)}</button>
         {/each}
       </div>
@@ -117,10 +117,10 @@
       <p class="label py-1">Bed: {fileMeta.first_layer_bed_temp} °C</p>
       <p class="label py-1">Layer: {fileMeta.layer_height}</p>
       <div class="flex flex-row justify-around gap-1">
-        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:pointerdown|preventDefault="{() => printFile(activeFilename)}">
+        <button class="btn-touch disabled={$printState != ('printing' || 'paused')}" on:click|preventDefault="{() => printFile(activeFilename)}">
           <Fa icon="{faPrint}" />
         </button>
-        <button class="btn-touch" on:pointerdown|preventDefault="{() => deleteFile(activeFilename)}"><Fa icon="{faTrash}" /></button>
+        <button class="btn-touch" on:click|preventDefault="{() => deleteFile(activeFilename)}"><Fa icon="{faTrash}" /></button>
       </div>
     </div>
   </div>

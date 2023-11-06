@@ -144,20 +144,20 @@
         <span class="flex flex-row items-center justify-center gap-3">
           <button
             disabled="{!isHomedZ}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-            on:pointerdown|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            on:click|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
             Down
           </button>
           <button
             disabled="{!isHomedXY}"
-            on:pointerdown|preventDefault="{() => moveY(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            on:click|preventDefault="{() => moveY(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Back
           </button>
           <button
             disabled="{!isHomedZ}"
-            on:pointerdown|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            on:click|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Up
           </button>
         </span>
@@ -165,21 +165,21 @@
         <span class="flex flex-row items-center justify-center gap-3">
           <button
             disabled="{!isHomedXY}"
-            on:pointerdown|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            on:click|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Left
           </button>
 
           <button
             disabled="{!isHomedXY}"
-            on:pointerdown|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            on:click|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Front
           </button>
           <button
             disabled="{!isHomedXY}"
-            on:pointerdown|preventDefault="{() => moveX(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            on:click|preventDefault="{() => moveX(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Right
           </button>
         </span>
@@ -187,23 +187,23 @@
     </div>
     <span class="flex flex-col">
       <button
-        on:pointerdown|preventDefault="{disableSteppers}"
-        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+        on:click|preventDefault="{disableSteppers}"
+        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
-          on:pointerdown|preventDefault="{homeXY}"
+          on:click|preventDefault="{homeXY}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           HomeXY
         </button>
         <button
-          on:pointerdown|preventDefault="{homeZ}"
+          on:click|preventDefault="{homeZ}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           HomeZ
         </button>
       </span>
@@ -214,11 +214,11 @@
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
         <button
-          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50 {i ===
+          class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:pointerdown|preventDefault="{() => {
+          on:click|preventDefault="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -227,31 +227,31 @@
     </div>
   </span>
   <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
-    <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:pointerdown|preventDefault="{() => goto('/printstate')}">
+    <a
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+      href="/printstate">
       State
-    </button>
+    </a>
     {#if $printStatsState !== 'printing'}
       <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Move
       </button>
     {/if}
-    <button
-      on:pointerdown|preventDefault="{() => goto('/temperature')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+    <a
+      href="/temperature"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
       Temp
-    </button>
-    <button
-      on:pointerdown|preventDefault="{() => goto('/babysteps')}"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+    </a>
+    <a
+      href="/babysteps"
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
       Baby
-    </button>
+    </a>
     {#if $printStatsState !== 'printing'}
       <button
         disabled="{true}"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-blue-500 disabled:opacity-50">
+        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Prep
       </button>
     {/if}
@@ -259,8 +259,8 @@
       <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
     </div>
     <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-blue-500 disabled:opacity-50"
-      on:pointerdown|preventDefault="{emergencyStop}">
+      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+      on:click|preventDefault="{emergencyStop}">
       Kill
     </button>
   </div>
