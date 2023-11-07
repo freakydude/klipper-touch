@@ -151,6 +151,7 @@
       </span>
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
+          disabled="{true}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Preset
         </button>
