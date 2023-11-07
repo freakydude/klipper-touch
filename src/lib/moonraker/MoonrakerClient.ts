@@ -1,6 +1,7 @@
 import type { JsonRpcClient } from '$lib/jsonrpc/JsonRpcClient';
 import type { IJsonRpcRequest } from '$lib/jsonrpc/types/IJsonRpcRequest';
 import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+import { ConfigFile } from './modules/ConfigFile';
 import { DisplayStatus } from './modules/DisplayStatus';
 import { Extruder } from './modules/Extruder';
 import { Fan } from './modules/Fan';
@@ -10,7 +11,7 @@ import { KlipperState } from './modules/KlipperState';
 import { MotionReport } from './modules/MotionReport';
 import { PrintStats } from './modules/PrintStats';
 import { Toolhead } from './modules/Toolhead';
-import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdate';
+import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdateParams';
 import type { IPrinterObjects } from './types/IPrinterObjects';
 
 export class MoonrakerClient extends EventTarget {
@@ -26,7 +27,8 @@ export class MoonrakerClient extends EventTarget {
       gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
       print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
       display_status: ['progress', 'message'],
-      motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity']
+      motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity'],
+      configfile: ['save_config_pending']
     }
   };
 
@@ -39,6 +41,7 @@ export class MoonrakerClient extends EventTarget {
   public printStats = new PrintStats();
   public displayStatus = new DisplayStatus();
   public motionReport = new MotionReport();
+  public configFile = new ConfigFile();
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -175,116 +178,117 @@ export class MoonrakerClient extends EventTarget {
     this.parsePrintStats(param);
     this.parseDisplayStatus(param);
     this.parseMotionReport(param);
+    this.parseConfigFile(param);
   }
 
   private parseExtruder(param: INotifyStatusUpdateParams) {
-    if (param.extruder?.temperature != undefined) {
+    if (param.extruder?.temperature) {
       // console.log('extruder.temperature: ', param.extruder?.temperature);
       this.extruder.Temperature.set(param.extruder?.temperature);
     }
-    if (param.extruder?.target != undefined) {
+    if (param.extruder?.target) {
       // console.log('extruder.temperature: ', param.extruder?.target);
       this.extruder.Target.set(param.extruder?.target);
     }
-    if (param.extruder?.pressure_advance != undefined) {
+    if (param.extruder?.pressure_advance) {
       // console.log('extruder.pressure_advance: ', param.extruder?.pressure_advance);
       this.extruder.PressureAdvance.set(param.extruder?.pressure_advance);
     }
   }
 
   private parseToolhead(param: INotifyStatusUpdateParams) {
-    if (param.toolhead?.max_accel != undefined) {
+    if (param.toolhead?.max_accel) {
       // console.log('toolhead.position: ', param.toolhead?.position);
       this.toolhead.MaxAcceleration.set(param.toolhead?.max_accel);
     }
-    if (param.toolhead?.position != undefined) {
+    if (param.toolhead?.position) {
       // console.log('toolhead.position: ', param.toolhead?.position);
       this.toolhead.Position.set(param.toolhead?.position);
     }
-    if (param.toolhead?.homed_axes != undefined) {
+    if (param.toolhead?.homed_axes) {
       // console.log('toolhead.homed_axes: ', param.toolhead?.homed_axes);
       this.toolhead.HomedAxes.set(param.toolhead?.homed_axes);
     }
-    if (param.toolhead?.axis_minimum != undefined) {
+    if (param.toolhead?.axis_minimum) {
       // console.log('toolhead.axis_minimum: ', param.toolhead?.axis_minimum);
       this.toolhead.AxisMinimum.set(param.toolhead?.axis_minimum);
     }
-    if (param.toolhead?.axis_maximum != undefined) {
+    if (param.toolhead?.axis_maximum) {
       // console.log('toolhead.axis_maximum: ', param.toolhead?.axis_maximum);
       this.toolhead.AxisMaximum.set(param.toolhead?.axis_maximum);
     }
-    if (param.toolhead?.max_velocity != undefined) {
+    if (param.toolhead?.max_velocity) {
       // console.log('toolhead.max_velocity: ', param.toolhead?.max_velocity);
       this.toolhead.MaxVelocity.set(param.toolhead?.max_velocity);
     }
-    if (param.toolhead?.square_corner_velocity != undefined) {
+    if (param.toolhead?.square_corner_velocity) {
       // console.log('toolhead.square_corner_velocity: ', param.toolhead?.square_corner_velocity);
       this.toolhead.SquareCornerVelocity.set(param.toolhead?.square_corner_velocity);
     }
-    if (param.toolhead?.max_accel_to_decel != undefined) {
+    if (param.toolhead?.max_accel_to_decel) {
       // console.log('toolhead.max_accel_to_decel: ', param.toolhead?.max_accel_to_decel);
       this.toolhead.MaxDeceleration.set(param.toolhead?.max_accel_to_decel);
     }
   }
 
   private parseGcodeMove(param: INotifyStatusUpdateParams) {
-    if (param.gcode_move?.homing_origin != undefined) {
+    if (param.gcode_move?.homing_origin) {
       // console.log('gcode_move.homing_origin: ', param.gcode_move?.homing_origin);
       this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin);
     }
-    if (param.gcode_move?.speed != undefined) {
+    if (param.gcode_move?.speed) {
       // console.log('gcode_move.speed: ', param.gcode_move?.speed);
       this.gcodeMove.Speed.set(param.gcode_move?.speed);
     }
-    if (param.gcode_move?.speed_factor != undefined) {
+    if (param.gcode_move?.speed_factor) {
       // console.log('gcode_move.speed_factor: ', param.gcode_move?.speed_factor);
       this.gcodeMove.SpeedFactor.set(param.gcode_move?.speed_factor);
     }
-    if (param.gcode_move?.extrude_factor != undefined) {
+    if (param.gcode_move?.extrude_factor) {
       // console.log('gcode_move.extrude_factor: ', param.gcode_move?.extrude_factor);
       this.gcodeMove.ExtrudeFactor.set(param.gcode_move?.extrude_factor);
     }
   }
 
   private parseFan(param: INotifyStatusUpdateParams) {
-    if (param.fan?.speed != undefined) {
+    if (param.fan?.speed) {
       // console.log('fan.speed: ', param.fan?.speed);
       this.fan.Speed.set(param.fan?.speed);
     }
-    if (param.fan?.rpm != undefined) {
+    if (param.fan?.rpm) {
       // console.log('fan.rpm: ', param.fan?.rpm);
       this.fan.Rpm.set(param.fan?.rpm);
     }
   }
 
   private parsePrintStats(param: INotifyStatusUpdateParams) {
-    if (param.print_stats?.filename != undefined) {
+    if (param.print_stats?.filename) {
       // console.log('print_stats.filename: ', param.print_stats?.filename);
       this.printStats.Filename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
     }
-    if (param.print_stats?.print_duration != undefined) {
+    if (param.print_stats?.print_duration) {
       // console.log('print_stats.print_duration: ', param.print_stats?.print_duration);
       this.printStats.PrintDuration.set(param.print_stats?.print_duration);
     }
-    if (param.print_stats?.state != undefined) {
+    if (param.print_stats?.state) {
       // console.log('print_stats.state: ', param.print_stats?.state);
       this.printStats.State.set(param.print_stats?.state);
     }
-    if (param.print_stats?.message != undefined) {
+    if (param.print_stats?.message) {
       // console.log('print_stats.message: ', param.print_stats?.message);
       this.printStats.Message.set(param.print_stats?.message);
     }
-    if (param.print_stats?.filament_used != undefined) {
+    if (param.print_stats?.filament_used) {
       // console.log('print_stats.filament_used: ', param.print_stats?.filament_used);
       this.printStats.FilamentUsed.set(param.print_stats?.filament_used);
     }
-    if (param.print_stats?.info != undefined) {
+    if (param.print_stats?.info) {
       const info = param.print_stats?.info;
-      if (info?.current_layer != undefined) {
+      if (info?.current_layer) {
         // console.log('print_stats.info.current_layer: ', param.print_stats?.info?.current_layer);
         this.printStats.Info.CurrentLayer.set(info?.current_layer);
       }
-      if (info?.total_layer != undefined) {
+      if (info?.total_layer) {
         // console.log('print_stats.info.total_layer: ', param.print_stats?.info?.total_layer);
         this.printStats.Info.TotalLayer.set(info?.total_layer);
       }
@@ -292,53 +296,65 @@ export class MoonrakerClient extends EventTarget {
   }
 
   private parseDisplayStatus(param: INotifyStatusUpdateParams) {
-    if (param.display_status?.progress != undefined) {
+    if (param.display_status?.progress) {
       // console.log('display_status.progress: ', param.display_status?.progress);
       this.displayStatus.Progress.set(param.display_status?.progress);
     }
-    if (param.display_status?.message != undefined) {
+    if (param.display_status?.message) {
       // console.log('display_status.message: ', param.display_status?.message);
       this.displayStatus.Message.set(param.display_status?.message);
     }
   }
 
   private parseWebhooks(param: INotifyStatusUpdateParams) {
-    if (param.webhooks?.state != undefined) {
+    if (param.webhooks?.state) {
       // console.log('webhooks.state: ', param.webhooks?.state);
       this.klippyState.state.set(param.webhooks?.state);
     }
-    if (param.webhooks?.state_message != undefined) {
+    if (param.webhooks?.state_message) {
       // console.log('webhooks.state_message: ', param.webhooks?.state_message);
       this.klippyState.message.set(param.webhooks?.state_message);
     }
   }
 
   private parseHeaterBed(param: INotifyStatusUpdateParams) {
-    if (param.heater_bed?.temperature != undefined) {
+    if (param.heater_bed?.temperature) {
       // console.log('heater_bed.temperature: ', param.heater_bed?.temperature);
       this.heaterBed.Temperature.set(param.heater_bed?.temperature);
     }
-    if (param.heater_bed?.target != undefined) {
+    if (param.heater_bed?.target) {
       // console.log('heater_bed.temperature: ', param.heater_bed?.target);
       this.heaterBed.Target.set(param.heater_bed?.target);
     }
   }
 
   private parseMotionReport(param: INotifyStatusUpdateParams) {
-    if (param.motion_report?.live_extruder_velocity != undefined) {
+    if (param.motion_report?.live_extruder_velocity) {
       this.motionReport.LiveExtruderVelocity.set(param.motion_report?.live_extruder_velocity);
     }
-    if (param.motion_report?.live_position != undefined) {
+    if (param.motion_report?.live_position) {
       this.motionReport.LivePosition.set(param.motion_report?.live_position);
     }
-    if (param.motion_report?.live_velocity != undefined) {
+    if (param.motion_report?.live_velocity) {
       this.motionReport.LiveVelocity.set(param.motion_report?.live_velocity);
     }
-    if (param.motion_report?.steppers != undefined) {
+    if (param.motion_report?.steppers) {
       this.motionReport.Steppers.set(param.motion_report?.steppers);
     }
-    if (param.motion_report?.trapq != undefined) {
+    if (param.motion_report?.trapq) {
       this.motionReport.Trapq.set(param.motion_report?.trapq);
+    }
+  }
+
+  private parseConfigFile(param: INotifyStatusUpdateParams) {
+    if (param.configfile?.config) {
+      this.configFile.Config.set(param.configfile?.config);
+    }
+    if (param.configfile?.settings) {
+      this.configFile.Settings.set(param.configfile?.settings);
+    }
+    if (param.configfile?.save_config_pending) {
+      this.configFile.SaveConfigPending.set(param.configfile?.save_config_pending);
     }
   }
 

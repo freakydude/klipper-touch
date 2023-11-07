@@ -8,6 +8,7 @@ export interface IPrinterObjectsParams {
   print_stats: ('filename' | 'total_duration' | 'print_duration' | 'filament_used' | 'state' | 'message' | 'info')[];
   display_status: ('progress' | 'message')[];
   motion_report: ('live_position' | 'live_velocity' | 'live_extruder_velocity')[];
+  configfile: ('config' | 'settings' | 'save_config_pending')[];
 }
 
 export interface IPrinterStatsInfo {
