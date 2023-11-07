@@ -1,7 +1,7 @@
 export interface IPrinterObjectsParams {
   webhooks: ('state' | 'state_message')[];
   heater_bed: ('temperature' | 'target')[];
-  extruder: ('temperature' | 'target' | 'pressure_advance')[];
+  extruder: ('temperature' | 'target' | 'pressure_advance' | 'can_extrude')[];
   toolhead: ('position' | 'homed_axes' | 'max_accel' | 'axis_minimum' | 'axis_maximum')[];
   fan: ('speed' | 'rpm')[];
   gcode_move: ('homing_origin' | 'speed' | 'speed_factor' | 'extrude_factor')[];

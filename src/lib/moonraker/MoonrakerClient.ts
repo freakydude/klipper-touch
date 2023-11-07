@@ -21,7 +21,7 @@ export class MoonrakerClient extends EventTarget {
     objects: {
       webhooks: ['state', 'state_message'],
       heater_bed: ['temperature', 'target'],
-      extruder: ['temperature', 'target', 'pressure_advance'],
+      extruder: ['temperature', 'target', 'pressure_advance', 'can_extrude'],
       toolhead: ['position', 'homed_axes', 'max_accel', 'axis_maximum', 'axis_minimum'],
       fan: ['speed'],
       gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
@@ -193,6 +193,10 @@ export class MoonrakerClient extends EventTarget {
     if (param.extruder?.pressure_advance) {
       // console.log('extruder.pressure_advance: ', param.extruder?.pressure_advance);
       this.extruder.PressureAdvance.set(param.extruder?.pressure_advance);
+    }
+    if (param.extruder?.can_extrude) {
+      // console.log('extruder.can_extrude: ', param.extruder?.can_extrude);
+      this.extruder.CanExtrude.set(param.extruder?.can_extrude);
     }
   }
 
