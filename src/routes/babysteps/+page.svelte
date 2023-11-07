@@ -42,7 +42,7 @@
     let request = new JsonRpcRequest({
       method: 'printer.gcode.script',
       params: {
-        script: 'SET_GCODE_OFFSET Z=0 MOVE=1'
+        script: 'SET_GCODE_OFFSET Z=0 MOVE=1 MOVE_SPEED=' + speedZ
       }
     });
     await client.sendRequest(request);
@@ -130,12 +130,13 @@
     <span class="flex flex-col">
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
+          disabled="{$printStatsState === 'printing'}"
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           on:click|preventDefault="{homeZ}">
           HomeZ
         </button>
         <button
-          disabled="{!isHomedZ}"
+          disabled="{!isHomedZ || $printStatsState === 'printing'}"
           on:click|preventDefault="{moveZ0}"
           class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Z = 0
@@ -143,7 +144,7 @@
       </span>
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
-          disabled="{$gcodeMoveHomingOrigin[2] == 0}"
+          disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
           on:click|preventDefault="{saveConfig}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
