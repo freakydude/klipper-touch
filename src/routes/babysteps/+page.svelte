@@ -6,12 +6,14 @@
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
+  let saveConfigPending = moonraker.configFile.SaveConfigPending;
 
   let stepsArr = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
   let selectedStep = 3;
 
   let isHomedXY = false;
   let isHomedZ = false;
+  let speedZ = 20;
 
   $: {
     isHomedXY = $toolheadHomedAxes.includes('xy');
@@ -46,6 +48,15 @@
     await client.sendRequest(request);
   }
 
+  async function saveConfig() {
+    let request = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'SAVE_CONFIG'
+      }
+    });
+    await client.sendRequest(request);
+  }
   async function homeZ() {
     let homeRequest;
     if (!isHomedXY) {
@@ -64,6 +75,16 @@
       });
     }
     await client.sendRequest(homeRequest);
+  }
+
+  async function moveZ0() {
+    let request = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'G90\nG0 Z0.0' + ' F' + speedZ * 60
+      }
+    });
+    await client.sendRequest(request);
   }
 </script>
 
@@ -84,36 +105,46 @@
             <td class=" text-start">{$gcodeMoveHomingOrigin[2].toFixed(3)} mm</td>
           </tr>
         </table>
+        <span class="flex items-center gap-3">
+          <span class="flex flex-col gap-3">
+            <button
+              on:click|preventDefault="{() => changeOffset(stepsArr[selectedStep])}"
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              Up
+            </button>
 
-        <button
-          on:click|preventDefault="{() => changeOffset(stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-          Up
-        </button>
+            <button
+              on:click|preventDefault="{() => changeOffset(-stepsArr[selectedStep])}"
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              Down
+            </button></span>
 
-        <button
-          on:click|preventDefault="{() => changeOffset(-stepsArr[selectedStep])}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-          Down
-        </button>
+          <button
+            on:click|preventDefault="{resetOffset}"
+            class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            Reset
+          </button>
+        </span>
       </div>
     </div>
     <span class="flex flex-col">
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-          on:click|preventDefault="{resetOffset}">
-          Reset
-        </button>
-      </span>
-      <span class="flex flex-grow flex-col justify-end gap-2">
-        <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           on:click|preventDefault="{homeZ}">
           HomeZ
         </button>
         <button
-          disabled="{true}"
+          disabled="{!isHomedZ}"
+          on:click|preventDefault="{moveZ0}"
+          class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Z = 0
+        </button>
+      </span>
+      <span class="flex flex-grow flex-col justify-end gap-2">
+        <button
+          disabled="{$gcodeMoveHomingOrigin[2] == 0}"
+          on:click|preventDefault="{saveConfig}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
         </button>
