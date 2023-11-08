@@ -12,6 +12,16 @@ I have tested all this stuff only with my own printer and the constellation arou
 
 And yes, help and improve if you find something.
 
+## Some early screens
+
+![Connect Screen](docs/pics/klipper-touch-0.1.0-experimental-connect.png "Connect Screen")
+
+![Printing Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-printing.png "Printing Screen")
+
+![Print Done Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-done.png "Print Done Screen")
+
+![Temperature Screen](docs/pics/klipper-touch-0.1.0-experimental-temperrature.png "Temperature Screen")
+
 ## Bigtreetech CB1
 
 - Install Btt image with panfrost support. >= v 2.3.3
