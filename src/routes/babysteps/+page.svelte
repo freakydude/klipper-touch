@@ -105,7 +105,7 @@
             <td class=" text-start">{$gcodeMoveHomingOrigin[2].toFixed(3)} mm</td>
           </tr>
         </table>
-        <span class="flex items-center gap-3">
+        <span class="flex items-center gap-2">
           <span class="flex flex-col gap-3">
             <button
               on:click|preventDefault="{() => changeOffset(stepsArr[selectedStep])}"
