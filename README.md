@@ -14,15 +14,15 @@ And yes, help and improve if you find something.
 
 ## Some early screens
 
-![Connect Screen](docs/pics/klipper-touch-0.1.0-experimental-connect.png "Connect Screen")
+![Connect Screen](docs/pics/klipper-touch-0.1.0-experimental-connect.png 'Connect Screen')
 
-![Printing Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-printing.png "Printing Screen")
+![Printing Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-printing.png 'Printing Screen')
 
-![Print Done Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-done.png "Print Done Screen")
+![Print Done Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-done.png 'Print Done Screen')
 
-![Temperature Screen](docs/pics/klipper-touch-0.1.0-experimental-temperrature.png "Temperature Screen")
+![Temperature Screen](docs/pics/klipper-touch-0.1.0-experimental-temperrature.png 'Temperature Screen')
 
-## Bigtreetech CB1
+## Prepare Bigtreetech CB1
 
 - Install Btt image with panfrost support. >= v 2.3.3
 
@@ -59,6 +59,9 @@ And yes, help and improve if you find something.
 
 - Install xinit and input drivers
   sudo apt install xinit xf86-input-evdev
+
+- Klipper-Touch listen on url: `ws://127.0.0.1/websocket` for a moonraker websocket api connection.
+  To use another url, set environment variable `PUBLIC_KT_MOONRAKER_WS=<YOUR MOONRAKER WS URL>` (for example: `ws://192.168.1.10/websocket`)
 
 ## Development
 
