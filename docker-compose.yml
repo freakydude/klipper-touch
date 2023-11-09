@@ -4,6 +4,8 @@ services:
     container_name: binfmt
     privileged: true
     command: --install arm64,arm
+    networks:
+      - front-tier
     #network_mode: bridge
     #restart: "no"
   klipper-touch_build_arm32v7:
@@ -26,8 +28,8 @@ services:
     #   - HOST=0.0.0.0
     #   - PORT=3000
     # env_file: .env
-    #networks:
-    #  - front-tier
+    networks:
+      - front-tier
   klipper-touch_build_arm64v8:
     build: .
     image: klipper-touch_build_arm64v8
@@ -48,7 +50,7 @@ services:
     #   - HOST=0.0.0.0
     #   - PORT=3000
     # env_file: .env
-    #networks:
-    #  - front-tier
+    networks:
+      - front-tier
 networks:
   front-tier: {}
