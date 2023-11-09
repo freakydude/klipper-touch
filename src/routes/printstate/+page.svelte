@@ -145,9 +145,9 @@
 <div class="page-dark flex-col items-stretch">
   <p class="w-full overflow-clip text-center text-sm text-neutral-50">{selectedFile}</p>
   <div class="flex flex-grow flex-row justify-between">
-    <span class="flex flex-grow flex-row justify-around">
-      <div class="flex flex-col items-stretch justify-center gap-2">
-        <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 px-2 py-2">
+    <span class="flex flex-grow flex-row justify-around p-1">
+      <div class="flex flex-col justify-around gap-2">
+        <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 p-2">
           <table class="table-auto text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Nozzle</td>
@@ -174,7 +174,7 @@
             {/if}
           </table>
         </div>
-        <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 px-2 py-2">
+        <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 p-2">
           <table class="table-auto text-sm text-neutral-50">
             {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
               <tr class="border-b border-neutral-800">
