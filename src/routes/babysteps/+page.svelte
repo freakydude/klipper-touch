@@ -7,6 +7,7 @@
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
   let saveConfigPending = moonraker.configFile.SaveConfigPending;
+  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let stepsArr = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
   let selectedStep = 3;
@@ -89,8 +90,8 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-end gap-3 p-1">
-    <p class="text-sm text-neutral-50">M117 Status Message</p>
+  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">

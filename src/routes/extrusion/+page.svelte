@@ -7,6 +7,7 @@
   let nozzleTarget = moonraker.extruder.Target;
   let nozzleTemp = moonraker.extruder.Temperature;
   let canExtrude = moonraker.extruder.CanExtrude;
+  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 3;
@@ -33,8 +34,8 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-end gap-3 p-1">
-    <p class="text-sm text-neutral-50">M117 Status Message</p>
+  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">
@@ -66,7 +67,7 @@
           </button>
         </div>
 
-        <span class="flex flex-col items-center justify-center self-end" >
+        <span class="flex flex-col items-center justify-center self-end">
           <div class="flex w-40 flex-col items-center gap-1 rounded-lg bg-neutral-700 p-1">
             <p class="flex text-neutral-50">Speed</p>
             <span class="flex flex-wrap justify-center gap-1">

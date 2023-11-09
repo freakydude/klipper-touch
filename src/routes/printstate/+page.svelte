@@ -25,6 +25,7 @@
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
+  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let progress = moonraker.displayStatus.Progress;
   let selectedFile = '';
@@ -35,6 +36,12 @@
   let layerHeight = 0;
   let objectHeight = 0;
   let eta = '';
+
+  let statusLine: string;
+
+  $: {
+    statusLine = $displayStatusMessage + (selectedFile !== '' ? ' - ' + selectedFile : '');
+  }
 
   $: updatePropertiesOnPrintingFile($printStatsFilename);
 
@@ -143,7 +150,10 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <p class="w-full overflow-clip text-center text-sm text-neutral-50">{selectedFile}</p>
+  <!-- Status line -->
+  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+    <p class="text-sm text-neutral-50">{statusLine}</p>
+  </div>
   <div class="flex flex-grow flex-row justify-between">
     <span class="flex flex-grow flex-row justify-around p-1">
       <div class="flex flex-col justify-around gap-2">
