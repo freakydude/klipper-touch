@@ -124,45 +124,22 @@
     <p class="text-sm text-neutral-50">M117 Status Message</p>
   </div>
   <div class="flex flex-row">
-    <div class="flex flex-grow justify-center">
-      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+    <div class="flex flex-grow justify-center gap-2">
+      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 p-1">
         <table class="self-center text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="pr-2 text-end">Current</td>
-            <td class="pr-1 text-start">X {$motionReportLivePosition[0].toFixed(2)} mm</td>
-            <td class="pr-1 text-start">Y {$motionReportLivePosition[1].toFixed(2)} mm</td>
-            <td class="pr-1 text-start">Z {$motionReportLivePosition[2].toFixed(2)} mm</td>
+            <td class="pr-4 text-end">Current</td>
+            <td class="pr-3 text-start">X {$motionReportLivePosition[0].toFixed(2)}</td>
+            <td class="pr-1 text-start">Y {$motionReportLivePosition[1].toFixed(2)}</td>
           </tr>
           <tr>
-            <td class="pr-2 text-end">Target</td>
-            <td class="pr-1 text-start">X {$toolheadPosition[0].toFixed(1)} mm</td>
-            <td class="pr-1 text-start">Y {$toolheadPosition[1].toFixed(1)} mm</td>
-            <td class="pr-1 text-start">Z {$toolheadPosition[2].toFixed(1)} mm</td>
+            <td class="pr-4 text-end">Target</td>
+            <td class="pr-3 text-start">X {$toolheadPosition[0].toFixed(1)}</td>
+            <td class="pr-1 text-start">Y {$toolheadPosition[1].toFixed(1)}</td>
           </tr>
         </table>
 
-        <span class="flex flex-row items-center justify-center gap-3">
-          <button
-            disabled="{!isHomedZ}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-            on:click|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
-            Down
-          </button>
-          <button
-            disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveY(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-            Back
-          </button>
-          <button
-            disabled="{!isHomedZ}"
-            on:click|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-            Up
-          </button>
-        </span>
-
-        <span class="flex flex-row items-center justify-center gap-3">
+        <div class="flex items-center gap-2">
           <button
             disabled="{!isHomedXY}"
             on:click|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
@@ -170,17 +147,53 @@
             Left
           </button>
 
-          <button
-            disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-            Front
-          </button>
+          <span class="flex flex-col gap-3">
+            <button
+              disabled="{!isHomedXY}"
+              on:click|preventDefault="{() => moveY(stepsArr[selectedStep])}"
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              Back
+            </button>
+            <button
+              disabled="{!isHomedXY}"
+              on:click|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              Front
+            </button>
+          </span>
+
           <button
             disabled="{!isHomedXY}"
             on:click|preventDefault="{() => moveX(stepsArr[selectedStep])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Right
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 p-1">
+        <table class="self-center text-sm text-neutral-50">
+          <tr class="border-b border-neutral-800">
+            <td class="pr-1 text-start">Z {$motionReportLivePosition[2].toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td class="pr-1 text-start">Z {$toolheadPosition[2].toFixed(1)}</td>
+          </tr>
+        </table>
+
+        <span class="flex flex-col items-center justify-center gap-3">
+          <button
+            disabled="{!isHomedZ}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            on:click|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
+            Down
+          </button>
+
+          <button
+            disabled="{!isHomedZ}"
+            on:click|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            Up
           </button>
         </span>
       </div>
