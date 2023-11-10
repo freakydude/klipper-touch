@@ -116,7 +116,7 @@ export class MoonrakerClient extends EventTarget {
     try {
       response = await this._jsonRpcClient.sendRequest(initialRequest);
       console.log('MoonrakerClient.queryPrinterObjects');
-      if (response.result) {
+      if (response.result !== undefined) {
         this.parseNotifyStatusUpdateParams(response.result.status);
       }
     } catch (error) {
@@ -136,7 +136,7 @@ export class MoonrakerClient extends EventTarget {
     try {
       const response = await this._jsonRpcClient.sendRequest(subscribeRequest);
       console.log('MoonrakerClient.subscribeToPrinterObjects');
-      if (response.result) {
+      if (response.result !== undefined) {
         this.parseNotifyStatusUpdateParams(response.result.status);
       } else if (response.error) {
         successful = false;
@@ -182,183 +182,215 @@ export class MoonrakerClient extends EventTarget {
   }
 
   private parseExtruder(param: INotifyStatusUpdateParams) {
-    if (param.extruder?.temperature !== undefined) {
-      // console.log('extruder.temperature: ', param.extruder?.temperature);
-      this.extruder.Temperature.set(param.extruder?.temperature);
-    }
-    if (param.extruder?.target !== undefined) {
-      // console.log('extruder.temperature: ', param.extruder?.target);
-      this.extruder.Target.set(param.extruder?.target);
-    }
-    if (param.extruder?.pressure_advance !== undefined) {
-      // console.log('extruder.pressure_advance: ', param.extruder?.pressure_advance);
-      this.extruder.PressureAdvance.set(param.extruder?.pressure_advance);
-    }
-    if (param.extruder?.can_extrude !== undefined) {
-      // console.log('extruder.can_extrude: ', param.extruder?.can_extrude);
-      this.extruder.CanExtrude.set(param.extruder?.can_extrude);
+    const extruder = param.extruder;
+    if (extruder !== undefined) {
+      if (extruder.temperature !== undefined) {
+        // console.log('extruder.temperature: ', param.extruder?.temperature);
+        this.extruder.Temperature.set(extruder.temperature);
+      }
+      if (extruder.target !== undefined) {
+        // console.log('extruder.temperature: ', param.extruder?.target);
+        this.extruder.Target.set(extruder.target);
+      }
+      if (extruder.pressure_advance !== undefined) {
+        // console.log('extruder.pressure_advance: ', param.extruder?.pressure_advance);
+        this.extruder.PressureAdvance.set(extruder.pressure_advance);
+      }
+      if (extruder.can_extrude !== undefined) {
+        // console.log('extruder.can_extrude: ', param.extruder?.can_extrude);
+        this.extruder.CanExtrude.set(extruder.can_extrude);
+      }
     }
   }
 
   private parseToolhead(param: INotifyStatusUpdateParams) {
-    if (param.toolhead?.max_accel !== undefined) {
-      // console.log('toolhead.position: ', param.toolhead?.position);
-      this.toolhead.MaxAcceleration.set(param.toolhead?.max_accel);
-    }
-    if (param.toolhead?.position !== undefined) {
-      // console.log('toolhead.position: ', param.toolhead?.position);
-      this.toolhead.Position.set(param.toolhead?.position);
-    }
-    if (param.toolhead?.homed_axes !== undefined) {
-      // console.log('toolhead.homed_axes: ', param.toolhead?.homed_axes);
-      this.toolhead.HomedAxes.set(param.toolhead?.homed_axes);
-    }
-    if (param.toolhead?.axis_minimum !== undefined) {
-      // console.log('toolhead.axis_minimum: ', param.toolhead?.axis_minimum);
-      this.toolhead.AxisMinimum.set(param.toolhead?.axis_minimum);
-    }
-    if (param.toolhead?.axis_maximum !== undefined) {
-      // console.log('toolhead.axis_maximum: ', param.toolhead?.axis_maximum);
-      this.toolhead.AxisMaximum.set(param.toolhead?.axis_maximum);
-    }
-    if (param.toolhead?.max_velocity !== undefined) {
-      // console.log('toolhead.max_velocity: ', param.toolhead?.max_velocity);
-      this.toolhead.MaxVelocity.set(param.toolhead?.max_velocity);
-    }
-    if (param.toolhead?.square_corner_velocity !== undefined) {
-      // console.log('toolhead.square_corner_velocity: ', param.toolhead?.square_corner_velocity);
-      this.toolhead.SquareCornerVelocity.set(param.toolhead?.square_corner_velocity);
-    }
-    if (param.toolhead?.max_accel_to_decel !== undefined) {
-      // console.log('toolhead.max_accel_to_decel: ', param.toolhead?.max_accel_to_decel);
-      this.toolhead.MaxDeceleration.set(param.toolhead?.max_accel_to_decel);
+    const toolhead = param.toolhead;
+    if (toolhead !== undefined) {
+      if (toolhead.max_accel !== undefined) {
+        // console.log('toolhead.position: ', toolhead?.position);
+        this.toolhead.MaxAcceleration.set(toolhead.max_accel);
+      }
+      if (toolhead.position !== undefined) {
+        // console.log('toolhead.position: ', toolhead?.position);
+        this.toolhead.Position.set(toolhead.position);
+      }
+      if (toolhead.homed_axes !== undefined) {
+        // console.log('toolhead.homed_axes: ', toolhead?.homed_axes);
+        this.toolhead.HomedAxes.set(toolhead.homed_axes);
+      }
+      if (toolhead.axis_minimum !== undefined) {
+        // console.log('toolhead.axis_minimum: ', toolhead?.axis_minimum);
+        this.toolhead.AxisMinimum.set(toolhead.axis_minimum);
+      }
+      if (toolhead.axis_maximum !== undefined) {
+        // console.log('toolhead.axis_maximum: ', toolhead?.axis_maximum);
+        this.toolhead.AxisMaximum.set(toolhead.axis_maximum);
+      }
+      if (toolhead.max_velocity !== undefined) {
+        // console.log('toolhead.max_velocity: ', toolhead?.max_velocity);
+        this.toolhead.MaxVelocity.set(toolhead.max_velocity);
+      }
+      if (toolhead.square_corner_velocity !== undefined) {
+        // console.log('toolhead.square_corner_velocity: ', toolhead?.square_corner_velocity);
+        this.toolhead.SquareCornerVelocity.set(toolhead.square_corner_velocity);
+      }
+      if (toolhead.max_accel_to_decel !== undefined) {
+        // console.log('toolhead.max_accel_to_decel: ', toolhead?.max_accel_to_decel);
+        this.toolhead.MaxDeceleration.set(toolhead.max_accel_to_decel);
+      }
     }
   }
 
   private parseGcodeMove(param: INotifyStatusUpdateParams) {
-    if (param.gcode_move?.homing_origin !== undefined) {
-      // console.log('gcode_move.homing_origin: ', param.gcode_move?.homing_origin);
-      this.gcodeMove.HomeOrigin.set(param.gcode_move?.homing_origin);
-    }
-    if (param.gcode_move?.speed !== undefined) {
-      // console.log('gcode_move.speed: ', param.gcode_move?.speed);
-      this.gcodeMove.Speed.set(param.gcode_move?.speed);
-    }
-    if (param.gcode_move?.speed_factor !== undefined) {
-      // console.log('gcode_move.speed_factor: ', param.gcode_move?.speed_factor);
-      this.gcodeMove.SpeedFactor.set(param.gcode_move?.speed_factor);
-    }
-    if (param.gcode_move?.extrude_factor !== undefined) {
-      // console.log('gcode_move.extrude_factor: ', param.gcode_move?.extrude_factor);
-      this.gcodeMove.ExtrudeFactor.set(param.gcode_move?.extrude_factor);
+    const gcode_move = param.gcode_move;
+    if (gcode_move !== undefined) {
+      if (gcode_move.homing_origin !== undefined) {
+        // console.log('gcode_move.homing_origin: ', gcode_move?.homing_origin);
+        this.gcodeMove.HomeOrigin.set(gcode_move.homing_origin);
+      }
+      if (gcode_move.speed !== undefined) {
+        // console.log('gcode_move.speed: ', gcode_move?.speed);
+        this.gcodeMove.Speed.set(gcode_move.speed);
+      }
+      if (gcode_move.speed_factor !== undefined) {
+        // console.log('gcode_move.speed_factor: ', gcode_move?.speed_factor);
+        this.gcodeMove.SpeedFactor.set(gcode_move.speed_factor);
+      }
+      if (gcode_move.extrude_factor !== undefined) {
+        // console.log('gcode_move.extrude_factor: ', gcode_move?.extrude_factor);
+        this.gcodeMove.ExtrudeFactor.set(gcode_move.extrude_factor);
+      }
     }
   }
 
   private parseFan(param: INotifyStatusUpdateParams) {
-    if (param.fan?.speed !== undefined) {
-      // console.log('fan.speed: ', param.fan?.speed);
-      this.fan.Speed.set(param.fan?.speed);
-    }
-    if (param.fan?.rpm !== undefined) {
-      // console.log('fan.rpm: ', param.fan?.rpm);
-      this.fan.Rpm.set(param.fan?.rpm);
+    const fan = param.fan;
+    if (fan !== undefined) {
+      if (fan.speed !== undefined) {
+        // console.log('fan.speed: ', param.fan?.speed);
+        this.fan.Speed.set(fan.speed);
+      }
+      if (fan.rpm !== undefined) {
+        // console.log('fan.rpm: ', param.fan?.rpm);
+        this.fan.Rpm.set(fan.rpm);
+      }
     }
   }
 
   private parsePrintStats(param: INotifyStatusUpdateParams) {
-    if (param.print_stats?.filename !== undefined) {
-      // console.log('print_stats.filename: ', param.print_stats?.filename);
-      this.printStats.Filename.set(param.print_stats?.filename.slice(0, -6)); //cut ".gcode"
-    }
-    if (param.print_stats?.print_duration !== undefined) {
-      // console.log('print_stats.print_duration: ', param.print_stats?.print_duration);
-      this.printStats.PrintDuration.set(param.print_stats?.print_duration);
-    }
-    if (param.print_stats?.state !== undefined) {
-      // console.log('print_stats.state: ', param.print_stats?.state);
-      this.printStats.State.set(param.print_stats?.state);
-    }
-    if (param.print_stats?.message !== undefined) {
-      // console.log('print_stats.message: ', param.print_stats?.message);
-      this.printStats.Message.set(param.print_stats?.message);
-    }
-    if (param.print_stats?.filament_used !== undefined) {
-      // console.log('print_stats.filament_used: ', param.print_stats?.filament_used);
-      this.printStats.FilamentUsed.set(param.print_stats?.filament_used);
-    }
-    if (param.print_stats?.info !== undefined) {
-      const info = param.print_stats?.info;
-      if (info?.current_layer !== undefined) {
-        // console.log('print_stats.info.current_layer: ', param.print_stats?.info?.current_layer);
-        this.printStats.Info.CurrentLayer.set(info?.current_layer);
+    const print_stats = param.print_stats;
+    if (print_stats !== undefined) {
+      if (print_stats.filename !== undefined) {
+        // console.log('print_stats.filename: ', print_stats.filename);
+        this.printStats.Filename.set(print_stats.filename.slice(0, -6)); //cut ".gcode"
       }
-      if (info?.total_layer !== undefined) {
-        // console.log('print_stats.info.total_layer: ', param.print_stats?.info?.total_layer);
-        this.printStats.Info.TotalLayer.set(info?.total_layer);
+      if (print_stats.print_duration !== undefined) {
+        // console.log('print_stats.print_duration: ', print_stats.print_duration);
+        this.printStats.PrintDuration.set(print_stats.print_duration);
+      }
+      if (print_stats.state !== undefined) {
+        // console.log('print_stats.state: ', print_stats.state);
+        this.printStats.State.set(print_stats.state);
+      }
+      if (print_stats.message !== undefined) {
+        // console.log('print_stats.message: ', print_stats.message);
+        this.printStats.Message.set(print_stats.message);
+      }
+      if (print_stats.filament_used !== undefined) {
+        // console.log('print_stats.filament_used: ', print_stats.filament_used);
+        this.printStats.FilamentUsed.set(print_stats.filament_used);
+      }
+      if (print_stats.info !== undefined) {
+        const info = print_stats.info;
+        if (info?.current_layer !== undefined) {
+          // console.log('print_stats.info.current_layer: ', print_stats.info?.current_layer);
+          this.printStats.Info.CurrentLayer.set(info?.current_layer);
+        }
+        if (info?.total_layer !== undefined) {
+          // console.log('print_stats.info.total_layer: ', print_stats.info?.total_layer);
+          this.printStats.Info.TotalLayer.set(info?.total_layer);
+        }
       }
     }
   }
 
   private parseDisplayStatus(param: INotifyStatusUpdateParams) {
-    if (param.display_status?.progress !== undefined) {
-      // console.log('display_status.progress: ', param.display_status?.progress);
-      this.displayStatus.Progress.set(param.display_status?.progress);
-    }
-    if (param.display_status?.message !== undefined) {
-      // console.log('display_status.message: ', param.display_status?.message);
-      this.displayStatus.Message.set(param.display_status?.message);
+    const display_status = param.display_status;
+
+    if (display_status !== undefined) {
+      if (display_status.progress !== undefined) {
+        // console.log('display_status.progress: ', display_status?.progress);
+        this.displayStatus.Progress.set(display_status.progress);
+      }
+
+      if (display_status.message !== undefined) {
+        // console.log('display_status.message: ', display_status?.message);
+        this.displayStatus.Message.set(display_status.message);
+      }
     }
   }
 
   private parseWebhooks(param: INotifyStatusUpdateParams) {
-    if (param.webhooks?.state !== undefined) {
-      // console.log('webhooks.state: ', param.webhooks?.state);
-      this.klippyState.state.set(param.webhooks?.state);
-    }
-    if (param.webhooks?.state_message !== undefined) {
-      // console.log('webhooks.state_message: ', param.webhooks?.state_message);
-      this.klippyState.message.set(param.webhooks?.state_message);
+    const webhooks = param.webhooks;
+    if (webhooks !== undefined) {
+      if (webhooks.state !== undefined) {
+        // console.log('webhooks.state: ', param.webhooks?.state);
+        this.klippyState.state.set(webhooks.state);
+      }
+      if (webhooks.state_message !== undefined) {
+        // console.log('webhooks.state_message: ', param.webhooks?.state_message);
+        this.klippyState.message.set(webhooks.state_message);
+      }
     }
   }
 
   private parseHeaterBed(param: INotifyStatusUpdateParams) {
-    if (param.heater_bed?.temperature !== undefined) {
-      // console.log('heater_bed.temperature: ', param.heater_bed?.temperature);
-      this.heaterBed.Temperature.set(param.heater_bed?.temperature);
-    }
-    if (param.heater_bed?.target !== undefined) {
-      // console.log('heater_bed.temperature: ', param.heater_bed?.target);
-      this.heaterBed.Target.set(param.heater_bed?.target);
+    const heater_bed = param.heater_bed;
+    if (heater_bed !== undefined) {
+      if (heater_bed.temperature !== undefined) {
+        // console.log('heater_bed.temperature: ', heater_bed?.temperature);
+        this.heaterBed.Temperature.set(heater_bed.temperature);
+      }
+      if (heater_bed.target !== undefined) {
+        // console.log('heater_bed.temperature: ', heater_bed?.target);
+        this.heaterBed.Target.set(heater_bed.target);
+      }
     }
   }
 
   private parseMotionReport(param: INotifyStatusUpdateParams) {
-    if (param.motion_report?.live_extruder_velocity !== undefined) {
-      this.motionReport.LiveExtruderVelocity.set(param.motion_report?.live_extruder_velocity);
-    }
-    if (param.motion_report?.live_position !== undefined) {
-      this.motionReport.LivePosition.set(param.motion_report?.live_position);
-    }
-    if (param.motion_report?.live_velocity !== undefined) {
-      this.motionReport.LiveVelocity.set(param.motion_report?.live_velocity);
-    }
-    if (param.motion_report?.steppers !== undefined) {
-      this.motionReport.Steppers.set(param.motion_report?.steppers);
-    }
-    if (param.motion_report?.trapq !== undefined) {
-      this.motionReport.Trapq.set(param.motion_report?.trapq);
+    const motion_report = param.motion_report;
+    if (motion_report !== undefined) {
+      if (motion_report.live_extruder_velocity !== undefined) {
+        this.motionReport.LiveExtruderVelocity.set(motion_report.live_extruder_velocity);
+      }
+      if (motion_report.live_position !== undefined) {
+        this.motionReport.LivePosition.set(motion_report.live_position);
+      }
+      if (motion_report.live_velocity !== undefined) {
+        this.motionReport.LiveVelocity.set(motion_report.live_velocity);
+      }
+      if (motion_report.steppers !== undefined) {
+        this.motionReport.Steppers.set(motion_report.steppers);
+      }
+      if (motion_report.trapq !== undefined) {
+        this.motionReport.Trapq.set(motion_report.trapq);
+      }
     }
   }
 
   private parseConfigFile(param: INotifyStatusUpdateParams) {
-    if (param.configfile?.config !== undefined) {
-      this.configFile.Config.set(param.configfile?.config);
-    }
-    if (param.configfile?.settings !== undefined) {
-      this.configFile.Settings.set(param.configfile?.settings);
-    }
-    if (param.configfile?.save_config_pending !== undefined) {
-      this.configFile.SaveConfigPending.set(param.configfile?.save_config_pending);
+    const configfile = param.configfile;
+    if (configfile !== undefined) {
+      if (configfile.config !== undefined) {
+        this.configFile.Config.set(configfile.config);
+      }
+      if (configfile.settings !== undefined) {
+        this.configFile.Settings.set(configfile.settings);
+      }
+      if (configfile.save_config_pending !== undefined) {
+        this.configFile.SaveConfigPending.set(configfile.save_config_pending);
+      }
     }
   }
 
