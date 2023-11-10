@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { commands, moonraker, values } from '$lib/base.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let heaterBedTargetTemperature = moonraker.heaterBed.Target;
@@ -9,17 +7,11 @@
   let heaterBedCurrentTemperature = moonraker.heaterBed.Temperature;
   let nozzleCurrentTemperature = moonraker.extruder.Temperature;
   let displayStatusMessage = moonraker.displayStatus.Message;
+  let clockFormatter = values.clockFormatter;
+  let clock = values.clock;
 
   let stepsArr = [1, 5, 10, 20, 50, 100];
   let selectedStep = 3;
-
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
-    });
-    await client.sendRequest(emergencyStopRequest);
-  }
 
   function getAbsoluteNozzleTemperature(relativeSteps: number): number {
     let target = $nozzleTargetTemperature + relativeSteps;
@@ -35,50 +27,6 @@
     target = Math.min(target, 150);
 
     return target;
-  }
-
-  async function changeNozzleTemperature(relativeSteps: number) {
-    let temp = getAbsoluteNozzleTemperature(relativeSteps);
-
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'M104 S' + temp
-      }
-    });
-    await client.sendRequest(request);
-  }
-
-  async function disableNozzleTemperature() {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'M104 S0'
-      }
-    });
-    await client.sendRequest(request);
-  }
-
-  async function changeBedTemperature(relativeSteps: number) {
-    let temp = getAbsoluteBedTemperature(relativeSteps);
-
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'M140 S' + temp
-      }
-    });
-    await client.sendRequest(request);
-  }
-
-  async function disableBedTemperature() {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'M140 S0'
-      }
-    });
-    await client.sendRequest(request);
   }
 </script>
 
@@ -103,13 +51,13 @@
         </table>
 
         <button
-          on:click="{() => changeNozzleTemperature(stepsArr[selectedStep])}"
+          on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click|preventDefault="{() => changeNozzleTemperature(-stepsArr[selectedStep])}"
+          on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
@@ -127,13 +75,13 @@
         </table>
 
         <button
-          on:click|preventDefault="{() => changeBedTemperature(stepsArr[selectedStep])}"
+          on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click|preventDefault="{() => changeBedTemperature(-stepsArr[selectedStep])}"
+          on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}"
           class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
@@ -144,8 +92,8 @@
         <button
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           on:click|preventDefault="{() => {
-            disableNozzleTemperature();
-            disableBedTemperature();
+            commands.setNozzleTemperature(0);
+            commands.setBedTemperature(0);
           }}">
           Off
         </button>
@@ -211,7 +159,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:click|preventDefault="{commands.emergencyStop}">
       Kill
     </button>
   </div>

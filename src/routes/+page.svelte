@@ -1,33 +1,9 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { client, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-  import { onMount } from 'svelte';
+  import { client, commands, moonraker } from '$lib/base.svelte';
 
   let isConnected = client.isConnected;
   let klippyState = moonraker.klippyState.state;
   let klippyStateMessage = moonraker.klippyState.message;
-
-  async function reconnectToMoonraker() {
-    await moonraker.disconnect();
-    await moonraker.connect();
-  }
-
-  async function printerRestart() {
-    let stopRequest = new JsonRpcRequest({
-      method: 'printer.restart',
-      params: {}
-    });
-    await client.sendRequest(stopRequest);
-  }
-
-  async function firmwareRestart() {
-    let stopRequest = new JsonRpcRequest({
-      method: 'printer.firmware_restart',
-      params: {}
-    });
-    await client.sendRequest(stopRequest);
-  }
 </script>
 
 <div class="page-dark flex-row content-between items-stretch gap-3">
@@ -98,10 +74,10 @@
       {#if $klippyState !== 'ready'}
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-          on:click|preventDefault="{() => printerRestart()}">Restart</button>
+          on:click|preventDefault="{() => commands.printerRestart()}">Restart</button>
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-          on:click|preventDefault="{() => firmwareRestart()}">Firmware Restart</button>
+          on:click|preventDefault="{() => commands.firmwareRestart()}">Firmware Restart</button>
       {:else}
         <a
           href="/printstate"
@@ -111,7 +87,10 @@
     {:else}
       <button
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-        on:click|preventDefault="{() => reconnectToMoonraker()}">Reconnect</button>
+        on:click|preventDefault="{async () => {
+          await moonraker.disconnect();
+          await moonraker.connect();
+        }}">Connect</button>
     {/if}
   </div>
 </div>

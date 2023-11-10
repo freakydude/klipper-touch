@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { client, clock, clockFormatter, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { commands, moonraker, values } from '$lib/base.svelte';
 
   let printState = moonraker.printStats.State;
   let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
@@ -9,28 +8,13 @@
   let canExtrude = moonraker.extruder.CanExtrude;
   let displayStatusMessage = moonraker.displayStatus.Message;
 
+  let clockFormatter = values.clockFormatter;
+  let clock = values.clock;
+
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 3;
   let speedArr = [1, 2, 3, 5, 7, 10];
   let selectedSpeed = 2;
-
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
-    });
-    await client.sendRequest(emergencyStopRequest);
-  }
-
-  async function extrude(distance: number, speed: number) {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G91\nG1 E' + distance + ' F' + speed * 60
-      }
-    });
-    await client.sendRequest(request);
-  }
 </script>
 
 <div class="page-dark flex-col items-stretch">
@@ -54,14 +38,14 @@
 
           <button
             disabled="{$printState === 'printing' || $canExtrude === false}"
-            on:click|preventDefault="{() => extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}"
+            on:click|preventDefault="{() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Retract
           </button>
 
           <button
             disabled="{$printState === 'printing' || $canExtrude === false}"
-            on:click|preventDefault="{() => extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}"
+            on:click|preventDefault="{() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Extrude
           </button>
@@ -153,7 +137,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:click|preventDefault="{commands.emergencyStop}">
       Kill
     </button>
   </div>

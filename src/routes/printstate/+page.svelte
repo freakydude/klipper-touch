@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { env } from '$env/dynamic/public';
-  import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
+  import { client, commands, moonraker, values } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
   import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
@@ -28,6 +27,9 @@
   let totalLayer = moonraker.printStats.Info.TotalLayer;
   let displayStatusMessage = moonraker.displayStatus.Message;
 
+  let clockFormatter = values.clockFormatter;
+  let clock = values.clock;
+
   let progress = moonraker.displayStatus.Progress;
   let selectedFile = '';
   let selectedFileThumbnailPath = '';
@@ -50,7 +52,7 @@
     if (name !== '') {
       selectedFile = name;
 
-      let meta = getSelectedFileMeta(selectedFile);
+      let meta = getFileMetadata(selectedFile + '.gcode');
       meta.then(async (m) => {
         if (m !== null) {
           estimatedTime = m.estimated_time;
@@ -89,64 +91,23 @@
     return path;
   }
 
-  async function getSelectedFileMeta(filename: string): Promise<IFileMetadata | null> {
+  async function getFileMetadata(filename: string): Promise<IFileMetadata | null> {
     let requestMetadata = new JsonRpcRequest({
       method: 'server.files.metadata',
       params: {
-        filename: filename + '.gcode'
+        filename: filename
       }
     });
     let response = await client.sendRequest(requestMetadata);
     let metadata: IFileMetadata | null = null;
 
-    console.log(response);
-
-    if (!response.error) {
+    if (response.error === undefined) {
       metadata = response.result as IFileMetadata;
+    } else {
+      return Promise.reject(response.error);
     }
+
     return metadata;
-  }
-
-  async function startPrint() {
-    let resumeRequest = new JsonRpcRequest({
-      method: 'printer.print.start',
-      params: {
-        filename: selectedFile + '.gcode'
-      }
-    });
-    await client.sendRequest(resumeRequest);
-  }
-
-  async function resumePrint() {
-    let resumeRequest = new JsonRpcRequest({
-      method: 'printer.print.resume',
-      params: {}
-    });
-    await client.sendRequest(resumeRequest);
-  }
-
-  async function pausePrint() {
-    let pauseRequest = new JsonRpcRequest({
-      method: 'printer.print.pause',
-      params: {}
-    });
-    await client.sendRequest(pauseRequest);
-  }
-
-  async function cancelPrint() {
-    let cancelRequest = new JsonRpcRequest({
-      method: 'printer.print.cancel',
-      params: {}
-    });
-    await client.sendRequest(cancelRequest);
-  }
-
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
-    });
-    await client.sendRequest(emergencyStopRequest);
   }
 </script>
 
@@ -286,30 +247,30 @@
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click|preventDefault="{startPrint}"
+            on:click|preventDefault="{() => commands.startPrint(selectedFile + '.gcode')}"
             class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click|preventDefault="{pausePrint}"
+          on:click|preventDefault="{commands.pausePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click|preventDefault="{cancelPrint}"
+          on:click|preventDefault="{commands.cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click|preventDefault="{resumePrint}"
+          on:click|preventDefault="{commands.resumePrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click|preventDefault="{cancelPrint}"
+          on:click|preventDefault="{commands.cancelPrint}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
@@ -351,7 +312,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:click|preventDefault="{commands.emergencyStop}">
       Kill
     </button>
   </div>

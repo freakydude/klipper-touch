@@ -104,29 +104,6 @@ export class MoonrakerClient extends EventTarget {
     return successful;
   }
 
-  private async queryPrinterObjects(printerObjects: IPrinterObjects): Promise<boolean> {
-    const initialRequest = new JsonRpcRequest({
-      method: 'printer.objects.query',
-      params: printerObjects
-    });
-
-    let successful = true;
-
-    let response;
-    try {
-      response = await this._jsonRpcClient.sendRequest(initialRequest);
-      console.log('MoonrakerClient.queryPrinterObjects');
-      if (response.result !== undefined) {
-        this.parseNotifyStatusUpdateParams(response.result.status);
-      }
-    } catch (error) {
-      successful = false;
-      console.error('MoonrakerClient.queryPrinterObjects() ', error, response);
-    }
-
-    return successful;
-  }
-
   private async subscribeAndParseParams(printerObjects: IPrinterObjects): Promise<boolean> {
     const subscribeRequest = new JsonRpcRequest({
       method: 'printer.objects.subscribe',
