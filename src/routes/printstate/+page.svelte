@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { env } from '$env/dynamic/public';
   import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
@@ -81,7 +82,7 @@
     let path = '';
     if (Array.isArray(thumbnails) && thumbnails.length > 0) {
       let thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-      path = import.meta.env.VITE_MOONRAKER_API + 'server/files/gcodes/' + thumbnail.relative_path;
+      path = (env.PUBLIC_KT_MOONRAKER_API === undefined ? 'http://127.0.0.1' : env.PUBLIC_KT_MOONRAKER_API) + '/server/files/gcodes/' + thumbnail.relative_path;
     } else {
       path = '';
     }
