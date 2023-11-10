@@ -4,15 +4,15 @@ import { readable, type Readable } from 'svelte/store';
 export class Values {
   private _moonrakerClient: MoonrakerClient;
 
+  public clockFormatter: Intl.DateTimeFormat;
+  public clock: Readable<Date>;
+
   public constructor(moonrakerClient: MoonrakerClient) {
     // super();
     this._moonrakerClient = moonrakerClient;
     this.clockFormatter = this.createClockFormatter();
     this.clock = this.createClock();
   }
-
-  public clockFormatter: Intl.DateTimeFormat;
-  public clock: Readable<Date>;
 
   private createClockFormatter(): Intl.DateTimeFormat {
     return new Intl.DateTimeFormat('de', {

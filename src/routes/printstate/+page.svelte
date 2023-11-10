@@ -104,7 +104,7 @@
     if (response.error === undefined) {
       metadata = response.result as IFileMetadata;
     } else {
-      return Promise.reject(response.error);
+      console.warn('getFileMetadata.response.error: ', response.error);
     }
 
     return metadata;
