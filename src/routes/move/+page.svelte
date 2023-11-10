@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { client, clockFormatter, clock, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { commands, moonraker, values } from '$lib/base.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
@@ -11,10 +9,11 @@
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let displayStatusMessage = moonraker.displayStatus.Message;
 
+  let clockFormatter = values.clockFormatter;
+  let clock = values.clock;
+
   let stepsArr = [0.1, 1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 6;
-  let speedXY = 50;
-  let speedZ = 20;
 
   let isHomedXY = false;
   let isHomedZ = false;
@@ -24,99 +23,12 @@
     isHomedZ = $toolheadHomedAxes.includes('z');
   }
 
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
-    });
-    await client.sendRequest(emergencyStopRequest);
-  }
-
   function getAbsolutePosition(axis: number, relativeSteps: number): number {
     let position = $toolheadPosition[axis] + relativeSteps;
     position = Math.max(position, $toolheadAxisMinimum[axis]);
     position = Math.min(position, $toolheadAxisMaximum[axis]);
 
     return position;
-  }
-
-  async function moveX(relativeSteps: number) {
-    let targetZ = getAbsolutePosition(0, relativeSteps);
-    console.log(targetZ);
-
-    let moveDownRequest = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G90\nG0 X' + targetZ + ' F' + speedXY * 60
-      }
-    });
-    await client.sendRequest(moveDownRequest);
-  }
-
-  async function moveY(relativeSteps: number) {
-    let targetY = getAbsolutePosition(1, relativeSteps);
-    console.log(targetY);
-
-    let moveDownRequest = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G90\nG0 Y' + targetY + ' F' + speedXY * 60
-      }
-    });
-    await client.sendRequest(moveDownRequest);
-  }
-
-  async function moveZ(relativeSteps: number) {
-    let targetZ = getAbsolutePosition(2, relativeSteps);
-    console.log(targetZ);
-
-    let moveDownRequest = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G90\nG0 Z' + targetZ + ' F' + speedZ * 60
-      }
-    });
-    await client.sendRequest(moveDownRequest);
-  }
-
-  async function homeXY() {
-    let homeRequest = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G28 X Y'
-      }
-    });
-    await client.sendRequest(homeRequest);
-  }
-
-  async function homeZ() {
-    let homeRequest;
-    if (!isHomedXY) {
-      homeRequest = new JsonRpcRequest({
-        method: 'printer.gcode.script',
-        params: {
-          script: 'G28'
-        }
-      });
-    } else {
-      homeRequest = new JsonRpcRequest({
-        method: 'printer.gcode.script',
-        params: {
-          script: 'G28 Z'
-        }
-      });
-    }
-    await client.sendRequest(homeRequest);
-  }
-
-  async function disableSteppers() {
-    let homeRequest = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'M84'
-      }
-    });
-    await client.sendRequest(homeRequest);
   }
 </script>
 
@@ -143,7 +55,7 @@
         <div class="flex items-center gap-2">
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveX(-stepsArr[selectedStep])}"
+            on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, -stepsArr[selectedStep]), undefined, undefined)}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Left
           </button>
@@ -151,13 +63,13 @@
           <span class="flex flex-col gap-3">
             <button
               disabled="{!isHomedXY}"
-              on:click|preventDefault="{() => moveY(stepsArr[selectedStep])}"
+              on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, +stepsArr[selectedStep]), undefined)}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Back
             </button>
             <button
               disabled="{!isHomedXY}"
-              on:click|preventDefault="{() => moveY(-stepsArr[selectedStep])}"
+              on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, -stepsArr[selectedStep]), undefined)}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Front
             </button>
@@ -165,7 +77,7 @@
 
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => moveX(stepsArr[selectedStep])}"
+            on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, +stepsArr[selectedStep]), undefined, undefined)}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Right
           </button>
@@ -186,14 +98,14 @@
           <button
             disabled="{!isHomedZ}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-            on:click|preventDefault="{() => moveZ(-stepsArr[selectedStep])}">
+            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
             Down
           </button>
 
           <button
             disabled="{!isHomedZ}"
-            on:click|preventDefault="{() => moveZ(stepsArr[selectedStep])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}">
             Up
           </button>
         </span>
@@ -201,20 +113,20 @@
     </div>
     <span class="flex flex-col">
       <button
-        on:click|preventDefault="{disableSteppers}"
+        on:click|preventDefault="{commands.disableSteppers}"
         class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
-          on:click|preventDefault="{homeXY}"
+          on:click|preventDefault="{commands.homeXY}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
             : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           HomeXY
         </button>
         <button
-          on:click|preventDefault="{homeZ}"
+          on:click|preventDefault="{() => commands.homeZ(isHomedXY)}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
             ? 'bg-neutral-500'
             : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
@@ -274,7 +186,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:click|preventDefault="{commands.emergencyStop}">
       Kill
     </button>
   </div>

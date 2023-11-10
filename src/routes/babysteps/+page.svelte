@@ -1,91 +1,24 @@
 <script lang="ts">
-  import { client, clock, clockFormatter, moonraker } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+  import { commands, moonraker, values } from '$lib/base.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
-  let saveConfigPending = moonraker.configFile.SaveConfigPending;
   let displayStatusMessage = moonraker.displayStatus.Message;
+
+  let clockFormatter = values.clockFormatter;
+  let clock = values.clock;
 
   let stepsArr = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
   let selectedStep = 3;
 
   let isHomedXY = false;
   let isHomedZ = false;
-  let speedZ = 20;
 
   $: {
     isHomedXY = $toolheadHomedAxes.includes('xy');
     isHomedZ = $toolheadHomedAxes.includes('z');
-  }
-
-  async function emergencyStop() {
-    let emergencyStopRequest = new JsonRpcRequest({
-      method: 'printer.emergency_stop',
-      params: {}
-    });
-    await client.sendRequest(emergencyStopRequest);
-  }
-
-  async function changeOffset(relativeSteps: number) {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'SET_GCODE_OFFSET Z_ADJUST=' + relativeSteps + ' MOVE=1'
-      }
-    });
-    await client.sendRequest(request);
-  }
-
-  async function resetOffset() {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'SET_GCODE_OFFSET Z=0 MOVE=1 MOVE_SPEED=' + speedZ
-      }
-    });
-    await client.sendRequest(request);
-  }
-
-  async function saveConfig() {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'SAVE_CONFIG'
-      }
-    });
-    await client.sendRequest(request);
-  }
-  async function homeZ() {
-    let homeRequest;
-    if (!isHomedXY) {
-      homeRequest = new JsonRpcRequest({
-        method: 'printer.gcode.script',
-        params: {
-          script: 'G28'
-        }
-      });
-    } else {
-      homeRequest = new JsonRpcRequest({
-        method: 'printer.gcode.script',
-        params: {
-          script: 'G28 Z'
-        }
-      });
-    }
-    await client.sendRequest(homeRequest);
-  }
-
-  async function moveZ0() {
-    let request = new JsonRpcRequest({
-      method: 'printer.gcode.script',
-      params: {
-        script: 'G90\nG0 Z0.0' + ' F' + speedZ * 60
-      }
-    });
-    await client.sendRequest(request);
   }
 </script>
 
@@ -109,19 +42,19 @@
         <span class="flex items-center gap-2">
           <span class="flex flex-col gap-3">
             <button
-              on:click|preventDefault="{() => changeOffset(stepsArr[selectedStep])}"
+              on:click|preventDefault="{() => commands.changeOffset(stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Up
             </button>
 
             <button
-              on:click|preventDefault="{() => changeOffset(-stepsArr[selectedStep])}"
+              on:click|preventDefault="{() => commands.changeOffset(-stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Down
             </button></span>
 
           <button
-            on:click|preventDefault="{resetOffset}"
+            on:click|preventDefault="{commands.resetOffset}"
             class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Reset
           </button>
@@ -133,12 +66,12 @@
         <button
           disabled="{$printStatsState === 'printing'}"
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-          on:click|preventDefault="{homeZ}">
+          on:click|preventDefault="{() => commands.homeZ(isHomedXY)}">
           HomeZ
         </button>
         <button
           disabled="{!isHomedZ || $printStatsState === 'printing'}"
-          on:click|preventDefault="{moveZ0}"
+          on:click|preventDefault="{()=>commands.moveAbsolute(undefined,undefined,0)}"
           class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Z = 0
         </button>
@@ -146,7 +79,7 @@
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
           disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
-          on:click|preventDefault="{saveConfig}"
+          on:click|preventDefault="{commands.saveConfig}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
         </button>
@@ -205,7 +138,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{emergencyStop}">
+      on:click|preventDefault="{commands.emergencyStop}">
       Kill
     </button>
   </div>
