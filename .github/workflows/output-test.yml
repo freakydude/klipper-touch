@@ -77,7 +77,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: test-arti # the action automatically replaces \_\_VERSION\_\_ with the app version
+          tagName: test-arti-tag # the action automatically replaces \_\_VERSION\_\_ with the app version
           releaseName: test-arti
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: false
