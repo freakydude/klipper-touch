@@ -34,7 +34,7 @@
       },
       "resources": [],
       "shortDescription": "klipper-touch",
-      "targets": ["deb", "msi", "nsis", "dmg", "appimage"],
+      "targets": ["deb", "msi", "nsis", "dmg"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
