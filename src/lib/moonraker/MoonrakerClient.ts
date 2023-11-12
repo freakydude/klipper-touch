@@ -259,7 +259,7 @@ export class MoonrakerClient extends EventTarget {
     if (print_stats !== undefined) {
       if (print_stats.filename !== undefined) {
         // console.log('print_stats.filename: ', print_stats.filename);
-        this.printStats.Filename.set(print_stats.filename.slice(0, -6)); //cut ".gcode"
+        this.printStats.Filename.set(print_stats.filename); 
       }
       if (print_stats.print_duration !== undefined) {
         // console.log('print_stats.print_duration: ', print_stats.print_duration);
