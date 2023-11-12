@@ -1,6 +1,6 @@
 name: 'publish-draft-rpi'
 on:
-  [push]
+  workflow_dispatch:
 
 jobs:
   build:
