@@ -1,6 +1,6 @@
 name: 'test-upload'
 on:
-  workflow_dispatch:
+  [push]
 
 jobs:
   build:
