@@ -18,6 +18,16 @@ jobs:
       - id: get_version
         run: |
           echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: create artifact 1
+        run: |
+          touch test_0.1.0_upload.txt
+          echo "a test" >> test_0.1.0_upload.txt
+      - name: Release RPI deb p1
+        uses: softprops/action-gh-release@v1
+        with:
+          name: test-arti
+          tag_name: test-arti-tag
+          files: test*upload.txt
 
   job2:
     runs-on: ubuntu-latest
@@ -26,3 +36,13 @@ jobs:
       - env:
           PACKAGE_VERSION: ${{needs.job1.outputs.package_version}}
         run: echo "$PACKAGE_VERSION"
+      - name: create artifact 2
+        run: |
+          touch test2_0.1.0_upload.txt
+          echo "a test" >> test2_0.1.0_upload.txt
+      - name: Release RPI deb p2
+        uses: softprops/action-gh-release@v1
+        with:
+          name: test-arti
+          tag_name: test-arti-tag
+          files: test*upload.txt
