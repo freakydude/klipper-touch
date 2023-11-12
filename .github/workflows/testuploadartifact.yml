@@ -104,13 +104,13 @@ jobs:
           #   npm run tauri build
           #   pwd
           commands: |
-            touch ${{ github.workspace }}/src-tauri/target/release/bundle/deb/klipper-touch-0.0.1_arm64.deb
+            touch test_0.1.0_upload.txt
       - name: Release RPI deb
         uses: softprops/action-gh-release@v1
         with:
           name: $NAME
           tag_name: $TAG_NAME
-          files: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/*_arm64.deb
+          files: test*upload.txt
 
   # publish-release:
   #   permissions:
