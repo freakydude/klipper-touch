@@ -9,6 +9,4 @@
   export let moonraker: MoonrakerClient = new MoonrakerClient(client);
   export let commands: Commands = new Commands(client);
   export let values: Values = new Values(moonraker);
-
-
 </script>
