@@ -1,4 +1,9 @@
+import { env } from '$env/dynamic/private';
+import { client } from '$lib/base.svelte';
+import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 import type { MoonrakerClient } from '$lib/moonraker/MoonrakerClient';
+import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
+import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
 import { readable, type Readable } from 'svelte/store';
 
 export class Values {
@@ -12,6 +17,38 @@ export class Values {
     this._moonrakerClient = moonrakerClient;
     this.clockFormatter = this.createClockFormatter();
     this.clock = this.createClock();
+  }
+
+  public async getFileMetadata(filename: string): Promise<IFileMetadata | null> {
+    const requestMetadata = new JsonRpcRequest({
+      method: 'server.files.metadata',
+      params: {
+        filename: filename
+      }
+    });
+    const response = await client.sendRequest(requestMetadata);
+    let metadata: IFileMetadata | null = null;
+
+    if (response.error === undefined) {
+      metadata = response.result as IFileMetadata;
+    } else {
+      console.warn('getFileMetadata.response.error: ', response.error);
+    }
+
+    return metadata;
+  }
+
+  public async getLargestAbsoluteThumbnailPath(thumbnails: IThumbnail[]): Promise<string> {
+    let path = '';
+
+    if (Array.isArray(thumbnails) && thumbnails.length > 0) {
+      const thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
+      path = (env.PUBLIC_KT_MOONRAKER_API === undefined ? 'http://127.0.0.1' : env.PUBLIC_KT_MOONRAKER_API) + '/server/files/gcodes/' + thumbnail.relative_path;
+    } else {
+      path = '';
+    }
+
+    return path;
   }
 
   private createClockFormatter(): Intl.DateTimeFormat {

@@ -43,7 +43,7 @@
   let statusLine: string;
 
   $: {
-    statusLine = $displayStatusMessage + (selectedFile !== '' ? ' - ' + selectedFile : '');
+    statusLine = $displayStatusMessage + (selectedFile !== '' ? ' - ' + selectedFile.slice(0, -6) : '');
   }
 
   $: updatePropertiesOnPrintingFile($printStatsFilename);
@@ -52,14 +52,14 @@
     if (name !== '') {
       selectedFile = name;
 
-      let meta = getFileMetadata(selectedFile + '.gcode');
+      let meta = values.getFileMetadata(selectedFile);
       meta.then(async (m) => {
         if (m !== null) {
           estimatedTime = m.estimated_time;
           filamentTotal = m.filament_total;
           layerHeight = m.layer_height;
           objectHeight = m.object_height;
-          selectedFileThumbnailPath = await getSelectedFileThumbnailPath(m.thumbnails);
+          selectedFileThumbnailPath = await values.getLargestAbsoluteThumbnailPath(m.thumbnails);
         }
       });
     }
@@ -78,36 +78,6 @@
       eta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000));
     }
     console.log('eta', eta);
-  }
-
-  async function getSelectedFileThumbnailPath(thumbnails: IThumbnail[]): Promise<string> {
-    let path = '';
-    if (Array.isArray(thumbnails) && thumbnails.length > 0) {
-      let thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-      path = (env.PUBLIC_KT_MOONRAKER_API === undefined ? 'http://127.0.0.1' : env.PUBLIC_KT_MOONRAKER_API) + '/server/files/gcodes/' + thumbnail.relative_path;
-    } else {
-      path = '';
-    }
-    return path;
-  }
-
-  async function getFileMetadata(filename: string): Promise<IFileMetadata | null> {
-    let requestMetadata = new JsonRpcRequest({
-      method: 'server.files.metadata',
-      params: {
-        filename: filename
-      }
-    });
-    let response = await client.sendRequest(requestMetadata);
-    let metadata: IFileMetadata | null = null;
-
-    if (response.error === undefined) {
-      metadata = response.result as IFileMetadata;
-    } else {
-      console.warn('getFileMetadata.response.error: ', response.error);
-    }
-
-    return metadata;
   }
 </script>
 
@@ -247,7 +217,7 @@
         </button>
         {#if selectedFile !== ''}
           <button
-            on:click|preventDefault="{() => commands.startPrint(selectedFile + '.gcode')}"
+            on:click|preventDefault="{() => commands.startPrint(selectedFile)}"
             class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Start
           </button>
