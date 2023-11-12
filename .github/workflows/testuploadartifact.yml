@@ -1,6 +1,5 @@
 name: 'test-upload'
-on:
-  [push]
+on: [push]
 
 jobs:
   build:
@@ -15,3 +14,9 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           path: path/to/artifact/world.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            path/to/artifact/world.txt
