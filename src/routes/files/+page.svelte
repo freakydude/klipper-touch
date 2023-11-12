@@ -54,10 +54,12 @@
     });
     let fileMetaResponse = await client.sendRequest(fileMetaRequest);
 
-    fileMeta = fileMetaResponse.result;
+    if (fileMetaResponse.result !== undefined) {
+      fileMeta = fileMetaResponse.result as IFileMetadata;
+    }
 
     // get thumbnail with largest width
-    if (Array.isArray(fileMeta.thumbnails) && fileMeta.thumbnails.length > 0) {
+    if (fileMeta !== undefined && Array.isArray(fileMeta.thumbnails) && fileMeta.thumbnails.length > 0) {
       thumbnail = fileMeta.thumbnails.sort((n1, n2) => n1.width - n2.width)[0];
     }
 
