@@ -105,6 +105,7 @@ jobs:
           #   pwd
           commands: |
             touch test_0.1.0_upload.txt
+            echo "a test" >> test_0.1.0_upload.txt
       - name: Release RPI deb
         uses: softprops/action-gh-release@v1
         with:
