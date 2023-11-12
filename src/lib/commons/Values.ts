@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { env } from '$env/dynamic/public';
 import { client } from '$lib/base.svelte';
 import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 import type { MoonrakerClient } from '$lib/moonraker/MoonrakerClient';
