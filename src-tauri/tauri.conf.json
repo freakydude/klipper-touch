@@ -11,6 +11,35 @@
     "version": "0.1.0"
   },
   "tauri": {
+    "cli": {
+      "args": [
+        {
+          "description": "Moonraker HTTP API URL",
+          "short": "h",
+          "multiple": false,
+          "name": "moonraker-api",
+          "required": false,
+          "takesValue": true
+        },
+        {
+          "description": "Moonraker Websocket URL",
+          "short": "w",
+          "multiple": false,
+          "name": "moonraker-ws",
+          "required": false,
+          "takesValue": true
+        },
+        {
+          "description": "Fullscreen mode",
+          "short": "f",
+          "multiple": false,
+          "name": "fullscreen",
+          "required": false,
+          "takesValue": false
+        }
+      ],
+      "description": "Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse."
+    },
     "allowlist": {
       "all": false
     },
@@ -53,7 +82,10 @@
         "height": 320,
         "resizable": true,
         "title": "klipper-touch",
-        "width": 480
+        "width": 480,
+        "minWidth": 480,
+        "minHeight": 320,
+        "fileDropEnabled": false
       }
     ]
   }

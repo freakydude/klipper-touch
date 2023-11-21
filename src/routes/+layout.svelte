@@ -10,6 +10,9 @@
     if ($isConnected === false || $klippyState !== 'ready') {
       goto('/');
     }
+    if ($isConnected === true && $klippyState === 'ready') {
+      goto('/printstate');
+    }
   }
 </script>
 

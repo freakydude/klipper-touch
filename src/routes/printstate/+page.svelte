@@ -1,9 +1,5 @@
 <script lang="ts">
-  import { env } from '$env/dynamic/public';
-  import { client, commands, moonraker, values } from '$lib/base.svelte';
-  import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
-  import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
-  import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
+  import { commands, moonraker, values } from '$lib/base.svelte';
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.motionReport.LivePosition;
