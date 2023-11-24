@@ -41,11 +41,11 @@
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Nozzle</td>
 
-            <td class="w-14 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
+            <td class="w-16 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
             <td class="pr-1 text-end">Target</td>
-            <td class="w-14 text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
+            <td class="w-16 text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
@@ -65,11 +65,11 @@
         <table class=" text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Bed</td>
-            <td class="w-14 text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
+            <td class="w-16 text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
             <td class="pr-1 text-end">Target</td>
-            <td class="w-14 text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
+            <td class="w-16 text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
@@ -158,7 +158,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{commands.emergencyStop}">
+      on:click|preventDefault="{() => commands.emergencyStop()}">
       Kill
     </button>
   </div>

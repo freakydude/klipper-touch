@@ -137,7 +137,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{commands.emergencyStop}">
+      on:click|preventDefault="{()=>commands.emergencyStop()}">
       Kill
     </button>
   </div>

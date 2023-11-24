@@ -115,13 +115,13 @@
     </div>
     <span class="flex h-full w-1/6 flex-col">
       <button
-        on:click|preventDefault="{commands.disableSteppers}"
+        on:click|preventDefault="{()=>commands.disableSteppers()}"
         class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
-          on:click|preventDefault="{commands.homeXY}"
+          on:click|preventDefault="{()=>commands.homeXY()}"
           class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
             : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
@@ -188,7 +188,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{commands.emergencyStop}">
+      on:click|preventDefault="{()=>commands.emergencyStop()}">
       Kill
     </button>
   </div>

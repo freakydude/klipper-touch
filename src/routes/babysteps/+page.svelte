@@ -54,7 +54,7 @@
             </button></span>
 
           <button
-            on:click|preventDefault="{commands.resetOffset}"
+            on:click|preventDefault="{() => commands.resetOffset()}"
             class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Reset
           </button>
@@ -79,7 +79,7 @@
       <span class="flex flex-grow flex-col justify-end gap-2">
         <button
           disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
-          on:click|preventDefault="{commands.saveConfig}"
+          on:click|preventDefault="{() => commands.saveConfig()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
         </button>
@@ -138,7 +138,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{commands.emergencyStop}">
+      on:click|preventDefault="{() => commands.emergencyStop()}">
       Kill
     </button>
   </div>

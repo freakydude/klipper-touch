@@ -86,32 +86,32 @@
       {statusLine}
     </p>
   </div>
-  <div class="flex h-full flex-row justify-between gap-1">
+  <div class="flex h-full w-full flex-row justify-between gap-1">
     <span class="flex w-5/6 flex-row justify-around gap-1">
-      <div class="flex w-5/12 flex-col items-center justify-around gap-2">
+      <div class="flex flex-col items-stretch justify-around gap-2">
         <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 p-2">
           <table class="table-auto text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Nozzle</td>
-              <td class="text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
+              <td class="w-24 text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
             </tr>
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Bed</td>
-              <td class="text-startt">{$bedTemp.toFixed(1)} / {$bedTarget} °C</td>
+              <td class="w-24 text-start">{$bedTemp.toFixed(1)} / {$bedTarget} °C</td>
             </tr>
             <tr>
               <td class="pr-2 text-end">Fan</td>
-              <td class="text-start">{($fanSpeed * 100.0).toFixed(1)} %</td>
+              <td class="w-24 text-start">{($fanSpeed * 100.0).toFixed(1)} %</td>
             </tr>
             {#if $printStatsState === 'printing'}
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="text-start">{$liveVelocity.toFixed(0)} mm/s</td>
+                <td class="w-24 text-start">{$liveVelocity.toFixed(0)} mm/s</td>
                 <!-- {$requestedSpeed.toFixed(0)} -->
               </tr>
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
-                <td class="text-start">{(Math.pow(1.75 / 2, 2) * Math.PI * $liveExtruderVelocity).toFixed(1)} mm³/s</td>
+                <td class="w-24 text-start">{(Math.pow(1.75 / 2, 2) * Math.PI * $liveExtruderVelocity).toFixed(1)} mm³/s</td>
               </tr>
             {/if}
           </table>
@@ -121,15 +121,15 @@
             {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">X</td>
-                <td class="text-start">{$toolheadPosition[0].toFixed(2)} mm</td>
+                <td class="w-24 text-start">{$toolheadPosition[0].toFixed(2)} mm</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Y</td>
-                <td class="text-start">{$toolheadPosition[1].toFixed(2)} mm</td>
+                <td class="w-24 text-start">{$toolheadPosition[1].toFixed(2)} mm</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Z</td>
-                <td class="text-start">{$toolheadPosition[2].toFixed(2)} mm</td>
+                <td class="w-24 text-start">{$toolheadPosition[2].toFixed(2)} mm</td>
               </tr>
               <tr>
                 <td class="pr-2 text-end">Baby</td>
@@ -138,27 +138,27 @@
             {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
-                <td class="text-start">{($speedFactor * 100.0).toFixed(0)} %</td>
+                <td class="w-24 text-start">{($speedFactor * 100.0).toFixed(0)} %</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Extrude</td>
-                <td class="text-start">{($extrudeFactor * 100.0).toFixed(0)} %</td>
+                <td class="w-24 text-start">{($extrudeFactor * 100.0).toFixed(0)} %</td>
               </tr>
               <tr class="border-b border-neutral-800">
                 <td class="pr-2 text-end">Accel</td>
-                <td class="text-start">{$maxAcceleration.toFixed(0)} mm/s²</td>
+                <td class="w-24 text-start">{$maxAcceleration.toFixed(0)} mm/s²</td>
               </tr>
               <tr>
                 <td class="pr-2 text-end">Pressure</td>
-                <td class="text-start">{$pressureAdvance.toFixed(3)} x</td>
+                <td class="w-24 text-start">{$pressureAdvance.toFixed(3)} x</td>
               </tr>
             {/if}
           </table>
         </div>
       </div>
       {#if selectedFile !== '' || $printStatsState !== 'standby'}
-        <div class="flex w-7/12 flex-col items-center justify-center gap-2">
-          <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 pb-2">
+        <div class="flex flex-col items-center justify-center gap-2">
+          <div class="flex flex-col items-center rounded-lg bg-neutral-700 pb-2">
             {#if !selectedFileThumbnailPath}
               <p
                 class="flex w-32 items-center justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
@@ -176,20 +176,20 @@
               {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Remaining</td>
-                  <td>{Math.round(remainingDuration / 60)} min</td>
+                  <td class="text-start">{Math.round(remainingDuration / 60)} min</td>
                 </tr>
                 <tr>
                   <td class="pr-2 text-end">Filament</td>
-                  <td>{(filamentTotal / 1000.0).toFixed(1)} m</td>
+                  <td class="text-start">{(filamentTotal / 1000.0).toFixed(1)} m</td>
                 </tr>
               {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">ETA</td>
-                  <td>{eta}</td>
+                  <td class="text-start">{eta}</td>
                 </tr>
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Layer</td>
-                  <td>{$currentLayer} / {$totalLayer}</td>
+                  <td class="text-start">{$currentLayer} / {$totalLayer}</td>
                 </tr>
                 <!-- <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Remains</td>
@@ -197,11 +197,11 @@
                 </tr> -->
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Progress</td>
-                  <td>{($progress * 100.0).toFixed(1)} %</td>
+                  <td class="text-start">{($progress * 100.0).toFixed(1)} %</td>
                 </tr>
                 <tr>
                   <td class="pr-2 text-end">Filament</td>
-                  <td>{($filamentUsed / 1000.0).toFixed(1)} m</td>
+                  <td class="text-start">{($filamentUsed / 1000.0).toFixed(1)} m</td>
                 </tr>
               {/if}
             </table>
@@ -224,23 +224,23 @@
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click|preventDefault="{commands.pausePrint}"
+          on:click|preventDefault="{() => commands.pausePrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click|preventDefault="{commands.cancelPrint}"
+          on:click|preventDefault="{() => commands.cancelPrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click|preventDefault="{commands.resumePrint}"
+          on:click|preventDefault="{() => commands.resumePrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click|preventDefault="{commands.cancelPrint}"
+          on:click|preventDefault="{() => commands.cancelPrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
@@ -282,7 +282,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{commands.emergencyStop}">
+      on:click|preventDefault="{() => commands.emergencyStop()}">
       Kill
     </button>
   </div>
