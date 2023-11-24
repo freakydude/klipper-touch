@@ -88,10 +88,10 @@ And yes, help and improve if you find something.
     -w <Moonraker-Websocket-URL>  eg. `ws://192.168.1.1/websocket`
     ```
 
-  - To start in fullscreen mode (not implemented)
+  - To start in fullscreen mode
 
     ```bash
-    -f <true | false>
+    -f
     ```
 
 ## Development

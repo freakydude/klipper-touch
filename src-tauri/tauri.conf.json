@@ -41,7 +41,11 @@
       "description": "Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse."
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "window": {
+        "all": false,
+        "setFullscreen": true
+      }
     },
     "bundle": {
       "active": true,

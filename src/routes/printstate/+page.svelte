@@ -93,11 +93,11 @@
           <table class="table-auto text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Nozzle</td>
-              <td class="w-24 text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
+              <td class="w-28 text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
             </tr>
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Bed</td>
-              <td class="w-24 text-start">{$bedTemp.toFixed(1)} / {$bedTarget} °C</td>
+              <td class="w-28 text-start">{$bedTemp.toFixed(1)} / {$bedTarget} °C</td>
             </tr>
             <tr>
               <td class="pr-2 text-end">Fan</td>
