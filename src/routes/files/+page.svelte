@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { client, moonraker } from '$lib/base.svelte';
+  import { client } from '$lib/base.svelte';
   import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
   import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
   import type { TPrintState } from '$lib/moonraker/types/TPrintState';
