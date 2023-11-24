@@ -30,59 +30,58 @@
   }
 </script>
 
-<div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+<div class="page-dark flex-col items-stretch justify-between gap-1">
+  <div class="flex h-6 w-full flex-row items-center justify-center">
     <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
-  <div class="flex flex-row">
-    <div class="flex flex-grow justify-evenly">
-      <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
-        <table class="self-stretch text-sm text-neutral-50">
+  <div class="flex h-full flex-row">
+    <div class="flex w-5/6 items-center justify-around gap-1">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
+        <table class=" text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="px-2 text-end">Nozzle</td>
+            <td class="pr-1 text-end">Nozzle</td>
 
-            <td class=" text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
+            <td class="w-14 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
-            <td class="px-2 text-end">Target</td>
-
-            <td class=" text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
+            <td class="pr-1 text-end">Target</td>
+            <td class="w-14 text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
         <button
           on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
           on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
       </div>
-      <div class="flex w-36 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
-        <table class="self-stretch text-sm text-neutral-50">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
+        <table class=" text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="px-2 text-end">Bed</td>
-            <td class="text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
+            <td class="pr-1 text-end">Bed</td>
+            <td class="w-14 text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
           </tr>
           <tr>
-            <td class="px-2 text-end">Target</td>
-            <td class="text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
+            <td class="pr-1 text-end">Target</td>
+            <td class="w-14 text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
           </tr>
         </table>
 
         <button
           on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
           on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}"
-          class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
       </div>

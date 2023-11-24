@@ -32,23 +32,23 @@
   }
 </script>
 
-<div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+<div class="page-dark flex-col items-stretch justify-between gap-1">
+  <div class="flex h-6 w-full flex-row items-center justify-center">
     <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
   <div class="flex flex-row">
-    <div class="flex flex-grow justify-center gap-2">
-      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 p-1">
+    <div class="flex w-5/6 items-center justify-around gap-1">
+      <div class="flex flex-col justify-center gap-1 rounded-lg bg-neutral-700 p-1">
         <table class="self-center text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="pr-4 text-end">Current</td>
-            <td class="pr-3 text-start">X {$motionReportLivePosition[0].toFixed(2)}</td>
-            <td class="pr-1 text-start">Y {$motionReportLivePosition[1].toFixed(2)}</td>
+            <td class="pr-3 text-end">Current</td>
+            <td class="w-16 pr-2 text-start">X {$motionReportLivePosition[0].toFixed(2)}</td>
+            <td class="w-16 text-start">Y {$motionReportLivePosition[1].toFixed(2)}</td>
           </tr>
           <tr>
-            <td class="pr-4 text-end">Target</td>
-            <td class="pr-3 text-start">X {$toolheadPosition[0].toFixed(1)}</td>
-            <td class="pr-1 text-start">Y {$toolheadPosition[1].toFixed(1)}</td>
+            <td class="pr-3 text-end">Target</td>
+            <td class="w-16 pr-2 text-start">X {$toolheadPosition[0].toFixed(1)}</td>
+            <td class="w-16 text-start">Y {$toolheadPosition[1].toFixed(1)}</td>
           </tr>
         </table>
 
@@ -56,7 +56,7 @@
           <button
             disabled="{!isHomedXY}"
             on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, -stepsArr[selectedStep]), undefined, undefined)}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Left
           </button>
 
@@ -64,13 +64,13 @@
             <button
               disabled="{!isHomedXY}"
               on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, +stepsArr[selectedStep]), undefined)}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Back
             </button>
             <button
               disabled="{!isHomedXY}"
               on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, -stepsArr[selectedStep]), undefined)}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Front
             </button>
           </span>
@@ -78,64 +78,66 @@
           <button
             disabled="{!isHomedXY}"
             on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, +stepsArr[selectedStep]), undefined, undefined)}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Right
           </button>
         </div>
       </div>
 
-      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-600 p-1">
+      <div class="flex flex-col items-stretch justify-center gap-2 rounded-lg bg-neutral-700 p-1">
         <table class="self-center text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
-            <td class="pr-1 text-start">Z {$motionReportLivePosition[2].toFixed(2)}</td>
+            <td class="pr-1 text-end">Z</td>
+            <td class="w-10 text-start">{$motionReportLivePosition[2].toFixed(2)}</td>
           </tr>
           <tr>
-            <td class="pr-1 text-start">Z {$toolheadPosition[2].toFixed(1)}</td>
+            <td class="pr-1 text-end">Z</td>
+            <td class="w-10 text-start">{$toolheadPosition[2].toFixed(1)}</td>
           </tr>
         </table>
 
         <span class="flex flex-col items-center justify-center gap-3">
           <button
             disabled="{!isHomedZ}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
             Down
           </button>
 
           <button
             disabled="{!isHomedZ}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}">
             Up
           </button>
         </span>
       </div>
     </div>
-    <span class="flex flex-col">
+    <span class="flex h-full w-1/6 flex-col">
       <button
         on:click|preventDefault="{commands.disableSteppers}"
-        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
           on:click|preventDefault="{commands.homeXY}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedXY
+          class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           HomeXY
         </button>
         <button
           on:click|preventDefault="{() => commands.homeZ(isHomedXY)}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg {isHomedZ
+          class="flex h-14 items-center justify-center rounded-l-lg {isHomedZ
             ? 'bg-neutral-500'
-            : 'bg-neutral-700'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           HomeZ
         </button>
       </span>
     </span>
   </div>
-  <span class="flex flex-grow flex-row items-center justify-center py-2">
+  <span class="flex flex-row items-center justify-center py-1">
     <div class="flex items-center gap-1 rounded-lg bg-neutral-700 pl-3">
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
@@ -152,7 +154,7 @@
       {/each}
     </div>
   </span>
-  <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
+  <div class="flex h-11 w-full flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <a
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       href="/printstate">

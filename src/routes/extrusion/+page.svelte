@@ -18,13 +18,13 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+  <div class="flex h-6 w-full flex-row items-center justify-center gap-1">
     <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">
       <div class="flex flex-row items-center gap-3">
-        <div class="flex w-44 flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+        <div class="flex w-44 flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
           <table class="self-stretch text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
               <td class="pr-2 text-end">Nozzle</td>
@@ -39,14 +39,14 @@
           <button
             disabled="{$printState === 'printing' || $canExtrude === false}"
             on:click|preventDefault="{() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Retract
           </button>
 
           <button
             disabled="{$printState === 'printing' || $canExtrude === false}"
             on:click|preventDefault="{() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}"
-            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Extrude
           </button>
         </div>
@@ -78,7 +78,7 @@
         <span class="flex flex-grow flex-col justify-end gap-2">
           <button
             disabled="{true}"
-            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Preset
           </button>
         </span>

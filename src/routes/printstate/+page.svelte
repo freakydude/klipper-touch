@@ -41,7 +41,7 @@
   let statusLine: string;
 
   $: {
-    statusLine = $displayStatusMessage + (selectedFile !== '' ? ' - ' + selectedFile.slice(0, -6) : '');
+    statusLine = ($displayStatusMessage ? $displayStatusMessage : '') + (selectedFile ? ' - ' + selectedFile.slice(0, -6) : '');
   }
 
   $: updatePropertiesOnPrintingFile($printStatsFilename);
@@ -79,14 +79,16 @@
   }
 </script>
 
-<div class="page-dark flex-col items-stretch">
+<div class="page-dark flex-col items-stretch justify-between gap-1">
   <!-- Status line -->
-  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
-    <p class="text-sm text-neutral-50">{statusLine}</p>
+  <div class="flex h-6 w-full flex-row items-start justify-center">
+    <p class="overflow-clip text-sm text-neutral-50">
+      {statusLine}
+    </p>
   </div>
-  <div class="flex flex-grow flex-row justify-between">
-    <span class="flex flex-grow flex-row justify-around p-1">
-      <div class="flex flex-col justify-around gap-2">
+  <div class="flex h-full flex-row justify-between gap-1">
+    <span class="flex w-5/6 flex-row justify-around gap-1">
+      <div class="flex w-5/12 flex-col items-center justify-around gap-2">
         <div class="flex flex-col items-stretch rounded-lg bg-neutral-700 p-2">
           <table class="table-auto text-sm text-neutral-50">
             <tr class="border-b border-neutral-800">
@@ -155,7 +157,7 @@
         </div>
       </div>
       {#if selectedFile !== '' || $printStatsState !== 'standby'}
-        <div class="flex flex-col items-stretch justify-center gap-2">
+        <div class="flex w-7/12 flex-col items-center justify-center gap-2">
           <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 pb-2">
             {#if !selectedFileThumbnailPath}
               <p
@@ -207,46 +209,46 @@
         </div>
       {/if}
     </span>
-    <div class="flex flex-col items-end justify-center gap-3">
+    <div class="flex h-full w-1/6 flex-col items-end justify-center gap-3">
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Load
         </button>
         {#if selectedFile !== ''}
           <button
             on:click|preventDefault="{() => commands.startPrint(selectedFile)}"
-            class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
           on:click|preventDefault="{commands.pausePrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Pause
         </button>
         <button
           on:click|preventDefault="{commands.cancelPrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
           on:click|preventDefault="{commands.resumePrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Continue
         </button>
         <button
           on:click|preventDefault="{commands.cancelPrint}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
       {/if}
     </div>
   </div>
 
-  <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
+  <div class="flex h-11 w-full flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
       State

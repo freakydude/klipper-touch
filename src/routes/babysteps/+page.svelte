@@ -23,12 +23,12 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex w-full flex-row items-center justify-center gap-3 p-1">
+  <div class="flex h-6 w-full flex-row items-center justify-center gap-1">
     <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
   </div>
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-600 px-2 py-2">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
         <table class="self-stretch text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="px-2 text-end">Z</td>
@@ -43,19 +43,19 @@
           <span class="flex flex-col gap-3">
             <button
               on:click|preventDefault="{() => commands.changeOffset(stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Up
             </button>
 
             <button
               on:click|preventDefault="{() => commands.changeOffset(-stepsArr[selectedStep])}"
-              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+              class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Down
             </button></span>
 
           <button
             on:click|preventDefault="{commands.resetOffset}"
-            class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Reset
           </button>
         </span>
@@ -65,14 +65,14 @@
       <span class="flex flex-grow flex-col justify-start gap-2">
         <button
           disabled="{$printStatsState === 'printing'}"
-          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           on:click|preventDefault="{() => commands.homeZ(isHomedXY)}">
           HomeZ
         </button>
         <button
           disabled="{!isHomedZ || $printStatsState === 'printing'}"
-          on:click|preventDefault="{()=>commands.moveAbsolute(undefined,undefined,0)}"
-          class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, 0)}"
+          class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Z = 0
         </button>
       </span>
@@ -80,7 +80,7 @@
         <button
           disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
           on:click|preventDefault="{commands.saveConfig}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
         </button>
       </span>
