@@ -37,12 +37,12 @@ export class Values {
     return metadata;
   }
 
-  public async getLargestAbsoluteThumbnailPath(thumbnails: IThumbnail[]): Promise<string> {
+  public async getLargestAbsoluteThumbnailPath(moonrakerApi: URL, thumbnails: IThumbnail[]): Promise<string> {
     let path = '';
 
     if (Array.isArray(thumbnails) && thumbnails.length > 0) {
       const thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-      path = 'http://127.0.0.1' + '/server/files/gcodes/' + thumbnail.relative_path;
+      path = moonrakerApi + 'server/files/gcodes/' + thumbnail.relative_path;
     } else {
       path = '';
     }

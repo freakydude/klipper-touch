@@ -4,24 +4,22 @@ import type { IJsonRpcResponse } from './types/IJsonRpcResponse';
 
 export class JsonRpcClient extends EventTarget {
   private _ws?: WebSocket;
-  private _url: string | URL;
   private static _id: number = 0;
   private requestTimeout = 30 * 1000;
 
   public isConnected = writable(false);
 
-  public constructor(url: string | URL) {
+  public constructor() {
     super();
-    this._url = url;
   }
 
-  public connect(): Promise<boolean> {
+  public connect(url: string | URL): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       try {
         if (!this._ws) {
           this.isConnected.set(false);
           console.log('JsonRpcClient.connect() Create new WebSocket');
-          this._ws = new WebSocket(this._url);
+          this._ws = new WebSocket(url);
 
           this._ws.onopen = (event: Event) => {
             console.log('JsonRpcClient.WebSocket.onopen ', event);

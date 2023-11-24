@@ -17,7 +17,7 @@
           "description": "Moonraker HTTP API URL",
           "short": "h",
           "multiple": false,
-          "name": "moonraker-api",
+          "name": "moonrakerapi",
           "required": false,
           "takesValue": true
         },
@@ -25,7 +25,7 @@
           "description": "Moonraker Websocket URL",
           "short": "w",
           "multiple": false,
-          "name": "moonraker-ws",
+          "name": "moonrakerws",
           "required": false,
           "takesValue": true
         },

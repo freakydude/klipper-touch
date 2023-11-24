@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { commands, moonraker, values } from '$lib/base.svelte';
+  import { bootParams, commands, moonraker, values } from '$lib/base.svelte';
+
+  let moonrakerApi = bootParams.moonrakerApi;
 
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.motionReport.LivePosition;
@@ -55,7 +57,7 @@
           filamentTotal = m.filament_total;
           layerHeight = m.layer_height;
           objectHeight = m.object_height;
-          selectedFileThumbnailPath = await values.getLargestAbsoluteThumbnailPath(m.thumbnails);
+          selectedFileThumbnailPath = await values.getLargestAbsoluteThumbnailPath($moonrakerApi, m.thumbnails);
         }
       });
     }
