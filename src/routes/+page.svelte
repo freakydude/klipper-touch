@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { client, commands, moonraker } from '$lib/base.svelte';
+  import { bootParams, client, commands, moonraker } from '$lib/base.svelte';
+
+  let wsUrl = bootParams.moonrakerWs;
 
   let isConnected = client.isConnected;
   let klippyState = moonraker.klippyState.state;
@@ -89,7 +91,7 @@
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
         on:click|preventDefault="{async () => {
           await moonraker.disconnect();
-          await moonraker.connect();
+          await moonraker.connect($wsUrl);
         }}">Connect</button>
     {/if}
   </div>

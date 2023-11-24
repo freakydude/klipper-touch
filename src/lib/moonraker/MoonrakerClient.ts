@@ -50,11 +50,11 @@ export class MoonrakerClient extends EventTarget {
     this.attachToEvents();
   }
 
-  public async connect(): Promise<boolean> {
+  public async connect(url: string | URL): Promise<boolean> {
     let successful = false;
 
     try {
-      successful = await this._jsonRpcClient.connect();
+      successful = await this._jsonRpcClient.connect(url);
 
       if (successful) {
         successful = (await this.requestIdentifyConnection()) && (await this.subscribeAndParseParams(this.subscription));
@@ -259,7 +259,7 @@ export class MoonrakerClient extends EventTarget {
     if (print_stats !== undefined) {
       if (print_stats.filename !== undefined) {
         // console.log('print_stats.filename: ', print_stats.filename);
-        this.printStats.Filename.set(print_stats.filename); 
+        this.printStats.Filename.set(print_stats.filename);
       }
       if (print_stats.print_duration !== undefined) {
         // console.log('print_stats.print_duration: ', print_stats.print_duration);

@@ -60,8 +60,37 @@ And yes, help and improve if you find something.
 - Install xinit and input drivers
   sudo apt install xinit xf86-input-evdev
 
-- Klipper-Touch listen on url: `ws://127.0.0.1/websocket` for a moonraker websocket api connection.
-  To use another url, set environment variable `PUBLIC_KT_MOONRAKER_WS=<YOUR MOONRAKER WS URL>` (for example: `ws://192.168.1.10/websocket`)
+## Install and run Klipper-Touch
+
+- Download it from [https://github.com/freakydude/klipper-touch/releases](https://github.com/freakydude/klipper-touch/releases)
+
+- Install Klipper-Touch
+
+  - Go to your manual downloaded package directory and run
+
+    ```bash
+    sudo apt install ./klipper-touch_0.1.0_arm64.deb
+    ```
+
+- Configure your `cors_domains` in `moonraker.conf` to allow Klipper-Touch to access the moonraker apis
+
+- Run Klipper-Touch
+  - exclusive: `/usr/bin/startx /usr/bin/klipper-touch -- -nocursor` or
+  - in a window manager: `/usr/bin/klipper-touch`
+
+- Klipper-Touch listen on url: `http://127.0.0.1/` and `ws://127.0.0.1/websocket` for a moonraker api connection.
+  - To use another url, use the commandline parameters
+
+    ```bash
+    -h <Moonraker-HTTP-URL>  eg. `http://192.168.1.1/`
+    -w <Moonraker-Websocket-URL>  eg. `ws://192.168.1.1/websocket`
+    ```
+
+  - To start in fullscreen mode (not implemented)
+
+    ```bash
+    -f <true | false>
+    ```
 
 ## Development
 
