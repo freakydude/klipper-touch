@@ -1,5 +1,6 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import StatusLine from '$lib/StatusLine.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
@@ -7,7 +8,6 @@
   let toolheadAxisMinimum = moonraker.toolhead.AxisMinimum;
   let toolheadPosition = moonraker.toolhead.Position;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
-  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let clockFormatter = values.clockFormatter;
   let clock = values.clock;
@@ -33,9 +33,7 @@
 </script>
 
 <div class="page-dark flex-col items-stretch justify-between gap-1">
-  <div class="flex h-6 w-full flex-row items-center justify-center">
-    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
-  </div>
+  <StatusLine />
   <div class="flex flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
       <div class="flex flex-col justify-center gap-1 rounded-lg bg-neutral-700 p-1">
@@ -115,13 +113,13 @@
     </div>
     <span class="flex h-full w-1/6 flex-col">
       <button
-        on:click|preventDefault="{()=>commands.disableSteppers()}"
+        on:click|preventDefault="{() => commands.disableSteppers()}"
         class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <span class="flex flex-grow flex-col justify-end gap-3">
         <button
-          on:click|preventDefault="{()=>commands.homeXY()}"
+          on:click|preventDefault="{() => commands.homeXY()}"
           class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
             ? 'bg-neutral-500'
             : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
@@ -188,7 +186,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{()=>commands.emergencyStop()}">
+      on:click|preventDefault="{() => commands.emergencyStop()}">
       Kill
     </button>
   </div>

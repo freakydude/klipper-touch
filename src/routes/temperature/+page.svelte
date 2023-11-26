@@ -1,5 +1,6 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import StatusLine from '$lib/StatusLine.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let heaterBedTargetTemperature = moonraker.heaterBed.Target;
@@ -31,9 +32,7 @@
 </script>
 
 <div class="page-dark flex-col items-stretch justify-between gap-1">
-  <div class="flex h-6 w-full flex-row items-center justify-center">
-    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
-  </div>
+  <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">

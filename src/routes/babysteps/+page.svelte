@@ -1,11 +1,11 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import StatusLine from '$lib/StatusLine.svelte';
 
   let printStatsState = moonraker.printStats.State;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
   let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
-  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let clockFormatter = values.clockFormatter;
   let clock = values.clock;
@@ -23,9 +23,7 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex h-6 w-full flex-row items-center justify-center gap-1">
-    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
-  </div>
+  <StatusLine />
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">

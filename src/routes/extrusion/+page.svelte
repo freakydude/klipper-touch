@@ -1,12 +1,12 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import StatusLine from '$lib/StatusLine.svelte';
 
   let printState = moonraker.printStats.State;
   let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
   let nozzleTarget = moonraker.extruder.Target;
   let nozzleTemp = moonraker.extruder.Temperature;
   let canExtrude = moonraker.extruder.CanExtrude;
-  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let clockFormatter = values.clockFormatter;
   let clock = values.clock;
@@ -18,9 +18,7 @@
 </script>
 
 <div class="page-dark flex-col items-stretch">
-  <div class="flex h-6 w-full flex-row items-center justify-center gap-1">
-    <p class="text-sm text-neutral-50">{$displayStatusMessage}</p>
-  </div>
+  <StatusLine />
   <div class="flex flex-row">
     <div class="flex flex-grow justify-evenly">
       <div class="flex flex-row items-center gap-3">
@@ -137,7 +135,7 @@
     </div>
     <button
       class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{()=>commands.emergencyStop()}">
+      on:click|preventDefault="{() => commands.emergencyStop()}">
       Kill
     </button>
   </div>

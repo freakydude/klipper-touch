@@ -1,5 +1,6 @@
 <script lang="ts">
   import { bootParams, commands, moonraker, values } from '$lib/base.svelte';
+  import StatusLine from '$lib/StatusLine.svelte';
 
   let moonrakerApi = bootParams.moonrakerApi;
 
@@ -23,7 +24,6 @@
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
-  let displayStatusMessage = moonraker.displayStatus.Message;
 
   let clockFormatter = values.clockFormatter;
   let clock = values.clock;
@@ -37,12 +37,6 @@
   let layerHeight = 0;
   let objectHeight = 0;
   let eta = '';
-
-  let statusLine: string;
-
-  $: {
-    statusLine = ($displayStatusMessage ? $displayStatusMessage : '') + (selectedFile ? ' - ' + selectedFile.slice(0, -6) : '');
-  }
 
   $: updatePropertiesOnPrintingFile($printStatsFilename);
 
@@ -80,12 +74,7 @@
 </script>
 
 <div class="page-dark flex-col items-stretch justify-between gap-1">
-  <!-- Status line -->
-  <div class="flex h-6 w-full flex-row items-start justify-center">
-    <p class="overflow-clip text-sm text-neutral-50">
-      {statusLine}
-    </p>
-  </div>
+  <StatusLine />
   <div class="flex h-full w-full flex-row justify-between gap-1">
     <span class="flex w-5/6 flex-row justify-around gap-1">
       <div class="flex flex-col items-stretch justify-around gap-2">
