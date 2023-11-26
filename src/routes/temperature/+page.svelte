@@ -31,8 +31,8 @@
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
-        <table class=" text-sm text-neutral-50">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-2">
+        <table class="text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Nozzle</td>
             <td class="w-16 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
@@ -55,7 +55,7 @@
           Down
         </button>
       </div>
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-2">
         <table class=" text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Bed</td>
@@ -100,7 +100,7 @@
       </span>
     </span>
   </div>
-  <span class="flex flex-grow flex-row items-center justify-center py-2">
+  <span class="flex flex-grow flex-row items-center justify-center py-1">
     <div class="flex items-center gap-1 rounded-lg bg-neutral-700 pl-3">
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
