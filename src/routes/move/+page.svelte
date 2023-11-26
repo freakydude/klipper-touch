@@ -1,16 +1,13 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let printStatsState = moonraker.printStats.State;
   let motionReportLivePosition = moonraker.motionReport.LivePosition;
   let toolheadAxisMaximum = moonraker.toolhead.AxisMaximum;
   let toolheadAxisMinimum = moonraker.toolhead.AxisMinimum;
   let toolheadPosition = moonraker.toolhead.Position;
   let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
-
-  let clockFormatter = values.clockFormatter;
-  let clock = values.clock;
 
   let stepsArr = [0.1, 1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 6;
@@ -152,42 +149,5 @@
       {/each}
     </div>
   </span>
-  <div class="flex h-11 w-full flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
-    <a
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      href="/printstate">
-      State
-    </a>
-    {#if $printStatsState !== 'printing'}
-      <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-        Move
-      </button>
-    {/if}
-    <a
-      href="/temperature"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-      Temp
-    </a>
-    <a
-      href="/babysteps"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-      Baby
-    </a>
-    {#if $printStatsState !== 'printing'}
-      <a
-        href="/extrusion"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-        Extr
-      </a>
-    {/if}
-    <div class="flex flex-grow items-end justify-end">
-      <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
-    </div>
-    <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{() => commands.emergencyStop()}">
-      Kill
-    </button>
-  </div>
+  <BottomNavigation />
 </div>

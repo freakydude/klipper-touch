@@ -1,5 +1,6 @@
 <script lang="ts">
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
   let printState = moonraker.printStats.State;
@@ -7,9 +8,6 @@
   let nozzleTarget = moonraker.extruder.Target;
   let nozzleTemp = moonraker.extruder.Temperature;
   let canExtrude = moonraker.extruder.CanExtrude;
-
-  let clockFormatter = values.clockFormatter;
-  let clock = values.clock;
 
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 3;
@@ -100,43 +98,5 @@
       {/each}
     </div>
   </span>
-  <!-- Nav -->
-  <div class="flex flex-row gap-x-1 bg-neutral-700 px-1 pb-1">
-    <a
-      href="/printstate"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-      State
-    </a>
-    {#if $printState !== 'printing'}
-      <a
-        href="/move"
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-        Move
-      </a>
-    {/if}
-    <a
-      href="/temperature"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-      Temp
-    </a>
-    <a
-      href="/babysteps"
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-      Baby
-    </a>
-    {#if $printState !== 'printing'}
-      <button
-        class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-500 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-        Extr
-      </button>
-    {/if}
-    <div class="flex flex-grow items-end justify-end">
-      <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
-    </div>
-    <button
-      class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      on:click|preventDefault="{() => commands.emergencyStop()}">
-      Kill
-    </button>
-  </div>
+  <BottomNavigation />
 </div>
