@@ -6,6 +6,7 @@ import type { IHeaterBed } from './IHeaterBed';
 import type { IMotionReport } from './IMotionReport';
 import type { IPrintStats } from './IPrintStats';
 import type { IProgress } from './IProgress';
+import type { IQuadGantryLevel } from './IQuadGantryLevel';
 import type { IToolhead } from './IToolhead';
 import type { IWebhooks } from './IWebhooks';
 
@@ -20,4 +21,5 @@ export interface INotifyStatusUpdateParams {
   display_status: IProgress;
   motion_report: IMotionReport;
   configfile: IConfigFile;
+  quadGantryLevel: IQuadGantryLevel
 }

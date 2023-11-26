@@ -10,6 +10,7 @@ import { HeaterBed } from './modules/HeaterBed';
 import { KlipperState } from './modules/KlipperState';
 import { MotionReport } from './modules/MotionReport';
 import { PrintStats } from './modules/PrintStats';
+import { QuadGantryLevel } from './modules/QuadGantryLevel';
 import { Toolhead } from './modules/Toolhead';
 import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdateParams';
 import type { IPrinterObjects } from './types/IPrinterObjects';
@@ -28,7 +29,8 @@ export class MoonrakerClient extends EventTarget {
       print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
       display_status: ['progress', 'message'],
       motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity'],
-      configfile: ['save_config_pending']
+      configfile: ['save_config_pending'],
+      quad_gantry_level: ['applied']
     }
   };
 
@@ -42,6 +44,7 @@ export class MoonrakerClient extends EventTarget {
   public displayStatus = new DisplayStatus();
   public motionReport = new MotionReport();
   public configFile = new ConfigFile();
+  public quadGantryLevel = new QuadGantryLevel();
 
   public constructor(jsonRpcClient: JsonRpcClient) {
     super();
@@ -156,6 +159,7 @@ export class MoonrakerClient extends EventTarget {
     this.parseDisplayStatus(param);
     this.parseMotionReport(param);
     this.parseConfigFile(param);
+    this.parseQuadGantryLevel(param);
   }
 
   private parseExtruder(param: INotifyStatusUpdateParams) {
@@ -367,6 +371,15 @@ export class MoonrakerClient extends EventTarget {
       }
       if (configfile.save_config_pending !== undefined) {
         this.configFile.SaveConfigPending.set(configfile.save_config_pending);
+      }
+    }
+  }
+
+  private parseQuadGantryLevel(param: INotifyStatusUpdateParams) {
+    const quadGantryLevel = param.quadGantryLevel;
+    if (quadGantryLevel !== undefined) {
+      if (quadGantryLevel.applied !== undefined) {
+        this.quadGantryLevel.Applied.set(quadGantryLevel.applied);
       }
     }
   }
