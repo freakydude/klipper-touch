@@ -51,6 +51,16 @@ export class Commands {
     await this._jsonRpcClient.sendRequest(request);
   }
 
+  public async levelQuadGantry() {
+    const request = new JsonRpcRequest({
+      method: 'printer.gcode.script',
+      params: {
+        script: 'QUAD_GANTRY_LEVEL'
+      }
+    });
+    await this._jsonRpcClient.sendRequest(request);
+  }
+
   public async homeXY() {
     const request = new JsonRpcRequest({
       method: 'printer.gcode.script',

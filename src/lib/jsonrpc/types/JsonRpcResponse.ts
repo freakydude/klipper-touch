@@ -2,10 +2,10 @@ import type { IJsonRpcErrorObject } from './IJsonRpcErrorObject';
 import type { IJsonRpcResponse } from './IJsonRpcResponse';
 
 export class JsonRpcResponse implements IJsonRpcResponse {
-  jsonrpc?: string;
+  jsonrpc: string;
   id: string | number | null;
-  result?: object | null;
-  error?: IJsonRpcErrorObject | null;
+  result?: object;
+  error?: IJsonRpcErrorObject;
 
   /**
    *

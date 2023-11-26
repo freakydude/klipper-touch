@@ -25,27 +25,27 @@
           </tr>
           {#if $klippyState === 'disconnected'}
             <tr>
-              <td class="pr-2 text-end text-neutral-100">Klipper</td>
+              <td class="pr-2 text-end text-neutral-100">Klippy</td>
               <td class="text-purple-600">Disconnected</td>
             </tr>
           {:else if $klippyState === 'startup'}
             <tr>
-              <td class="pr-2 text-end text-neutral-100">Klipper</td>
+              <td class="pr-2 text-end text-neutral-100">Klippy</td>
               <td class="text-yellow-600">Startup</td>
             </tr>
           {:else if $klippyState === 'ready'}
             <tr>
-              <td class="pr-2 text-end text-neutral-100">Klipper</td>
+              <td class="pr-2 text-end text-neutral-100">Klippy</td>
               <td class="text-green-600">Ready</td>
             </tr>
           {:else if $klippyState === 'shutdown'}
             <tr>
-              <td class="pr-2 text-end text-neutral-100">Klipper</td>
+              <td class="pr-2 text-end text-neutral-100">Klippy</td>
               <td class="text-orange-600">Shutdown</td>
             </tr>
           {:else if $klippyState === 'error'}
             <tr>
-              <td class="pr-2 text-end text-neutral-100">Klipper</td>
+              <td class="pr-2 text-end text-neutral-100">Klippy</td>
               <td class="text-red-600">Error</td>
             </tr>
           {/if}
@@ -71,7 +71,7 @@
       {/if}
     </span>
   </div>
-  <div class="flex flex-col justify-around">
+  <div class="flex w-1/6 flex-col justify-around">
     {#if $isConnected}
       {#if $klippyState !== 'ready'}
         <button
