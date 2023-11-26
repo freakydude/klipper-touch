@@ -9,6 +9,7 @@ export interface IPrinterObjectsParams {
   display_status: ('progress' | 'message')[];
   motion_report: ('live_position' | 'live_velocity' | 'live_extruder_velocity')[];
   configfile: ('config' | 'settings' | 'save_config_pending')[];
+  quad_gantry_level: 'applied'[];
 }
 
 export interface IPrinterStatsInfo {
