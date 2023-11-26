@@ -10,6 +10,17 @@
   let stepsArr = [1, 5, 10, 20, 50, 100];
   let selectedStep = 3;
 
+  let valuesStepsTemp = values.stepsTemp;
+
+  $: {
+    let stepIdx = stepsArr.indexOf($valuesStepsTemp);
+    if (stepIdx != -1) {
+      selectedStep = stepIdx;
+    } else {
+      console.warn("Global stepsTemp can't be pre-selected");
+    }
+  }
+
   function getAbsoluteNozzleTemperature(relativeSteps: number): number {
     let target = $nozzleTargetTemperature + relativeSteps;
     target = Math.max(target, 0);
@@ -80,24 +91,20 @@
         </button>
       </div>
     </div>
-    <span class="flex flex-col">
-      <span class="flex flex-grow flex-col justify-start gap-2">
-        <button
-          class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-          on:click|preventDefault="{() => {
-            commands.setNozzleTemperature(0);
-            commands.setBedTemperature(0);
-          }}">
-          Off
-        </button>
-      </span>
-      <span class="flex flex-grow flex-col justify-end gap-2">
-        <button
-          disabled="{true}"
-          class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-          Preset
-        </button>
-      </span>
+    <span class="flex w-1/6 flex-col justify-around gap-3">
+      <button
+        class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        on:click|preventDefault="{() => {
+          commands.setNozzleTemperature(0);
+          commands.setBedTemperature(0);
+        }}">
+        Off
+      </button>
+      <button
+        disabled="{true}"
+        class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        Preset
+      </button>
     </span>
   </div>
   <span class="flex flex-grow flex-row items-center justify-center py-1">

@@ -11,6 +11,16 @@
 
   let stepsArr = [0.1, 1, 2, 5, 10, 20, 50, 100];
   let selectedStep = 6;
+  let valuesStepsMove = values.stepsMove;
+
+  $: {
+    let stepIdx = stepsArr.indexOf($valuesStepsMove);
+    if (stepIdx != -1) {
+      selectedStep = stepIdx;
+    } else {
+      console.warn("Global stepsMove can't be pre-selected");
+    }
+  }
 
   let isHomedXY = false;
   let isHomedZ = false;
@@ -31,7 +41,7 @@
 
 <div class="page-dark flex-col items-stretch justify-between gap-1">
   <StatusLine />
-  <div class="flex flex-row">
+  <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
       <div class="flex flex-col justify-center gap-1 rounded-lg bg-neutral-700 p-1">
         <table class="self-center text-sm text-neutral-50">
@@ -108,28 +118,26 @@
         </span>
       </div>
     </div>
-    <span class="flex h-full w-1/6 flex-col">
+    <span class="flex h-full w-1/6 flex-col justify-around gap-3">
       <button
         on:click|preventDefault="{() => commands.disableSteppers()}"
         class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
-      <span class="flex flex-grow flex-col justify-end gap-3">
-        <button
-          on:click|preventDefault="{() => commands.homeXY()}"
-          class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
-            ? 'bg-neutral-500'
-            : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-          HomeXY
-        </button>
-        <button
-          on:click|preventDefault="{() => commands.homeZ(isHomedXY)}"
-          class="flex h-14 items-center justify-center rounded-l-lg {isHomedZ
-            ? 'bg-neutral-500'
-            : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-          HomeZ
-        </button>
-      </span>
+      <button
+        on:click|preventDefault="{() => commands.homeXY()}"
+        class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
+          ? 'bg-neutral-500'
+          : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        HomeXY
+      </button>
+      <button
+        on:click|preventDefault="{() => commands.homeZ(isHomedXY)}"
+        class="flex h-14 items-center justify-center rounded-l-lg {isHomedZ
+          ? 'bg-neutral-500'
+          : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        HomeZ
+      </button>
     </span>
   </div>
   <span class="flex flex-row items-center justify-center py-1">

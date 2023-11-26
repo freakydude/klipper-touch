@@ -3,13 +3,18 @@ import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
 import type { MoonrakerClient } from '$lib/moonraker/MoonrakerClient';
 import type { IFileMetadata } from '$lib/moonraker/types/IFileMetadata';
 import type { IThumbnail } from '$lib/moonraker/types/IThumbnail';
-import { readable, type Readable } from 'svelte/store';
+import { readable, writable, type Readable } from 'svelte/store';
 
 export class Values {
   private _moonrakerClient: MoonrakerClient;
 
   public clockFormatter: Intl.DateTimeFormat;
   public clock: Readable<Date>;
+  public stepsMove = writable(50);
+  public stepsTemp = writable(20);
+  public stepsBaby = writable(0.05);
+  public stepsExtrusion = writable(10);
+  public stepsExtrusionSpeed = writable(3);
 
   public constructor(moonrakerClient: MoonrakerClient) {
     // super();

@@ -198,7 +198,7 @@
         </div>
       {/if}
     </span>
-    <div class="flex h-full w-1/6 flex-col items-end justify-center gap-3">
+    <div class="flex h-full w-1/6 flex-col items-end justify-around gap-3">
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-red-500 disabled:opacity-50">

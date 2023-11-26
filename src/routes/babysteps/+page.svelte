@@ -11,6 +11,17 @@
   let stepsArr = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
   let selectedStep = 3;
 
+  let valuesStepsBaby = values.stepsBaby;
+
+  $: {
+    let stepIdx = stepsArr.indexOf($valuesStepsBaby);
+    if (stepIdx != -1) {
+      selectedStep = stepIdx;
+    } else {
+      console.warn("Global stepsBaby can't be pre-selected");
+    }
+  }
+
   let isHomedXY = false;
   let isHomedZ = false;
 
@@ -20,10 +31,10 @@
   }
 </script>
 
-<div class="page-dark flex-col items-stretch">
+<div class="page-dark flex-col items-stretch justify-between">
   <StatusLine />
-  <div class="flex flex-row">
-    <div class="flex flex-grow justify-evenly">
+  <div class="flex h-full flex-row">
+    <div class="flex w-5/6 justify-around">
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
         <table class="self-stretch text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
@@ -35,8 +46,8 @@
             <td class=" text-start">{$gcodeMoveHomingOrigin[2].toFixed(3)} mm</td>
           </tr>
         </table>
-        <span class="flex items-center gap-2">
-          <span class="flex flex-col gap-3">
+        <span class="flex items-center gap-x-6">
+          <span class="flex flex-col gap-y-3">
             <button
               on:click|preventDefault="{() => commands.changeOffset(stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
@@ -57,8 +68,8 @@
         </span>
       </div>
     </div>
-    <span class="flex flex-col">
-      <span class="flex flex-grow flex-col justify-start gap-2">
+    <span class="flex w-1/6 flex-col">
+      <span class="flex flex-grow flex-col justify-around gap-2">
         <button
           disabled="{$printStatsState === 'printing'}"
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
@@ -71,8 +82,7 @@
           class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Z = 0
         </button>
-      </span>
-      <span class="flex flex-grow flex-col justify-end gap-2">
+
         <button
           disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
           on:click|preventDefault="{() => commands.saveConfig()}"
