@@ -15,6 +15,8 @@ export class Values {
   public stepsBaby = writable(0.05);
   public stepsExtrusion = writable(10);
   public stepsExtrusionSpeed = writable(3);
+  public fileMetadata = writable<IFileMetadata | null>(null);
+  public largestAbsoluteThumbnailPath = writable('');
 
   public constructor(moonrakerClient: MoonrakerClient) {
     // super();
@@ -23,13 +25,14 @@ export class Values {
     this.clock = this.createClock();
   }
 
-  public async getFileMetadata(filename: string): Promise<IFileMetadata | null> {
+  public async getFileMetadata(relativeFilename: string): Promise<IFileMetadata | null> {
     const requestMetadata = new JsonRpcRequest({
       method: 'server.files.metadata',
       params: {
-        filename: filename
+        filename: relativeFilename
       }
     });
+
     const response = await client.sendRequest(requestMetadata);
     let metadata: IFileMetadata | null = null;
 
@@ -40,6 +43,26 @@ export class Values {
     }
 
     return metadata;
+  }
+
+  public async getThumbnails(relativeFilename: string): Promise<IThumbnail[] | null> {
+    const request = new JsonRpcRequest({
+      method: 'server.files.thumbnails',
+      params: {
+        filename: relativeFilename
+      }
+    });
+
+    const response = await client.sendRequest(request);
+    let thumbnails: IThumbnail[] | null = null;
+
+    if (response.error === undefined) {
+      thumbnails = response.result as IThumbnail[];
+    } else {
+      console.warn('getThumbnails.response.error: ', response.error);
+    }
+
+    return thumbnails;
   }
 
   public async getLargestAbsoluteThumbnailPath(moonrakerApi: URL, thumbnails: IThumbnail[]): Promise<string> {

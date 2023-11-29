@@ -83,14 +83,14 @@ And yes, help and improve if you find something.
 
   - To use another url, use the commandline parameters
 
-    ```bash
+    ```
     -h <Moonraker-HTTP-URL>  eg. `http://192.168.1.1/`
     -w <Moonraker-Websocket-URL>  eg. `ws://192.168.1.1/websocket`
     ```
 
   - To start in fullscreen mode
 
-    ```bash
+    ```
     -f
     ```
 
