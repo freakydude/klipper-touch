@@ -38,6 +38,8 @@
   let objectHeight = 0;
   let eta = '';
 
+  let confirmCancelPrint = false;
+
   $: updatePropertiesOnPrintingFile($printStatsFilename);
 
   function updatePropertiesOnPrintingFile(name: string) {
@@ -218,7 +220,7 @@
           Pause
         </button>
         <button
-          on:click|preventDefault="{() => commands.cancelPrint()}"
+          on:click|preventDefault="{() => (confirmCancelPrint = true)}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
@@ -229,7 +231,7 @@
           Continue
         </button>
         <button
-          on:click|preventDefault="{() => commands.cancelPrint()}"
+          on:click|preventDefault="{() => (confirmCancelPrint = true)}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
@@ -239,3 +241,25 @@
 
   <BottomNavigation />
 </div>
+{#if confirmCancelPrint}
+  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50">
+    <div class="flex flex-col items-center justify-center gap-4 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-4 drop-shadow-md backdrop-blur">
+      <p class=" text-center text-neutral-100">Are you sure you want to cancel the print?</p>
+      <span class="flex w-1/2 gap-3">
+        <button
+          on:click|preventDefault="{() => {
+            commands.cancelPrint();
+            confirmCancelPrint = false;
+          }}"
+          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50">
+          Cancel
+        </button>
+        <button
+          on:click|preventDefault="{() => (confirmCancelPrint = false)}"
+          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Abort
+        </button>
+      </span>
+    </div>
+  </div>
+{/if}

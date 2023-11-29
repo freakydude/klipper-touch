@@ -43,8 +43,8 @@
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
-      <div class="flex flex-col justify-center gap-1 rounded-lg bg-neutral-700 p-1">
-        <table class="self-center text-sm text-neutral-50">
+      <div class="flex flex-col items-center justify-center gap-1 rounded-lg bg-neutral-700 p-1">
+        <table class="text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-3 text-end">Current</td>
             <td class="w-16 pr-2 text-start">X {$motionReportLivePosition[0].toFixed(2)}</td>
@@ -104,16 +104,15 @@
         <span class="flex flex-col items-center justify-center gap-3">
           <button
             disabled="{!isHomedZ}"
-            class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
-            Down
-          </button>
-
-          <button
-            disabled="{!isHomedZ}"
-            class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}">
             Up
+          </button>
+          <button
+            disabled="{!isHomedZ}"
+            class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
+            Down
           </button>
         </span>
       </div>
