@@ -34,9 +34,9 @@
 <div class="page-dark flex-col items-stretch justify-between">
   <StatusLine />
   <div class="flex h-full flex-row">
-    <div class="flex w-5/6 justify-around">
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 px-2 py-2">
-        <table class="self-stretch text-sm text-neutral-50">
+    <div class="flex w-5/6 items-center justify-around">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
+        <table class="text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="px-2 text-end">Z</td>
             <td class=" text-start">{$motionReportLivePosition[2].toFixed(3)} mm</td>
@@ -47,7 +47,7 @@
           </tr>
         </table>
         <span class="flex items-center gap-x-6">
-          <span class="flex flex-col gap-y-3">
+          <span class="flex flex-col gap-3">
             <button
               on:click|preventDefault="{() => commands.changeOffset(stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
