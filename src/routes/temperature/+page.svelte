@@ -9,6 +9,7 @@
   let nozzleCurrentTemperature = moonraker.extruder.Temperature;
   let stepsArr = [1, 5, 10, 20, 50, 100];
   let selectedStep = 3;
+  let preselectDialog = false;
 
   let valuesStepsTemp = values.stepsTemp;
 
@@ -101,7 +102,7 @@
         Off
       </button>
       <button
-        disabled="{true}"
+        on:click|preventDefault="{() => (preselectDialog = true)}"
         class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Preset
       </button>
@@ -126,3 +127,92 @@
   </span>
   <BottomNavigation />
 </div>
+{#if preselectDialog}
+  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50">
+    <div
+      class="flex w-3/4 flex-col items-center justify-center gap-4 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-4 drop-shadow-md backdrop-blur">
+      <p class="text-center text-neutral-100">Choose a Preset</p>
+      <span class="flex flex-wrap justify-center gap-3">
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(200);
+            commands.setBedTemperature(60);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>PLA</p>
+            <p class="text-sm font-normal">200 / 60 °C</p>
+          </span>
+        </button>
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(235);
+            commands.setBedTemperature(70);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>PETG</p>
+            <p class="text-sm font-normal">235 / 70 °C</p>
+          </span>
+        </button>
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(250);
+            commands.setBedTemperature(110);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>ABS</p>
+            <p class="text-sm font-normal">250 / 110 °C</p>
+          </span>
+        </button>
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(220);
+            commands.setBedTemperature(0);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>TPU</p>
+            <p class="text-sm font-normal">220 / 0 °C</p>
+          </span>
+        </button>
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(170);
+            commands.setBedTemperature(60);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>Heatup</p>
+            <p class="text-sm font-normal">170 / 60 °C</p>
+          </span>
+        </button>
+        <button
+          on:click|preventDefault="{() => {
+            commands.setNozzleTemperature(110);
+            commands.setBedTemperature(0);
+            preselectDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          <span class="flex flex-col">
+            <p>Coldpull</p>
+            <p class="text-sm font-normal">110 / 0 °C</p>
+          </span>
+        </button>
+      </span>
+      <span class="flex flex-wrap justify-center gap-3">
+        <button
+          on:click|preventDefault="{() => (preselectDialog = false)}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Abort
+        </button>
+      </span>
+    </div>
+  </div>
+{/if}
