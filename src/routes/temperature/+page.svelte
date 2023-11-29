@@ -43,7 +43,7 @@
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-2">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
         <table class="text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Nozzle</td>
@@ -67,7 +67,7 @@
           Down
         </button>
       </div>
-      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-2">
+      <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
         <table class=" text-sm text-neutral-50">
           <tr class="border-b border-neutral-800">
             <td class="pr-1 text-end">Bed</td>

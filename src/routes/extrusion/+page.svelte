@@ -56,14 +56,14 @@
         <button
           disabled="{$printState === 'printing' || $canExtrude === false}"
           on:click|preventDefault="{() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}"
-          class="flex h-14 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Retract
         </button>
 
         <button
           disabled="{$printState === 'printing' || $canExtrude === false}"
           on:click|preventDefault="{() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}"
-          class="flex h-14 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Extrude
         </button>
       </div>
