@@ -283,13 +283,14 @@ export class MoonrakerClient extends EventTarget {
       }
       if (print_stats.info !== undefined) {
         const info = print_stats.info;
-        if (info?.current_layer !== undefined) {
+        if (info.current_layer !== undefined) {
+          // console.log('print_stats.info: ', print_stats.info);
           // console.log('print_stats.info.current_layer: ', print_stats.info?.current_layer);
-          this.printStats.Info.CurrentLayer.set(info?.current_layer);
+          this.printStats.Info.CurrentLayer.set(info.current_layer);
         }
-        if (info?.total_layer !== undefined) {
+        if (info.total_layer !== undefined) {
           // console.log('print_stats.info.total_layer: ', print_stats.info?.total_layer);
-          this.printStats.Info.TotalLayer.set(info?.total_layer);
+          this.printStats.Info.TotalLayer.set(info.total_layer);
         }
       }
     }

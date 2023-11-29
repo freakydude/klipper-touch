@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { goto } from '$app/navigation';
-  import { bootParams, client, moonraker } from '$lib/base.svelte';
+  import { bootParams, client, moonraker, values } from '$lib/base.svelte';
   import { onMount } from 'svelte';
   import { getMatches } from '@tauri-apps/api/cli';
   import { appWindow } from '@tauri-apps/api/window';
@@ -15,6 +15,8 @@
   let klippyState = moonraker.klippyState.state;
   let isFullscreen = bootParams.fullscreen;
   let wsUrl = bootParams.moonrakerWs;
+  let apiUrl = bootParams.moonrakerApi;
+  let loadedFile = moonraker.printStats.Filename;
   let interval: NodeJS.Timeout;
 
   $: {
@@ -39,6 +41,21 @@
   $: {
     appWindow.setFullscreen($isFullscreen);
   }
+
+  async function updateMetadata(relativeFilename: string) {
+    console.log('loadedFile', relativeFilename);
+    if (relativeFilename !== '') {
+      let fileMeta = await values.getFileMetadata(relativeFilename);
+      console.log('fileMeta', fileMeta);
+      values.fileMetadata.set(fileMeta);
+
+      if (fileMeta !== null) {
+        values.largestAbsoluteThumbnailPath.set(await values.getLargestAbsoluteThumbnailPath($apiUrl, fileMeta.thumbnails));
+      }
+    }
+  }
+
+  $: updateMetadata($loadedFile);
 </script>
 
 <div class="flex h-screen w-screen">

@@ -17,7 +17,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 #COPY package*.json ./
 
-#RUN npm install && npm install --save-dev @tauri-apps/cli 
+#RUN npm install && npm install --save-dev @tauri-apps/cli
 
 #COPY . .
 
@@ -26,6 +26,6 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 #VOLUME [ "/app/src-tauri/target/release/bundle/deb/" ]
 
 VOLUME [ "/app"]
-CMD npm install && npm install --save-dev @tauri-apps/cli  && npm run tauri build
+CMD npm install && npm install --save-dev @tauri-apps/cli && npm run tauri build
 
 #CMD npm run tauri build

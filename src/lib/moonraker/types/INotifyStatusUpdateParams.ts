@@ -21,5 +21,5 @@ export interface INotifyStatusUpdateParams {
   display_status: IProgress;
   motion_report: IMotionReport;
   configfile: IConfigFile;
-  quadGantryLevel: IQuadGantryLevel
+  quadGantryLevel: IQuadGantryLevel;
 }

@@ -3,8 +3,6 @@
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let moonrakerApi = bootParams.moonrakerApi;
-
   let maxAcceleration = moonraker.toolhead.MaxAcceleration;
   let toolheadPosition = moonraker.motionReport.LivePosition;
   let nozzleTemp = moonraker.extruder.Temperature;
@@ -19,59 +17,51 @@
   let speedFactor = moonraker.gcodeMove.SpeedFactor;
   let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
 
+  // let printStatsState = writable<TPrintState>('standby');
   let printStatsState = moonraker.printStats.State;
   let printStatsFilename = moonraker.printStats.Filename;
   let printStatsPrintDuration = moonraker.printStats.PrintDuration;
   let filamentUsed = moonraker.printStats.FilamentUsed;
   let currentLayer = moonraker.printStats.Info.CurrentLayer;
   let totalLayer = moonraker.printStats.Info.TotalLayer;
-
+  let fileMeta = values.fileMetadata;
   let clockFormatter = values.clockFormatter;
-
   let progress = moonraker.displayStatus.Progress;
-  let selectedFile = '';
-  let selectedFileThumbnailPath = '';
-  let remainingDuration = 0;
+  let selectedFileThumbnailPath = values.largestAbsoluteThumbnailPath;
+  let dynamicRemainingTime = 0;
+  let dynamicEta = '';
   let filamentTotal = 0;
-  let estimatedTime = 0;
-  let layerHeight = 0;
-  let objectHeight = 0;
-  let eta = '';
-
   let confirmCancelPrint = false;
+  let printStartTime = 0;
+  let estimatedTime = 0;
+  let estimatedETA = ' ';
 
-  $: updatePropertiesOnPrintingFile($printStatsFilename);
-
-  function updatePropertiesOnPrintingFile(name: string) {
-    if (name !== '') {
-      selectedFile = name;
-
-      let meta = values.getFileMetadata(selectedFile);
-      meta.then(async (m) => {
-        if (m !== null) {
-          estimatedTime = m.estimated_time;
-          filamentTotal = m.filament_total;
-          layerHeight = m.layer_height;
-          objectHeight = m.object_height;
-          selectedFileThumbnailPath = await values.getLargestAbsoluteThumbnailPath($moonrakerApi, m.thumbnails);
-        }
-      });
+  $: {
+    if ($fileMeta !== null) {
+      filamentTotal = $fileMeta.filament_total;
+      printStartTime = $fileMeta.print_start_time;
+      estimatedTime = $fileMeta.estimated_time;
     }
   }
 
-  $: updateEta($progress);
+  $: {
+    estimatedETA = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + estimatedTime) * 1000));
+    console.log(estimatedETA);
+    console.log(estimatedTime);
+  }
+
+  $: {
+    updateEta($progress); // TODO update on pause
+  }
 
   function updateEta(progress: number) {
-    console.log('progress', progress, 'duration', $printStatsPrintDuration);
     if (progress > 0 && $printStatsPrintDuration > 60) {
       // wait 60sec before update eta dynamic
-      remainingDuration = Math.floor($printStatsPrintDuration / progress - $printStatsPrintDuration);
-      eta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000));
+      dynamicRemainingTime = Math.floor($printStatsPrintDuration / progress - $printStatsPrintDuration);
+      dynamicEta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + dynamicRemainingTime) * 1000));
     } else {
-      remainingDuration = estimatedTime;
-      eta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + remainingDuration) * 1000));
+      dynamicEta = estimatedETA;
     }
-    console.log('eta', eta);
   }
 </script>
 
@@ -140,17 +130,17 @@
                 <td class="w-24 text-start">{$maxAcceleration.toFixed(0)} mm/s²</td>
               </tr>
               <tr>
-                <td class="pr-2 text-end">Pressure</td>
-                <td class="w-24 text-start">{$pressureAdvance.toFixed(3)} x</td>
+                <td class="pr-2 text-end">PA</td>
+                <td class="w-24 text-start">{$pressureAdvance.toFixed(3)}</td>
               </tr>
             {/if}
           </table>
         </div>
       </div>
-      {#if selectedFile !== '' || $printStatsState !== 'standby'}
+      {#if $printStatsFilename !== '' || $printStatsState !== 'standby'}
         <div class="flex flex-col items-center justify-center gap-2">
           <div class="flex flex-col items-center rounded-lg bg-neutral-700 pb-2">
-            {#if !selectedFileThumbnailPath}
+            {#if $selectedFileThumbnailPath === ''}
               <p
                 class="flex w-32 items-center justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
                 No Preview
@@ -159,33 +149,45 @@
               <img
                 class="flex h-32 justify-center rounded-lg border-2 border-neutral-700"
                 loading="lazy"
-                src="{selectedFileThumbnailPath}"
-                alt="{selectedFile}" />
+                src="{$selectedFileThumbnailPath}"
+                alt="{$printStatsFilename}" />
             {/if}
-
             <table class="table-auto text-sm text-neutral-50">
-              {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
+              {#if $printStatsState === 'standby'}
                 <tr class="border-b border-neutral-800">
-                  <td class="pr-2 text-end">Remaining</td>
-                  <td class="text-start">{Math.round(remainingDuration / 60)} min</td>
+                  <td class="pr-2 text-end">ETA</td>
+                  <td class="text-start">{estimatedETA}</td>
                 </tr>
                 <tr>
                   <td class="pr-2 text-end">Filament</td>
                   <td class="text-start">{(filamentTotal / 1000.0).toFixed(1)} m</td>
                 </tr>
+              {:else if $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Duration</td>
+                  <td class="text-start">{Math.round($printStatsPrintDuration / 60)} min</td>
+                </tr>
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Layer</td>
+                  <td class="text-start">{$currentLayer}</td>
+                </tr>
+                <tr class="border-b border-neutral-800">
+                  <td class="pr-2 text-end">Progress</td>
+                  <td class="text-start">{($progress * 100.0).toFixed(1)} %</td>
+                </tr>
+                <tr>
+                  <td class="pr-2 text-end">Filament</td>
+                  <td class="text-start">{($filamentUsed / 1000.0).toFixed(1)} m</td>
+                </tr>
               {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">ETA</td>
-                  <td class="text-start">{eta}</td>
+                  <td class="text-start">{dynamicEta}</td>
                 </tr>
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Layer</td>
                   <td class="text-start">{$currentLayer} / {$totalLayer}</td>
                 </tr>
-                <!-- <tr class="border-b border-neutral-800">
-                  <td class="pr-2 text-end">Remains</td>
-                  <td>{remainingDuration} s</td>
-                </tr> -->
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Progress</td>
                   <td class="text-start">{($progress * 100.0).toFixed(1)} %</td>
@@ -206,9 +208,9 @@
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Load
         </button>
-        {#if selectedFile !== ''}
+        {#if $printStatsFilename !== ''}
           <button
-            on:click|preventDefault="{() => commands.startPrint(selectedFile)}"
+            on:click|preventDefault="{() => commands.startPrint($printStatsFilename)}"
             class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Start
           </button>

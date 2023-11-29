@@ -11,6 +11,6 @@ export class PrintStats {
 }
 
 export class Info {
-  public TotalLayer = writable(0);
-  public CurrentLayer = writable(0);
+  public TotalLayer = writable<number | null>(null);
+  public CurrentLayer = writable<number | null>(null);
 }
