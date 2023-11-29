@@ -2,7 +2,7 @@
   import { bootParams, client, commands, moonraker } from '$lib/base.svelte';
 
   let wsUrl = bootParams.moonrakerWs;
-
+  let apiUrl = bootParams.moonrakerApi;
   let isConnected = client.isConnected;
   let klippyState = moonraker.klippyState.state;
   let klippyStateMessage = moonraker.klippyState.message;
@@ -52,7 +52,15 @@
         {:else}
           <tr>
             <td class="pr-2 text-end text-neutral-100">Moonraker</td>
-            <td class="text-purple-600">Disconnected </td>
+            <td class="text-purple-600">Connecting</td>
+          </tr>
+          <tr>
+            <td class="pr-2 text-end text-neutral-100">Api</td>
+            <td class="text-neutral-400">{$apiUrl}</td>
+          </tr>
+          <tr>
+            <td class="pr-2 text-end text-neutral-100">Websocket</td>
+            <td class="text-neutral-400">{$wsUrl}</td>
           </tr>
         {/if}
       </table>
@@ -86,13 +94,6 @@
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
           >Printer State</a>
       {/if}
-    {:else}
-      <button
-        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-        on:click|preventDefault="{async () => {
-          await moonraker.disconnect();
-          await moonraker.connect($wsUrl);
-        }}">Connect</button>
     {/if}
   </div>
 </div>
