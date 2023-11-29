@@ -14,8 +14,20 @@
   let isConnected = client.isConnected;
   let klippyState = moonraker.klippyState.state;
   let isFullscreen = bootParams.fullscreen;
+  let wsUrl = bootParams.moonrakerWs;
+  let interval: NodeJS.Timeout;
 
   $: {
+    if ($isConnected) {
+      clearInterval(interval);
+    } else {
+      clearInterval(interval);
+      interval = setInterval(async () => {
+        //await moonraker.disconnect();
+        await moonraker.connect($wsUrl);
+      }, 5000);
+    }
+
     if ($isConnected === false || $klippyState !== 'ready') {
       goto('/');
     }
