@@ -95,7 +95,12 @@
       <button
         disabled="{true}"
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
-        Preset
+        Load
+      </button>
+      <button
+        disabled="{true}"
+        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        Unload
       </button>
     </span>
   </div>
