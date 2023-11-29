@@ -64,7 +64,10 @@
       <p class=" text-center text-neutral-100">Are you sure you want to emergency stop the printer?</p>
       <span class="flex w-1/2 gap-3">
         <button
-          on:click|preventDefault="{() => commands.emergencyStop()}"
+          on:click|preventDefault="{() => {
+            commands.emergencyStop();
+            confirmKill = false;
+          }}"
           class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50">
           Kill
         </button>

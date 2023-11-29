@@ -247,7 +247,10 @@
       <p class=" text-center text-neutral-100">Are you sure you want to cancel the print?</p>
       <span class="flex w-1/2 gap-3">
         <button
-          on:click|preventDefault="{() => commands.cancelPrint()}"
+          on:click|preventDefault="{() => {
+            commands.cancelPrint();
+            confirmCancelPrint = false;
+          }}"
           class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50">
           Cancel
         </button>
