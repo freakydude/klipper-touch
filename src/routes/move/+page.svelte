@@ -60,7 +60,7 @@
         <div class="flex items-center gap-2">
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, -stepsArr[selectedStep]), undefined, undefined)}"
+            on:click="{() => commands.moveAbsolute(getAbsolutePosition(0, -stepsArr[selectedStep]), undefined, undefined)}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Left
           </button>
@@ -68,13 +68,13 @@
           <span class="flex flex-col gap-3">
             <button
               disabled="{!isHomedXY}"
-              on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, +stepsArr[selectedStep]), undefined)}"
+              on:click="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, +stepsArr[selectedStep]), undefined)}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Back
             </button>
             <button
               disabled="{!isHomedXY}"
-              on:click|preventDefault="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, -stepsArr[selectedStep]), undefined)}"
+              on:click="{() => commands.moveAbsolute(undefined, getAbsolutePosition(1, -stepsArr[selectedStep]), undefined)}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Front
             </button>
@@ -82,7 +82,7 @@
 
           <button
             disabled="{!isHomedXY}"
-            on:click|preventDefault="{() => commands.moveAbsolute(getAbsolutePosition(0, +stepsArr[selectedStep]), undefined, undefined)}"
+            on:click="{() => commands.moveAbsolute(getAbsolutePosition(0, +stepsArr[selectedStep]), undefined, undefined)}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Right
           </button>
@@ -105,13 +105,13 @@
           <button
             disabled="{!isHomedZ}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}">
+            on:click="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}">
             Up
           </button>
           <button
             disabled="{!isHomedZ}"
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-            on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
+            on:click="{() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}">
             Down
           </button>
         </span>
@@ -119,19 +119,19 @@
     </div>
     <span class="flex h-full w-1/6 flex-col justify-around gap-3">
       <button
-        on:click|preventDefault="{() => commands.disableSteppers()}"
+        on:click="{() => commands.disableSteppers()}"
         class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Off
       </button>
       <button
-        on:click|preventDefault="{() => commands.homeXY()}"
+        on:click="{() => commands.homeXY()}"
         class="flex h-14 items-center justify-center rounded-l-lg {isHomedXY
           ? 'bg-neutral-500'
           : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         HomeXY
       </button>
       <button
-        on:click|preventDefault="{() => commands.homeZ(isHomedXY)}"
+        on:click="{() => commands.homeZ(isHomedXY)}"
         class="flex h-14 items-center justify-center rounded-l-lg {isHomedZ
           ? 'bg-neutral-500'
           : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
@@ -148,8 +148,9 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             selectedStep = i;
+            $valuesStepsMove = number;
           }}">
           {number}
         </button>

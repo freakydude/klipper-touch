@@ -1,5 +1,7 @@
+import { client } from '$lib/base.svelte';
 import type { JsonRpcClient } from '$lib/jsonrpc/JsonRpcClient';
 import { JsonRpcRequest } from '$lib/jsonrpc/types/JsonRpcRequest';
+import type { IFile } from '$lib/moonraker/types/IFile';
 
 export class Commands {
   private _jsonRpcClient: JsonRpcClient;
@@ -9,6 +11,26 @@ export class Commands {
   public constructor(jsonRpcClient: JsonRpcClient) {
     // super();
     this._jsonRpcClient = jsonRpcClient;
+  }
+
+  public async listFiles(): Promise<IFile[]> {
+    const listFilesRequest = new JsonRpcRequest({
+      method: 'server.files.list',
+      params: {}
+    });
+
+    const files: Promise<IFile[]> = new Promise<IFile[]>((resolve, reject) => {
+      const response = client.sendRequest(listFilesRequest);
+      response.then((response) => {
+        if (response.result !== undefined) {
+          resolve(response.result as IFile[]);
+        } else {
+          reject(response.error);
+        }
+      });
+    });
+
+    return files;
   }
 
   public async extrude(distance: number, speed: number) {
