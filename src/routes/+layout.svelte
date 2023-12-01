@@ -16,7 +16,7 @@
   let isFullscreen = bootParams.fullscreen;
   let wsUrl = bootParams.moonrakerWs;
   let apiUrl = bootParams.moonrakerApi;
-  let loadedFile = moonraker.printStats.Filename;
+  let printFilename = moonraker.printStats.Filename;
   let interval: NodeJS.Timeout;
 
   $: {
@@ -43,10 +43,10 @@
   }
 
   async function updateMetadata(relativeFilename: string) {
-    console.log('loadedFile', relativeFilename);
+    // console.log('loadedFile', relativeFilename);
     if (relativeFilename !== '') {
       let fileMeta = await values.getFileMetadata(relativeFilename);
-      console.log('fileMeta', fileMeta);
+      // console.log('fileMeta', fileMeta);
       values.fileMetadata.set(fileMeta);
 
       if (fileMeta !== null) {
@@ -55,7 +55,7 @@
     }
   }
 
-  $: updateMetadata($loadedFile);
+  $: updateMetadata($printFilename);
 </script>
 
 <div class="flex h-screen w-screen">

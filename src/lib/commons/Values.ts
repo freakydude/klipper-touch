@@ -70,7 +70,7 @@ export class Values {
 
     if (Array.isArray(thumbnails) && thumbnails.length > 0) {
       const thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
-      path = moonrakerApi + 'server/files/gcodes/' + thumbnail.relative_path;
+      path = moonrakerApi + 'server/files/gcodes/' + thumbnail.thumbnail_path;
     } else {
       path = '';
     }

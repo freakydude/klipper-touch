@@ -49,19 +49,19 @@
         <span class="flex items-center gap-x-6">
           <span class="flex flex-col gap-3">
             <button
-              on:click|preventDefault="{() => commands.changeOffset(stepsArr[selectedStep])}"
+              on:click="{() => commands.changeOffset(stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Up
             </button>
 
             <button
-              on:click|preventDefault="{() => commands.changeOffset(-stepsArr[selectedStep])}"
+              on:click="{() => commands.changeOffset(-stepsArr[selectedStep])}"
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
               Down
             </button></span>
 
           <button
-            on:click|preventDefault="{() => commands.resetOffset()}"
+            on:click="{() => commands.resetOffset()}"
             class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Reset
           </button>
@@ -73,19 +73,19 @@
         <button
           disabled="{$printStatsState === 'printing'}"
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-          on:click|preventDefault="{() => commands.homeZ(isHomedXY)}">
+          on:click="{() => commands.homeZ(isHomedXY)}">
           HomeZ
         </button>
         <button
           disabled="{!isHomedZ || $printStatsState === 'printing'}"
-          on:click|preventDefault="{() => commands.moveAbsolute(undefined, undefined, 0)}"
+          on:click="{() => commands.moveAbsolute(undefined, undefined, 0)}"
           class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Z = 0
         </button>
 
         <button
           disabled="{$gcodeMoveHomingOrigin[2] == 0 || $printStatsState === 'printing'}"
-          on:click|preventDefault="{() => commands.saveConfig()}"
+          on:click="{() => commands.saveConfig()}"
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Save
         </button>
@@ -100,9 +100,10 @@
           class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
-            : 'bg-neutral-600'} "
-          on:click|preventDefault="{() => {
+            : 'bg-neutral-600'}"
+          on:click="{() => {
             selectedStep = i;
+            $valuesStepsBaby = number;
           }}">
           {number}
         </button>
