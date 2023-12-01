@@ -100,9 +100,10 @@
           class="flex w-12 items-center justify-center rounded-lg px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i ===
           selectedStep
             ? 'bg-neutral-500'
-            : 'bg-neutral-600'} "
+            : 'bg-neutral-600'}"
           on:click="{() => {
             selectedStep = i;
+            $valuesStepsBaby = number;
           }}">
           {number}
         </button>

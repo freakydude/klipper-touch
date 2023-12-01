@@ -119,6 +119,7 @@
             : 'bg-neutral-600'} "
           on:click="{() => {
             selectedStep = i;
+            $valuesStepsTemp = number;
           }}">
           {number}
         </button>

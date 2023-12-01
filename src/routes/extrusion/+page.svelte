@@ -80,6 +80,7 @@
                   : 'bg-neutral-600'} "
                 on:click="{() => {
                   selectedSpeed = i;
+                  $valuesStepsExtrusionSpeed = number;
                 }}">
                 {number}
               </button>
@@ -115,6 +116,7 @@
             : 'bg-neutral-600'} "
           on:click="{() => {
             selectedStep = i;
+            $valuesStepsExtrusion = number;
           }}">
           {number}
         </button>
