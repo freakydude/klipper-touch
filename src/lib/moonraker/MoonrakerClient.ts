@@ -304,8 +304,14 @@ export class MoonrakerClient extends EventTarget {
         // console.log('display_status.progress: ', display_status?.progress);
         this.displayStatus.Progress.set(display_status.progress);
       }
-
-      display_status.message !== null ? this.displayStatus.Message.set(display_status.message) : this.displayStatus.Message.set('');
+      if (display_status.message !== undefined) {
+        // console.log('display_status.message: ', display_status?.message);
+        if (display_status.message !== null) {
+          this.displayStatus.Message.set(display_status.message);
+        } else {
+          this.displayStatus.Message.set('');
+        }
+      }
     }
   }
 
