@@ -35,6 +35,33 @@
   let printStartTime = 0;
   let estimatedTime = 0;
   let estimatedETA = ' ';
+  let apiUrl = bootParams.moonrakerApi;
+
+  let loadDialog = false;
+  let sortedFileNames = ['File 1', 'File 2', 'File 3', 'File 4', 'File 5', 'File 6'];
+  let thumbnails: string[] = [];
+  let selectedFilename = 1;
+
+  async function clickLoad() {
+    loadDialog = true;
+    let gcodeFiles = await commands.listFiles();
+
+    sortedFileNames = gcodeFiles.sort((n1, n2) => n2.modified - n1.modified).map((file) => file.path);
+
+    let tempThumbnails: string[] = new Array<string>(sortedFileNames.length);
+
+    await Promise.all(
+      sortedFileNames.map(async (gcodeFile) => {
+        let x = await values.getThumbnails(gcodeFile);
+        if (x !== null) {
+          let thumbFile = await values.getLargestAbsoluteThumbnailPath($apiUrl, x);
+          tempThumbnails[sortedFileNames.indexOf(gcodeFile)] = thumbFile; // TODO Dict instead of array
+        }
+      })
+    );
+
+    thumbnails = tempThumbnails;
+  }
 
   $: {
     if ($fileMeta !== null) {
@@ -205,7 +232,8 @@
     <div class="flex h-full w-1/6 flex-col items-end justify-around gap-3">
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-500 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          on:click="{() => clickLoad()}"
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Load
         </button>
         {#if $printStatsFilename !== ''}
@@ -262,6 +290,54 @@
           Abort
         </button>
       </span>
+    </div>
+  </div>
+{/if}
+
+{#if loadDialog}
+  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 p-2">
+    <div
+      class="flex h-full w-full flex-row items-center justify-center gap-2 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-2 drop-shadow-md backdrop-blur">
+      <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-4">
+        <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
+          {#each sortedFileNames as filename, i}
+            <tr
+              class="border-b border-neutral-800 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i === selectedFilename
+                ? 'bg-neutral-500'
+                : 'bg-neutral-600'}"
+              on:click="{() => {
+                selectedFilename = i;
+              }}">
+              <td class="">
+                {#if thumbnails[i] === ''}
+                  <div
+                    class="w-16 items-stretch justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
+                    ?
+                  </div>
+                {:else}
+                  <img class="flex w-16 justify-center rounded-lg" loading="lazy" src="{thumbnails[i]}" alt="{$printStatsFilename}" />
+                {/if}
+              </td>
+              <td class="px-1 py-1 text-sm text-neutral-50">
+                {filename}
+              </td>
+            </tr>
+          {/each}
+        </table>
+      </div>
+      <div class="flex max-h-full w-1/5 flex-col items-stretch gap-2">
+        <button
+          on:click="{() => (loadDialog = false)}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Load
+        </button>
+
+        <button
+          on:click="{() => (loadDialog = false)}"
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 {/if}
