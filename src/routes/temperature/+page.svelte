@@ -128,9 +128,8 @@
   <BottomNavigation />
 </div>
 {#if preselectDialog}
-  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50">
-    <div
-      class="flex w-3/4 flex-col items-center justify-center gap-4 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-4 drop-shadow-md backdrop-blur">
+  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="flex flex-col items-center justify-center gap-3 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-2 drop-shadow-md backdrop-blur">
       <p class="text-center text-neutral-100">Choose a Preset</p>
       <span class="flex flex-wrap justify-center gap-3">
         <button
