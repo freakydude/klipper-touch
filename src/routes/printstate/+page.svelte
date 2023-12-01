@@ -210,30 +210,30 @@
         </button>
         {#if $printStatsFilename !== ''}
           <button
-            on:click|preventDefault="{() => commands.startPrint($printStatsFilename)}"
+            on:click="{() => commands.startPrint($printStatsFilename)}"
             class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
-          on:click|preventDefault="{() => commands.pausePrint()}"
+          on:click="{() => commands.pausePrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Pause
         </button>
         <button
-          on:click|preventDefault="{() => (confirmCancelPrint = true)}"
+          on:click="{() => (confirmCancelPrint = true)}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
-          on:click|preventDefault="{() => commands.resumePrint()}"
+          on:click="{() => commands.resumePrint()}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Continue
         </button>
         <button
-          on:click|preventDefault="{() => (confirmCancelPrint = true)}"
+          on:click="{() => (confirmCancelPrint = true)}"
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Cancel
         </button>
@@ -249,7 +249,7 @@
       <p class=" text-center text-neutral-100">Are you sure you want to cancel the print?</p>
       <span class="flex w-1/2 gap-3">
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.cancelPrint();
             confirmCancelPrint = false;
           }}"
@@ -257,7 +257,7 @@
           Cancel
         </button>
         <button
-          on:click|preventDefault="{() => (confirmCancelPrint = false)}"
+          on:click="{() => (confirmCancelPrint = false)}"
           class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Abort
         </button>

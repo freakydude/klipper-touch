@@ -95,14 +95,14 @@
     <span class="flex w-1/6 flex-col justify-around gap-3">
       <button
         class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-        on:click|preventDefault="{() => {
+        on:click="{() => {
           commands.setNozzleTemperature(0);
           commands.setBedTemperature(0);
         }}">
         Off
       </button>
       <button
-        on:click|preventDefault="{() => (preselectDialog = true)}"
+        on:click="{() => (preselectDialog = true)}"
         class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Preset
       </button>
@@ -117,7 +117,7 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             selectedStep = i;
           }}">
           {number}
@@ -133,7 +133,7 @@
       <p class="text-center text-neutral-100">Choose a Preset</p>
       <span class="flex flex-wrap justify-center gap-3">
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(200);
             commands.setBedTemperature(60);
             preselectDialog = false;
@@ -145,7 +145,7 @@
           </span>
         </button>
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(235);
             commands.setBedTemperature(70);
             preselectDialog = false;
@@ -157,7 +157,7 @@
           </span>
         </button>
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(250);
             commands.setBedTemperature(110);
             preselectDialog = false;
@@ -169,7 +169,7 @@
           </span>
         </button>
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(220);
             commands.setBedTemperature(0);
             preselectDialog = false;
@@ -181,7 +181,7 @@
           </span>
         </button>
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(170);
             commands.setBedTemperature(60);
             preselectDialog = false;
@@ -193,7 +193,7 @@
           </span>
         </button>
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.setNozzleTemperature(110);
             commands.setBedTemperature(0);
             preselectDialog = false;
@@ -207,7 +207,7 @@
       </span>
       <span class="flex flex-wrap justify-center gap-3">
         <button
-          on:click|preventDefault="{() => (preselectDialog = false)}"
+          on:click="{() => (preselectDialog = false)}"
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Abort
         </button>

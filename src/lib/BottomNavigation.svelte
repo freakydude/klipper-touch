@@ -53,7 +53,7 @@
     <p class="pb-1 pr-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
   </div>
   <button
-    on:click|preventDefault="{() => (confirmKill = true)}"
+    on:click="{() => (confirmKill = true)}"
     class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50">
     Kill
   </button>
@@ -64,7 +64,7 @@
       <p class=" text-center text-neutral-100">Are you sure you want to emergency stop the printer?</p>
       <span class="flex gap-3">
         <button
-          on:click|preventDefault="{() => {
+          on:click="{() => {
             commands.emergencyStop();
             confirmKill = false;
           }}"
@@ -72,7 +72,7 @@
           Kill
         </button>
         <button
-          on:click|preventDefault="{() => (confirmKill = false)}"
+          on:click="{() => (confirmKill = false)}"
           class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Abort
         </button>
