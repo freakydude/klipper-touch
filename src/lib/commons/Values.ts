@@ -70,9 +70,20 @@ export class Values {
 
     if (Array.isArray(thumbnails) && thumbnails.length > 0) {
       const thumbnail = thumbnails.sort((n1, n2) => n2.width - n1.width)[0];
+
+      path = this.buildAbsoluteThumbnailUrl(moonrakerApi, thumbnail);
+    }
+
+    return path;
+  }
+
+  public buildAbsoluteThumbnailUrl(moonrakerApi: URL, thumbnail: IThumbnail): string {
+    let path = '';
+
+    if (thumbnail.relative_path !== undefined) {
+      path = moonrakerApi + 'server/files/gcodes/' + thumbnail.relative_path;
+    } else if (thumbnail.thumbnail_path !== undefined) {
       path = moonrakerApi + 'server/files/gcodes/' + thumbnail.thumbnail_path;
-    } else {
-      path = '';
     }
 
     return path;

@@ -38,7 +38,7 @@
   let apiUrl = bootParams.moonrakerApi;
 
   let loadDialog = false;
-  let sortedFileNames = ['File 1', 'File 2', 'File 3', 'File 4', 'File 5', 'File 6'];
+  let sortedFileNames: string[] = [];
   let thumbnails: string[] = [];
   let selectedFilename = 1;
 
