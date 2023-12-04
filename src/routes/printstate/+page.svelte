@@ -40,6 +40,8 @@
   let loadDialog = false;
   let selectedFileEntry = 0;
 
+  let divElement: HTMLDivElement;
+
   class FileListEntry {
     name: string = '';
     thumbnailUrl: string = '';
@@ -78,6 +80,9 @@
         fileEntries[index] = entry;
       })
     );
+
+    // const el = divElement.getElementsByTagName(selectedFileEntry.toString())[0];
+    // el.scrollIntoView({ behavior: 'smooth' });
   }
 
   $: {
@@ -313,7 +318,7 @@
   <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 pb-2 pl-2 pt-2">
     <div
       class="flex h-full w-full flex-row items-stretch justify-center gap-2 rounded-l-lg border-neutral-600 bg-neutral-700 bg-opacity-50 pb-1 pl-1 pt-1 drop-shadow-md backdrop-blur">
-      <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-x-hidden overflow-y-hidden rounded-lg">
+      <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-y-auto overflow-x-hidden rounded-lg" bind:this="{divElement}">
         <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
           {#each fileEntries as entry, i}
             <tr
@@ -325,12 +330,11 @@
               }}">
               <td class="p-0.5">
                 {#if entry.thumbnailUrl === ''}
-                  <div
-                    class="w-16 items-stretch justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
+                  <div class="w-16 content-center items-center justify-center rounded-lg bg-neutral-800 p-2 text-center text-xl font-extrabold text-red-500">
                     ?
                   </div>
                 {:else}
-                  <img class="flex justify-center rounded-lg" loading="lazy" src="{entry.thumbnailUrl}" alt="{entry.name}" />
+                  <img class=" flex w-16 justify-center rounded-lg" loading="lazy" src="{entry.thumbnailUrl}" alt="{entry.name}" />
                 {/if}
               </td>
 
@@ -356,10 +360,16 @@
       </div>
       <div class="flex max-h-full w-1/5 flex-col items-stretch justify-center gap-2">
         <button
+          on:click="{() => {
+            divElement.scrollBy({ top: (-divElement.clientHeight * 2) / 3.0, behavior: 'smooth' });
+          }}"
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
         <button
+          on:click="{() => {
+            divElement.scrollBy({ top: (+divElement.clientHeight * 2) / 3.0, behavior: 'smooth' });
+          }}"
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
