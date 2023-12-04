@@ -69,11 +69,11 @@
 
   type sortFunc = (n1:FileListEntry, n2:FileListEntry) => number
 
-  let sortDic = new Map<sortVariant,sortFunc>()
-  sortDic.set(sortVariant.NameAsc, (n1:FileListEntry, n2:FileListEntry) => n1.name < n2.name? -1: 1)
-  sortDic.set(sortVariant.NameDesc, (n1:FileListEntry, n2:FileListEntry) => n1.name > n2.name? -1:1)
-  sortDic.set(sortVariant.ModifiedAsc, (n1:FileListEntry, n2:FileListEntry) => n1.modified < n2.modified? -1:1)
-  sortDic.set(sortVariant.ModifiedDesc, (n1:FileListEntry, n2:FileListEntry) => n1.modified > n2.modified? -1:1)
+  let sortDic = new Map<sortVariant,sortFunc>([
+  [sortVariant.NameAsc, (n1:FileListEntry, n2:FileListEntry) => n1.name < n2.name? -1: 1],
+  [sortVariant.NameDesc, (n1:FileListEntry, n2:FileListEntry) => n1.name > n2.name? -1:1],
+  [sortVariant.ModifiedAsc, (n1:FileListEntry, n2:FileListEntry) => n1.modified < n2.modified? -1:1],
+  [sortVariant.ModifiedDesc, (n1:FileListEntry, n2:FileListEntry) => n1.modified > n2.modified? -1:1]])
 
   let fileEntries: FileListEntry[] = [];
 
@@ -398,8 +398,7 @@
         </button>
         <button
         on:click="{()=>{
-          cycleSortVariant()
-        console.log(currentSort)}
+          cycleSortVariant()}
         }"
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Sort
