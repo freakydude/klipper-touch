@@ -47,8 +47,33 @@
     thumbnailUrl: string = '';
     weight: number = 0;
     duration: number = 0;
-    modified: string = '';
+    modified: number = 0;
   }
+
+  enum sortVariant {
+    NameAsc,
+    NameDesc,
+    ModifiedAsc,
+    ModifiedDesc
+  }
+
+  let currentSort : sortVariant = sortVariant.NameDesc
+
+  function cycleSortVariant (){
+    if(currentSort === sortVariant.ModifiedDesc)
+    {
+      currentSort = sortVariant.NameAsc
+    }
+    else{currentSort++}
+  }
+
+  type sortFunc = (n1:FileListEntry, n2:FileListEntry) => number
+
+  let sortDic = new Map<sortVariant,sortFunc>()
+  sortDic.set(sortVariant.NameAsc, (n1:FileListEntry, n2:FileListEntry) => n1.name < n2.name? -1: 1)
+  sortDic.set(sortVariant.NameDesc, (n1:FileListEntry, n2:FileListEntry) => n1.name > n2.name? -1:1)
+  sortDic.set(sortVariant.ModifiedAsc, (n1:FileListEntry, n2:FileListEntry) => n1.modified < n2.modified? -1:1)
+  sortDic.set(sortVariant.ModifiedDesc, (n1:FileListEntry, n2:FileListEntry) => n1.modified > n2.modified? -1:1)
 
   let fileEntries: FileListEntry[] = [];
 
@@ -63,27 +88,26 @@
         let index = gcodeFiles.indexOf(file);
         let entry: FileListEntry = new FileListEntry();
         if (meta !== null) {
-          entry.duration = meta.estimated_time / 60.0;
-          entry.name = file.path.slice(0, file.path.length - 6);
+          entry.duration = meta.estimated_time ;
+          entry.name = file.path;
           entry.weight = meta.filament_weight_total;
-          entry.modified = new Intl.DateTimeFormat('de', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            month: 'numeric',
-            day: 'numeric',
-            year: 'numeric'
-          }).format(new Date(Date.now() + meta.modified));
+          entry.modified = meta.modified
           entry.thumbnailUrl = await values.getLargestAbsoluteThumbnailPath($apiUrl, meta.thumbnails);
         }
 
         fileEntries[index] = entry;
       })
     );
-
-    // const el = divElement.getElementsByTagName(selectedFileEntry.toString())[0];
-    // el.scrollIntoView({ behavior: 'smooth' });
   }
+
+  let dateFormat = new Intl.DateTimeFormat('de', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            month: 'numeric',
+            day: 'numeric',
+            year: 'numeric'
+          })
 
   $: {
     if ($fileMeta !== null) {
@@ -135,7 +159,6 @@
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Speed</td>
                 <td class="w-24 text-start">{$liveVelocity.toFixed(0)} mm/s</td>
-                <!-- {$requestedSpeed.toFixed(0)} -->
               </tr>
               <tr class="border-t border-neutral-800">
                 <td class="pr-2 text-end">Flow</td>
@@ -320,7 +343,7 @@
       class="flex h-full w-full flex-row items-stretch justify-center gap-2 rounded-l-lg border-neutral-600 bg-neutral-700 bg-opacity-50 pb-1 pl-1 pt-1 drop-shadow-md backdrop-blur">
       <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-y-auto overflow-x-hidden rounded-lg" bind:this="{divElement}">
         <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
-          {#each fileEntries as entry, i}
+          {#each fileEntries.sort(sortDic.get(currentSort)) as entry, i}
             <tr
               class="border-b border-neutral-800 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i === selectedFileEntry
                 ? 'bg-neutral-500'
@@ -340,13 +363,13 @@
 
               <td class="whitespace-nowrap">
                 <div class="flex flex-col px-1 py-1">
-                  <div class="pb-1 text-sm text-neutral-50">{entry.name}</div>
+                  <div class="pb-1 text-sm text-neutral-50">{entry.name.slice(0, entry.name.length - 6)}</div>
                   {#if entry.modified}
-                    <div class="text-xs text-neutral-300">Modified: {entry.modified}</div>
+                    <div class="text-xs text-neutral-300">Modified: {dateFormat.format(new Date(Date.now() + entry.modified)) }</div>
                   {/if}
                   <div class="flex flex-row">
                     {#if entry.duration}
-                      <div class="pr-2 text-xs text-neutral-300">Duration: {entry.duration.toFixed(0)} min</div>
+                      <div class="pr-2 text-xs text-neutral-300">Duration: {(entry.duration/60.0).toFixed(0)} min</div>
                     {/if}
                     {#if entry.weight}
                       <div class="text-xs text-neutral-300">Weight: {entry.weight.toFixed(0)} g</div>
@@ -358,7 +381,7 @@
           {/each}
         </table>
       </div>
-      <div class="flex max-h-full w-1/5 flex-col items-stretch justify-center gap-2">
+      <div class="flex max-h-full w-1/5 flex-col items-stretch justify-center gap-3">
         <button
           on:click="{() => {
             divElement.scrollBy({ top: (-divElement.clientHeight * 2) / 3.0, behavior: 'smooth' });
@@ -374,6 +397,10 @@
           Down
         </button>
         <button
+        on:click="{()=>{
+          cycleSortVariant()
+        console.log(currentSort)}
+        }"
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Sort
         </button>
