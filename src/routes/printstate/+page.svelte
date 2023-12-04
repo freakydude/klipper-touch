@@ -38,29 +38,46 @@
   let apiUrl = bootParams.moonrakerApi;
 
   let loadDialog = false;
-  let sortedFileNames: string[] = [];
-  let thumbnails: string[] = [];
-  let selectedFilename = 1;
+  let selectedFileEntry = 0;
+
+  class FileListEntry {
+    name: string = '';
+    thumbnailUrl: string = '';
+    weight: number = 0;
+    duration: number = 0;
+    modified: string = '';
+  }
+
+  let fileEntries: FileListEntry[] = [];
 
   async function clickLoad() {
     loadDialog = true;
+
     let gcodeFiles = await commands.listFiles();
 
-    sortedFileNames = gcodeFiles.sort((n1, n2) => n2.modified - n1.modified).map((file) => file.path);
-
-    let tempThumbnails: string[] = new Array<string>(sortedFileNames.length);
-
     await Promise.all(
-      sortedFileNames.map(async (gcodeFile) => {
-        let x = await values.getThumbnails(gcodeFile);
-        if (x !== null) {
-          let thumbFile = await values.getLargestAbsoluteThumbnailPath($apiUrl, x);
-          tempThumbnails[sortedFileNames.indexOf(gcodeFile)] = thumbFile; // TODO Dict instead of array
+      gcodeFiles.map(async (file) => {
+        let meta = await values.getFileMetadata(file.path);
+        let index = gcodeFiles.indexOf(file);
+        let entry: FileListEntry = new FileListEntry();
+        if (meta !== null) {
+          entry.duration = meta.estimated_time / 60.0;
+          entry.name = file.path.slice(0, file.path.length - 6);
+          entry.weight = meta.filament_weight_total;
+          entry.modified = new Intl.DateTimeFormat('de', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            month: 'numeric',
+            day: 'numeric',
+            year: 'numeric'
+          }).format(new Date(Date.now() + meta.modified));
+          entry.thumbnailUrl = await values.getLargestAbsoluteThumbnailPath($apiUrl, meta.thumbnails);
         }
+
+        fileEntries[index] = entry;
       })
     );
-
-    thumbnails = tempThumbnails;
   }
 
   $: {
@@ -72,9 +89,7 @@
   }
 
   $: {
-    estimatedETA = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + estimatedTime) * 1000));
-    console.log(estimatedETA);
-    console.log(estimatedTime);
+    estimatedETA = clockFormatter.format(new Date(Date.now() + estimatedTime));
   }
 
   $: {
@@ -84,8 +99,8 @@
   function updateEta(progress: number) {
     if (progress > 0 && $printStatsPrintDuration > 60) {
       // wait 60sec before update eta dynamic
-      dynamicRemainingTime = Math.floor($printStatsPrintDuration / progress - $printStatsPrintDuration);
-      dynamicEta = clockFormatter.format(new Date((Math.floor(Date.now() / 1000.0) + dynamicRemainingTime) * 1000));
+      dynamicRemainingTime = $printStatsPrintDuration / progress - $printStatsPrintDuration;
+      dynamicEta = clockFormatter.format(new Date(Date.now() + dynamicRemainingTime));
     } else {
       dynamicEta = estimatedETA;
     }
@@ -295,46 +310,75 @@
 {/if}
 
 {#if loadDialog}
-  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 p-2">
+  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 pb-2 pl-2 pt-2">
     <div
-      class="flex h-full w-full flex-row items-center justify-center gap-2 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-2 drop-shadow-md backdrop-blur">
-      <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-4">
+      class="flex h-full w-full flex-row items-stretch justify-center gap-2 rounded-l-lg border-neutral-600 bg-neutral-700 bg-opacity-50 pb-1 pl-1 pt-1 drop-shadow-md backdrop-blur">
+      <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-x-hidden overflow-y-hidden rounded-lg">
         <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
-          {#each sortedFileNames as filename, i}
+          {#each fileEntries as entry, i}
             <tr
-              class="border-b border-neutral-800 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i === selectedFilename
+              class="border-b border-neutral-800 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i === selectedFileEntry
                 ? 'bg-neutral-500'
                 : 'bg-neutral-600'}"
               on:click="{() => {
-                selectedFilename = i;
+                selectedFileEntry = i;
               }}">
-              <td class="">
-                {#if thumbnails[i] === ''}
+              <td class="p-0.5">
+                {#if entry.thumbnailUrl === ''}
                   <div
                     class="w-16 items-stretch justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
                     ?
                   </div>
                 {:else}
-                  <img class="flex w-16 justify-center rounded-lg" loading="lazy" src="{thumbnails[i]}" alt="{$printStatsFilename}" />
+                  <img class="flex justify-center rounded-lg" loading="lazy" src="{entry.thumbnailUrl}" alt="{entry.name}" />
                 {/if}
               </td>
-              <td class="px-1 py-1 text-sm text-neutral-50">
-                {filename}
+
+              <td class="whitespace-nowrap">
+                <div class="flex flex-col px-1 py-1">
+                  <div class="pb-1 text-sm text-neutral-50">{entry.name}</div>
+                  {#if entry.modified}
+                    <div class="text-xs text-neutral-300">Modified: {entry.modified}</div>
+                  {/if}
+                  <div class="flex flex-row">
+                    {#if entry.duration}
+                      <div class="pr-2 text-xs text-neutral-300">Duration: {entry.duration.toFixed(0)} min</div>
+                    {/if}
+                    {#if entry.weight}
+                      <div class="text-xs text-neutral-300">Weight: {entry.weight.toFixed(0)} g</div>
+                    {/if}
+                  </div>
+                </div>
               </td>
             </tr>
           {/each}
         </table>
       </div>
-      <div class="flex max-h-full w-1/5 flex-col items-stretch gap-2">
+      <div class="flex max-h-full w-1/5 flex-col items-stretch justify-center gap-2">
         <button
-          on:click="{() => (loadDialog = false)}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Up
+        </button>
+        <button
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Down
+        </button>
+        <button
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          Sort
+        </button>
+        <button
+          on:click="{() => {
+            loadDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Load
         </button>
-
         <button
-          on:click="{() => (loadDialog = false)}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          on:click="{() => {
+            loadDialog = false;
+          }}"
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Close
         </button>
       </div>
