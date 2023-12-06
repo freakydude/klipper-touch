@@ -57,23 +57,24 @@
     ModifiedDesc
   }
 
-  let currentSort : sortVariant = sortVariant.NameDesc
+  let currentSort: sortVariant = sortVariant.NameDesc;
 
-  function cycleSortVariant (){
-    if(currentSort === sortVariant.ModifiedDesc)
-    {
-      currentSort = sortVariant.NameAsc
+  function cycleSortVariant() {
+    if (currentSort === sortVariant.ModifiedDesc) {
+      currentSort = sortVariant.NameAsc;
+    } else {
+      currentSort++;
     }
-    else{currentSort++}
   }
 
-  type sortFunc = (n1:FileListEntry, n2:FileListEntry) => number
+  type sortFunc = (n1: FileListEntry, n2: FileListEntry) => number;
 
-  let sortDic = new Map<sortVariant,sortFunc>([
-  [sortVariant.NameAsc, (n1:FileListEntry, n2:FileListEntry) => n1.name < n2.name? -1: 1],
-  [sortVariant.NameDesc, (n1:FileListEntry, n2:FileListEntry) => n1.name > n2.name? -1:1],
-  [sortVariant.ModifiedAsc, (n1:FileListEntry, n2:FileListEntry) => n1.modified < n2.modified? -1:1],
-  [sortVariant.ModifiedDesc, (n1:FileListEntry, n2:FileListEntry) => n1.modified > n2.modified? -1:1]])
+  let sortDic = new Map<sortVariant, sortFunc>([
+    [sortVariant.NameAsc, (n1: FileListEntry, n2: FileListEntry) => (n1.name < n2.name ? -1 : 1)],
+    [sortVariant.NameDesc, (n1: FileListEntry, n2: FileListEntry) => (n1.name > n2.name ? -1 : 1)],
+    [sortVariant.ModifiedAsc, (n1: FileListEntry, n2: FileListEntry) => (n1.modified < n2.modified ? -1 : 1)],
+    [sortVariant.ModifiedDesc, (n1: FileListEntry, n2: FileListEntry) => (n1.modified > n2.modified ? -1 : 1)]
+  ]);
 
   let fileEntries: FileListEntry[] = [];
 
@@ -88,10 +89,10 @@
         let index = gcodeFiles.indexOf(file);
         let entry: FileListEntry = new FileListEntry();
         if (meta !== null) {
-          entry.duration = meta.estimated_time ;
+          entry.duration = meta.estimated_time;
           entry.name = file.path;
           entry.weight = meta.filament_weight_total;
-          entry.modified = meta.modified
+          entry.modified = meta.modified;
           entry.thumbnailUrl = await values.getLargestAbsoluteThumbnailPath($apiUrl, meta.thumbnails);
         }
 
@@ -101,13 +102,13 @@
   }
 
   let dateFormat = new Intl.DateTimeFormat('de', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            month: 'numeric',
-            day: 'numeric',
-            year: 'numeric'
-          })
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric'
+  });
 
   $: {
     if ($fileMeta !== null) {
@@ -118,7 +119,7 @@
   }
 
   $: {
-    estimatedETA = clockFormatter.format(new Date(Date.now() + estimatedTime));
+    estimatedETA = clockFormatter.format(new Date(Date.now() + estimatedTime * 1000));
   }
 
   $: {
@@ -129,7 +130,7 @@
     if (progress > 0 && $printStatsPrintDuration > 60) {
       // wait 60sec before update eta dynamic
       dynamicRemainingTime = $printStatsPrintDuration / progress - $printStatsPrintDuration;
-      dynamicEta = clockFormatter.format(new Date(Date.now() + dynamicRemainingTime));
+      dynamicEta = clockFormatter.format(new Date(Date.now() + dynamicRemainingTime * 1000));
     } else {
       dynamicEta = estimatedETA;
     }
@@ -365,11 +366,11 @@
                 <div class="flex flex-col px-1 py-1">
                   <div class="pb-1 text-sm text-neutral-50">{entry.name.slice(0, entry.name.length - 6)}</div>
                   {#if entry.modified}
-                    <div class="text-xs text-neutral-300">Modified: {dateFormat.format(new Date(Date.now() + entry.modified)) }</div>
+                    <div class="text-xs text-neutral-300">Modified: {dateFormat.format(new Date(Date.now() + entry.modified))}</div>
                   {/if}
                   <div class="flex flex-row">
                     {#if entry.duration}
-                      <div class="pr-2 text-xs text-neutral-300">Duration: {(entry.duration/60.0).toFixed(0)} min</div>
+                      <div class="pr-2 text-xs text-neutral-300">Duration: {(entry.duration / 60.0).toFixed(0)} min</div>
                     {/if}
                     {#if entry.weight}
                       <div class="text-xs text-neutral-300">Weight: {entry.weight.toFixed(0)} g</div>
@@ -397,9 +398,9 @@
           Down
         </button>
         <button
-        on:click="{()=>{
-          cycleSortVariant()}
-        }"
+          on:click="{() => {
+            cycleSortVariant();
+          }}"
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Sort
         </button>
