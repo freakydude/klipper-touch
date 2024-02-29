@@ -136,6 +136,7 @@ And yes, help and improve if you find something.
 
   ```bash
   npm run tauri dev
+  npm run tauri dev -- -- -- -h http://<moonraker-ip> -w ws://<moonraker-ip>/websocket
   ```
 
 - Build:
