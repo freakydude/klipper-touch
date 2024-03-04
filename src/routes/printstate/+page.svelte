@@ -28,13 +28,11 @@
   let clockFormatter = values.clockFormatter;
   let progress = moonraker.displayStatus.Progress;
   let selectedFileThumbnailPath = values.largestAbsoluteThumbnailPath;
-  let dynamicRemainingTime = 0;
-  let dynamicEta = '';
-  let filamentTotal = 0;
+  let metaFilamentTotal = 0;
   let confirmCancelPrint = false;
-  let printStartTime = 0;
-  let estimatedTime = 0;
-  let estimatedETA = ' ';
+  let metaPrintStartTime = 0;
+  let metaEstimatedTime = 0;
+  let estimatedDate = Date.now();
   let apiUrl = bootParams.moonrakerApi;
 
   let loadDialog = false;
@@ -101,7 +99,7 @@
     );
   }
 
-  let dateFormat = new Intl.DateTimeFormat('de', {
+  let dateFormat = new Intl.DateTimeFormat('de_DE', {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
@@ -112,27 +110,19 @@
 
   $: {
     if ($fileMeta !== null) {
-      filamentTotal = $fileMeta.filament_total;
-      printStartTime = $fileMeta.print_start_time;
-      estimatedTime = $fileMeta.estimated_time;
+      metaFilamentTotal = $fileMeta.filament_total;
+      metaPrintStartTime = $fileMeta.print_start_time;
+      metaEstimatedTime = $fileMeta.estimated_time;
     }
   }
 
   $: {
-    estimatedETA = clockFormatter.format(new Date(Date.now() + estimatedTime * 1000));
-  }
-
-  $: {
-    updateEta($progress); // TODO update on pause
-  }
-
-  function updateEta(progress: number) {
-    if (progress > 0 && $printStatsPrintDuration > 60) {
-      // wait 60sec before update eta dynamic
-      dynamicRemainingTime = $printStatsPrintDuration / progress - $printStatsPrintDuration;
-      dynamicEta = clockFormatter.format(new Date(Date.now() + dynamicRemainingTime * 1000));
+    if ($fileMeta !== null) {
+      let progressTime = $progress * metaEstimatedTime;
+      estimatedDate = Date.now() + (metaEstimatedTime - progressTime) * 1000;
     } else {
-      dynamicEta = estimatedETA;
+      let totalTime = $printStatsPrintDuration / $progress;
+      estimatedDate = Date.now() + (totalTime - $printStatsPrintDuration) * 1000;
     }
   }
 </script>
@@ -227,11 +217,11 @@
               {#if $printStatsState === 'standby'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">ETA</td>
-                  <td class="text-start">{estimatedETA}</td>
+                  <td class="text-start">{clockFormatter.format(estimatedDate)}</td>
                 </tr>
                 <tr>
                   <td class="pr-2 text-end">Filament</td>
-                  <td class="text-start">{(filamentTotal / 1000.0).toFixed(1)} m</td>
+                  <td class="text-start">{(metaFilamentTotal / 1000.0).toFixed(1)} m</td>
                 </tr>
               {:else if $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'error'}
                 <tr class="border-b border-neutral-800">
@@ -253,7 +243,7 @@
               {:else if $printStatsState === 'printing' || $printStatsState === 'paused'}
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">ETA</td>
-                  <td class="text-start">{dynamicEta}</td>
+                  <td class="text-start">{clockFormatter.format(estimatedDate)}</td>
                 </tr>
                 <tr class="border-b border-neutral-800">
                   <td class="pr-2 text-end">Layer</td>
