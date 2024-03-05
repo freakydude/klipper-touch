@@ -57,13 +57,15 @@
 
         <button
           on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}"
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Up
         </button>
 
         <button
           on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}"
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Down
         </button>
       </div>
@@ -81,13 +83,15 @@
 
         <button
           on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}"
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Up
         </button>
 
         <button
           on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}"
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Down
         </button>
       </div>
@@ -98,12 +102,14 @@
         on:click="{() => {
           commands.setNozzleTemperature(0);
           commands.setBedTemperature(0);
-        }}">
+        }}"
+      >
         Off
       </button>
       <button
         on:click="{() => (preselectDialog = true)}"
-        class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+      >
         Preset
       </button>
     </span>
@@ -120,7 +126,8 @@
           on:click="{() => {
             selectedStep = i;
             $valuesStepsTemp = number;
-          }}">
+          }}"
+        >
           {number}
         </button>
       {/each}
@@ -139,7 +146,8 @@
             commands.setBedTemperature(60);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>PLA</p>
             <p class="text-sm font-normal">200 / 60 °C</p>
@@ -151,7 +159,8 @@
             commands.setBedTemperature(70);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>PETG</p>
             <p class="text-sm font-normal">235 / 70 °C</p>
@@ -163,7 +172,8 @@
             commands.setBedTemperature(110);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>ABS</p>
             <p class="text-sm font-normal">250 / 110 °C</p>
@@ -175,7 +185,8 @@
             commands.setBedTemperature(0);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>TPU</p>
             <p class="text-sm font-normal">220 / 0 °C</p>
@@ -187,7 +198,8 @@
             commands.setBedTemperature(60);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>Heatup</p>
             <p class="text-sm font-normal">170 / 60 °C</p>
@@ -199,7 +211,8 @@
             commands.setBedTemperature(0);
             preselectDialog = false;
           }}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           <span class="flex flex-col">
             <p>Coldpull</p>
             <p class="text-sm font-normal">110 / 0 °C</p>
@@ -209,7 +222,8 @@
       <span class="flex flex-wrap justify-center gap-3">
         <button
           on:click="{() => (preselectDialog = false)}"
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Abort
         </button>
       </span>
