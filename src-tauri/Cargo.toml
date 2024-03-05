@@ -3,11 +3,10 @@ name = "klipper-touch"
 version = "0.1.0"
 description = "A ui for small touch screens - made for klipper"
 authors = ["Frank Roth <developer@freakydu.de>"]
-license = "Copyright by Frank Roth <developer@freakydu.de>, 2023"
+license = "Copyright by Frank Roth <developer@freakydu.de>, 2024"
 repository = "https://github.com/freakydude/klipper-touch"
 default-run = "klipper-touch"
 edition = "2021"
-rust-version = "1.73"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [build-dependencies]

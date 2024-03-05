@@ -90,7 +90,7 @@ export class Values {
   }
 
   private createClockFormatter(): Intl.DateTimeFormat {
-    return new Intl.DateTimeFormat('de_DE', {
+    return new Intl.DateTimeFormat('de', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit'

@@ -99,7 +99,7 @@
     );
   }
 
-  let dateFormat = new Intl.DateTimeFormat('de_DE', {
+  let dateFormat = new Intl.DateTimeFormat('de', {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
