@@ -1,4 +1,4 @@
-import { IInfo } from './IInfo';
+import { type IInfo } from './IInfo';
 import type { TPrintState } from './TPrintState';
 
 export interface IPrintStats {
