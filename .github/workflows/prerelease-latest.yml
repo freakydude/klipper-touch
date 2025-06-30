@@ -54,6 +54,10 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
+      - name: install uncompress dependencies        
+        run: |
+          apt update -y
+          apt install -y xz-utils gzip unzip
       - name: build release
         uses: pguyot/arm-runner-action@v2
         with:
@@ -75,7 +79,7 @@ jobs:
             curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
             echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
             apt update -y
-            apt install -y nodejs libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            apt install -y nodejs libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev            
             curl https://sh.rustup.rs -sSf | sh -s -- -y
             . "$HOME/.cargo/env"            
             npm install
