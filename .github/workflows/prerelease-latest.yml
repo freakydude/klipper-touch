@@ -56,7 +56,7 @@ jobs:
         include:
           - arch: aarch64
             cpu: cortex-a72
-            base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
+            base_image: dietpi:rpi_armv8_bookworm
             deb: arm64
             rpm: aarch64
             appimage: aarch64
@@ -65,10 +65,10 @@ jobs:
             deb: armhfp
             rpm: arm
             appimage: armhf
-            base_image: https://dietpi.com/downloads/images/DietPi_RPi-ARMv7-Bookworm.img.xz
+            base_image: dietpi:rpi_armv7_bookworm
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache rust build artifacts
         uses: Swatinem/rust-cache@v2
@@ -76,15 +76,10 @@ jobs:
           workspaces: src-tauri
           cache-on-failure: true
 
-      - name: Prepare host for ARM-image unpacking
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static binfmt-support xz-utils gzip unzip
-
       - name: Build app
-        uses: pguyot/arm-runner-action@v2.6.5
+        uses: pguyot/arm-runner-action@v2
         with:
-          base_image: ${{ matrix.base_image }}
+          image: ${{ matrix.base_image }}
           cpu: ${{ matrix.cpu }}
           bind_mount_repository: true
           image_additional_mb: 10240
@@ -135,7 +130,7 @@ jobs:
           path: ${{ github.workspace }}/src-tauri/target/release/bundle/appimage/appname_${{ env.APP_VERSION }}_${{ matrix.appimage }}.AppImage
 
       - name: upload release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ env.releaseName }}
           tag_name: ${{ env.tagName }}
