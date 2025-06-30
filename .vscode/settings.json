@@ -1,3 +1,10 @@
 {
-  "cSpell.words": ["klippy"]
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "prettier.documentSelectors": ["**/*.svelte"],
+  "svelte.enable-ts-plugin": true
 }

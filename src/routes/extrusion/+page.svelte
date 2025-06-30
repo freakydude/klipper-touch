@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import { commands, moonraker, values } from '$lib/base.svelte';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
@@ -10,59 +12,61 @@
   let canExtrude = moonraker.extruder.CanExtrude;
 
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
-  let selectedStep = 3;
+  let selectedStep = $state(3);
   let speedArr = [1, 2, 3, 5, 7, 10];
-  let selectedSpeed = 2;
+  let selectedSpeed = $state(2);
 
   let valuesStepsExtrusion = values.stepsExtrusion;
 
-  $: {
+  run(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsExtrusion);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
     } else {
       console.warn("Global stepsExtrusion can't be pre-selected");
     }
-  }
+  });
 
   let valuesStepsExtrusionSpeed = values.stepsExtrusionSpeed;
 
-  $: {
+  run(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsExtrusionSpeed);
     if (stepIdx != -1) {
       selectedSpeed = stepIdx;
     } else {
       console.warn("Global stepsExtrusionSpeed can't be pre-selected");
     }
-  }
+  });
 </script>
 
-<div class="page-dark flex-col items-stretch justify-between gap-1">
+<div class="flex flex-grow flex-col items-stretch justify-between gap-1 overflow-hidden bg-neutral-800">
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
       <div class="flex flex-col items-center gap-1 rounded-lg bg-neutral-700 p-1">
         <table class="w-40 self-stretch text-sm text-neutral-50">
-          <tr class="border-b border-neutral-800">
-            <td class="pr-2 text-end">Nozzle</td>
-            <td class="text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
-          </tr>
-          <tr>
-            <td class="pr-2 text-end">Flow</td>
-            <td class="text-start">{(Math.pow(1.75 / 2, 2) * Math.PI * $liveExtruderVelocity).toFixed(1)} mm³/s</td>
-          </tr>
+          <tbody>
+            <tr class="border-b border-neutral-800">
+              <td class="pr-2 text-end">Nozzle</td>
+              <td class="text-start">{$nozzleTemp.toFixed(1)} / {$nozzleTarget} °C</td>
+            </tr>
+            <tr>
+              <td class="pr-2 text-end">Flow</td>
+              <td class="text-start">{(Math.pow(1.75 / 2, 2) * Math.PI * $liveExtruderVelocity).toFixed(1)} mm³/s</td>
+            </tr>
+          </tbody>
         </table>
 
         <button
-          disabled="{$printState === 'printing' || $canExtrude === false}"
-          on:click="{() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}"
+          disabled={$printState === 'printing' || $canExtrude === false}
+          onclick={() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Retract
         </button>
 
         <button
-          disabled="{$printState === 'printing' || $canExtrude === false}"
-          on:click="{() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}"
+          disabled={$printState === 'printing' || $canExtrude === false}
+          onclick={() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Extrude
         </button>
@@ -78,10 +82,10 @@
                 selectedSpeed
                   ? 'bg-neutral-500'
                   : 'bg-neutral-600'} "
-                on:click="{() => {
+                onclick={() => {
                   selectedSpeed = i;
                   $valuesStepsExtrusionSpeed = number;
-                }}">
+                }}>
                 {number}
               </button>
             {/each}
@@ -94,12 +98,12 @@
       <!-- Right side buttons here -->
 
       <button
-        disabled="{true}"
+        disabled={true}
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Load
       </button>
       <button
-        disabled="{true}"
+        disabled={true}
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Unload
       </button>
@@ -114,10 +118,10 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click="{() => {
+          onclick={() => {
             selectedStep = i;
             $valuesStepsExtrusion = number;
-          }}">
+          }}>
           {number}
         </button>
       {/each}

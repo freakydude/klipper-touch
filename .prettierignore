@@ -1,13 +1,8 @@
-.DS_Store
+# Ignore artifacts:
+build
+coverage
 node_modules
-/build
-/.svelte-kit
-/package
-.env
-.env.*
-!.env.example
-/src-tauri/target
-
+src-tauri/target
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml
 package-lock.json

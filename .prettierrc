@@ -1,12 +1,13 @@
 {
+  "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
   "plugins": [
-    "prettier-plugin-svelte",
     "prettier-plugin-organize-imports",
     "prettier-plugin-sh",
     "prettier-plugin-sort-json",
     "prettier-plugin-toml",
     "prettier-plugin-toml",
     "prettier-plugin-rust",
+    "prettier-plugin-svelte",
     "prettier-plugin-tailwindcss"
   ],
   "printWidth": 160,

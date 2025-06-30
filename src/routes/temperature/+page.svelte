@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import { commands, moonraker, values } from '$lib/base.svelte';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
@@ -8,19 +10,19 @@
   let heaterBedCurrentTemperature = moonraker.heaterBed.Temperature;
   let nozzleCurrentTemperature = moonraker.extruder.Temperature;
   let stepsArr = [1, 5, 10, 20, 50, 100];
-  let selectedStep = 3;
-  let preselectDialog = false;
+  let selectedStep = $state(3);
+  let preselectDialog = $state(false);
 
   let valuesStepsTemp = values.stepsTemp;
 
-  $: {
+  run(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsTemp);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
     } else {
       console.warn("Global stepsTemp can't be pre-selected");
     }
-  }
+  });
 
   function getAbsoluteNozzleTemperature(relativeSteps: number): number {
     let target = $nozzleTargetTemperature + relativeSteps;
@@ -39,54 +41,58 @@
   }
 </script>
 
-<div class="page-dark flex-col items-stretch justify-between gap-1">
+<div class="flex flex-grow flex-col items-stretch justify-between gap-1 overflow-hidden bg-neutral-800">
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around gap-1">
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
         <table class="text-sm text-neutral-50">
-          <tr class="border-b border-neutral-800">
-            <td class="pr-1 text-end">Nozzle</td>
-            <td class="w-16 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
-          </tr>
-          <tr>
-            <td class="pr-1 text-end">Target</td>
-            <td class="w-16 text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
-          </tr>
+          <tbody>
+            <tr class="border-b border-neutral-800">
+              <td class="pr-1 text-end">Nozzle</td>
+              <td class="w-16 text-start">{$nozzleCurrentTemperature.toFixed(1)} °C</td>
+            </tr>
+            <tr>
+              <td class="pr-1 text-end">Target</td>
+              <td class="w-16 text-start">{$nozzleTargetTemperature.toFixed(1)} °C</td>
+            </tr>
+          </tbody>
         </table>
 
         <button
-          on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}"
+          onclick={() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click="{() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}"
+          onclick={() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
       </div>
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
         <table class=" text-sm text-neutral-50">
-          <tr class="border-b border-neutral-800">
-            <td class="pr-1 text-end">Bed</td>
-            <td class="w-16 text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
-          </tr>
-          <tr>
-            <td class="pr-1 text-end">Target</td>
-            <td class="w-16 text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
-          </tr>
+          <tbody>
+            <tr class="border-b border-neutral-800">
+              <td class="pr-1 text-end">Bed</td>
+              <td class="w-16 text-start">{$heaterBedCurrentTemperature.toFixed(1)} °C</td>
+            </tr>
+            <tr>
+              <td class="pr-1 text-end">Target</td>
+              <td class="w-16 text-start">{$heaterBedTargetTemperature.toFixed(1)} °C</td>
+            </tr>
+          </tbody>
         </table>
 
         <button
-          on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}"
+          onclick={() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Up
         </button>
 
         <button
-          on:click="{() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}"
+          onclick={() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Down
         </button>
@@ -95,14 +101,14 @@
     <span class="flex w-1/6 flex-col justify-around gap-3">
       <button
         class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-        on:click="{() => {
+        onclick={() => {
           commands.setNozzleTemperature(0);
           commands.setBedTemperature(0);
-        }}">
+        }}>
         Off
       </button>
       <button
-        on:click="{() => (preselectDialog = true)}"
+        onclick={() => (preselectDialog = true)}
         class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
         Preset
       </button>
@@ -117,10 +123,10 @@
           selectedStep
             ? 'bg-neutral-500'
             : 'bg-neutral-600'} "
-          on:click="{() => {
+          onclick={() => {
             selectedStep = i;
             $valuesStepsTemp = number;
-          }}">
+          }}>
           {number}
         </button>
       {/each}
@@ -129,16 +135,16 @@
   <BottomNavigation />
 </div>
 {#if preselectDialog}
-  <div class="absolute flex h-full w-full items-center justify-center bg-black bg-opacity-50 p-2">
-    <div class="flex flex-col items-center justify-center gap-3 rounded-lg border-neutral-600 bg-neutral-700 bg-opacity-50 p-2 drop-shadow-md backdrop-blur">
+  <div class="bg-opacity-50 absolute flex h-full w-full items-center justify-center bg-black p-2">
+    <div class="bg-opacity-50 flex flex-col items-center justify-center gap-3 rounded-lg border-neutral-600 bg-neutral-700 p-2 drop-shadow-md backdrop-blur">
       <p class="text-center text-neutral-100">Choose a Preset</p>
       <span class="flex flex-wrap justify-center gap-3">
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(200);
             commands.setBedTemperature(60);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>PLA</p>
@@ -146,11 +152,11 @@
           </span>
         </button>
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(235);
             commands.setBedTemperature(70);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>PETG</p>
@@ -158,11 +164,11 @@
           </span>
         </button>
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(250);
             commands.setBedTemperature(110);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>ABS</p>
@@ -170,11 +176,11 @@
           </span>
         </button>
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(220);
             commands.setBedTemperature(0);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>TPU</p>
@@ -182,11 +188,11 @@
           </span>
         </button>
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(170);
             commands.setBedTemperature(60);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>Heatup</p>
@@ -194,11 +200,11 @@
           </span>
         </button>
         <button
-          on:click="{() => {
+          onclick={() => {
             commands.setNozzleTemperature(110);
             commands.setBedTemperature(0);
             preselectDialog = false;
-          }}"
+          }}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           <span class="flex flex-col">
             <p>Coldpull</p>
@@ -208,7 +214,7 @@
       </span>
       <span class="flex flex-wrap justify-center gap-3">
         <button
-          on:click="{() => (preselectDialog = false)}"
+          onclick={() => (preselectDialog = false)}
           class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
           Abort
         </button>
