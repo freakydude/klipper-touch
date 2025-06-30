@@ -76,10 +76,25 @@ jobs:
           workspaces: src-tauri
           cache-on-failure: true
 
+      - name: Prepare host for ARM-image unpacking
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-user-static \
+            binfmt-support \
+            parted \
+            wget \
+            dosfstools \
+            zip \
+            xz-utils \
+            gzip \
+            unzip
+
+
       - name: Build app
         uses: pguyot/arm-runner-action@v2
         with:
-          image: ${{ matrix.base_image }}
+          base_image: ${{ matrix.base_image }}
           cpu: ${{ matrix.cpu }}
           bind_mount_repository: true
           image_additional_mb: 10240
