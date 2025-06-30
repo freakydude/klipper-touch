@@ -25,6 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
       - name: install rust
         uses: dtolnay/rust-toolchain@stable
       - name: install dependencies (ubuntu only)
@@ -46,48 +47,94 @@ jobs:
           releaseDraft: false
           prerelease: ${{ env.preRelease }}
 
-  release-armv8_rpi_bullseye:
-    # needs: [release-amd64]
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
+  release-arm:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        arch: [aarch64, armv7l]
+        include:
+          - arch: aarch64
+            cpu: cortex-a72
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
+            deb: arm64
+            rpm: aarch64
+            appimage: aarch64
+          - arch: armv7l
+            cpu: cortex-a53
+            deb: armhfp
+            rpm: arm
+            appimage: armhf
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi2-ARMv7-Bookworm.img.xz
+
     steps:
-      - name: checkout repository
-        uses: actions/checkout@v4
-      - name: build release
+      - uses: actions/checkout@v4
+
+      - name: Cache rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - name: Build app
         uses: pguyot/arm-runner-action@v2
         with:
-          base_image: https://dietpi.com/downloads/images/DietPi_RPi-ARMv8-Bullseye.img.xz #dietpi:rpi_armv8_bullseye
-          cpu: cortex-a53
-          cpu_info: cpuinfo/raspberrypi_zero2_w_arm64
+          base_image: ${{ matrix.base_image }}
+          cpu: ${{ matrix.cpu }}
           bind_mount_repository: true
-          image_additional_mb: 4096
-          optimize_image: false
+          image_additional_mb: 10240
+          optimize_image: no
+          #exit_on_fail: no
           commands: |
-            # Rust complains (rightly) that $HOME doesn't match eid home
+            # Prevent Rust from complaining about $HOME not matching eid home
             export HOME=/root
+
             # Workaround to CI worker being stuck on Updating crates.io index
             export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
             # Install setup prerequisites
-            apt update -y
-            apt install -y ca-certificates curl gnupg
-            mkdir -p /etc/apt/keyrings
-            curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-            echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-            apt update -y
-            apt install -y nodejs libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+            apt-get update -y --allow-releaseinfo-change
+            apt-get autoremove -y
+            apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file
             curl https://sh.rustup.rs -sSf | sh -s -- -y
-            . "$HOME/.cargo/env"            
+            . "$HOME/.cargo/env"
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | bash
+            apt-get install -y nodejs
+
+            # Install frontend dependencies
             npm install
-            npm install --save-dev @tauri-apps/cli
-            npm run tauri build
-            pwd
+
+            # Build the application
+            npm run tauri build -- --verbose
+
+      - name: Get app version
+        run: echo "APP_VERSION=$(jq -r .version src-tauri/tauri.conf.json)" >> $GITHUB_ENV
+
+      # TODO: Combine this with the basic workflow and upload the files to the Release.
+      - name: Upload deb bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Debian Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/appname_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+
+      - name: Upload rpm bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPM Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/appname-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
+
+      - name: Upload appimage bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppImage Bundle
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/appimage/appname_${{ env.APP_VERSION }}_${{ matrix.appimage }}.AppImage
+
       - name: upload release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ env.releaseName }}
           tag_name: ${{ env.tagName }}
           prerelease: ${{ env.preRelease }}
           generate_release_notes: true
           files: |
-            ${{ github.workspace }}/src-tauri/target/release/bundle/deb/*.deb
+            ${{ github.workspace }}/src-tauri/target/release/bundle/deb/appname_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb

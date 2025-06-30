@@ -65,7 +65,6 @@ And yes, help and improve if you find something.
 - Download it from [https://github.com/freakydude/klipper-touch/releases](https://github.com/freakydude/klipper-touch/releases)
 
 - Install Klipper-Touch
-
   - Go to your manual downloaded package directory and run
 
     ```bash
@@ -75,12 +74,10 @@ And yes, help and improve if you find something.
 - Configure your `cors_domains` in `moonraker.conf` to allow Klipper-Touch to access the moonraker apis
 
 - Run Klipper-Touch
-
   - exclusive: `/usr/bin/startx /usr/bin/klipper-touch -- -nocursor` or
   - in a window manager: `/usr/bin/klipper-touch`
 
 - Klipper-Touch listen on url: `http://127.0.0.1/` and `ws://127.0.0.1/websocket` for a moonraker api connection.
-
   - To use another url, use the commandline parameters
 
     ```
@@ -136,7 +133,7 @@ And yes, help and improve if you find something.
 
   ```bash
   npm run tauri dev
-  npm run tauri dev -- -- -- -h http://<moonraker-ip> -w ws://<moonraker-ip>/websocket
+  npm run tauri dev -- -- -- -m http://<moonraker-ip> -w ws://<moonraker-ip>/websocket
   ```
 
 - Build:

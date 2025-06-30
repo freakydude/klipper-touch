@@ -1,4 +1,4 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
   import { JsonRpcClient } from './jsonrpc/JsonRpcClient';
   import { MoonrakerClient } from './moonraker/MoonrakerClient';
   import { Commands } from './commons/Commands';

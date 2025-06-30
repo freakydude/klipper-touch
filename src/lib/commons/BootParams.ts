@@ -1,4 +1,4 @@
-import type { CliMatches } from '@tauri-apps/api/cli';
+import type { CliMatches } from '@tauri-apps/plugin-cli';
 import { writable, type Writable } from 'svelte/store';
 
 export class BootParams {
