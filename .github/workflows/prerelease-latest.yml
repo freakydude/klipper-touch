@@ -76,6 +76,11 @@ jobs:
           workspaces: src-tauri
           cache-on-failure: true
 
+      - name: Prepare host for ARM-image unpacking
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support xz-utils gzip unzip
+
       - name: Build app
         uses: pguyot/arm-runner-action@v2.6.5
         with:
