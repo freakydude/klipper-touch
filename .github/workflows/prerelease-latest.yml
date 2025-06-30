@@ -56,7 +56,7 @@ jobs:
         include:
           - arch: aarch64
             cpu: cortex-a72
-            base_image: dietpi:rpi_armv8_bookworm
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.7z
             deb: arm64
             rpm: aarch64
             appimage: aarch64
@@ -65,7 +65,7 @@ jobs:
             deb: armhfp
             rpm: arm
             appimage: armhf
-            base_image: dietpi:rpi_armv7_bookworm
+            base_image: https://dietpi.com/downloads/images/DietPi_RPi-ARMv7-Bookworm.img.7z
 
     steps:
       - uses: actions/checkout@v4
