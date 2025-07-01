@@ -58,13 +58,9 @@ jobs:
             cpu: cortex-a72
             base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
             deb: arm64
-            rpm: aarch64
-            appimage: aarch64
           - arch: armv7l
             cpu: cortex-a53
-            deb: armhfp
-            rpm: arm
-            appimage: armhf
+            deb: armel
             base_image: https://dietpi.com/downloads/images/DietPi_RPi2-ARMv7-Bookworm.img.xz
 
     steps:
@@ -110,24 +106,16 @@ jobs:
       - name: Get app version
         run: echo "APP_VERSION=$(jq -r .version src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
+      - name: Get app name
+        run: echo "APP_NAME=$(jq -r .productName src-tauri/tauri.conf.json)" >> $GITHUB_ENV
+
       # TODO: Combine this with the basic workflow and upload the files to the Release.
       - name: Upload deb bundle
         uses: actions/upload-artifact@v4
         with:
           name: Debian Bundle
-          path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/appname_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
 
-      - name: Upload rpm bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: RPM Bundle
-          path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/appname-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
-
-      - name: Upload appimage bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: AppImage Bundle
-          path: ${{ github.workspace }}/src-tauri/target/release/bundle/appimage/appname_${{ env.APP_VERSION }}_${{ matrix.appimage }}.AppImage
 
       - name: upload release
         uses: softprops/action-gh-release@v2
@@ -137,4 +125,4 @@ jobs:
           prerelease: ${{ env.preRelease }}
           generate_release_notes: true
           files: |
-            ${{ github.workspace }}/src-tauri/target/release/bundle/deb/appname_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+            ${{ github.workspace }}/src-tauri/target/release/bundle/deb/${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
