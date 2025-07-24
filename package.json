@@ -23,7 +23,7 @@
     "tailwindcss": "^4.1.10"
   },
   "devDependencies": {
-    "@fortawesome/free-brands-svg-icons": "^6",
+    "@fortawesome/free-brands-svg-icons": "^7",
     "@fortawesome/free-regular-svg-icons": "^6",
     "@fortawesome/free-solid-svg-icons": "^6",
     "@sveltejs/adapter-static": "^3.0.6",
