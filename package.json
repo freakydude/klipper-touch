@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@fortawesome/free-brands-svg-icons": "^7",
-    "@fortawesome/free-regular-svg-icons": "^6",
+    "@fortawesome/free-regular-svg-icons": "^7",
     "@fortawesome/free-solid-svg-icons": "^7",
     "@sveltejs/adapter-static": "^3.0.9",
     "@sveltejs/kit": "^2.37.1",
