@@ -27,12 +27,12 @@ updates:
       interval: 'daily'
       timezone: 'Europe/Berlin'
     groups:
-      npm-security-updates:
+      cargo-security-updates:
         applies-to: security-updates
         update-types:
           - 'minor'
           - 'patch'
-      npm-version-updates:
+      cargo-version-updates:
         applies-to: version-updates
         update-types:
           - 'minor'
