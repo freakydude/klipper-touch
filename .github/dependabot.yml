@@ -21,6 +21,22 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+  - package-ecosystem: "cargo" # See documentation for possible values
+    directory: "/src-tauri" # Location of package manifests
+    schedule:
+      interval: 'daily'
+      timezone: 'Europe/Berlin'
+    groups:
+      npm-security-updates:
+        applies-to: security-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+      npm-version-updates:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'          
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
