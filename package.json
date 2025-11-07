@@ -51,6 +51,6 @@
     "svelte-fa": "^4",
     "tailwindcss": "^4.1.11",
     "typescript": "~5.9.3",
-    "vite": "^7.2.1"
+    "vite": "^7.2.2"
   }
 }
