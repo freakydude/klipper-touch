@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: setup node
         uses: actions/setup-node@v6
         with:
@@ -67,7 +67,7 @@ jobs:
             base_image: https://dietpi.com/downloads/images/DietPi_RPi2-ARMv7-Bookworm.img.xz
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Cache rust build artifacts
         uses: Swatinem/rust-cache@v2
