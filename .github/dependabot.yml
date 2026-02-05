@@ -5,26 +5,34 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: 'npm' # See documentation for possible values
+    directory: '/' # Location of package manifests
     schedule:
-      interval: 'daily'
+      interval: 'weekly'
       timezone: 'Europe/Berlin'
+    assignees: 
+      - 'freakyDude' 
     groups:
       npm-security-updates:
         applies-to: security-updates
         update-types:
           - 'minor'
           - 'patch'
-      npm-version-updates:
+      npm-minor-updates:
         applies-to: version-updates
         update-types:
           - 'minor'
           - 'patch'
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/src-tauri" # Location of package manifests
+      npm-major-updates:
+        applies-to: version-updates
+        update-types:
+          - 'major'          
+  - package-ecosystem: 'cargo' # See documentation for possible values
+    directory: '/src-tauri' # Location of package manifests
+    assignees: 
+      - 'freakyDude' 
     schedule:
-      interval: 'daily'
+      interval: 'weekly'
       timezone: 'Europe/Berlin'
     groups:
       cargo-security-updates:
@@ -32,14 +40,19 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      cargo-version-updates:
+      cargo-minor-updates:
         applies-to: version-updates
         update-types:
           - 'minor'
-          - 'patch'          
+          - 'patch'
+      cargo-major-updates:
+        applies-to: version-updates
+        update-types:
+          - 'major'          
   - package-ecosystem: 'github-actions'
     directory: '/'
+    assignees: 
+      - 'freakyDude' 
     schedule:
       interval: 'weekly'
-      timezone: 'Europe/Berlin'          
-
+      timezone: 'Europe/Berlin'

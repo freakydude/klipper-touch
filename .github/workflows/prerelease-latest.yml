@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: ${{ !(github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')) }}  
+  cancel-in-progress: ${{ !(github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')) }}
 env:
   tagName: prerelease-latest
   releaseName: prerelease-latest
@@ -21,25 +21,26 @@ jobs:
       matrix:
         platform: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.platform }}
+
     steps:
-      - name: checkout repository
-        uses: actions/checkout@v5
-      - name: setup node
-        uses: actions/setup-node@v5
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Setup Nodejs
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm'
-      - name: install rust
+      - name: Install rust
         uses: dtolnay/rust-toolchain@stable
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: install frontend dependencies
+      - name: Install frontend dependencies
         run: |
           npm install
-      - name: build and upload release
+      - name: Build and Upload release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,15 +62,17 @@ jobs:
             cpu: cortex-a72
             base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
             deb: arm64
+            rpm: aarch64            
           - arch: armv7l
             cpu: cortex-a53
-            deb: armel
+            deb: armhfp
+            rpm: arm
             base_image: https://dietpi.com/downloads/images/DietPi_RPi2-ARMv7-Bookworm.img.xz
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - name: Cache rust build artifacts
+      - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -109,15 +112,20 @@ jobs:
       - name: Get app version
         run: echo "APP_VERSION=$(jq -r .version src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
-      - name: Get app name
+      - name: Get product name
         run: echo "APP_NAME=$(jq -r .productName src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
-      # TODO: Combine this with the basic workflow and upload the files to the Release.
       - name: Upload deb bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Debian ${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
           path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+
+      - name: Upload rpm bundle
+        uses: actions/upload-artifact@v5
+        with:
+          name: Debian ${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
+          path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
 
       - name: upload release
         uses: softprops/action-gh-release@v2
@@ -128,3 +136,4 @@ jobs:
           generate_release_notes: true
           files: |
             ${{ github.workspace }}/src-tauri/target/release/bundle/deb/${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
+            ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm            

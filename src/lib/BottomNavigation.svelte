@@ -14,7 +14,8 @@
     href="/printstate"
     class="flex w-16 items-center justify-center rounded-b-lg
     {page.url.pathname === '/printstate' ? 'bg-neutral-500' : 'bg-neutral-600'} 
-      px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+      px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+  >
     State
   </a>
   {#if $printStatsState !== 'printing'}
@@ -22,7 +23,8 @@
       class="flex w-16 items-center justify-center rounded-b-lg
       {page.url.pathname === '/move' ? 'bg-neutral-500' : 'bg-neutral-600'} 
        px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
-      href="/move">
+      href="/move"
+    >
       Move
     </a>
   {/if}
@@ -30,14 +32,16 @@
     href="/temperature"
     class="flex w-16 items-center justify-center rounded-b-lg
     {page.url.pathname === '/temperature' ? 'bg-neutral-500' : 'bg-neutral-600'} 
-    px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+    px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+  >
     Temp
   </a>
   <a
     href="/babysteps"
     class="flex w-16 items-center justify-center rounded-b-lg
     {page.url.pathname === '/babysteps' ? 'bg-neutral-500' : 'bg-neutral-600'} 
-    px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+    px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+  >
     Baby
   </a>
   {#if $printStatsState !== 'printing'}
@@ -45,7 +49,8 @@
       href="/extrusion"
       class="flex w-16 items-center justify-center rounded-b-lg
       {page.url.pathname === '/extrusion' ? 'bg-neutral-500' : 'bg-neutral-600'}       
-      px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+      px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+    >
       Extr
     </a>
   {/if}
@@ -54,7 +59,8 @@
   </div>
   <button
     onclick={() => (confirmKill = true)}
-    class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+    class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+  >
     Kill
   </button>
 </div>
@@ -68,12 +74,14 @@
             commands.emergencyStop();
             confirmKill = false;
           }}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50">
+          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
+        >
           Kill
         </button>
         <button
           onclick={() => (confirmKill = false)}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Abort
         </button>
       </span>
