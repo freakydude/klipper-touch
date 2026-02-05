@@ -116,13 +116,13 @@ jobs:
         run: echo "APP_NAME=$(jq -r .productName src-tauri/tauri.conf.json)" >> $GITHUB_ENV
 
       - name: Upload deb bundle
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Debian ${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
           path: ${{ github.workspace }}/src-tauri/target/release/bundle/deb/${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.deb }}.deb
 
       - name: Upload rpm bundle
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Debian ${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
           path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
