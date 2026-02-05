@@ -3,7 +3,7 @@ name = "klipper-touch"
 version = "0.1.0"
 description = "A ui for small touch screens - made for klipper"
 authors = ["Frank Roth <developer@freakydu.de>"]
-license = "Copyright by Frank Roth <developer@freakydu.de>, 2024"
+license = "Copyright by Frank Roth <developer@freakydu.de>, 2026"
 repository = "https://github.com/freakydude/klipper-touch"
 default-run = "klipper-touch"
 edition = "2021"
@@ -18,13 +18,24 @@ name = "tauri_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.5.5", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-# tauri = { version = "1.5.0", features = ["window-set-fullscreen", "cli"] }
-tauri-plugin-opener = "2"
+tauri = { version = "2.10.1", features = [] }
+tauri-plugin-opener = "2.5.3" # This plugin allows you to open files and URLs in a specified, or the default, application. It also supports “revealing” files in the system’s file explorer.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+## exclude android and ios 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
-tauri-plugin-cli = "2"
+tauri-plugin-cli = "2.4.1"
+
+[profile.dev]
+incremental = true # Compile your binary in smaller steps.
+
+[profile.release]
+codegen-units = 1 # Allows LLVM to perform better optimization.
+lto = true # Enables link-time-optimizations.
+opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.
+panic = "abort" # Higher performance by disabling panic handlers.
+strip = true # Ensures debug symbols are removed.

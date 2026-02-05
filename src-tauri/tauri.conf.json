@@ -21,7 +21,8 @@
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../build"
+    "frontendDist": "../build",
+    "removeUnusedCommands": true
   },
   "bundle": {
     "active": true,
@@ -47,7 +48,7 @@
     },
     "createUpdaterArtifacts": false
   },
-  "identifier": "de.freakydu.app",
+  "identifier": "de.freakydu.klipper-touch",
   "plugins": {
     "cli": {
       "args": [
@@ -76,7 +77,7 @@
           "takesValue": false
         }
       ],
-      "description": "Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse."
+      "description": "Klipper-Touch is an alternative, web-based user interface for Klipper3D/Moonraker, designed for use with small touch screens that do not have a keyboard or mouse."
     }
   },
   "productName": "klipper-touch",

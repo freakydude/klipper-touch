@@ -60,14 +60,16 @@
         <button
           disabled={$printState === 'printing' || $canExtrude === false}
           onclick={() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Retract
         </button>
 
         <button
           disabled={$printState === 'printing' || $canExtrude === false}
           onclick={() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}
-          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Extrude
         </button>
       </div>
@@ -85,7 +87,8 @@
                 onclick={() => {
                   selectedSpeed = i;
                   $valuesStepsExtrusionSpeed = number;
-                }}>
+                }}
+              >
                 {number}
               </button>
             {/each}
@@ -99,12 +102,14 @@
 
       <button
         disabled={true}
-        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+      >
         Load
       </button>
       <button
         disabled={true}
-        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+        class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+      >
         Unload
       </button>
     </span>
@@ -121,7 +126,8 @@
           onclick={() => {
             selectedStep = i;
             $valuesStepsExtrusion = number;
-          }}>
+          }}
+        >
           {number}
         </button>
       {/each}
