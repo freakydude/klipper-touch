@@ -23,22 +23,22 @@ export class BootParams {
     if (moonrakerWs) {
       this.moonrakerWs.set(new URL(moonrakerWs));
     }
-    if (fullscreen !== undefined) {
+    if (fullscreen) {
       this.fullscreen.set(fullscreen);
     }
   }
 
   public setMatches(matches: CliMatches) {
-    if (matches.args !== undefined) {
+    if (matches.args) {
       const args = matches.args;
 
-      if (args.moonrakerapi?.occurrences) {
+      if (args.moonrakerapi?.value) {
         this.moonrakerApi.set(new URL(args.moonrakerapi.value as string));
       }
-      if (args.moonrakerws?.occurrences) {
+      if (args.moonrakerws?.value) {
         this.moonrakerWs.set(new URL(args.moonrakerws.value as string));
       }
-      if (args.fullscreen?.occurrences) {
+      if (args.fullscreen?.value) {
         this.fullscreen.set(args.fullscreen.value as boolean);
       }
     }
