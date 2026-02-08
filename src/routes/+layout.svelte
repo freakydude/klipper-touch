@@ -15,8 +15,8 @@
   let { children }: Props = $props();
 
   onMount(async () => {
-    let matches = await getMatches();
-    bootParams.setMatches(matches);
+    await bootParams.loadStore();
+    bootParams.setMatches(await getMatches());
   });
 
   let isConnected = client.isConnected;

@@ -133,8 +133,35 @@ And yes, help and improve if you find something.
 
   ```bash
   npm run tauri dev
-  npm run tauri dev -- -- -- -m http://<moonraker-ip> -w ws://<moonraker-ip>/websocket
   ```
+
+  or with custom moonraker urls
+
+  ```bash
+  npm run tauri dev -- -- -- -m "http://<moonraker-ip>" -w "ws://<moonraker-ip>/websocket"
+  ```
+
+  or configure your `config.json` in the local storage folder (e.g. `~/.config/klipper-touch/config.json`) with or on windows in `%APPDATA%\klipper-touch\config.json` with
+
+  ```json
+  {
+    "moonrakerApi": "http://<moonraker-ip>",
+    "moonrakerWs": "ws://<moonraker-ip>/websocket",
+    "fullscreen": false
+  }
+  ```
+
+   and run without parameters
+
+   ```bash
+   npm run tauri dev
+   ```
+
+   or with fullscreen mode
+
+   ```bash
+   npm run tauri dev -- -- -- -f
+   ```
 
 - Build:
 
