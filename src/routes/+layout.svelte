@@ -68,6 +68,10 @@
   });
 </script>
 
+<!-- <style lang="postcss">
+  @reference "tailwindcss";
+</style> -->
+
 <div class="flex h-screen w-screen">
   {@render children?.()}
 </div>

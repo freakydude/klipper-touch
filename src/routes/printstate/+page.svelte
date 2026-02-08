@@ -129,7 +129,7 @@
   });
 </script>
 
-<div class="flex flex-grow flex-col items-stretch justify-between gap-1 overflow-hidden bg-neutral-800">
+<div class="flex grow flex-col items-stretch justify-between gap-1 overflow-hidden bg-neutral-800">
   <StatusLine />
   <div class="flex h-full w-full flex-row justify-between gap-1">
     <span class="flex w-5/6 flex-row justify-around gap-1">
@@ -209,7 +209,8 @@
           <div class="flex flex-col items-center rounded-lg bg-neutral-700 pb-2">
             {#if $selectedFileThumbnailPath === ''}
               <p
-                class="flex w-32 items-center justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400">
+                class="flex w-32 items-center justify-center rounded-lg border-2 border-neutral-700 bg-neutral-800 p-3 text-center text-xl font-extrabold text-neutral-400"
+              >
                 No Preview
               </p>
             {:else if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete' || $printStatsState === 'printing' || $printStatsState === 'paused' || $printStatsState === 'error'}
@@ -217,7 +218,8 @@
                 class="flex h-32 justify-center rounded-lg border-2 border-neutral-700"
                 loading="lazy"
                 src={$selectedFileThumbnailPath}
-                alt={$printStatsFilename} />
+                alt={$printStatsFilename}
+              />
             {/if}
             <table class="table-auto text-sm text-neutral-50">
               <tbody>
@@ -275,36 +277,42 @@
       {#if $printStatsState === 'standby' || $printStatsState === 'cancelled' || $printStatsState === 'complete'}
         <button
           onclick={() => clickLoad()}
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Load
         </button>
         {#if $printStatsFilename !== ''}
           <button
             onclick={() => commands.startPrint($printStatsFilename)}
-            class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+            class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+          >
             Start
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
         <button
           onclick={() => commands.pausePrint()}
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Pause
         </button>
         <button
           onclick={() => (confirmCancelPrint = true)}
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Cancel
         </button>
       {:else if $printStatsState === 'paused'}
         <button
           onclick={() => commands.resumePrint()}
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Continue
         </button>
         <button
           onclick={() => (confirmCancelPrint = true)}
-          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Cancel
         </button>
       {/if}
@@ -323,12 +331,14 @@
             commands.cancelPrint();
             confirmCancelPrint = false;
           }}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50">
+          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
+        >
           Cancel
         </button>
         <button
           onclick={() => (confirmCancelPrint = false)}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Abort
         </button>
       </span>
@@ -339,7 +349,8 @@
 {#if loadDialog}
   <div class="bg-opacity-50 absolute flex h-full w-full items-center justify-center bg-black pt-2 pb-2 pl-2">
     <div
-      class="bg-opacity-50 flex h-full w-full flex-row items-stretch justify-center gap-2 rounded-l-lg border-neutral-600 bg-neutral-700 pt-1 pb-1 pl-1 drop-shadow-md backdrop-blur">
+      class="bg-opacity-50 flex h-full w-full flex-row items-stretch justify-center gap-2 rounded-l-lg border-neutral-600 bg-neutral-700 pt-1 pb-1 pl-1 drop-shadow-md backdrop-blur"
+    >
       <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-lg" bind:this={divElement}>
         <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
           <tbody>
@@ -350,7 +361,8 @@
                   : 'bg-neutral-600'}"
                 onclick={() => {
                   selectedFileEntry = i;
-                }}>
+                }}
+              >
                 <td class="p-0.5">
                   {#if entry.thumbnailUrl === ''}
                     <div class="w-16 content-center items-center justify-center rounded-lg bg-neutral-800 p-2 text-center text-xl font-extrabold text-red-500">
@@ -387,35 +399,40 @@
           onclick={() => {
             divElement?.scrollBy({ top: (-divElement.clientHeight * 2) / 3.0, behavior: 'smooth' });
           }}
-          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Up
         </button>
         <button
           onclick={() => {
             divElement?.scrollBy({ top: (+divElement.clientHeight * 2) / 3.0, behavior: 'smooth' });
           }}
-          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Down
         </button>
         <button
           onclick={() => {
             cycleSortVariant();
           }}
-          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Sort
         </button>
         <button
           onclick={() => {
             loadDialog = false;
           }}
-          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Load
         </button>
         <button
           onclick={() => {
             loadDialog = false;
           }}
-          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50">
+          class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+        >
           Close
         </button>
       </div>

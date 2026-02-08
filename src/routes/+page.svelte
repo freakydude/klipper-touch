@@ -86,15 +86,18 @@
       {#if $klippyState !== 'ready'}
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-          onclick={() => commands.printerRestart()}>Restart</button>
+          onclick={() => commands.printerRestart()}>Restart</button
+        >
         <button
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-          onclick={() => commands.firmwareRestart()}>Firmware Restart</button>
+          onclick={() => commands.firmwareRestart()}>Firmware Restart</button
+        >
       {:else}
         <a
           href="/printstate"
           class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500"
-          >Printer State</a>
+          >Printer State</a
+        >
       {/if}
     {/if}
   </div>
