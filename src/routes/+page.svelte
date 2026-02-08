@@ -8,10 +8,10 @@
   let klippyStateMessage = moonraker.klippyState.message;
 </script>
 
-<div class="flex flex-grow content-between items-stretch justify-around gap-3 overflow-hidden bg-neutral-800">
+<div class="flex grow content-between items-stretch justify-around gap-3 overflow-hidden bg-neutral-800">
   <p class="fixed right-1 bottom-1 text-sm text-neutral-100">v0.1.0 experimental</p>
 
-  <div class="flex flex-grow flex-col justify-around p-2">
+  <div class="flex grow flex-col justify-around p-2">
     <span class="flex flex-col items-center">
       <h1 class="text-center text-4xl font-bold text-neutral-100">Klipper-Touch</h1>
       <h1 class="text-center text-xl text-red-600">by freakyDude</h1>

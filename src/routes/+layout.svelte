@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import '../app.css';
+  import { run } from 'svelte/legacy';
   import { goto } from '$app/navigation';
   import { bootParams, client, moonraker, values } from '$lib/base.svelte';
   import { onMount } from 'svelte';
@@ -32,6 +31,7 @@
       clearInterval(interval);
     } else {
       clearInterval(interval);
+
       interval = setInterval(async () => {
         //await moonraker.disconnect();
         await moonraker.connect($wsUrl);
@@ -41,6 +41,7 @@
     if ($isConnected === false || $klippyState !== 'ready') {
       goto('/');
     }
+
     if ($isConnected === true && $klippyState === 'ready') {
       goto('/printstate');
     }
@@ -54,6 +55,7 @@
     // console.log('loadedFile', relativeFilename);
     if (relativeFilename !== '') {
       let fileMeta = await values.getFileMetadata(relativeFilename);
+
       // console.log('fileMeta', fileMeta);
       values.fileMetadata.set(fileMeta);
 
@@ -71,7 +73,4 @@
 <!-- <style lang="postcss">
   @reference "tailwindcss";
 </style> -->
-
-<div class="flex h-screen w-screen">
-  {@render children?.()}
-</div>
+<div class="flex h-screen w-screen">{@render children?.()}</div>

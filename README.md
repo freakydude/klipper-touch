@@ -145,23 +145,23 @@ And yes, help and improve if you find something.
 
   ```json
   {
+    "fullscreen": false,
     "moonrakerApi": "http://<moonraker-ip>",
-    "moonrakerWs": "ws://<moonraker-ip>/websocket",
-    "fullscreen": false
+    "moonrakerWs": "ws://<moonraker-ip>/websocket"
   }
   ```
 
-   and run without parameters
+  and run without parameters
 
-   ```bash
-   npm run tauri dev
-   ```
+  ```bash
+  npm run tauri dev
+  ```
 
-   or with fullscreen mode
+  or with fullscreen mode
 
-   ```bash
-   npm run tauri dev -- -- -- -f
-   ```
+  ```bash
+  npm run tauri dev -- -- -- -f
+  ```
 
 - Build:
 

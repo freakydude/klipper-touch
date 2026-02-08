@@ -1,4 +1,5 @@
 {
+  "editor.formatOnSave": true,
   "editor.quickSuggestions": {
     "strings": "on"
   },
@@ -7,6 +8,5 @@
   },
   "prettier.documentSelectors": ["**/*.svelte"],
   "svelte.enable-ts-plugin": true,
-  "tailwindCSS.emmetCompletions": true,
-  "editor.formatOnSave": true
+  "tailwindCSS.emmetCompletions": true
 }
