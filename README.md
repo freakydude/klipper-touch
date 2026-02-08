@@ -80,15 +80,38 @@ And yes, help and improve if you find something.
 - Klipper-Touch listen on url: `http://127.0.0.1/` and `ws://127.0.0.1/websocket` for a moonraker api connection.
   - To use another url, use the commandline parameters
 
-    ```
-    -h <Moonraker-HTTP-URL>  eg. `http://192.168.1.1/`
+    ```bash
+    -m <Moonraker-HTTP-URL>  eg. `http://192.168.1.1/`
     -w <Moonraker-Websocket-URL>  eg. `ws://192.168.1.1/websocket`
     ```
 
   - To start in fullscreen mode
 
-    ```
+    ```bash
     -f
+    ```
+
+- Run standalone without xinit and window manager
+
+  ```bash
+  /usr/bin/startx /usr/bin/klipper-touch -f -- -nocursor
+  ```
+
+- Run standalone with wayland and cage. On rpi4, disable dma buffer renderer for webkit to avoid black screen issues. This is a workaround and should be fixed in the future.
+
+  - install cage
+
+    ```bash
+    sudo apt install cage
+    ```
+
+  - run with wayland and cage
+  
+    ```bash
+    export WEBKIT_DISABLE_DMABUF_RENDERER=1
+    export GDK_BACKEND=wayland
+
+    cage -- klipper-touch -f             
     ```
 
 ## Development
