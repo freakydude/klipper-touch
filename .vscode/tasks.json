@@ -9,14 +9,14 @@
       "isBackground": true,
       // change this to your `beforeDevCommand`:
       "command": "npm",
-      "args": ["dev"]
+      "args": ["run", "dev"]
     },
     {
       "label": "ui:build",
       "type": "shell",
       // change this to your `beforeBuildCommand`:
       "command": "npm",
-      "args": ["build"]
+      "args": ["run", "build"]
     }
   ],
   // See https://go.microsoft.com/fwlink/?LinkId=733558

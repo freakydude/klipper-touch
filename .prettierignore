@@ -2,8 +2,13 @@
 build
 coverage
 node_modules
+
+# ignore tauri
 src-tauri/target
+src-tauri/gen/schemas
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+Dockerfile
+.svelte-kit

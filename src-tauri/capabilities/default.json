@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "description": "Capability for the main window",
   "identifier": "default",
-  "permissions": ["core:default", "opener:default", "core:window:default", "core:window:allow-set-fullscreen", "cli:default"],
+  "permissions": ["core:default", "opener:default", "core:window:default", "core:window:allow-set-fullscreen", "cli:default", "store:default"],
   "windows": ["main"]
 }

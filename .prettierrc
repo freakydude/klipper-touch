@@ -1,19 +1,24 @@
 {
-  "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
+  "overrides": [
+    {
+      "files": "*.svelte",
+      "options": {
+        "parser": "svelte"
+      }
+    }
+  ],
   "plugins": [
     "prettier-plugin-organize-imports",
     "prettier-plugin-sh",
     "prettier-plugin-sort-json",
     "prettier-plugin-toml",
     "prettier-plugin-toml",
-    "prettier-plugin-rust",
     "prettier-plugin-svelte",
     "prettier-plugin-tailwindcss"
   ],
   "printWidth": 160,
   "singleQuote": true,
   "svelteAllowShorthand": false,
-  "svelteBracketNewLine": false,
   "svelteIndentScriptAndStyle": true,
   "svelteSortOrder": "options-styles-scripts-markup",
   "svelteStrictMode": true,
