@@ -24,7 +24,6 @@ export class BootParams {
       this.moonrakerWs.set(new URL(moonrakerWs));
     }
     if (fullscreen !== undefined) {
-      this.loadStore;
       this.fullscreen.set(fullscreen);
     }
   }
