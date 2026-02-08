@@ -11,7 +11,7 @@ updates:
       interval: 'weekly'
       timezone: 'Europe/Berlin'
     assignees:
-      - 'freakyDude'
+      - 'freakydude'
     groups:
       npm-security-updates:
         applies-to: security-updates
@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: 'cargo' # See documentation for possible values
     directory: '/src-tauri' # Location of package manifests
     assignees:
-      - 'freakyDude'
+      - 'freakydude'
     schedule:
       interval: 'weekly'
       timezone: 'Europe/Berlin'
@@ -52,7 +52,7 @@ updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     assignees:
-      - 'freakyDude'
+      - 'freakydude'
     schedule:
       interval: 'weekly'
       timezone: 'Europe/Berlin'

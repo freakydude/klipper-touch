@@ -120,7 +120,7 @@
       </button>
     </span>
   </div>
-  <span class="flex flex-grow flex-row items-center justify-center py-1">
+  <span class="flex grow flex-row items-center justify-center py-1">
     <div class="flex items-center gap-1 rounded-lg bg-neutral-700 pl-3">
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
