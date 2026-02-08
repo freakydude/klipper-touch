@@ -53,7 +53,7 @@
     "cli": {
       "args": [
         {
-          "description": "Moonraker HTTP API URL",
+          "description": "Moonraker HTTP API URL (e.g.: -m http://<moonraker-ip>)",
           "short": "m",
           "multiple": false,
           "name": "moonrakerapi",
@@ -61,7 +61,7 @@
           "takesValue": true
         },
         {
-          "description": "Moonraker Websocket URL",
+          "description": "Moonraker Websocket URL (e.g.: -w ws://<moonraker-ip>/websocket)",
           "short": "w",
           "multiple": false,
           "name": "moonrakerws",
@@ -69,7 +69,7 @@
           "takesValue": true
         },
         {
-          "description": "Fullscreen mode",
+          "description": "Fullscreen mode (e.g.: --fullscreen or -f)",
           "short": "f",
           "multiple": false,
           "name": "fullscreen",
