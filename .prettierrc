@@ -17,7 +17,7 @@
   "svelteIndentScriptAndStyle": true,
   "svelteSortOrder": "options-styles-scripts-markup",
   "svelteStrictMode": true,
-  "tailwindFunctions": ["clsx,tw"],
+  "tailwindStylesheet": "src/app.css",
   "trailingComma": "none",
   "useTabs": false
 }

@@ -1,24 +1,24 @@
 {
   "configurations": [
     {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tauri Development Debug",
       "cargo": {
         "args": ["build", "--manifest-path=./src-tauri/Cargo.toml", "--no-default-features"]
       },
-      "name": "Tauri Development Debug",
       // task for the `beforeDevCommand` if used, must be configured in `.vscode/tasks.json`
-      "preLaunchTask": "ui:dev",
-      "request": "launch",
-      "type": "lldb"
+      "preLaunchTask": "ui:dev"
     },
     {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tauri Production Debug",
       "cargo": {
         "args": ["build", "--release", "--manifest-path=./src-tauri/Cargo.toml"]
       },
-      "name": "Tauri Production Debug",
       // task for the `beforeBuildCommand` if used, must be configured in `.vscode/tasks.json`
-      "preLaunchTask": "ui:build",
-      "request": "launch",
-      "type": "lldb"
+      "preLaunchTask": "ui:build"
     }
   ],
   // Use IntelliSense to learn about possible attributes.

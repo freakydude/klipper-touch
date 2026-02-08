@@ -1,22 +1,22 @@
 {
   "tasks": [
     {
-      "args": ["run dev"],
-      // change this to your `beforeDevCommand`:
-      "command": "npm",
+      "label": "ui:dev",
+      "type": "shell",
       // `dev` keeps running in the background
       // ideally you should also configure a `problemMatcher`
       // see https://code.visualstudio.com/docs/editor/tasks#_can-a-background-task-be-used-as-a-prelaunchtask-in-launchjson
       "isBackground": true,
-      "label": "ui:dev",
-      "type": "shell"
+      // change this to your `beforeDevCommand`:
+      "command": "npm",
+      "args": ["dev"]
     },
     {
-      "args": ["run build"],
+      "label": "ui:build",
+      "type": "shell",
       // change this to your `beforeBuildCommand`:
       "command": "npm",
-      "label": "ui:build",
-      "type": "shell"
+      "args": ["build"]
     }
   ],
   // See https://go.microsoft.com/fwlink/?LinkId=733558

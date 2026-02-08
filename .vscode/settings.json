@@ -6,5 +6,6 @@
     "*.css": "tailwindcss"
   },
   "prettier.documentSelectors": ["**/*.svelte"],
-  "svelte.enable-ts-plugin": true
+  "svelte.enable-ts-plugin": true,
+  "tailwindCSS.emmetCompletions": true
 }
