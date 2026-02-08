@@ -18,17 +18,17 @@ name = "tauri_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5.0", features = [] }
+tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
-tauri = { version = "2.10.0", features = [] }
-tauri-plugin-opener = "2.5.0" # This plugin allows you to open files and URLs in a specified, or the default, application. It also supports “revealing” files in the system’s file explorer.
+tauri = { version = "2.10", features = [] }
+tauri-plugin-opener = "2.5" # This plugin allows you to open files and URLs in a specified, or the default, application. It also supports “revealing” files in the system’s file explorer.
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 ## exclude android and ios 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
-tauri-plugin-cli = "2.4.1"
+tauri-plugin-cli = "2.4"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
