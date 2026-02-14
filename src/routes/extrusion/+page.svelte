@@ -18,7 +18,7 @@
 
   let valuesStepsExtrusion = values.stepsExtrusion;
 
-  run(() => {
+  $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsExtrusion);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
@@ -29,7 +29,7 @@
 
   let valuesStepsExtrusionSpeed = values.stepsExtrusionSpeed;
 
-  run(() => {
+  $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsExtrusionSpeed);
     if (stepIdx != -1) {
       selectedSpeed = stepIdx;

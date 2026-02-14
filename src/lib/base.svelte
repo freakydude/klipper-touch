@@ -5,9 +5,9 @@
   import { Values } from './commons/Values';
   import { BootParams } from './commons/BootParams';
 
-  export let bootParams: BootParams = new BootParams();
-  export let client: JsonRpcClient = new JsonRpcClient();
-  export let moonraker: MoonrakerClient = new MoonrakerClient(client);
-  export let commands: Commands = new Commands(client);
-  export let values: Values = new Values(moonraker);
+  export const bootParams = new BootParams();
+  export const client = new JsonRpcClient();
+  export const moonraker = new MoonrakerClient(client);
+  export const commands = new Commands(client);
+  export const values = new Values(moonraker);
 </script>
