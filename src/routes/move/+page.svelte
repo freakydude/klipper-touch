@@ -15,7 +15,7 @@
   let selectedStep = $state(6);
   let valuesStepsMove = values.stepsMove;
 
-  run(() => {
+  $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsMove);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
@@ -27,7 +27,7 @@
   let isHomedXY = $state(false);
   let isHomedZ = $state(false);
 
-  run(() => {
+  $effect(() => {
     isHomedXY = $toolheadHomedAxes.includes('xy');
     isHomedZ = $toolheadHomedAxes.includes('z');
   });

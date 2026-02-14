@@ -54,7 +54,7 @@
       Extr
     </a>
   {/if}
-  <div class="flex flex-grow items-end justify-end">
+  <div class="flex grow items-end justify-end">
     <p class="pr-1 pb-1 text-sm text-neutral-50">{clockFormatter.format($clock)}</p>
   </div>
   <button

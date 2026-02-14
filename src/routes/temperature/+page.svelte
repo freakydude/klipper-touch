@@ -15,7 +15,7 @@
 
   let valuesStepsTemp = values.stepsTemp;
 
-  run(() => {
+  $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsTemp);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
