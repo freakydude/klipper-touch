@@ -110,7 +110,7 @@
     year: 'numeric'
   });
 
-  run(() => {
+  $effect(() => {
     if ($fileMeta !== null) {
       metaFilamentTotal = $fileMeta.filament_total;
       metaPrintStartTime = $fileMeta.print_start_time;
@@ -118,7 +118,7 @@
     }
   });
 
-  run(() => {
+  $effect(() => {
     if ($fileMeta !== null) {
       let progressTime = $progress * metaEstimatedTime;
       estimatedDate = Date.now() + (metaEstimatedTime - progressTime) * 1000;

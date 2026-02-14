@@ -26,7 +26,7 @@
   let printFilename = moonraker.printStats.Filename;
   let interval: ReturnType<typeof setInterval>;
 
-  run(() => {
+  $effect(() => {
     if ($isConnected) {
       clearInterval(interval);
     } else {
@@ -47,7 +47,7 @@
     }
   });
 
-  run(() => {
+  $effect(() => {
     getCurrentWindow().setFullscreen($isFullscreen);
   });
 
@@ -65,7 +65,7 @@
     }
   }
 
-  run(() => {
+  $effect(() => {
     updateMetadata($printFilename);
   });
 </script>

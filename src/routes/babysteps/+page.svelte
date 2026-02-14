@@ -15,7 +15,7 @@
 
   let valuesStepsBaby = values.stepsBaby;
 
-  run(() => {
+  $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsBaby);
     if (stepIdx != -1) {
       selectedStep = stepIdx;
@@ -27,13 +27,13 @@
   let isHomedXY = $state(false);
   let isHomedZ = $state(false);
 
-  run(() => {
+  $effect(() => {
     isHomedXY = $toolheadHomedAxes.includes('xy');
     isHomedZ = $toolheadHomedAxes.includes('z');
   });
 </script>
 
-<div class="flex flex-grow flex-col items-stretch justify-between overflow-hidden bg-neutral-800">
+<div class="flex grow flex-col items-stretch justify-between overflow-hidden bg-neutral-800">
   <StatusLine />
   <div class="flex h-full flex-row">
     <div class="flex w-5/6 items-center justify-around">
@@ -77,7 +77,7 @@
       </div>
     </div>
     <span class="flex w-1/6 flex-col">
-      <span class="flex flex-grow flex-col justify-around gap-2">
+      <span class="flex grow flex-col justify-around gap-2">
         <button
           disabled={$printStatsState === 'printing'}
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
@@ -103,7 +103,7 @@
       </span>
     </span>
   </div>
-  <span class="flex flex-grow flex-row items-center justify-center py-2">
+  <span class="flex grow flex-row items-center justify-center py-2">
     <div class="flex items-center gap-1 rounded-lg bg-neutral-700 pl-3">
       <p class="flex pr-1 text-neutral-50">Step</p>
       {#each stepsArr as number, i}
