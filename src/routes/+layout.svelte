@@ -1,11 +1,11 @@
 <script lang="ts">
   import '../app.css';
-  import { run } from 'svelte/legacy';
   import { goto } from '$app/navigation';
   import { bootParams, client, moonraker, values } from '$lib/base.svelte';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { getMatches } from '@tauri-apps/plugin-cli';
   import { getCurrentWindow } from '@tauri-apps/api/window';
+  import type { UnlistenFn } from '@tauri-apps/api/event';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -13,9 +13,40 @@
 
   let { children }: Props = $props();
 
+  let unlistenResize: UnlistenFn;
+  let unlistenScale: UnlistenFn;
+
   onMount(async () => {
     await bootParams.loadStore();
     bootParams.setMatches(await getMatches());
+
+    const appWindow = getCurrentWindow();
+
+    const scaleUI = async () => {
+      const domRect = document.documentElement.getBoundingClientRect();
+
+      const baseFontSize = (domRect.width / 480) * 16;
+      document.documentElement.style.fontSize = `${baseFontSize}px`;
+    };
+
+    unlistenResize = await appWindow.onResized(async () => {
+      await scaleUI();
+    });
+
+    unlistenScale = await appWindow.onScaleChanged(async () => {
+      await scaleUI();
+    });
+
+    await scaleUI();
+  });
+
+  onDestroy(() => {
+    if (unlistenResize) {
+      unlistenResize();
+    }
+    if (unlistenScale) {
+      unlistenScale();
+    }
   });
 
   let isConnected = client.isConnected;
