@@ -7,12 +7,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 320,
         "resizable": true,
         "title": "klipper-touch",
-        "width": 480,
         "minWidth": 480,
-        "minHeight": 320,
+        "minHeight": 320, 
         "dragDropEnabled": false
       }
     ]
