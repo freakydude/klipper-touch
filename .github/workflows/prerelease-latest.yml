@@ -132,7 +132,7 @@ jobs:
           path: ${{ github.workspace }}/src-tauri/target/release/bundle/rpm/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-1.${{ matrix.rpm }}.rpm
 
       - name: upload release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: ${{ env.releaseName }}
           tag_name: ${{ env.tagName }}
