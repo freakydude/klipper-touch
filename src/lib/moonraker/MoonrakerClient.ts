@@ -15,6 +15,10 @@ import { Toolhead } from './modules/Toolhead';
 import type { INotifyStatusUpdateParams } from './types/INotifyStatusUpdateParams';
 import type { IPrinterObjects } from './types/IPrinterObjects';
 
+interface IPrinterObjectsSubscribeResult {
+  status: INotifyStatusUpdateParams;
+}
+
 export class MoonrakerClient extends EventTarget {
   _jsonRpcClient: JsonRpcClient;
 
@@ -23,12 +27,21 @@ export class MoonrakerClient extends EventTarget {
       webhooks: ['state', 'state_message'],
       heater_bed: ['temperature', 'target'],
       extruder: ['temperature', 'target', 'pressure_advance', 'can_extrude'],
-      toolhead: ['position', 'homed_axes', 'max_accel', 'axis_maximum', 'axis_minimum'],
+      toolhead: [
+        'position',
+        'homed_axes',
+        'max_accel',
+        'axis_maximum',
+        'axis_minimum',
+        'max_velocity',
+        'square_corner_velocity',
+        'minimum_cruise_ratio'
+      ],
       fan: ['speed'],
       gcode_move: ['homing_origin', 'speed', 'speed_factor', 'extrude_factor'],
-      print_stats: ['filename', 'print_duration', 'filament_used', 'state', 'message', 'info'],
+      print_stats: ['filename', 'total_duration', 'print_duration', 'filament_used', 'state', 'message', 'info'],
       display_status: ['progress', 'message'],
-      motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity'],
+      motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity', 'steppers', 'trapq'],
       configfile: ['save_config_pending'],
       quad_gantry_level: ['applied']
     }
@@ -114,7 +127,7 @@ export class MoonrakerClient extends EventTarget {
     });
     let successful = true;
     try {
-      const response = await this._jsonRpcClient.sendRequest(subscribeRequest);
+      const response = await this._jsonRpcClient.sendRequest<IPrinterObjectsSubscribeResult>(subscribeRequest);
       console.log('MoonrakerClient.subscribeToPrinterObjects');
       if (response.result !== undefined) {
         this.parseNotifyStatusUpdateParams(response.result.status);
@@ -215,9 +228,9 @@ export class MoonrakerClient extends EventTarget {
         // console.log('toolhead.square_corner_velocity: ', toolhead?.square_corner_velocity);
         this.toolhead.SquareCornerVelocity.set(toolhead.square_corner_velocity);
       }
-      if (toolhead.max_accel_to_decel !== undefined) {
-        // console.log('toolhead.max_accel_to_decel: ', toolhead?.max_accel_to_decel);
-        this.toolhead.MaxDeceleration.set(toolhead.max_accel_to_decel);
+      if (toolhead.minimum_cruise_ratio !== undefined) {
+        // console.log('toolhead.minimum_cruise_ratio: ', toolhead?.minimum_cruise_ratio);
+        this.toolhead.MinimumCruiseRatio.set(toolhead.minimum_cruise_ratio);
       }
     }
   }
@@ -264,6 +277,10 @@ export class MoonrakerClient extends EventTarget {
       if (print_stats.filename !== undefined) {
         // console.log('print_stats.filename: ', print_stats.filename);
         this.printStats.Filename.set(print_stats.filename);
+      }
+      if (print_stats.total_duration !== undefined) {
+        // console.log('print_stats.total_duration: ', print_stats.total_duration);
+        this.printStats.TotalDuration.set(print_stats.total_duration);
       }
       if (print_stats.print_duration !== undefined) {
         // console.log('print_stats.print_duration: ', print_stats.print_duration);
@@ -367,12 +384,6 @@ export class MoonrakerClient extends EventTarget {
   private parseConfigFile(param: INotifyStatusUpdateParams) {
     const configfile = param.configfile;
     if (configfile !== undefined) {
-      if (configfile.config !== undefined) {
-        this.configFile.Config.set(configfile.config);
-      }
-      if (configfile.settings !== undefined) {
-        this.configFile.Settings.set(configfile.settings);
-      }
       if (configfile.save_config_pending !== undefined) {
         this.configFile.SaveConfigPending.set(configfile.save_config_pending);
       }
@@ -380,7 +391,7 @@ export class MoonrakerClient extends EventTarget {
   }
 
   private parseQuadGantryLevel(param: INotifyStatusUpdateParams) {
-    const quadGantryLevel = param.quadGantryLevel;
+    const quadGantryLevel = param.quad_gantry_level;
     if (quadGantryLevel !== undefined) {
       if (quadGantryLevel.applied !== undefined) {
         this.quadGantryLevel.Applied.set(quadGantryLevel.applied);
