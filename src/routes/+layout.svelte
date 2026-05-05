@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { goto } from '$app/navigation';
-  import { bootParams, client, moonraker, values } from '$lib/base.svelte';
+  import { bootParams, client, moonraker } from '$lib/base.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { getMatches } from '@tauri-apps/plugin-cli';
   import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -50,11 +50,9 @@
   });
 
   let isConnected = client.isConnected;
-  let klippyState = moonraker.klippyState.state;
+  let klippyState = moonraker.webhooks.state;
   let isFullscreen = bootParams.fullscreen;
   let wsUrl = bootParams.moonrakerWs;
-  let apiUrl = bootParams.moonrakerApi;
-  let printFilename = moonraker.printStats.Filename;
 
   $effect(() => {
     if ($isConnected) {
@@ -82,24 +80,6 @@
 
   $effect(() => {
     getCurrentWindow().setFullscreen($isFullscreen);
-  });
-
-  async function updateMetadata(relativeFilename: string) {
-    // console.log('loadedFile', relativeFilename);
-    if (relativeFilename !== '') {
-      let fileMeta = await values.getFileMetadata(relativeFilename);
-
-      // console.log('fileMeta', fileMeta);
-      values.fileMetadata.set(fileMeta);
-
-      if (fileMeta !== null) {
-        values.largestAbsoluteThumbnailPath.set(await values.getLargestAbsoluteThumbnailPath($apiUrl, fileMeta.thumbnails));
-      }
-    }
-  }
-
-  $effect(() => {
-    void updateMetadata($printFilename);
   });
 </script>
 

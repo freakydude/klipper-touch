@@ -1,19 +1,33 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { onDestroy, onMount } from 'svelte';
 
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let heaterBedTargetTemperature = moonraker.heaterBed.Target;
-  let nozzleTargetTemperature = moonraker.extruder.Target;
-  let heaterBedCurrentTemperature = moonraker.heaterBed.Temperature;
-  let nozzleCurrentTemperature = moonraker.extruder.Temperature;
+  const temperatureSubscription = definePrinterObjects({
+    heater_bed: ['temperature', 'target'],
+    extruder: ['temperature', 'target']
+  });
+
+  let heaterBedTargetTemperature = moonraker.heater_bed.target;
+  let nozzleTargetTemperature = moonraker.extruder.target;
+  let heaterBedCurrentTemperature = moonraker.heater_bed.temperature;
+  let nozzleCurrentTemperature = moonraker.extruder.temperature;
   let stepsArr = [1, 5, 10, 20, 50, 100];
   let selectedStep = $state(3);
   let preselectDialog = $state(false);
 
   let valuesStepsTemp = values.stepsTemp;
+
+  onMount(async () => {
+    await moonraker.subscribe(temperatureSubscription);
+  });
+
+  onDestroy(async () => {
+    await moonraker.unsubscribe(temperatureSubscription);
+  });
 
   $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsTemp);
