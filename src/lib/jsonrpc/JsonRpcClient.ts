@@ -13,10 +13,28 @@ export class JsonRpcClient extends EventTarget {
     super();
   }
 
+  private isSocketOpen(): boolean {
+    return this._ws?.readyState === WebSocket.OPEN;
+  }
+
   public connect(url: string | URL): Promise<boolean> {
     const result: Promise<boolean> = new Promise<boolean>((resolve, reject) => {
       try {
+        if (this.isSocketOpen()) {
+          console.log('JsonRpcClient.connect() WebSocket already open');
+          resolve(true);
+          return;
+        }
+
         if (!this._ws) {
+          let isSettled = false;
+          const resolveOnce = (value: boolean) => {
+            if (!isSettled) {
+              isSettled = true;
+              resolve(value);
+            }
+          };
+
           this.isConnected.set(false);
           console.log('JsonRpcClient.connect() Create new WebSocket');
           this._ws = new WebSocket(url);
@@ -24,19 +42,21 @@ export class JsonRpcClient extends EventTarget {
           this._ws.onopen = (event: Event) => {
             console.log('JsonRpcClient.WebSocket.onopen ', event);
             this.isConnected.set(true);
-            resolve(true);
+            resolveOnce(true);
           };
 
           this._ws.onclose = (event: CloseEvent) => {
             this.isConnected.set(false);
             this._ws = undefined;
             console.log('JsonRpcClient.WebSocket.onclose ', event);
+            resolveOnce(false);
           };
 
           this._ws.onerror = (event: Event) => {
             this.isConnected.set(false);
             this._ws = undefined;
             console.warn('JsonRpcClient.WebSocket.onerror ', event);
+            resolveOnce(false);
           };
 
           this._ws.onmessage = (event: MessageEvent) => {
@@ -48,10 +68,10 @@ export class JsonRpcClient extends EventTarget {
               console.log('JsonRpcClient.WebSocket.onmessage received batch request', request);
               for (const singleRequest of request) {
                 if (!singleRequest.id) {
-                  // console.log('connect ws.onmessage: notification', request);
+                    // console.log('connect ws.onmessage: notification', singleRequest);
                   this.dispatchEvent(
-                    new CustomEvent<IJsonRpcRequest[]>('notification', {
-                      detail: request
+                      new CustomEvent<IJsonRpcRequest>('notification', {
+                        detail: singleRequest
                     })
                   );
                 }
@@ -69,12 +89,12 @@ export class JsonRpcClient extends EventTarget {
             }
           };
         } else {
-          console.log('JsonRpcClient.connect() WebSocket already initialized');
-          resolve(true);
+          console.log('JsonRpcClient.connect() WebSocket is initializing');
+          resolve(false);
         }
       } catch (error) {
         console.error('JsonRpcClient.connect() ', error);
-        reject('Websocket could not be initialized: ${error}');
+        reject(new Error(`Websocket could not be initialized: ${String(error)}`));
       }
     });
 
@@ -93,35 +113,36 @@ export class JsonRpcClient extends EventTarget {
         }
       } catch (error) {
         console.error('JsonRpcClient.disconnect() ', error);
-        reject('Websocket could not be disconnected: ${error}');
+        reject(new Error(`Websocket could not be disconnected: ${String(error)}`));
       }
     });
 
     return result;
   }
 
-  public sendRequest(request: IJsonRpcRequest): Promise<IJsonRpcResponse> {
-    let promise: Promise<IJsonRpcResponse>;
+  public sendRequest<TResult = object>(request: IJsonRpcRequest): Promise<IJsonRpcResponse<TResult>> {
+    let promise: Promise<IJsonRpcResponse<TResult>>;
+    const socket = this._ws;
 
-    if (!this._ws?.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
       const notConnected = 'Websocket is not connected, send request failed';
       console.error('JsonRpcClient.sendRequest() ', notConnected);
       promise = Promise.reject(notConnected);
     } else {
-      promise = new Promise<IJsonRpcResponse>((resolve, reject) => {
+      promise = new Promise<IJsonRpcResponse<TResult>>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this._ws?.removeEventListener('message', parser);
+          socket.removeEventListener('message', parser);
 
           console.warn('JsonRpcClient.sendRequest() Timeout send request: ', request);
           reject('Websocket Timeout send request');
         }, this.requestTimeout);
 
         const parser = (event: MessageEvent) => {
-          const response: IJsonRpcResponse = JSON.parse(event.data);
+          const response: IJsonRpcResponse<TResult> = JSON.parse(event.data);
 
           if (request.id == response.id) {
             clearTimeout(timeout);
-            this._ws?.removeEventListener('message', parser);
+            socket.removeEventListener('message', parser);
 
             console.log('Websocket got response for request id:', response.id, 'response:', response);
 
@@ -131,12 +152,12 @@ export class JsonRpcClient extends EventTarget {
           //   console.log('parser some message - request: ', request, ' response:', response);
           // }
         };
-        this._ws?.addEventListener('message', parser);
+        socket.addEventListener('message', parser);
       });
 
       try {
         // console.log("request", request)
-        this._ws.send(JSON.stringify(request));
+        socket.send(JSON.stringify(request));
       } catch (error) {
         console.log(error);
         promise = Promise.reject(error);
@@ -146,47 +167,61 @@ export class JsonRpcClient extends EventTarget {
     return promise;
   }
 
-  public sendBatchRequest(requests: IJsonRpcRequest[]): Promise<IJsonRpcResponse[]> {
-    let promise: Promise<IJsonRpcResponse[]>;
+  public sendBatchRequest<TResult = object>(requests: IJsonRpcRequest[]): Promise<IJsonRpcResponse<TResult>[]> {
+    let promise: Promise<IJsonRpcResponse<TResult>[]>;
+    const socket = this._ws;
+    const expectedRequestIds = requests
+      .map((request) => request.id)
+      .filter((id): id is string | number => id !== undefined && id !== null)
+      .map((id) => String(id));
 
-    if (!this._ws?.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
       const notConnected = 'Websocket is not connected, send batch request failed';
       console.log(notConnected);
       promise = Promise.reject(notConnected);
+    } else if (!expectedRequestIds.length) {
+      promise = Promise.reject('Batch request failed: no request ids provided');
     } else {
-      promise = new Promise<IJsonRpcResponse[]>((resolve, reject) => {
+      promise = new Promise<IJsonRpcResponse<TResult>[]>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this._ws?.removeEventListener('message', parser);
+          socket.removeEventListener('message', parser);
 
           console.warn('Websocket Timeout send batch request: ', requests);
           reject('Websocket Timeout send batch request');
         }, this.requestTimeout);
 
         const parser = (event: MessageEvent) => {
-          const responses: IJsonRpcResponse[] = JSON.parse(event.data);
+            const parsedEventData: IJsonRpcResponse<TResult> | IJsonRpcResponse<TResult>[] = JSON.parse(event.data);
 
           // TODO if request is a invalid json -> response is a single error json. code don't care about this right now
-          if (Array.isArray(responses)) {
-            console.log('Websocket received batch responses', responses);
-            const responsesWithId: IJsonRpcResponse[] = [...responses.filter((response) => response.id !== null)];
+            if (Array.isArray(parsedEventData)) {
+              console.log('Websocket received batch responses', parsedEventData);
+              const responsesWithId = parsedEventData.filter(
+                (response): response is IJsonRpcResponse<TResult> & { id: string | number } =>
+                  response.id !== undefined && response.id !== null
+              );
+              const responseIds = responsesWithId.map((response) => String(response.id));
+              const hasExactIdMatch =
+                responseIds.length === expectedRequestIds.length &&
+                expectedRequestIds.every((expectedId) => responseIds.includes(expectedId));
 
-            if (responsesWithId.length) {
+              if (hasExactIdMatch) {
               clearTimeout(timeout);
-              this._ws?.removeEventListener('message', parser);
+                socket.removeEventListener('message', parser);
               console.log('Websocket got response for request id:', responsesWithId[0].id, ' Responses:', responsesWithId);
               resolve(responsesWithId);
             }
             // else {
-            //   console.log('parser some message - requests:', requests, ' responses:', responses);
+              //   console.log('parser some message - requests:', requests, ' responses:', parsedEventData);
             // }
           }
         };
-        this._ws?.addEventListener('message', parser);
+        socket.addEventListener('message', parser);
       });
 
       try {
         // console.log("request", request)
-        this._ws.send(JSON.stringify(requests));
+        socket.send(JSON.stringify(requests));
       } catch (error) {
         console.log(error);
         promise = Promise.reject(error);

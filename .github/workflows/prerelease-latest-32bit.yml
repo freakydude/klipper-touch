@@ -1,4 +1,4 @@
-name: 'prerelease-latest'
+name: 'prerelease-latest-32bit'
 on:
   push:
     branches:
@@ -12,58 +12,12 @@ env:
   releaseName: prerelease-latest
   preRelease: true
   CARGO_TERM_COLOR: always
-  nodeVersion: 24.15.0
+  nodeVersion: 22.22.2
 jobs:
-  release-amd64:
+  release-armv7:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
-    runs-on: ${{ matrix.platform }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-      - name: Setup Nodejs
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.nodeVersion }}
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@stable
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Install frontend dependencies
-        run: |
-          npm ci
-      - name: Build and Upload release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ env.tagName }} # the action automatically replaces \_\_VERSION\_\_ with the app version
-          releaseName: ${{ env.releaseName }}
-          releaseBody: Autobuilded packages of latest 'main' branch commit
-          releaseDraft: false
-          prerelease: ${{ env.preRelease }}
-
-  release-arm:
     runs-on: ubuntu-22.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [aarch64]
-        include:
-          - arch: aarch64
-            cpu: cortex-a72
-            base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
 
     steps:
       - uses: actions/checkout@v6
@@ -77,12 +31,11 @@ jobs:
       - name: Build app
         uses: pguyot/arm-runner-action@v2
         with:
-          base_image: ${{ matrix.base_image }}
-          cpu: ${{ matrix.cpu }}
+          base_image: https://dietpi.com/downloads/images/DietPi_RPi2-ARMv7-Bookworm.img.xz
+          cpu: cortex-a53
           bind_mount_repository: true
           image_additional_mb: 10240
           optimize_image: no
-          #exit_on_fail: no
           commands: |
             # Prevent Rust from complaining about $HOME not matching eid home
             export HOME=/root
@@ -97,11 +50,11 @@ jobs:
             curl https://sh.rustup.rs -sSf | sh -s -- -y
             . "$HOME/.cargo/env"
 
-            # Install Node from official tarballs to keep ARM builds deterministic.
+            # Install Node from official tarball because NodeSource does not provide armv7 for current lines.
             NODE_VERSION="${{ env.nodeVersion }}"
-            NODE_DIST_ARCH="arm64"
-
+            NODE_DIST_ARCH="armv7l"
             NODE_DIST_URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_DIST_ARCH}.tar.xz"
+
             if ! curl -fsI "$NODE_DIST_URL" >/dev/null; then
               echo "Node ${NODE_VERSION} is not available for linux-${NODE_DIST_ARCH}."
               exit 1
@@ -112,7 +65,7 @@ jobs:
             node -v
             npm -v
 
-            # Install frontend dependencies
+            # armv7 uses Node 22 as a legacy fallback while project baseline is Node 24.
             npm config set engine-strict false
             npm ci
 
@@ -146,13 +99,13 @@ jobs:
       - name: Upload deb bundle
         uses: actions/upload-artifact@v7
         with:
-          name: Debian ${{ env.APP_NAME }}_${{ env.APP_VERSION }}_${{ matrix.arch }}.deb
+          name: Debian ${{ env.APP_NAME }}_${{ env.APP_VERSION }}_armv7l.deb
           path: ${{ env.DEB_BUNDLE }}
 
       - name: Upload rpm bundle
         uses: actions/upload-artifact@v7
         with:
-          name: RPM ${{ env.APP_NAME }}-${{ env.APP_VERSION }}-${{ matrix.arch }}.rpm
+          name: RPM ${{ env.APP_NAME }}-${{ env.APP_VERSION }}-armv7l.rpm
           path: ${{ env.RPM_BUNDLE }}
 
       - name: upload release

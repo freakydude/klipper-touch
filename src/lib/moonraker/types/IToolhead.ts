@@ -6,5 +6,5 @@ export interface IToolhead {
   axis_maximum: number[];
   max_velocity: number;
   square_corner_velocity: number;
-  max_accel_to_decel: number;
+  minimum_cruise_ratio: number;
 }

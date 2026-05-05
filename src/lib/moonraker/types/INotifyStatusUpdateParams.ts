@@ -11,15 +11,15 @@ import type { IToolhead } from './IToolhead';
 import type { IWebhooks } from './IWebhooks';
 
 export interface INotifyStatusUpdateParams {
-  webhooks: IWebhooks;
-  heater_bed: IHeaterBed;
-  extruder: IExtruder;
-  toolhead: IToolhead;
-  fan: IFan;
-  gcode_move: IGCodeMove;
-  print_stats: IPrintStats;
-  display_status: IProgress;
-  motion_report: IMotionReport;
-  configfile: IConfigFile;
-  quadGantryLevel: IQuadGantryLevel;
+  webhooks?: IWebhooks;
+  heater_bed?: IHeaterBed;
+  extruder?: IExtruder;
+  toolhead?: IToolhead;
+  fan?: IFan;
+  gcode_move?: IGCodeMove;
+  print_stats?: IPrintStats;
+  display_status?: IProgress;
+  motion_report?: IMotionReport;
+  configfile?: IConfigFile;
+  quad_gantry_level?: IQuadGantryLevel;
 }

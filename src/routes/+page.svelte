@@ -4,8 +4,8 @@
   let wsUrl = bootParams.moonrakerWs;
   let apiUrl = bootParams.moonrakerApi;
   let isConnected = client.isConnected;
-  let klippyState = moonraker.klippyState.state;
-  let klippyStateMessage = moonraker.klippyState.message;
+  let klippyState = moonraker.webhooks.state;
+  let klippyStateMessage = moonraker.webhooks.state_message;
 </script>
 
 <div class="flex grow content-between items-stretch justify-around gap-3 overflow-hidden bg-neutral-800">
