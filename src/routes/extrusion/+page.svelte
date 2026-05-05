@@ -1,15 +1,22 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { onDestroy, onMount } from 'svelte';
 
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let printState = moonraker.printStats.State;
-  let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
-  let nozzleTarget = moonraker.extruder.Target;
-  let nozzleTemp = moonraker.extruder.Temperature;
-  let canExtrude = moonraker.extruder.CanExtrude;
+  const extrusionSubscription = definePrinterObjects({
+    extruder: ['temperature', 'target', 'can_extrude'],
+    motion_report: ['live_extruder_velocity'],
+    print_stats: ['state']
+  });
+
+  let printState = moonraker.print_stats.state;
+  let liveExtruderVelocity = moonraker.motion_report.live_extruder_velocity;
+  let nozzleTarget = moonraker.extruder.target;
+  let nozzleTemp = moonraker.extruder.temperature;
+  let canExtrude = moonraker.extruder.can_extrude;
 
   let stepsArr = [1, 2, 5, 10, 20, 50, 100];
   let selectedStep = $state(3);
@@ -28,6 +35,14 @@
   });
 
   let valuesStepsExtrusionSpeed = values.stepsExtrusionSpeed;
+
+  onMount(async () => {
+    await moonraker.subscribe(extrusionSubscription);
+  });
+
+  onDestroy(async () => {
+    await moonraker.unsubscribe(extrusionSubscription);
+  });
 
   $effect(() => {
     let stepIdx = stepsArr.indexOf($valuesStepsExtrusionSpeed);

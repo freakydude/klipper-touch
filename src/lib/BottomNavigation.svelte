@@ -1,8 +1,22 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/state';
   import { commands, moonraker, values } from './base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
 
-  let printStatsState = moonraker.printStats.State;
+  const subscription = definePrinterObjects({
+    print_stats: ['state']
+  });
+
+  onMount(async () => {
+    await moonraker.subscribe(subscription);
+  });
+
+  onDestroy(async () => {
+    await moonraker.unsubscribe(subscription);
+  });
+
+  let printStatsState = moonraker.print_stats.state;
   let clockFormatter = values.clockFormatter;
   let clock = values.clock;
 

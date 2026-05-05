@@ -1,15 +1,21 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { onDestroy, onMount } from 'svelte';
 
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let motionReportLivePosition = moonraker.motionReport.LivePosition;
-  let toolheadAxisMaximum = moonraker.toolhead.AxisMaximum;
-  let toolheadAxisMinimum = moonraker.toolhead.AxisMinimum;
-  let toolheadPosition = moonraker.toolhead.Position;
-  let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
+  const moveSubscription = definePrinterObjects({
+    toolhead: ['position', 'homed_axes', 'axis_maximum', 'axis_minimum'],
+    motion_report: ['live_position']
+  });
+
+  let motionReportLivePosition = moonraker.motion_report.live_position;
+  let toolheadAxisMaximum = moonraker.toolhead.axis_maximum;
+  let toolheadAxisMinimum = moonraker.toolhead.axis_minimum;
+  let toolheadPosition = moonraker.toolhead.position;
+  let toolheadHomedAxes = moonraker.toolhead.homed_axes;
 
   let stepsArr = [0.1, 1, 2, 5, 10, 20, 50, 100];
   let selectedStep = $state(6);
@@ -26,6 +32,14 @@
 
   let isHomedXY = $state(false);
   let isHomedZ = $state(false);
+
+  onMount(async () => {
+    await moonraker.subscribe(moveSubscription);
+  });
+
+  onDestroy(async () => {
+    await moonraker.unsubscribe(moveSubscription);
+  });
 
   $effect(() => {
     isHomedXY = $toolheadHomedAxes.includes('xy');
