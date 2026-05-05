@@ -1,14 +1,22 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { onDestroy, onMount } from 'svelte';
 
   import { commands, moonraker, values } from '$lib/base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let printStatsState = moonraker.printStats.State;
-  let motionReportLivePosition = moonraker.motionReport.LivePosition;
-  let toolheadHomedAxes = moonraker.toolhead.HomedAxes;
-  let gcodeMoveHomingOrigin = moonraker.gcodeMove.HomeOrigin;
+  const babystepsSubscription = definePrinterObjects({
+    toolhead: ['homed_axes'],
+    gcode_move: ['homing_origin'],
+    motion_report: ['live_position'],
+    print_stats: ['state']
+  });
+
+  let printStatsState = moonraker.print_stats.state;
+  let motionReportLivePosition = moonraker.motion_report.live_position;
+  let toolheadHomedAxes = moonraker.toolhead.homed_axes;
+  let gcodeMoveHomingOrigin = moonraker.gcode_move.homing_origin;
 
   let stepsArr = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
   let selectedStep = $state(3);
@@ -26,6 +34,14 @@
 
   let isHomedXY = $state(false);
   let isHomedZ = $state(false);
+
+  onMount(async () => {
+    await moonraker.subscribe(babystepsSubscription);
+  });
+
+  onDestroy(async () => {
+    await moonraker.unsubscribe(babystepsSubscription);
+  });
 
   $effect(() => {
     isHomedXY = $toolheadHomedAxes.includes('xy');

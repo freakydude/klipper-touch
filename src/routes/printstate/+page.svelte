@@ -1,34 +1,45 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { onDestroy, onMount } from 'svelte';
 
   import { bootParams, commands, moonraker, values } from '$lib/base.svelte';
+  import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
 
-  let maxAcceleration = moonraker.toolhead.MaxAcceleration;
-  let toolheadPosition = moonraker.motionReport.LivePosition;
-  let nozzleTemp = moonraker.extruder.Temperature;
-  let bedTemp = moonraker.heaterBed.Temperature;
-  let nozzleTarget = moonraker.extruder.Target;
-  let pressureAdvance = moonraker.extruder.PressureAdvance;
-  let bedTarget = moonraker.heaterBed.Target;
-  let fanSpeed = moonraker.fan.Speed;
-  let baby = moonraker.gcodeMove.HomeOrigin;
-  let liveVelocity = moonraker.motionReport.LiveVelocity;
-  let liveExtruderVelocity = moonraker.motionReport.LiveExtruderVelocity;
-  let speedFactor = moonraker.gcodeMove.SpeedFactor;
-  let extrudeFactor = moonraker.gcodeMove.ExtrudeFactor;
+  const printstateSubscription = definePrinterObjects({
+    heater_bed: ['temperature', 'target'],
+    extruder: ['temperature', 'target', 'pressure_advance'],
+    toolhead: ['max_accel'],
+    fan: ['speed'],
+    gcode_move: ['homing_origin', 'speed_factor', 'extrude_factor'],
+    print_stats: ['state', 'filename', 'print_duration', 'filament_used', 'message', 'info'],
+    display_status: ['progress'],
+    motion_report: ['live_position', 'live_velocity', 'live_extruder_velocity']
+  });
 
-  // let printStatsState = writable<TPrintState>('standby');
-  let printStatsState = moonraker.printStats.State;
-  let printStatsFilename = moonraker.printStats.Filename;
-  let printStatsPrintDuration = moonraker.printStats.PrintDuration;
-  let filamentUsed = moonraker.printStats.FilamentUsed;
-  let currentLayer = moonraker.printStats.Info.CurrentLayer;
-  let totalLayer = moonraker.printStats.Info.TotalLayer;
+  let maxAcceleration = moonraker.toolhead.max_accel;
+  let toolheadPosition = moonraker.motion_report.live_position;
+  let nozzleTemp = moonraker.extruder.temperature;
+  let bedTemp = moonraker.heater_bed.temperature;
+  let nozzleTarget = moonraker.extruder.target;
+  let pressureAdvance = moonraker.extruder.pressure_advance;
+  let bedTarget = moonraker.heater_bed.target;
+  let fanSpeed = moonraker.fan.speed;
+  let baby = moonraker.gcode_move.homing_origin;
+  let liveVelocity = moonraker.motion_report.live_velocity;
+  let liveExtruderVelocity = moonraker.motion_report.live_extruder_velocity;
+  let speedFactor = moonraker.gcode_move.speed_factor;
+  let extrudeFactor = moonraker.gcode_move.extrude_factor;
+
+  let printStatsState = moonraker.print_stats.state;
+  let printStatsFilename = moonraker.print_stats.filename;
+  let printStatsPrintDuration = moonraker.print_stats.print_duration;
+  let filamentUsed = moonraker.print_stats.filament_used;
+  let currentLayer = moonraker.print_stats.info.current_layer;
+  let totalLayer = moonraker.print_stats.info.total_layer;
   let fileMeta = values.fileMetadata;
   let clockFormatter = values.clockFormatter;
-  let progress = moonraker.displayStatus.Progress;
+  let progress = moonraker.display_status.progress;
   let selectedFileThumbnailPath = values.largestAbsoluteThumbnailPath;
   let metaFilamentTotal = $state(0);
   let confirmCancelPrint = $state(false);
@@ -110,22 +121,14 @@
     year: 'numeric'
   });
 
-  $effect(() => {
-    if ($fileMeta !== null) {
-      metaFilamentTotal = $fileMeta.filament_total;
-      metaPrintStartTime = $fileMeta.print_start_time;
-      metaEstimatedTime = $fileMeta.estimated_time;
-    }
+  onMount(async () => {
+    await moonraker.subscribe(printstateSubscription);
   });
 
-  $effect(() => {
-    if ($fileMeta !== null) {
-      let progressTime = $progress * metaEstimatedTime;
-      estimatedDate = Date.now() + (metaEstimatedTime - progressTime) * 1000;
-    } else {
-      let totalTime = $printStatsPrintDuration / $progress;
-      estimatedDate = Date.now() + (totalTime - $printStatsPrintDuration) * 1000;
-    }
+  onDestroy(async () => {
+    await moonraker.unsubscribe(printstateSubscription);
+    values.fileMetadata.set(null);
+    values.largestAbsoluteThumbnailPath.set('');
   });
 </script>
 
