@@ -14,6 +14,9 @@
     "lint": "prettier --write . --check . && eslint .",
     "format": "prettier --write ."
   },
+  "engines": {
+    "node": "24.x"
+  },
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
@@ -34,7 +37,7 @@
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/cli": "^2.11.0",
     "@types/eslint": "^9.6.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^10.3.0",
