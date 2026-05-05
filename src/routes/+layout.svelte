@@ -55,26 +55,28 @@
   let wsUrl = bootParams.moonrakerWs;
   let apiUrl = bootParams.moonrakerApi;
   let printFilename = moonraker.printStats.Filename;
-  let interval: ReturnType<typeof setInterval>;
 
   $effect(() => {
     if ($isConnected) {
-      clearInterval(interval);
-    } else {
-      clearInterval(interval);
-
-      interval = setInterval(async () => {
-        //await moonraker.disconnect();
-        await moonraker.connect($wsUrl);
-      }, 5000);
+      return;
     }
 
+    const reconnectTimeout = setTimeout(() => {
+      void moonraker.connect($wsUrl);
+    }, 5000);
+
+    return () => {
+      clearTimeout(reconnectTimeout);
+    };
+  });
+
+  $effect(() => {
     if ($isConnected === false || $klippyState !== 'ready') {
-      goto('/');
+      void goto('/');
     }
 
     if ($isConnected === true && $klippyState === 'ready') {
-      goto('/printstate');
+      void goto('/printstate');
     }
   });
 
@@ -97,7 +99,7 @@
   }
 
   $effect(() => {
-    updateMetadata($printFilename);
+    void updateMetadata($printFilename);
   });
 </script>
 

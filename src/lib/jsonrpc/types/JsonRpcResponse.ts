@@ -1,10 +1,10 @@
 import type { IJsonRpcErrorObject } from './IJsonRpcErrorObject';
 import type { IJsonRpcResponse } from './IJsonRpcResponse';
 
-export class JsonRpcResponse implements IJsonRpcResponse {
+export class JsonRpcResponse<TResult = object> implements IJsonRpcResponse<TResult> {
   jsonrpc: string;
   id: string | number | null;
-  result?: object;
+  result?: TResult;
   error?: IJsonRpcErrorObject;
 
   /**
@@ -14,7 +14,7 @@ export class JsonRpcResponse implements IJsonRpcResponse {
    * @param jsonrpc A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
    * @param id This member is REQUIRED. It MUST be the same as the value of the id member in the Request Object. If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
    */
-  public constructor({ jsonrpc = '2.0', id, result, error }: JsonRpcResponse) {
+  public constructor({ jsonrpc = '2.0', id, result, error }: JsonRpcResponse<TResult>) {
     this.id = id;
     this.jsonrpc = jsonrpc;
     this.result = result;

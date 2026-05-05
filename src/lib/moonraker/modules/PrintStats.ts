@@ -5,6 +5,7 @@ export class PrintStats {
   public State = writable<TPrintState>('standby');
   public Message = writable('');
   public Filename = writable('');
+  public TotalDuration = writable(0.0);
   public PrintDuration = writable(0.0);
   public FilamentUsed = writable(0.0);
   public Info = new Info();

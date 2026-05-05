@@ -1,4 +1,4 @@
 export interface IFan {
   speed: number;
-  rpm: number;
+  rpm: number | null;
 }

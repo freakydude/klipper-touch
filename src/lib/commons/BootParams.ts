@@ -1,5 +1,5 @@
 import type { CliMatches } from '@tauri-apps/plugin-cli';
-import { load, Store } from '@tauri-apps/plugin-store';
+import { load, type Store } from '@tauri-apps/plugin-store';
 import { writable, type Writable } from 'svelte/store';
 
 export class BootParams {
@@ -23,7 +23,7 @@ export class BootParams {
     if (moonrakerWs) {
       this.moonrakerWs.set(new URL(moonrakerWs));
     }
-    if (fullscreen) {
+    if (fullscreen !== undefined) {
       this.fullscreen.set(fullscreen);
     }
   }
