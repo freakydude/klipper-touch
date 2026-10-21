@@ -65,6 +65,8 @@ export struct WifiItem {
     supported: bool,
     known: bool,
     active: bool,
+    // false: saved network that is currently not received.
+    in-range: bool,
 }
 
 export struct WiredItem {
@@ -235,7 +237,6 @@ export global Network {
     in property <string> wifi-address;
     in property <string> busy;
     in property <[WifiItem]> networks;
-    in property <[string]> known;
     in property <[WiredItem]> wired;
     in property <[HostInterfaceItem]> host-interfaces;
 
@@ -247,6 +248,7 @@ export global Network {
     callback refresh();
     callback scan();
     callback connect(string, string, bool);
+    callback disconnect();
     callback forget(string);
     callback set-wifi-enabled(bool);
     callback set-wired(string, bool);
@@ -298,6 +300,7 @@ export global Confirm {
         if (self.action == "disable-motors") { Actions.disable-motors(); }
         if (self.action == "power-off") { Actions.set-power(self.argument, false); }
         if (self.action == "connect-network") { Network.connect-pending(); }
+        if (self.action == "disconnect-network") { Network.disconnect(); }
         if (self.action == "forget-network") { Network.forget(self.argument); }
         if (self.action == "wifi-off") { Network.set-wifi-enabled(false); }
         if (self.action == "wired-off") { Network.set-wired(self.argument, false); }

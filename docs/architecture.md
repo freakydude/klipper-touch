@@ -69,12 +69,14 @@ flowchart LR
 
 - `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
 - `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
-- `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar), `overlays.slint`
+- `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar, ScrollList, TouchSlider), `overlays.slint`
   (confirmation, notice, on-screen keyboard, text input), `chrome.slint` (status bar, navigation).
 - `pages/`: print, move, temperature, tune, extrude, macros, console, system, settings, connection.
 - Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
 - Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;
   moving and extruding are locked while printing.
+- No scrolling except for lists of any length (files, macros, console, networks): `ScrollList` with a slim bar that
+  can be dragged or tapped. Coarse values such as the fan speed use `TouchSlider`. One list per kind of item.
 - Texts in English with `@tr(...)`, so translations can be added later without code changes.
 - Icons: `assets/icons/<category>/<category>-<name>.svg`, single colour (`currentColor`), tinted with `colorize`.
 

@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Printer, StateIcons } from "../state.slint";
-import { IconButton, ProgressBar, ValueTile } from "../components/controls.slint";
+import { IconButton, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 
 component Thumbnail inherits Rectangle {
     in property <image> source;
@@ -69,7 +69,7 @@ component FileRow inherits Rectangle {
     }
 }
 
-// File list over the print page; scroll by swiping or with the arrow buttons.
+// File list over the print page; scroll by swiping or with the bar at the right edge.
 export component FileBrowser inherits Rectangle {
     property <int> selected: -1;
     property <length> row-step: 76px;
@@ -82,12 +82,12 @@ export component FileBrowser inherits Rectangle {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
-        list := Flickable {
+        list := ScrollList {
             horizontal-stretch: 1;
-            content-height: max(self.height, Printer.files.length * root.row-step);
+            content-height: Printer.files.length * root.row-step;
             for file[index] in Printer.files: FileRow {
                 y: index * root.row-step;
-                width: list.width;
+                width: list.row-width;
                 name: file.name;
                 detail: file.detail;
                 thumbnail: file.thumbnail;
@@ -104,18 +104,6 @@ export component FileBrowser inherits Rectangle {
                 icon: Icons.ui-close;
                 text: @tr("Close");
                 clicked => { Navigation.files-open = false; }
-            }
-            IconButton {
-                icon: Icons.ui-chevron-up;
-                text: @tr("Up");
-                enabled: list.content-y < 0;
-                clicked => { list.content-y = min(0px, list.content-y + list.height * 0.8); }
-            }
-            IconButton {
-                icon: Icons.ui-chevron-down;
-                text: @tr("Down");
-                enabled: list.content-y > list.height - list.content-height;
-                clicked => { list.content-y = max(list.height - list.content-height, list.content-y - list.height * 0.8); }
             }
             IconButton {
                 icon: Icons.ui-refresh;

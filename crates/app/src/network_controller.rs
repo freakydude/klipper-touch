@@ -20,7 +20,6 @@ pub struct NetworkController {
     local: Cell<bool>,
     state: RefCell<NetworkState>,
     networks: Rc<VecModel<WifiItem>>,
-    known: Rc<VecModel<SharedString>>,
     wired: Rc<VecModel<WiredItem>>,
 }
 
@@ -42,12 +41,10 @@ impl NetworkController {
             local: Cell::new(simulated || endpoint.is_local()),
             state: RefCell::default(),
             networks: Rc::default(),
-            known: Rc::default(),
             wired: Rc::default(),
         });
         let network = window.global::<Network>();
         network.set_networks(ModelRc::from(controller.networks.clone()));
-        network.set_known(ModelRc::from(controller.known.clone()));
         network.set_wired(ModelRc::from(controller.wired.clone()));
         controller.connect_callbacks(&network);
         controller.show();
@@ -112,7 +109,6 @@ impl NetworkController {
         network.set_wifi_address(state.wifi_address.as_deref().unwrap_or_default().into());
         network.set_busy(state.busy.as_deref().unwrap_or_default().into());
         replace_rows(&self.networks, state.networks.iter().map(wifi_item).collect());
-        replace_rows(&self.known, state.known.iter().map(|name| SharedString::from(name.as_str())).collect());
         replace_rows(&self.wired, state.wired.iter().map(wired_item).collect());
     }
 
@@ -130,6 +126,8 @@ impl NetworkController {
             let password = (!password.is_empty()).then(|| password.to_string());
             service.send(NetworkCommand::Connect { ssid: ssid.to_string(), password, hidden });
         });
+        let service = self.service.clone();
+        network.on_disconnect(move || service.send(NetworkCommand::Disconnect));
         let service = self.service.clone();
         network.on_forget(move |ssid| service.send(NetworkCommand::Forget { ssid: ssid.to_string() }));
         let service = self.service.clone();
@@ -157,6 +155,7 @@ fn wifi_item(network: &klipper_touch_core::network::WifiNetwork) -> WifiItem {
         supported: network.security != Security::Unsupported,
         known: network.known,
         active: network.active,
+        in_range: network.in_range,
     }
 }
 
@@ -182,6 +181,7 @@ mod tests {
             security: Security::Unsupported,
             known: false,
             active: false,
+            in_range: true,
         });
         assert_eq!(item.bars, 3);
         assert!(item.secured);

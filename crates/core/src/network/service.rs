@@ -78,6 +78,7 @@ impl Backend {
                 NetworkCommand::Connect { ssid, password, hidden } => {
                     manager.connect_wifi(ssid, password.as_deref(), *hidden).await
                 }
+                NetworkCommand::Disconnect => manager.disconnect_wifi().await,
                 NetworkCommand::Forget { ssid } => manager.forget(ssid).await,
                 NetworkCommand::SetWifiEnabled(enabled) => manager.set_wifi_enabled(*enabled).await,
                 NetworkCommand::SetWired { interface, connected } => manager.set_wired(interface, *connected).await,
@@ -86,6 +87,10 @@ impl Backend {
                 NetworkCommand::Refresh | NetworkCommand::Scan => Ok(()),
                 NetworkCommand::Connect { ssid, password, hidden } => {
                     simulated.connect(ssid, password.as_deref(), *hidden).await
+                }
+                NetworkCommand::Disconnect => {
+                    simulated.disconnect();
+                    Ok(())
                 }
                 NetworkCommand::Forget { ssid } => simulated.forget(ssid),
                 NetworkCommand::SetWifiEnabled(enabled) => {
@@ -183,6 +188,7 @@ fn success_text(command: &NetworkCommand) -> Option<String> {
     match command {
         NetworkCommand::Refresh | NetworkCommand::Scan => None,
         NetworkCommand::Connect { ssid, .. } => Some(format!("Connected to {ssid}")),
+        NetworkCommand::Disconnect => Some("Wi-Fi disconnected".to_owned()),
         NetworkCommand::Forget { ssid } => Some(format!("Removed {ssid}")),
         NetworkCommand::SetWifiEnabled(true) => Some("Wi-Fi switched on".to_owned()),
         NetworkCommand::SetWifiEnabled(false) => Some("Wi-Fi switched off".to_owned()),
@@ -212,7 +218,11 @@ mod tests {
         service.send(NetworkCommand::Forget { ssid: "Garage".into() });
         let notice = channels.notices.recv().await.unwrap();
         assert_eq!(notice, NetworkNotice { message: "Removed Garage".into(), error: false });
-        channels.states.wait_for(|state| !state.known.contains(&"Garage".to_owned())).await.unwrap();
+        channels
+            .states
+            .wait_for(|state| !state.networks.iter().any(|network| network.ssid == "Garage" && network.known))
+            .await
+            .unwrap();
 
         service.send(NetworkCommand::Forget { ssid: "Unknown".into() });
         assert!(channels.notices.recv().await.unwrap().error);

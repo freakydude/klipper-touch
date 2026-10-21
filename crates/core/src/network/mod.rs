@@ -67,6 +67,8 @@ pub struct WifiNetwork {
     /// A saved connection exists for this network.
     pub known: bool,
     pub active: bool,
+    /// Currently received; saved networks out of range are listed too.
+    pub in_range: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -95,10 +97,8 @@ pub struct NetworkState {
     pub wifi_enabled: bool,
     pub active_ssid: Option<String>,
     pub wifi_address: Option<String>,
-    /// Visible networks, strongest first, one entry per name.
+    /// Visible and saved networks in one list, see [`wifi_networks`].
     pub networks: Vec<WifiNetwork>,
-    /// Names of saved Wi-Fi connections.
-    pub known: Vec<String>,
     pub wired: Vec<WiredLink>,
     /// Running operation, e.g. "Connecting to Workshop".
     pub busy: Option<String>,
@@ -114,6 +114,8 @@ pub enum NetworkCommand {
         password: Option<String>,
         hidden: bool,
     },
+    /// Leaves the current Wi-Fi network and keeps it saved.
+    Disconnect,
     Forget {
         ssid: String,
     },
@@ -192,8 +194,9 @@ pub struct AccessPoint {
     pub security: Security,
 }
 
-/// Merges access points into one entry per network: active first, then saved, then by signal.
-pub fn visible_networks(access_points: &[AccessPoint], known: &[String], active: Option<&str>) -> Vec<WifiNetwork> {
+/// One entry per network name: received networks (active first, then by signal), followed by
+/// saved networks that are out of range (by name).
+pub fn wifi_networks(access_points: &[AccessPoint], known: &[String], active: Option<&str>) -> Vec<WifiNetwork> {
     let mut networks: Vec<WifiNetwork> = Vec::new();
     for point in access_points.iter().filter(|point| !point.ssid.is_empty()) {
         match networks.iter_mut().find(|network| network.ssid == point.ssid) {
@@ -205,12 +208,21 @@ pub fn visible_networks(access_points: &[AccessPoint], known: &[String], active:
                 security: point.security,
                 known: known.contains(&point.ssid),
                 active: active == Some(point.ssid.as_str()),
+                in_range: true,
             }),
         }
     }
-    networks.sort_by(|left, right| {
-        (right.active, right.known, right.signal, &left.ssid).cmp(&(left.active, left.known, left.signal, &right.ssid))
-    });
+    networks
+        .sort_by(|left, right| (right.active, right.signal, &left.ssid).cmp(&(left.active, left.signal, &right.ssid)));
+    let mut out_of_range: Vec<&String> =
+        known.iter().filter(|name| !networks.iter().any(|network| &network.ssid == *name)).collect();
+    out_of_range.sort();
+    out_of_range.dedup();
+    networks.extend(out_of_range.into_iter().map(|ssid| WifiNetwork {
+        ssid: ssid.clone(),
+        known: true,
+        ..WifiNetwork::default()
+    }));
     networks
 }
 
@@ -232,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn merges_access_points_of_one_network_and_sorts() {
+    fn merges_access_points_and_appends_saved_networks_out_of_range() {
         let points = [
             point("Garage", 40, Security::Wpa),
             point("Cafe", 90, Security::Open),
@@ -240,13 +252,15 @@ mod tests {
             point("Garage", 70, Security::Wpa),
             point("", 99, Security::Open),
         ];
-        let networks = visible_networks(&points, &["Garage".into()], Some("Workshop"));
+        let known = ["Home".into(), "Garage".into(), "Attic".into(), "Home".into()];
+        let networks = wifi_networks(&points, &known, Some("Workshop"));
 
         let names: Vec<&str> = networks.iter().map(|network| network.ssid.as_str()).collect();
-        assert_eq!(names, ["Workshop", "Garage", "Cafe"]);
+        assert_eq!(names, ["Workshop", "Cafe", "Garage", "Attic", "Home"]);
         assert!(networks[0].active);
-        assert!(networks[1].known);
-        assert_eq!(networks[1].signal, 70);
+        assert!(networks[2].known && networks[2].in_range);
+        assert_eq!(networks[2].signal, 70);
+        assert!(networks[3].known && !networks[3].in_range);
     }
 
     #[test]

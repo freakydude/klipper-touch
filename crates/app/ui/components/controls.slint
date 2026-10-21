@@ -213,6 +213,137 @@ export component ProgressBar inherits Rectangle {
     }
 }
 
+// Vertical list for long content: swipe, or drag/tap the slim bar at the right edge.
+// The rows are placed inside with `y` and `width: <id>.row-width`.
+export component ScrollList inherits Rectangle {
+    in property <length> content-height;
+    out property <length> row-width: list.width;
+    in-out property <length> offset <=> list.content-y;
+    property <length> range: max(0px, list.content-height - list.height);
+    property <bool> scrollable: root.content-height > root.height;
+    property <length> bar-width: 36px;
+
+    // Fixed geometry instead of a layout: the bar must not change the size of the list's container.
+    list := Flickable {
+        x: 0;
+        y: 0;
+        width: root.scrollable ? root.width - root.bar-width - 4px : root.width;
+        height: root.height;
+        content-height: max(self.height, root.content-height);
+        @children
+    }
+
+    bar := Rectangle {
+        property <length> thumb-height: min(self.height, max(Theme.touch, self.height * list.height / list.content-height));
+        property <length> travel: self.height - self.thumb-height;
+        x: root.width - root.bar-width;
+        y: 0;
+        width: root.bar-width;
+        height: root.height;
+        visible: root.scrollable;
+
+        function scroll-to(pointer-y: length) {
+            if (self.travel > 0) {
+                list.content-y = -clamp((pointer-y - self.thumb-height / 2) / self.travel, 0, 1) * root.range;
+            }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            width: 4px;
+            border-radius: 2px;
+            background: Theme.surface-raised;
+        }
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: root.range > 0 ? -list.content-y / root.range * bar.travel : 0;
+            width: bar-touch.pressed ? 12px : 6px;
+            height: bar.thumb-height;
+            border-radius: self.width / 2;
+            background: bar-touch.pressed ? Theme.accent : Theme.muted;
+        }
+        bar-touch := TouchArea {
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    bar.scroll-to(self.mouse-y);
+                }
+            }
+            moved => { bar.scroll-to(self.mouse-y); }
+        }
+    }
+}
+
+// Slider for values where the exact number does not matter (e.g. fan speed); reports on release.
+export component TouchSlider inherits Rectangle {
+    in property <float> value;
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    in property <float> step: 5;
+    in property <bool> enabled: true;
+    // Value under the finger while dragging, afterwards until the printer reports back.
+    out property <float> shown: slider-touch.pressed || root.waiting ? root.dragged : root.value;
+    callback changed(float);
+
+    property <float> dragged;
+    property <bool> waiting;
+    property <length> knob: 36px;
+    property <float> ratio: clamp((root.shown - root.minimum) / (root.maximum - root.minimum), 0, 1);
+    height: Theme.touch;
+    accessible-role: slider;
+    accessible-value: round(root.shown);
+
+    changed value => { root.waiting = false; }
+
+    function value-at(pointer-x: length) -> float {
+        let ratio = clamp((pointer-x - root.knob / 2) / (root.width - root.knob), 0, 1);
+        return round((root.minimum + ratio * (root.maximum - root.minimum)) / root.step) * root.step;
+    }
+
+    Rectangle {
+        x: root.knob / 2;
+        y: (root.height - self.height) / 2;
+        width: root.width - root.knob;
+        height: 8px;
+        border-radius: 4px;
+        background: Theme.surface-raised;
+    }
+    Rectangle {
+        x: root.knob / 2;
+        y: (root.height - self.height) / 2;
+        width: (root.width - root.knob) * root.ratio;
+        height: 8px;
+        border-radius: 4px;
+        background: root.enabled ? Theme.accent : Theme.disabled-foreground;
+    }
+    Rectangle {
+        x: (root.width - root.knob) * root.ratio;
+        y: (root.height - self.height) / 2;
+        width: root.knob;
+        height: root.knob;
+        border-radius: root.knob / 2;
+        background: !root.enabled ? Theme.surface-active : slider-touch.pressed ? Theme.accent : Theme.foreground;
+    }
+    slider-touch := TouchArea {
+        enabled: root.enabled;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) {
+                root.dragged = root.value-at(self.mouse-x);
+            }
+            if (event.kind == PointerEventKind.up) {
+                root.dragged = root.value-at(self.mouse-x);
+                root.waiting = root.dragged != root.value;
+                root.changed(root.dragged);
+            }
+        }
+        moved => { root.dragged = root.value-at(self.mouse-x); }
+    }
+    Timer {
+        interval: 3s;
+        running: root.waiting;
+        triggered => { root.waiting = false; }
+    }
+}
+
 // Row with icon and text, e.g. for status displays.
 export component IconLabel inherits HorizontalLayout {
     in property <image> icon;

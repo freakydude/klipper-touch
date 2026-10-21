@@ -3,13 +3,15 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, HostInterfaceItem, Network, Printer, WifiItem, WiredItem } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 
+// One network: tap to connect; buttons to disconnect (active) or remove (saved).
 component WifiRow inherits Rectangle {
     in property <WifiItem> network;
     callback selected;
-    height: 52px;
+    property <bool> can-connect: root.network.in-range && root.network.supported && !root.network.active;
+    height: Theme.touch;
     border-radius: Theme.radius;
     background: row-touch.pressed ? Theme.surface-active : root.network.active ? Theme.surface-active : Theme.surface-raised;
     border-width: root.network.active ? 2px : 0px;
@@ -18,38 +20,42 @@ component WifiRow inherits Rectangle {
     accessible-label: root.network.ssid;
 
     row-touch := TouchArea {
-        enabled: root.network.supported && !root.network.active;
+        enabled: root.can-connect;
         clicked => { root.selected(); }
     }
     HorizontalLayout {
         padding-left: 10px;
-        padding-right: 10px;
         spacing: 8px;
         VerticalLayout {
             alignment: center;
             Image {
-                source: root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
-                colorize: root.network.active ? Theme.accent : Theme.foreground;
+                source: !root.network.in-range ? Icons.network-wifi-saved : root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
+                colorize: root.network.active ? Theme.accent : root.network.in-range ? Theme.foreground : Theme.muted;
                 width: 24px;
                 height: 24px;
             }
         }
-        Text {
-            text: root.network.ssid;
-            color: root.network.supported ? Theme.foreground : Theme.disabled-foreground;
-            font-size: Theme.font-normal;
-            font-weight: root.network.active ? 700 : 400;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
             horizontal-stretch: 1;
-            overflow: elide;
+            Text {
+                text: root.network.ssid;
+                color: root.network.in-range && root.network.supported ? Theme.foreground : Theme.muted;
+                font-size: Theme.font-normal;
+                font-weight: root.network.active ? 700 : 400;
+                overflow: elide;
+            }
+            Text {
+                text: root.network.active ? @tr("Connected")
+                    : !root.network.in-range ? @tr("Saved, not in range")
+                    : !root.network.supported ? @tr("Not supported")
+                    : root.network.known ? @tr("Saved") : root.network.secured ? @tr("Password needed") : @tr("Open");
+                color: root.network.active ? Theme.accent : Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
         }
-        Text {
-            text: root.network.active ? @tr("Connected") : !root.network.supported ? @tr("Not supported") : root.network.known ? @tr("Saved") : "";
-            color: root.network.active ? Theme.accent : Theme.muted;
-            font-size: Theme.font-small;
-            vertical-alignment: center;
-        }
-        if root.network.secured: VerticalLayout {
+        if root.network.secured && root.network.in-range: VerticalLayout {
             alignment: center;
             Image {
                 source: Icons.ui-lock;
@@ -58,36 +64,26 @@ component WifiRow inherits Rectangle {
                 height: 18px;
             }
         }
-    }
-}
-
-// List with buttons for paging; touch scrolling alone is not enough on resistive screens.
-component PagedList inherits HorizontalLayout {
-    in property <length> row-height;
-    in property <int> rows;
-    out property <length> row-pitch: root.row-height + 6px;
-    out property <length> row-width: list.width;
-    spacing: Theme.spacing;
-
-    list := Flickable {
-        horizontal-stretch: 1;
-        content-height: max(self.height, root.rows * root.row-pitch);
-        @children
-    }
-    VerticalLayout {
-        width: Theme.touch;
-        spacing: Theme.spacing;
-        IconButton {
-            icon: Icons.ui-chevron-up;
-            enabled: list.content-y < 0;
-            clicked => { list.content-y = min(0px, list.content-y + list.height * 0.8); }
+        if root.network.active: IconButton {
+            width: Theme.touch;
+            icon: Icons.network-wifi-off;
+            accessible-label: @tr("Disconnect {}", root.network.ssid);
+            clicked => {
+                Confirm.ask(@tr("Disconnect {}", root.network.ssid), Printer.is-printing
+                    ? @tr("A print is running. Without Wi-Fi this printer may no longer be reachable over the network.")
+                    : @tr("This printer may no longer be reachable over the network. The network stays saved."), "disconnect-network", "", true);
+            }
         }
-        IconButton {
-            icon: Icons.ui-chevron-down;
-            enabled: list.content-y > list.height - list.content-height;
-            clicked => { list.content-y = max(list.height - list.content-height, list.content-y - list.height * 0.8); }
+        if root.network.known: IconButton {
+            width: Theme.touch;
+            icon: Icons.ui-delete;
+            accessible-label: @tr("Remove {}", root.network.ssid);
+            clicked => {
+                Confirm.ask(@tr("Remove network"), root.network.active
+                    ? @tr("\"{}\" is connected; removing it disconnects this printer from the network.", root.network.ssid)
+                    : @tr("The saved password of \"{}\" is deleted.", root.network.ssid), "forget-network", root.network.ssid, true);
+            }
         }
-        Rectangle { vertical-stretch: 1; }
     }
 }
 
@@ -141,10 +137,10 @@ component WifiCard inherits Card {
         font-size: Theme.font-small;
         overflow: elide;
     }
-    wifi-list := PagedList {
+    wifi-list := ScrollList {
+        property <length> row-pitch: Theme.touch + 6px;
         vertical-stretch: 1;
-        row-height: 52px;
-        rows: Network.networks.length;
+        content-height: Network.networks.length * self.row-pitch;
         for network[index] in Network.networks: WifiRow {
             y: index * wifi-list.row-pitch;
             width: wifi-list.row-width;
@@ -152,46 +148,8 @@ component WifiCard inherits Card {
             selected => { root.choose(network); }
         }
     }
-}
-
-component SavedCard inherits Card {
-    title: @tr("Saved networks");
-    icon: Icons.network-wifi-saved;
-
-    saved-list := PagedList {
-        vertical-stretch: 1;
-        row-height: Theme.touch;
-        rows: Network.known.length;
-        for name[index] in Network.known: Rectangle {
-            x: 0;
-            y: index * saved-list.row-pitch;
-            width: saved-list.row-width;
-            height: Theme.touch;
-            HorizontalLayout {
-                spacing: 6px;
-                Text {
-                    text: name;
-                    color: name == Network.active-ssid ? Theme.accent : Theme.foreground;
-                    font-size: Theme.font-normal;
-                    vertical-alignment: center;
-                    horizontal-stretch: 1;
-                    overflow: elide;
-                }
-                IconButton {
-                    width: Theme.touch;
-                    icon: Icons.ui-delete;
-                    accessible-label: @tr("Remove {}", name);
-                    clicked => {
-                        Confirm.ask(@tr("Remove network"), name == Network.active-ssid
-                            ? @tr("\"{}\" is connected; removing it disconnects this printer from the network.", name)
-                            : @tr("The saved password of \"{}\" is deleted.", name), "forget-network", name, true);
-                    }
-                }
-            }
-        }
-    }
-    if Network.known.length == 0: Text {
-        text: @tr("No saved networks.");
+    if Network.wifi-enabled && Network.networks.length == 0: Text {
+        text: @tr("No networks found.");
         color: Theme.muted;
         font-size: Theme.font-small;
     }
@@ -203,7 +161,7 @@ component WiredCard inherits Card {
 
     for link in Network.wired: HorizontalLayout {
         spacing: 6px;
-        height: 52px;
+        height: Theme.touch;
         VerticalLayout {
             alignment: center;
             horizontal-stretch: 1;
@@ -220,8 +178,9 @@ component WiredCard inherits Card {
             }
         }
         IconButton {
-            width: 104px;
-            text: link.connected ? @tr("Disconnect") : @tr("Connect");
+            width: Theme.touch;
+            icon: link.connected ? Icons.network-ethernet-off : Icons.network-ethernet;
+            accessible-label: link.connected ? @tr("Disconnect {}", link.interface) : @tr("Connect {}", link.interface);
             enabled: link.cable;
             clicked => {
                 if (link.connected) {
@@ -330,10 +289,10 @@ export component NetworkSection inherits Rectangle {
             }
         }
         VerticalLayout {
-            width: max(210px, root.width * 0.33);
+            width: max(200px, root.width * 0.3);
             spacing: Theme.spacing;
-            SavedCard { vertical-stretch: 1; }
             WiredCard { }
+            Rectangle { vertical-stretch: 1; }
         }
     }
 

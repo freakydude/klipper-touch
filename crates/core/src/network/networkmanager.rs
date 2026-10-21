@@ -1,8 +1,6 @@
 //! NetworkManager over D-Bus, see <https://networkmanager.dev/docs/api/latest/>.
 
-use super::{
-    visible_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink,
-};
+use super::{wifi_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink};
 use std::collections::HashMap;
 use std::time::Duration;
 use zbus::proxy::CacheProperties;
@@ -182,7 +180,6 @@ impl NetworkManager {
         let mut state = NetworkState {
             availability: Availability::Managed,
             wifi_enabled: self.manager.wireless_enabled().await?,
-            known: known_names.clone(),
             ..NetworkState::default()
         };
         for path in self.manager.get_devices().await? {
@@ -193,7 +190,7 @@ impl NetworkManager {
                     let wireless = at!(WirelessProxy, &self.connection, path);
                     let active = self.active_ssid(&wireless).await?;
                     let access_points = self.access_points(&wireless).await?;
-                    state.networks = visible_networks(&access_points, &known_names, active.as_deref());
+                    state.networks = wifi_networks(&access_points, &known_names, active.as_deref());
                     if active.is_some() {
                         state.wifi_address = self.address(&device).await?;
                     }
@@ -244,6 +241,13 @@ impl NetworkManager {
             self.delete(&created).await?;
         }
         result
+    }
+
+    /// NetworkManager does not auto-connect the device again until the user picks a network.
+    pub async fn disconnect_wifi(&self) -> Result<(), NetworkError> {
+        let (path, _) = self.wifi_device().await?;
+        let device = at!(DeviceProxy, &self.connection, path);
+        Ok(device.disconnect().await?)
     }
 
     pub async fn forget(&self, ssid: &str) -> Result<(), NetworkError> {

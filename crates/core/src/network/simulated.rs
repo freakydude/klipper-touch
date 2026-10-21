@@ -1,8 +1,6 @@
 //! In-memory networks for development without NetworkManager (Windows, screenshots, tests).
 
-use super::{
-    visible_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink,
-};
+use super::{wifi_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink};
 use std::time::Duration;
 
 /// Simulated time a connection attempt takes.
@@ -30,7 +28,7 @@ impl Default for Simulated {
                 point("Office", 35, Security::Unsupported),
                 point("Workshop", 41, Security::Wpa),
             ],
-            known: vec!["Workshop".to_owned(), "Garage".to_owned()],
+            known: vec!["Workshop".to_owned(), "Garage".to_owned(), "Holiday Flat".to_owned()],
             active: Some("Workshop".to_owned()),
             wifi_enabled: true,
             wired: vec![WiredLink {
@@ -53,11 +51,10 @@ impl Simulated {
             active_ssid: active.map(str::to_owned),
             wifi_address: active.map(|_| "192.168.1.57".to_owned()),
             networks: if self.wifi_enabled {
-                visible_networks(&self.access_points, &self.known, active)
+                wifi_networks(&self.access_points, &self.known, active)
             } else {
                 Vec::new()
             },
-            known: self.known.clone(),
             wired: self.wired.clone(),
             busy: None,
         }
@@ -89,6 +86,10 @@ impl Simulated {
         }
         self.active = Some(ssid.to_owned());
         Ok(())
+    }
+
+    pub fn disconnect(&mut self) {
+        self.active = None;
     }
 
     pub fn forget(&mut self, ssid: &str) -> Result<(), NetworkError> {
@@ -129,7 +130,10 @@ mod tests {
         assert_eq!(network.read().active_ssid.as_deref(), Some("Workshop"));
 
         assert_eq!(network.connect("Cafe Guest", None, false).await, Ok(()));
-        assert!(network.read().known.contains(&"Cafe Guest".to_owned()));
+        assert!(network.read().networks.iter().any(|network| network.ssid == "Cafe Guest" && network.known));
+        network.disconnect();
+        assert_eq!(network.read().active_ssid, None);
+        network.connect("Cafe Guest", None, false).await.unwrap();
         assert_eq!(
             network.connect("Neighbour", Some(WRONG_PASSWORD), false).await,
             Err(NetworkError::ConnectFailed("Neighbour".into()))
