@@ -125,6 +125,7 @@ component Key inherits Rectangle {
 export component OnScreenKeyboard inherits VerticalLayout {
     in-out property <string> text;
     in-out property <bool> upper: true;
+    in-out property <bool> symbols;
     callback enter;
 
     property <[[string]]> lower-rows: [
@@ -139,10 +140,16 @@ export component OnScreenKeyboard inherits VerticalLayout {
         ["A", "S", "D", "F", "G", "H", "J", "K", "L", "="],
         ["Z", "X", "C", "V", "B", "N", "M", ".", "-", "_"],
     ];
+    property <[[string]]> symbol-rows: [
+        ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")"],
+        ["+", "=", "?", "'", "\"", ",", ";", "<", ">", "|"],
+        ["[", "]", "{", "}", "\\", "~", "`", "€", "§", "°"],
+        ["ä", "ö", "ü", "ß", "Ä", "Ö", "Ü", ".", "-", "_"],
+    ];
 
     spacing: 4px;
 
-    for row in (root.upper ? root.upper-rows : root.lower-rows): HorizontalLayout {
+    for row in (root.symbols ? root.symbol-rows : root.upper ? root.upper-rows : root.lower-rows): HorizontalLayout {
         spacing: 4px;
         height: 40px;
         for key in row: Key {
@@ -156,7 +163,15 @@ export component OnScreenKeyboard inherits VerticalLayout {
         Key {
             label: root.upper ? "abc" : "ABC";
             horizontal-stretch: 2;
-            pressed => { root.upper = !root.upper; }
+            pressed => {
+                root.symbols = false;
+                root.upper = !root.upper;
+            }
+        }
+        Key {
+            label: root.symbols ? "abc" : "#+=";
+            horizontal-stretch: 2;
+            pressed => { root.symbols = !root.symbols; }
         }
         Key {
             label: ":";
@@ -168,7 +183,7 @@ export component OnScreenKeyboard inherits VerticalLayout {
         }
         Key {
             label: "space";
-            horizontal-stretch: 4;
+            horizontal-stretch: 3;
             pressed => { root.text += " "; }
         }
         Key {
@@ -186,12 +201,14 @@ export component OnScreenKeyboard inherits VerticalLayout {
     }
 }
 
-// Full-screen text entry with on-screen keyboard.
+// Full-screen text entry with on-screen keyboard; `secret` hides the input (passwords).
 export component TextEntryDialog inherits Scrim {
     in property <string> title;
+    in property <bool> secret;
     in-out property <string> text;
     in-out property <bool> open;
     callback accepted(string);
+    property <bool> reveal;
     visible: root.open;
 
     Rectangle {
@@ -213,6 +230,8 @@ export component TextEntryDialog inherits Scrim {
                     color: Theme.muted;
                     font-size: Theme.font-normal;
                     vertical-alignment: center;
+                    max-width: 260px;
+                    overflow: elide;
                 }
                 Rectangle {
                     horizontal-stretch: 1;
@@ -223,23 +242,34 @@ export component TextEntryDialog inherits Scrim {
                     Text {
                         x: 8px;
                         width: parent.width - 16px;
-                        text: root.text + "|";
+                        text: (root.secret && !root.reveal ? TextTools.mask(root.text) : root.text) + "|";
                         color: Theme.foreground;
                         font-size: Theme.font-large;
                         vertical-alignment: center;
                         overflow: elide;
                     }
                 }
+                if root.secret: IconButton {
+                    icon: root.reveal ? Icons.ui-unlock : Icons.ui-lock;
+                    width: 56px;
+                    checked: root.reveal;
+                    accessible-label: @tr("Show password");
+                    clicked => { root.reveal = !root.reveal; }
+                }
                 IconButton {
                     icon: Icons.ui-close;
                     width: 56px;
-                    clicked => { root.open = false; }
+                    clicked => {
+                        root.reveal = false;
+                        root.open = false;
+                    }
                 }
             }
             OnScreenKeyboard {
                 text <=> root.text;
                 vertical-stretch: 1;
                 enter => {
+                    root.reveal = false;
                     root.open = false;
                     root.accepted(root.text);
                 }

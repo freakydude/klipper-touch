@@ -7,7 +7,7 @@ use crate::commands::Command;
 use crate::files::{self, FileEntry, FileMetadata};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PrinterStatus, ServerComponents};
-use crate::system::{self, ConsoleKind, ConsoleLine, PowerDevice, UpdateInfo};
+use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, watch};
@@ -46,6 +46,8 @@ pub enum Query {
     PowerDevices,
     Updates,
     ConsoleHistory,
+    /// Network interfaces of the printer host.
+    HostNetwork,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +59,7 @@ pub enum Event {
     Updates(Vec<UpdateInfo>),
     ConsoleHistory(Vec<ConsoleLine>),
     ConsoleLine(ConsoleLine),
+    HostNetwork(Vec<HostInterface>),
     CommandFailed { command: String, message: String },
 }
 
@@ -426,6 +429,9 @@ async fn fetch(
         Query::ConsoleHistory => vec![Event::ConsoleHistory(system::parse_gcode_store(
             &call("server.gcode_store", Some(json!({ "count": CONSOLE_HISTORY }))).await?,
         ))],
+        Query::HostNetwork => {
+            vec![Event::HostNetwork(system::parse_host_network(&call("machine.system_info", None).await?))]
+        }
     };
     Ok(events)
 }

@@ -2,12 +2,13 @@
 
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, PowerItem, Printer, SensorItem, UpdateItem,
+    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, Network, PowerItem, Printer,
+    SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
 use klipper_touch_core::printer::{Capabilities, Heater};
-use klipper_touch_core::system::{ConsoleKind, ConsoleLine, PowerDevice, UpdateInfo};
+use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use klipper_touch_core::{ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
@@ -40,6 +41,7 @@ pub struct Presenter {
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
+    host_interfaces: Rc<VecModel<HostInterfaceItem>>,
     notice_timer: Timer,
 }
 
@@ -57,6 +59,7 @@ impl Presenter {
             console: Rc::default(),
             power_devices: Rc::default(),
             updates: Rc::default(),
+            host_interfaces: Rc::default(),
             notice_timer: Timer::default(),
         });
         let printer = window.global::<Printer>();
@@ -68,6 +71,7 @@ impl Presenter {
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
         printer.set_updates(ModelRc::from(presenter.updates.clone()));
+        window.global::<Network>().set_host_interfaces(ModelRc::from(presenter.host_interfaces.clone()));
         presenter
     }
 
@@ -228,6 +232,9 @@ impl Presenter {
                 }
                 self.console.push(console_item(&line));
             }
+            Event::HostNetwork(interfaces) => {
+                replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
+            }
             Event::CommandFailed { command, message } => self.show_notice(&format!("{command}: {message}"), true),
         }
     }
@@ -335,7 +342,7 @@ fn connection_name(state: ConnectionState) -> &'static str {
 }
 
 /// Replaces the rows only on changes so Slint does not rebuild needlessly.
-fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
+pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
     let unchanged = model.row_count() == rows.len()
         && rows.iter().enumerate().all(|(index, row)| model.row_data(index).as_ref() == Some(row));
     if !unchanged {
@@ -374,6 +381,15 @@ fn console_item(line: &ConsoleLine) -> ConsoleItem {
 
 fn power_item(device: &PowerDevice) -> PowerItem {
     PowerItem { name: device.device.as_str().into(), on: device.is_on(), locked: device.locked_while_printing }
+}
+
+fn host_interface_item(interface: &HostInterface) -> HostInterfaceItem {
+    HostInterfaceItem {
+        name: interface.name.as_str().into(),
+        wireless: view::is_wireless_interface(&interface.name),
+        addresses: interface.addresses.join(", ").into(),
+        mac: interface.mac_address.as_str().into(),
+    }
 }
 
 fn update_item(update: &UpdateInfo) -> UpdateItem {

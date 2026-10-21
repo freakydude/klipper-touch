@@ -1,7 +1,7 @@
 // Main window: status bar, navigation, current page and overlays.
 
 import { Theme } from "theme.slint";
-import { Actions, Confirm, Navigation, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
+import { Actions, Confirm, Navigation, Network, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
 import { ConfirmDialog, Toast } from "components/overlays.slint";
 import { PrintPage } from "pages/print.slint";
@@ -15,8 +15,8 @@ import { SystemPage } from "pages/system.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { ConnectionPage } from "pages/connection.slint";
 
-export { Actions, Confirm, Navigation, Page, Printer, TextTools, UiSettings }
-export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, ConsoleItem, PowerItem, UpdateItem, PresetItem } from "state.slint";
+export { Actions, Confirm, Navigation, Network, Page, Printer, TextTools, UiSettings }
+export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, ConsoleItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
 
 export component AppWindow inherits Window {
     title: "klipper-touch";

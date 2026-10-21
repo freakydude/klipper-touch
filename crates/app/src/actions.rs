@@ -137,6 +137,11 @@ pub fn bind(
         text.pop();
         text.into()
     });
+    window.global::<TextTools>().on_mask(|text| mask(&text).into());
+}
+
+fn mask(text: &str) -> String {
+    "•".repeat(text.chars().count())
 }
 
 /// Callback with arguments that receives a cloned service.
@@ -172,5 +177,11 @@ mod tests {
         assert_eq!(parse_axis("e"), None);
         assert_eq!(round_offset(0.005_f32), 0.005);
         assert_eq!(round_offset(-0.025_f32), -0.025);
+    }
+
+    #[test]
+    fn masks_every_character() {
+        assert_eq!(mask("päss"), "••••");
+        assert_eq!(mask(""), "");
     }
 }

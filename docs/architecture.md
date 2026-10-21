@@ -13,6 +13,7 @@ flowchart LR
         P[presenter.rs<br/>state → globals]
         A[actions.rs<br/>callbacks → Command]
         S[settings_controller.rs]
+        N[network_controller.rs]
         V[view.rs / format.rs<br/>pure derivations]
     end
     subgraph core [crates/core – klipper-touch-core]
@@ -22,9 +23,11 @@ flowchart LR
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
         SET[settings.rs<br/>JSON file]
         FS[files.rs / system.rs]
+        NET[network/*<br/>NetworkService]
     end
     M[(Moonraker / Klipper)]
     F[fake-moonraker]
+    NM[(NetworkManager<br/>D-Bus, Linux)]
 
     UI -- callbacks --> A --> SVC
     SVC -- Snapshot / Event --> P --> UI
@@ -35,6 +38,7 @@ flowchart LR
     SVC --> FS
     SVC --> MR --> M
     F -. replaces in tests .-> M
+    N --> NET --> NM
 ```
 
 | Crate | Responsibility | Depends on |
@@ -56,6 +60,10 @@ flowchart LR
 5. `presenter.rs` runs in the Slint event loop (`slint::spawn_local`) and writes the globals `Printer` and `UiSettings`.
 6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
    `server.info` polling.
+7. Network: `NetworkService` (own task, `NetworkCommand` in, `NetworkState`/`NetworkNotice` out) uses the backend
+   `networkmanager.rs` (zbus, only compiled on Linux) or `simulated.rs` (`--simulate-network`, tests). The
+   `NetworkController` only offers management when the backend is available **and** Moonraker is local
+   (`Endpoint::is_local`); otherwise it shows the host interfaces from `machine.system_info` read-only.
 
 ## UI (`crates/app/ui`)
 

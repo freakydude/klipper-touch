@@ -90,10 +90,23 @@ pub fn file_detail(modified: f64, size: u64, metadata: Option<&FileMetadata>) ->
     parts.join("  ·  ")
 }
 
+/// Linux names wireless interfaces `wlan0`, `wlp2s0`, ...
+pub fn is_wireless_interface(name: &str) -> bool {
+    name.starts_with("wl")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn recognizes_wireless_interfaces() {
+        assert!(is_wireless_interface("wlan0"));
+        assert!(is_wireless_interface("wlp3s0"));
+        assert!(!is_wireless_interface("eth0"));
+        assert!(!is_wireless_interface("enp1s0"));
+    }
 
     fn now() -> DateTime<Local> {
         Local.with_ymd_and_hms(2026, 10, 21, 12, 0, 0).unwrap()

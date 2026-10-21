@@ -5,6 +5,7 @@
 pub mod commands;
 pub mod files;
 pub mod moonraker;
+pub mod network;
 pub mod printer;
 pub mod service;
 pub mod settings;

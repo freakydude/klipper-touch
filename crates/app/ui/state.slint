@@ -57,6 +57,30 @@ export struct PresetItem {
     bed: float,
 }
 
+export struct WifiItem {
+    ssid: string,
+    // Signal strength as bars 1..3.
+    bars: int,
+    secured: bool,
+    supported: bool,
+    known: bool,
+    active: bool,
+}
+
+export struct WiredItem {
+    interface: string,
+    cable: bool,
+    connected: bool,
+    address: string,
+}
+
+export struct HostInterfaceItem {
+    name: string,
+    wireless: bool,
+    addresses: string,
+    mac: string,
+}
+
 export global Printer {
     // Connection: connection = connecting | connected | disconnected; klippy-state as in Moonraker.
     in property <string> connection: "connecting";
@@ -194,11 +218,50 @@ export global Actions {
 // Text editing for the on-screen keyboard (Slint has no substring function).
 export global TextTools {
     pure callback remove-last(string) -> string;
+    // Replaces every character with a dot, e.g. for passwords.
+    pure callback mask(string) -> string;
+}
+
+// Networks of the host klipper-touch runs on. Rust writes the state, the UI calls the callbacks.
+export global Network {
+    // Changes are possible: NetworkManager present and Moonraker runs on this host.
+    in property <bool> managed;
+    // Moonraker runs on this host (otherwise only the printer host's interfaces are shown).
+    in property <bool> local;
+    in property <string> unavailable-reason;
+    in property <bool> wifi-present;
+    in property <bool> wifi-enabled;
+    in property <string> active-ssid;
+    in property <string> wifi-address;
+    in property <string> busy;
+    in property <[WifiItem]> networks;
+    in property <[string]> known;
+    in property <[WiredItem]> wired;
+    in property <[HostInterfaceItem]> host-interfaces;
+
+    // Connection waiting for confirmation while a print is running.
+    in-out property <string> pending-ssid;
+    in-out property <string> pending-password;
+    in-out property <bool> pending-hidden;
+
+    callback refresh();
+    callback scan();
+    callback connect(string, string, bool);
+    callback forget(string);
+    callback set-wifi-enabled(bool);
+    callback set-wired(string, bool);
+
+    public function connect-pending() {
+        self.connect(self.pending-ssid, self.pending-password, self.pending-hidden);
+        self.pending-password = "";
+    }
 }
 
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
+    // 0 = general, 1 = network
+    in-out property <int> settings-tab;
 }
 
 // Confirmation dialog: pages set text and action, `execute` runs the action after OK.
@@ -234,6 +297,10 @@ export global Confirm {
         if (self.action == "restart-klipper") { Actions.restart-klipper(); }
         if (self.action == "disable-motors") { Actions.disable-motors(); }
         if (self.action == "power-off") { Actions.set-power(self.argument, false); }
+        if (self.action == "connect-network") { Network.connect-pending(); }
+        if (self.action == "forget-network") { Network.forget(self.argument); }
+        if (self.action == "wifi-off") { Network.set-wifi-enabled(false); }
+        if (self.action == "wired-off") { Network.set-wired(self.argument, false); }
     }
 }
 

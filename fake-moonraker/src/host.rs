@@ -82,6 +82,23 @@ impl Host {
         }
     }
 
+    /// Subset of `machine.system_info`: distribution and network interfaces.
+    pub fn system_info(&self) -> Value {
+        json!({ "system_info": {
+            "provider": "systemd_dbus",
+            "distribution": { "name": "Debian GNU/Linux 12 (bookworm)", "id": "debian", "version": "12" },
+            "network": {
+                "wlan0": { "mac_address": "b8:27:eb:00:00:01", "ip_addresses": [
+                    { "family": "ipv4", "address": "192.168.1.57", "is_link_local": false },
+                    { "family": "ipv6", "address": "fe80::ba27:ebff:fe00:1", "is_link_local": true }
+                ]},
+                "eth0": { "mac_address": "b8:27:eb:00:00:02", "ip_addresses": [
+                    { "family": "ipv4", "address": "192.168.1.42", "is_link_local": false }
+                ]}
+            }
+        }})
+    }
+
     pub fn record(&mut self, kind: &str, message: &str, time: f64) {
         if self.gcode_store.len() == GCODE_STORE_SIZE {
             self.gcode_store.pop_front();

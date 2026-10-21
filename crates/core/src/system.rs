@@ -131,6 +131,41 @@ pub fn parse_server_info(result: &Value) -> ServerInfo {
     }
 }
 
+/// Network interface of the printer host as reported by Moonraker (read-only).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct HostInterface {
+    pub name: String,
+    pub mac_address: String,
+    /// IPv4 and global IPv6 addresses.
+    pub addresses: Vec<String>,
+}
+
+pub fn parse_host_network(result: &Value) -> Vec<HostInterface> {
+    let Some(network) = result.pointer("/system_info/network").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut interfaces: Vec<HostInterface> = network
+        .iter()
+        .map(|(name, interface)| HostInterface {
+            name: name.clone(),
+            mac_address: interface.get("mac_address").and_then(Value::as_str).unwrap_or_default().to_owned(),
+            addresses: interface
+                .get("ip_addresses")
+                .and_then(Value::as_array)
+                .map(|addresses| {
+                    addresses
+                        .iter()
+                        .filter(|address| !address.get("is_link_local").and_then(Value::as_bool).unwrap_or(false))
+                        .filter_map(|address| address.get("address").and_then(Value::as_str).map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default(),
+        })
+        .collect();
+    interfaces.sort_by(|left, right| left.name.cmp(&right.name));
+    interfaces
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,5 +212,21 @@ mod tests {
         assert_eq!(lines[1].message, "ok");
         assert!(info.klippy_connected);
         assert_eq!(info.components, ["power"]);
+    }
+
+    #[test]
+    fn reads_host_network_without_link_local_addresses() {
+        let interfaces = parse_host_network(&json!({ "system_info": { "network": {
+            "wlan0": { "mac_address": "aa:bb", "ip_addresses": [
+                { "family": "ipv4", "address": "192.168.1.127", "is_link_local": false },
+                { "family": "ipv6", "address": "fe80::1", "is_link_local": true }
+            ]},
+            "eth0": { "mac_address": "cc:dd", "ip_addresses": [] }
+        }}}));
+
+        assert_eq!(interfaces.len(), 2);
+        assert_eq!(interfaces[0].name, "eth0");
+        assert_eq!(interfaces[1].addresses, ["192.168.1.127"]);
+        assert_eq!(interfaces[1].mac_address, "aa:bb");
     }
 }

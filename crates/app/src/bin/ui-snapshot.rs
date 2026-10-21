@@ -2,9 +2,13 @@
 //!
 //! `cargo run -p klipper-touch --bin ui-snapshot -- --moonraker http://127.0.0.1:7125 --out <folder>`
 
+use klipper_touch::network_controller::NetworkController;
 use klipper_touch::presenter::Presenter;
 use klipper_touch::settings_controller::SettingsController;
 use klipper_touch::{actions, AppWindow, Confirm, Navigation, Page};
+use klipper_touch_core::network::{
+    Availability, NetworkBackend, NetworkChannels, NetworkCommand, NetworkService, NetworkState,
+};
 use klipper_touch_core::printer::{KlippyState, PrintState};
 use klipper_touch_core::settings::{Settings, SettingsStore};
 use klipper_touch_core::{Command, ConnectionState, Endpoint, PrinterService, Query, ServiceChannels, Snapshot};
@@ -69,6 +73,9 @@ struct Session {
     presenter: Rc<Presenter>,
     service: PrinterService,
     channels: ServiceChannels,
+    network: Rc<NetworkController>,
+    network_service: NetworkService,
+    network_channels: NetworkChannels,
     options: Options,
     count: usize,
 }
@@ -84,6 +91,13 @@ impl Session {
             }
             while let Ok(event) = self.channels.events.try_recv() {
                 self.presenter.handle_event(event);
+            }
+            if self.network_channels.states.has_changed().unwrap_or(false) {
+                let state = self.network_channels.states.borrow_and_update().clone();
+                self.network.apply_state(state);
+            }
+            while let Ok(notice) = self.network_channels.notices.try_recv() {
+                self.network.show_notice(&notice);
             }
             slint::platform::update_timers_and_animations();
             if Instant::now() >= deadline {
@@ -151,12 +165,33 @@ fn run() -> Result<(), String> {
 
     let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
     let presenter = Presenter::new(&window, service.clone());
+    let (network_service, network_channels) = NetworkService::start(runtime.handle(), NetworkBackend::Simulated);
+    let network =
+        NetworkController::bind(&window, network_service.clone(), service.clone(), presenter.clone(), &endpoint, true);
     let store = SettingsStore::new(temporary_settings(&options.out));
-    let settings =
-        SettingsController::bind(&window, store, Settings::default(), &endpoint, service.clone(), presenter.clone());
+    let settings = SettingsController::bind(
+        &window,
+        store,
+        Settings::default(),
+        &endpoint,
+        service.clone(),
+        presenter.clone(),
+        network.clone(),
+    );
     actions::bind(&window, &service, &presenter, &settings);
 
-    let mut session = Session { platform_window, window, presenter, service, channels, options, count: 0 };
+    let mut session = Session {
+        platform_window,
+        window,
+        presenter,
+        service,
+        channels,
+        network,
+        network_service,
+        network_channels,
+        options,
+        count: 0,
+    };
     session.capture("connecting")?;
     session.wait_until("printer ready", |snapshot| {
         snapshot.connection == ConnectionState::Connected && snapshot.status.klippy_state == KlippyState::Ready
@@ -187,6 +222,7 @@ fn run() -> Result<(), String> {
     ] {
         session.show_page(page, name)?;
     }
+    capture_network(&mut session)?;
 
     session.service.send(Command::StartPrint { filename: "benchy.gcode".into() });
     session.wait_until("print running", |snapshot| {
@@ -219,6 +255,41 @@ fn run() -> Result<(), String> {
 
 fn temporary_settings(out: &Path) -> PathBuf {
     out.join("snapshot-settings.json")
+}
+
+/// Network tab with simulated networks, a confirmation and the read-only fallback.
+fn capture_network(session: &mut Session) -> Result<(), String> {
+    session.window.global::<Navigation>().set_page(Page::Settings);
+    session.window.global::<Navigation>().set_settings_tab(1);
+    session.network_service.send(NetworkCommand::Refresh);
+    session.pump(Duration::from_millis(500));
+    session.capture("settings-network")?;
+
+    session.network_service.send(NetworkCommand::Connect { ssid: "Cafe Guest".into(), password: None, hidden: false });
+    session.pump(Duration::from_millis(200));
+    session.capture("settings-network-connecting")?;
+    session.pump(Duration::from_secs(2));
+
+    session.window.global::<Confirm>().invoke_ask(
+        "Remove network".into(),
+        "The saved password of \"Garage\" is deleted.".into(),
+        "forget-network".into(),
+        "Garage".into(),
+        true,
+    );
+    session.capture("settings-network-forget")?;
+    session.window.global::<Confirm>().set_open(false);
+
+    session.network.apply_state(NetworkState {
+        availability: Availability::Unavailable("NetworkManager not reachable".into()),
+        ..NetworkState::default()
+    });
+    session.service.query(Query::HostNetwork);
+    session.pump(Duration::from_secs(1));
+    session.capture("settings-network-unavailable")?;
+    session.window.global::<Navigation>().set_settings_tab(0);
+    session.network_service.send(NetworkCommand::Refresh);
+    Ok(())
 }
 
 fn main() -> std::process::ExitCode {

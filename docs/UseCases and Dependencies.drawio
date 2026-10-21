@@ -2495,6 +2495,54 @@
                 <mxCell id="wf-445" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="P1 / P2 / P3: Vorschlag für die Priorität" vertex="1">
                     <mxGeometry height="22" width="330" x="1664" y="98" as="geometry"/>
                 </mxCell>
+                <mxCell id="wf-446" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f5f5f5;strokeColor=#666666;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="2010" y="-44" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-447" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Host-Dienst am Drucker (H:), nur wenn Moonraker lokal läuft" vertex="1">
+                    <mxGeometry height="22" width="360" x="2080" y="-46" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-448" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Netzwerk (WLAN / Ethernet)" vertex="1">
+                    <mxGeometry height="320" width="488" x="2112" y="2482" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-449" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-450" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Netzwerk ansehen: Schnittstellen, IP-Adressen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-451" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: machine (system_info)" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-452" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="WLAN suchen und verbinden (Passwort, verborgenes Netz)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-453" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f5f5f5;strokeColor=#666666;" value="H: NetworkManager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-454" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f5f5f5;strokeColor=#666666;" value="H: polkit (Gruppe netdev)" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-455" edge="1" parent="wf-448" source="wf-450" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-452">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-456" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Bekannte WLANs entfernen, WLAN und Ethernet an/aus" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-457" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f5f5f5;strokeColor=#666666;" value="H: NetworkManager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-458" edge="1" parent="wf-448" source="wf-452" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-456">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-459" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Während eines Drucks: nachfragen, Verbindung kann abreißen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-460" parent="wf-448" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-461" edge="1" parent="wf-448" source="wf-456" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-459">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
             </root>
         </mxGraphModel>
     </diagram>
