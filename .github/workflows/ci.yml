@@ -18,12 +18,14 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   release:
-    name: Release ${{ github.ref_name }}
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Packt bei jedem Lauf (prueft das Paketformat); veroeffentlicht nur bei Tags v*.
+    name: Package and release
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('dev-{0}', github.sha) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -31,12 +33,18 @@ jobs:
           path: artifacts
       - name: Pack
         working-directory: artifacts
-        run: bash ../.github/scripts/pack-artifacts.sh
+        run: |
+          bash ../.github/scripts/pack-artifacts.sh "$VERSION"
+          for archive in *linux*.zip; do
+            unzip -Z -l "$archive"
+            unzip -p "$archive" release_info.json | python3 -m json.tool
+          done
       - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" artifacts/*.zip artifacts/*.tar.gz \
-            --title "klipper-touch-slint ${{ github.ref_name }}" \
+          gh release create "${{ github.ref_name }}" artifacts/*.zip \
+            --title "klipper-touch ${{ github.ref_name }}" \
             --generate-notes \
             --verify-tag

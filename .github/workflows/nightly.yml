@@ -1,7 +1,8 @@
 name: Nightly
 
-# Jede Nacht: Stand von main als Vorab-Release "nightly" veroeffentlichen und das vorige ersetzen,
-# aber nur, wenn sich main seit dem letzten Nightly geaendert hat. Manuell mit "force" erzwingbar.
+# Jede Nacht: Stand von main als Vorab-Release "nightly-<datum>-<commit>" veroeffentlichen und die vorigen
+# Nightlies entfernen, aber nur, wenn sich main seit dem letzten Nightly geaendert hat. Manuell mit "force".
+# Eindeutiger Tag je Build, weil Moonraker (Kanal beta) Versionen nur auf Gleichheit vergleicht.
 on:
   schedule:
     - cron: "0 2 * * *"
@@ -16,9 +17,6 @@ concurrency:
   group: nightly
   cancel-in-progress: false
 
-env:
-  TAG: nightly
-
 jobs:
   changes:
     name: Changes since last nightly
@@ -26,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.compare.outputs.changed }}
+      tag: ${{ steps.compare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,8 +32,10 @@ jobs:
       - id: compare
         run: |
           current=$(git rev-parse HEAD)
-          previous=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || echo none)
-          echo "current=$current previous=$previous force=${{ inputs.force }}"
+          last_tag=$(git tag -l 'nightly-*' --sort=-creatordate | head -n 1)
+          previous=$( [ -n "$last_tag" ] && git rev-parse "$last_tag^{commit}" || echo none)
+          echo "current=$current previous=$previous ($last_tag) force=${{ inputs.force }}"
+          echo "tag=nightly-$(date -u +%Y%m%d)-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           if [ "$current" != "$previous" ] || [ "${{ inputs.force }}" = "true" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -54,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TAG: ${{ needs.changes.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -61,16 +64,16 @@ jobs:
           path: artifacts
       - name: Pack
         working-directory: artifacts
-        run: bash ../.github/scripts/pack-artifacts.sh
+        run: bash ../.github/scripts/pack-artifacts.sh "$TAG"
       - name: Replace nightly release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          short=$(git rev-parse --short HEAD)
-          gh release delete "$TAG" --yes --cleanup-tag || echo "no previous nightly"
-          git push origin ":refs/tags/$TAG" || echo "no previous nightly tag"
-          gh release create "$TAG" artifacts/*.zip artifacts/*.tar.gz \
+          gh release create "$TAG" artifacts/*.zip \
             --target "$GITHUB_SHA" \
             --prerelease \
-            --title "Nightly $(date -u +%Y-%m-%d) ($short)" \
-            --notes "Automatic build of main at $GITHUB_SHA. Replaced every night when main has changed. Not tested on real printers."
+            --title "Nightly $(date -u +%Y-%m-%d) ($(git rev-parse --short HEAD))" \
+            --notes "Automatic build of main at $GITHUB_SHA. Replaced every night when main has changed. Untested experiment, use at your own risk."
+          for old in $(gh release list --limit 100 --json tagName --jq '.[].tagName | select(startswith("nightly"))'); do
+            if [ "$old" != "$TAG" ]; then gh release delete "$old" --yes --cleanup-tag; fi
+          done
