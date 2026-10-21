@@ -95,6 +95,8 @@ export global Printer {
 
     // Print job (print_stats.state)
     in property <string> print-state: "standby";
+    // Machine activity (idle_timeout.state): ready | busy | idle
+    in property <string> activity: "ready";
     in property <string> filename;
     in property <string> job-name;
     in property <float> progress;
@@ -311,15 +313,16 @@ export global Confirm {
     }
 }
 
-// Mapping of states to icons and display texts.
+// Icons and texts for the three state levels: connection/Klipper (webhooks), machine activity
+// (idle_timeout) and print job (print_stats). The same state name uses the same icon on every level.
 export global StateIcons {
     public pure function print-state-label(state: string) -> string {
         if (state == "printing") { return @tr("Printing"); }
         if (state == "paused") { return @tr("Paused"); }
         if (state == "complete") { return @tr("Complete"); }
         if (state == "cancelled") { return @tr("Cancelled"); }
-        if (state == "error") { return @tr("Error"); }
-        return @tr("Ready");
+        if (state == "error") { return @tr("Print error"); }
+        return @tr("No print");
     }
 
     public pure function print-state(state: string) -> image {
@@ -328,7 +331,43 @@ export global StateIcons {
         if (state == "complete") { return Icons.state-complete; }
         if (state == "cancelled") { return Icons.state-cancelled; }
         if (state == "error") { return Icons.state-error; }
+        return Icons.state-standby;
+    }
+
+    public pure function activity-label(activity: string) -> string {
+        if (activity == "busy") { return @tr("Busy"); }
+        if (activity == "idle") { return @tr("Idle"); }
+        return @tr("Ready");
+    }
+
+    public pure function activity(activity: string) -> image {
+        if (activity == "busy") { return Icons.state-busy; }
+        if (activity == "idle") { return Icons.state-idle; }
         return Icons.state-ready;
+    }
+
+    public pure function klippy-label(connection: string, state: string) -> string {
+        if (connection == "connecting") { return @tr("Moonraker: connecting"); }
+        if (connection != "connected") { return @tr("Moonraker: not reachable"); }
+        if (state == "ready") { return @tr("Klipper ready"); }
+        if (state == "startup") { return @tr("Klipper: starting"); }
+        if (state == "shutdown") { return @tr("Klipper: shutdown"); }
+        if (state == "error") { return @tr("Klipper: error"); }
+        return @tr("Klipper: not connected");
+    }
+
+    // Status bar: connection/Klipper while not ready, then a print job if there is one, otherwise the activity.
+    public pure function summary-label() -> string {
+        if (!Printer.ready) { return self.klippy-label(Printer.connection, Printer.klippy-state); }
+        if (Printer.is-printing) { return Printer.job-name + "  " + round(Printer.progress * 100) + "%"; }
+        if (Printer.print-state != "standby") { return self.print-state-label(Printer.print-state); }
+        return self.activity-label(Printer.activity);
+    }
+
+    public pure function summary() -> image {
+        if (!Printer.ready) { return self.klippy-state(Printer.connection, Printer.klippy-state); }
+        if (Printer.print-state != "standby") { return self.print-state(Printer.print-state); }
+        return self.activity(Printer.activity);
     }
 
     public pure function klippy-state(connection: string, state: string) -> image {

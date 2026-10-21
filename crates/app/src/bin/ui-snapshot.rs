@@ -9,7 +9,7 @@ use klipper_touch::{actions, AppWindow, Confirm, Navigation, Page};
 use klipper_touch_core::network::{
     Availability, NetworkBackend, NetworkChannels, NetworkCommand, NetworkService, NetworkState,
 };
-use klipper_touch_core::printer::{KlippyState, PrintState};
+use klipper_touch_core::printer::{Activity, KlippyState, PrintState};
 use klipper_touch_core::settings::{Settings, SettingsStore};
 use klipper_touch_core::{Command, ConnectionState, Endpoint, PrinterService, Query, ServiceChannels, Snapshot};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
@@ -20,6 +20,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 const WAIT_LIMIT: Duration = Duration::from_secs(20);
+const IDLE_WAIT_LIMIT: Duration = Duration::from_secs(60);
 
 struct SnapshotPlatform {
     window: Rc<MinimalSoftwareWindow>,
@@ -108,7 +109,16 @@ impl Session {
     }
 
     fn wait_until(&mut self, what: &str, condition: impl Fn(&Snapshot) -> bool) -> Result<(), String> {
-        let deadline = Instant::now() + WAIT_LIMIT;
+        self.wait_until_for(what, WAIT_LIMIT, condition)
+    }
+
+    fn wait_until_for(
+        &mut self,
+        what: &str,
+        limit: Duration,
+        condition: impl Fn(&Snapshot) -> bool,
+    ) -> Result<(), String> {
+        let deadline = Instant::now() + limit;
         while !condition(&self.presenter.snapshot()) {
             if Instant::now() > deadline {
                 return Err(format!("timed out waiting for {what}"));
@@ -249,6 +259,9 @@ fn run() -> Result<(), String> {
     session.capture("klippy-shutdown")?;
     session.service.send(Command::FirmwareRestart);
     session.wait_until("ready again", |snapshot| snapshot.status.klippy_state == KlippyState::Ready)?;
+    // The fake's idle timeout passes after about 30 s at time scale 20.
+    session.wait_until_for("idle timeout", IDLE_WAIT_LIMIT, |snapshot| snapshot.status.activity == Activity::Idle)?;
+    session.show_page(Page::Print, "print-idle")?;
     drop(runtime);
     Ok(())
 }

@@ -151,7 +151,7 @@ export component PrintPage inherits Rectangle {
                     alignment: start;
                     Image {
                         source: StateIcons.print-state(Printer.print-state);
-                        colorize: Printer.print-state == "error" ? Theme.danger : Theme.accent;
+                        colorize: Printer.print-state == "error" ? Theme.danger : Printer.print-state == "standby" ? Theme.muted : Theme.accent;
                         width: 22px;
                         height: 22px;
                     }

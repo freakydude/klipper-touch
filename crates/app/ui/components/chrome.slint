@@ -19,16 +19,14 @@ export component StatusBar inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 Image {
-                    source: Printer.ready ? StateIcons.print-state(Printer.print-state) : StateIcons.klippy-state(Printer.connection, Printer.klippy-state);
+                    source: StateIcons.summary();
                     colorize: Printer.ready ? Theme.foreground : Theme.warning;
                     width: 24px;
                     height: 24px;
                 }
             }
             Text {
-                text: !Printer.ready ? (Printer.connection == "connected" ? @tr("Klipper: {}", Printer.klippy-state) : @tr("Moonraker: {}", Printer.connection))
-                    : Printer.is-printing ? Printer.job-name + "  " + round(Printer.progress * 100) + "%"
-                    : StateIcons.print-state-label(Printer.print-state);
+                text: StateIcons.summary-label();
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
                 vertical-alignment: center;
@@ -137,7 +135,7 @@ export component NavRail inherits Rectangle {
     VerticalLayout {
         padding: 3px;
         spacing: 1px;
-        NavItem { icon: StateIcons.print-state(Printer.print-state); label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
+        NavItem { icon: Icons.nav-printer; label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.is-printing; }
         NavItem { icon: Icons.nav-temperature; label: @tr("Heat"); page: Page.temperature; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }

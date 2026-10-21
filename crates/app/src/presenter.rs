@@ -119,6 +119,7 @@ impl Presenter {
         printer.set_ready(ready);
 
         printer.set_print_state(status.job.state.as_str().into());
+        printer.set_activity(status.activity.as_str().into());
         printer.set_filename(status.job.filename.as_str().into());
         printer.set_progress(status.job.progress as f32);
         printer.set_job_message(status.job.message.as_str().into());

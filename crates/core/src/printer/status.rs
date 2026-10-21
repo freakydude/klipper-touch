@@ -75,6 +75,35 @@ impl PrintState {
     }
 }
 
+/// `idle_timeout.state`: whether the machine is working, independent of a print job.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Activity {
+    #[default]
+    Ready,
+    /// Klipper calls this "Printing": any command is being executed, e.g. homing or heating.
+    Busy,
+    /// Inactive for longer than the idle timeout; Klipper has usually switched off heaters and motors.
+    Idle,
+}
+
+impl Activity {
+    pub fn parse(text: &str) -> Self {
+        match text {
+            "Printing" => Self::Busy,
+            "Idle" => Self::Idle,
+            _ => Self::Ready,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Busy => "busy",
+            Self::Idle => "idle",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Axis {
     X,
@@ -208,6 +237,7 @@ pub struct FilamentSensor {
 pub struct PrinterStatus {
     pub klippy_state: KlippyState,
     pub klippy_message: String,
+    pub activity: Activity,
     pub job: PrintJob,
     pub motion: Motion,
     pub extruder: ExtruderState,
@@ -228,6 +258,7 @@ impl PrinterStatus {
         Self {
             klippy_state: KlippyState::parse(text(webhooks, "state")),
             klippy_message: text(webhooks, "state_message").trim().to_owned(),
+            activity: Activity::parse(text(object("idle_timeout"), "state")),
             job: read_job(object("print_stats"), object("display_status"), object("virtual_sdcard")),
             motion: read_motion(object("toolhead"), object("motion_report"), object("gcode_move")),
             extruder: read_extruder(object("extruder")),
@@ -420,6 +451,7 @@ mod tests {
     fn reads_job_motion_and_heaters() {
         let status = PrinterStatus::from_store(&store(json!({
             "webhooks": { "state": "ready", "state_message": "Printer is ready\n" },
+            "idle_timeout": { "state": "Printing" },
             "print_stats": {
                 "state": "printing", "filename": "cube.gcode", "print_duration": 60.0,
                 "info": { "current_layer": 3, "total_layer": 100 }
@@ -437,6 +469,7 @@ mod tests {
 
         assert_eq!(status.klippy_state, KlippyState::Ready);
         assert_eq!(status.klippy_message, "Printer is ready");
+        assert_eq!(status.activity, Activity::Busy);
         assert_eq!(status.job.state, PrintState::Printing);
         assert_eq!(status.job.progress, 0.25);
         assert_eq!((status.job.current_layer, status.job.total_layer), (Some(3), Some(100)));
@@ -456,6 +489,8 @@ mod tests {
         let status = PrinterStatus::from_store(&ObjectStore::default());
 
         assert_eq!(status.klippy_state, KlippyState::Disconnected);
+        assert_eq!(status.activity, Activity::Ready);
+        assert_eq!(Activity::parse("Idle"), Activity::Idle);
         assert_eq!(status.job.state, PrintState::Standby);
         assert!(status.heaters.is_empty());
         assert_eq!(status.part_fan_speed, None);
