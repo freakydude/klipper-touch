@@ -1155,4 +1155,1347 @@
             </root>
         </mxGraphModel>
     </diagram>
+    <diagram id="wf-workflows-page" name="Workflows">
+        <mxGraphModel dx="3780" dy="5792" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3158" pageHeight="4162" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="wf-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="1 · Vorbereiten – den Drucker für den nächsten Druck bereit machen" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-2" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Drucker bereit machen" vertex="1">
+                    <mxGeometry height="320" width="488" x="40" y="198" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-3" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-4" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Verbindung und Klipper-Status prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-5" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-6" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Achsen homen (XY, dann Z)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-7" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="toolhead" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-8" edge="1" parent="wf-2" source="wf-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-6">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-9" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Gantry / Bett ausrichten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-10" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="quad_gantry_level ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-11" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="z_tilt ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-12" edge="1" parent="wf-2" source="wf-6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-9">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-13" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Bed Mesh laden oder neu erstellen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-14" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="bed_mesh ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-15" parent="wf-2" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="probe ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="284" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-16" edge="1" parent="wf-2" source="wf-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-13">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-17" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Vorheizen" vertex="1">
+                    <mxGeometry height="320" width="488" x="558" y="198" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-18" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-19" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Temperatur-Preset wählen (Material)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-20" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: database" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-21" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Düse und Bett aufheizen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-22" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-23" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-24" edge="1" parent="wf-17" source="wf-19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-21">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-25" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Kammer / Heatsoak abwarten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-26" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="heater_generic (Kammer) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-27" edge="1" parent="wf-17" source="wf-21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-25">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-28" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fortschritt bis Zieltemperatur anzeigen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-29" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-30" parent="wf-17" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="284" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-31" edge="1" parent="wf-17" source="wf-25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-28">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-32" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Filament laden / wechseln" vertex="1">
+                    <mxGeometry height="460" width="488" x="1076" y="198" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-33" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-34" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Düse auf Filamenttemperatur heizen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-35" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-36" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Altes Filament entladen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-37" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Makro UNLOAD_FILAMENT ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-38" edge="1" parent="wf-32" source="wf-34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-36">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-39" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Neues Filament laden" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-40" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Makro LOAD_FILAMENT ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-41" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="filament_switch_sensor ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-42" edge="1" parent="wf-32" source="wf-36" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-39">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-43" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Spülen bis die Farbe sauber ist" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-44" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder (can_extrude)" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-45" edge="1" parent="wf-32" source="wf-39" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-43">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-46" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Spule / Material zuordnen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-47" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: spoolman" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-48" edge="1" parent="wf-32" source="wf-43" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-46">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-49" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Mit MMU: Gate wählen, MMU lädt" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-50" parent="wf-32" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="412" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-51" edge="1" parent="wf-32" source="wf-46" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-49">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-52" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="2 · Drucken – auswählen, überwachen, eingreifen, beenden" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="728" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-53" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Auswählen, was gedruckt wird" vertex="1">
+                    <mxGeometry height="460" width="488" x="40" y="786" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-54" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-55" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Dateien durchsuchen (Vorschau, Dauer, Material)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-56" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: file_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-57" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Datei prüfen: Dauer, Filament, Temperaturen, Layer" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-58" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: file_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-59" edge="1" parent="wf-53" source="wf-55" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-57">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-60" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Passt das geladene Material?" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-61" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-62" edge="1" parent="wf-53" source="wf-57" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-60">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-63" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Mehrfarbig: Tool-zu-Gate-Zuordnung prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-64" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-65" edge="1" parent="wf-53" source="wf-60" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-63">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-66" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="In Warteschlange stellen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-67" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: job_queue" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-68" edge="1" parent="wf-53" source="wf-63" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-66">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-69" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Start (Preheat- und Print-Start-Makro)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-70" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="virtual_sdcard" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-71" parent="wf-53" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="424" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-72" edge="1" parent="wf-53" source="wf-66" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-69">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-73" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Druck läuft" vertex="1">
+                    <mxGeometry height="508" width="488" x="558" y="786" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-74" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-75" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fortschritt, ETA, Layer, Dauer sehen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-76" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-77" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="display_status" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-78" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Temperaturen und Geschwindigkeit sehen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-79" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-80" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-81" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="motion_report" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="168" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-82" edge="1" parent="wf-73" source="wf-75" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-78">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-83" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Live-Tuning: Z-Offset, Speed, Flow, Lüfter, PA" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="226" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-84" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="gcode_move" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-85" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="fan" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="238" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-86" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="262" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-87" edge="1" parent="wf-73" source="wf-78" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-83">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-88" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Einzelnes Objekt ausschließen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="308" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-89" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="exclude_object ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-90" edge="1" parent="wf-73" source="wf-83" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-88">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-91" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Webcam ansehen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="378" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-92" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: webcam" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="390" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-93" edge="1" parent="wf-73" source="wf-88" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-91">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-94" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Pausieren oder Abbrechen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="448" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-95" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="pause_resume" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="460" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-96" edge="1" parent="wf-73" source="wf-91" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-94">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-97" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Pausiert / Fortsetzen / Abbrechen" vertex="1">
+                    <mxGeometry height="390" width="488" x="1076" y="786" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-98" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-99" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Pausengrund anzeigen (Nutzer, Runout, Fehler)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-100" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="pause_resume" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-101" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="filament_switch_sensor ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-102" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Eingreifen: Filament wechseln, Problem beheben" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-103" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-104" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="toolhead" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-105" edge="1" parent="wf-97" source="wf-99" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-102">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-106" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fortsetzen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-107" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="pause_resume" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-108" edge="1" parent="wf-97" source="wf-102" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-106">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-109" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Oder abbrechen (mit Bestätigung)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-110" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-111" edge="1" parent="wf-97" source="wf-106" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-109">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-112" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Aufräumen: Heizer aus, Kopf parken, Motoren aus" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-113" parent="wf-97" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="idle_timeout" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-114" edge="1" parent="wf-97" source="wf-109" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-112">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-115" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Druck beendet" vertex="1">
+                    <mxGeometry height="320" width="488" x="1594" y="786" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-116" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-117" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Zusammenfassung: Dauer, Filament, Layer" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-118" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-119" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: history" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-120" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Bett abkühlen lassen / Teil entnehmen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-121" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-122" edge="1" parent="wf-115" source="wf-117" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-120">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-123" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Nochmal drucken oder neue Datei" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-124" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: file_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-125" edge="1" parent="wf-115" source="wf-120" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-123">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-126" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Heizer und Motoren ausschalten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-127" parent="wf-115" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="idle_timeout" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-128" edge="1" parent="wf-115" source="wf-123" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-126">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-129" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="3 · Wenn etwas schief geht" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="1364" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-130" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Klipper-Fehler / Shutdown" vertex="1">
+                    <mxGeometry height="320" width="488" x="40" y="1422" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-131" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-132" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Fehlermeldung (state_message) groß zeigen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-133" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-134" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-135" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Ursache einordnen: Heizer, MCU, Konfiguration" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-136" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-137" edge="1" parent="wf-130" source="wf-132" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-135">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-138" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Firmware Restart oder Restart anbieten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-139" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-140" edge="1" parent="wf-130" source="wf-135" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-138">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-141" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Warten bis Klipper wieder ready ist" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-142" parent="wf-130" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-143" edge="1" parent="wf-130" source="wf-138" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-141">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-144" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Verbindung verloren" vertex="1">
+                    <mxGeometry height="320" width="488" x="558" y="1422" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-145" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-146" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Zustand disconnected anzeigen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-147" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: klippy_connection" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-148" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Automatisch neu verbinden" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-149" edge="1" parent="wf-144" source="wf-146" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-148">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-150" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Adresse des Hosts bearbeiten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-151" edge="1" parent="wf-144" source="wf-148" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-150">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-152" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Zurück in den Alltag, sobald ready" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-153" parent="wf-144" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-154" edge="1" parent="wf-144" source="wf-150" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-152">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-155" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Filament-Problem (Runout / Clog)" vertex="1">
+                    <mxGeometry height="344" width="488" x="1076" y="1422" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-156" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-157" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Druck pausiert automatisch" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-158" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="filament_switch_sensor ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-159" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="filament_motion_sensor ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-160" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="98" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-161" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Ursache zeigen: Runout, Verstopfung, Tangle" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-162" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (flowguard) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="156" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-163" edge="1" parent="wf-155" source="wf-157" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-161">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-164" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Neues Filament laden oder Gate wechseln" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-165" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (EndlessSpool) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="226" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-166" edge="1" parent="wf-155" source="wf-161" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-164">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-167" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fortsetzen oder abbrechen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="284" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-168" parent="wf-155" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="pause_resume" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="296" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-169" edge="1" parent="wf-155" source="wf-164" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-167">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-170" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Notfall" vertex="1">
+                    <mxGeometry height="250" width="488" x="1594" y="1422" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-171" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="P1" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-172" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Emergency Stop auf jeder Seite erreichbar" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-173" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-174" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Bestätigung (gegen Fehlbedienung)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-175" edge="1" parent="wf-170" source="wf-172" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-174">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-176" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Danach: Firmware Restart" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-177" parent="wf-170" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-178" edge="1" parent="wf-170" source="wf-174" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-176">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-179" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="4 · Anpassen &amp; Kalibrieren – Änderungen am Drucker" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="1836" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-180" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Düse wechseln" vertex="1">
+                    <mxGeometry height="460" width="488" x="40" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-181" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-182" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Heizen und Filament entladen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-183" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-184" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Düse tauschen (manuell, Hinweistext)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-185" edge="1" parent="wf-180" source="wf-182" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-184">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-186" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Z-Offset neu kalibrieren" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-187" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="probe ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-188" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="manual_probe ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-189" edge="1" parent="wf-180" source="wf-184" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-186">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-190" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Bed Mesh neu erstellen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-191" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="bed_mesh ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-192" edge="1" parent="wf-180" source="wf-186" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-190">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-193" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Änderungen sichern (SAVE_CONFIG)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-194" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-195" edge="1" parent="wf-180" source="wf-190" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-193">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-196" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Testdruck starten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-197" parent="wf-180" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="virtual_sdcard" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="412" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-198" edge="1" parent="wf-180" source="wf-193" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-196">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-199" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Neues Material einführen" vertex="1">
+                    <mxGeometry height="390" width="488" x="558" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-200" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-201" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Temperatur-Preset anlegen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-202" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: database" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-203" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Pressure Advance kalibrieren" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-204" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-205" edge="1" parent="wf-199" source="wf-201" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-203">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-206" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fluss / Rotation Distance prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-207" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-208" edge="1" parent="wf-199" source="wf-203" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-206">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-209" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Retraction einstellen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-210" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="firmware_retraction ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-211" edge="1" parent="wf-199" source="wf-206" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-209">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-212" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Preset speichern" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-213" parent="wf-199" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: database" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-214" edge="1" parent="wf-199" source="wf-209" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-212">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-215" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Bett und Mechanik ausrichten" vertex="1">
+                    <mxGeometry height="460" width="488" x="1076" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-216" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-217" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Homing" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-218" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="toolhead" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-219" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Schrauben ausrichten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-220" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="screws_tilt_adjust ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-221" edge="1" parent="wf-215" source="wf-217" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-219">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-222" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Gantry: QGL oder Z-Tilt" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-223" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="quad_gantry_level ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-224" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="z_tilt ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-225" edge="1" parent="wf-215" source="wf-219" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-222">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-226" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Z-Offset (Probe Calibrate)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-227" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="probe ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-228" edge="1" parent="wf-215" source="wf-222" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-226">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-229" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Bed Mesh kalibrieren" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-230" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="bed_mesh ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-231" edge="1" parent="wf-215" source="wf-226" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-229">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-232" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Änderungen sichern (SAVE_CONFIG)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-233" parent="wf-215" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="412" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-234" edge="1" parent="wf-215" source="wf-229" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-232">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-235" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Input Shaper / Resonanz" vertex="1">
+                    <mxGeometry height="390" width="488" x="1594" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-236" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-237" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Beschleunigungssensor prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-238" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="adxl345 ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-239" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="resonance_tester ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-240" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Messung starten (X und Y)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-241" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="resonance_tester ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-242" edge="1" parent="wf-235" source="wf-237" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-240">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-243" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Ergebnis anzeigen und übernehmen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-244" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="input_shaper ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-245" edge="1" parent="wf-235" source="wf-240" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-243">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-246" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Limits anpassen: Accel, Velocity" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-247" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="toolhead" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-248" edge="1" parent="wf-235" source="wf-243" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-246">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-249" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Änderungen sichern (SAVE_CONFIG)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-250" parent="wf-235" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="342" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-251" edge="1" parent="wf-235" source="wf-246" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-249">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-252" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Heizer-PID" vertex="1">
+                    <mxGeometry height="320" width="488" x="2112" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-253" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-254" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Ziel wählen: Düse oder Bett" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-255" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-256" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-257" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="PID-Kalibrierung ausführen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-258" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-259" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="heater_bed" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-260" edge="1" parent="wf-252" source="wf-254" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-257">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-261" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Ergebnis prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-262" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-263" edge="1" parent="wf-252" source="wf-257" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-261">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-264" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Änderungen sichern (SAVE_CONFIG)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-265" parent="wf-252" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-266" edge="1" parent="wf-252" source="wf-261" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-264">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-267" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Änderungen sichern" vertex="1">
+                    <mxGeometry height="320" width="488" x="2630" y="1894" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-268" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-269" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Ausstehende Änderung erkennen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-270" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile.save_config_pending" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-271" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Hinweis: Neustart nötig" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-272" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="configfile" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-273" edge="1" parent="wf-267" source="wf-269" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-271">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-274" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Bestätigen und Restart auslösen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-275" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-276" edge="1" parent="wf-267" source="wf-271" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-274">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-277" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Verbindung wiederherstellen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-278" parent="wf-267" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="webhooks" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-279" edge="1" parent="wf-267" source="wf-274" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-277">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-280" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="5 · Beobachten &amp; Verwalten – ohne Eingriff in den Druck" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="2424" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-281" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Überblick" vertex="1">
+                    <mxGeometry height="320" width="488" x="40" y="2482" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-282" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-283" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Status, Temperaturen, Fortschritt" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-284" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-285" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="extruder" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-286" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Webcam" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-287" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: webcam" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-288" edge="1" parent="wf-281" source="wf-283" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-286">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-289" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Temperaturverlauf" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-290" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: data_store" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-291" edge="1" parent="wf-281" source="wf-286" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-289">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-292" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Konsole und Meldungen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-293" parent="wf-281" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: data_store" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-294" edge="1" parent="wf-281" source="wf-289" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-292">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-295" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Dateien und Aufträge" vertex="1">
+                    <mxGeometry height="320" width="488" x="558" y="2482" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-296" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-297" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Dateien hochladen, umbenennen, löschen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-298" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: file_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-299" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Warteschlange verwalten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-300" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: job_queue" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-301" edge="1" parent="wf-295" source="wf-297" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-299">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-302" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Verlauf und Statistik" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-303" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: history" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-304" edge="1" parent="wf-295" source="wf-299" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-302">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-305" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Objekt-Vorschau und Metadaten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-306" parent="wf-295" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: file_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-307" edge="1" parent="wf-295" source="wf-302" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-305">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-308" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Zubehör" vertex="1">
+                    <mxGeometry height="250" width="488" x="1076" y="2482" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-309" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-310" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Power-Geräte schalten" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-311" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: power" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-312" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Beleuchtung, LED, WLED" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-313" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="led / neopixel ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-314" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: wled" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="144" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-315" edge="1" parent="wf-308" source="wf-310" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-312">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-316" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Lüfter und Sensoren" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-317" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="temperature_sensor ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-318" parent="wf-308" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="output_pin ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="214" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-319" edge="1" parent="wf-308" source="wf-312" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-316">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-320" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Wartung und System" vertex="1">
+                    <mxGeometry height="320" width="488" x="1594" y="2482" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-321" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-322" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Software-Updates" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-323" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: update_manager" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-324" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Netzwerk und Host-Status" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-325" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: machine" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-326" edge="1" parent="wf-320" source="wf-322" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-324">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-327" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Hinweise des Projekts (Announcements)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-328" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: announcements" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-329" edge="1" parent="wf-320" source="wf-324" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-327">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-330" parent="wf-320" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="UI-Einstellungen: Helligkeit, Sprache, Verbindung" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-331" edge="1" parent="wf-320" source="wf-327" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-330">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-332" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="6 · Mehrfarbig / MMU – nur wenn Happy Hare konfiguriert ist (Objekt mmu)" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="2872" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-333" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="MMU bereit machen" vertex="1">
+                    <mxGeometry height="320" width="488" x="40" y="2930" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-334" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-335" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="MMU homen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-336" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (is_homed) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-337" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Gates prüfen (leer, belegt)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-338" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (gate_status) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-339" edge="1" parent="wf-333" source="wf-335" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-337">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-340" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Filament je Gate zuweisen (Gate Map)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-341" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (gate_*) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-342" edge="1" parent="wf-333" source="wf-337" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-340">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-343" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Spulen mit Spoolman verknüpfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-344" parent="wf-333" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="M: spoolman" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-345" edge="1" parent="wf-333" source="wf-340" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-343">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-346" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Mehrfarbdruck vorbereiten" vertex="1">
+                    <mxGeometry height="320" width="488" x="558" y="2930" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-347" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-348" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Farben der Datei (Slicer Tool Map) lesen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-349" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (slicer_tool_map) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-350" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Tool-zu-Gate zuordnen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-351" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (ttg_map) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-352" edge="1" parent="wf-346" source="wf-348" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-350">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-353" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="Warnen bei leeren oder fehlenden Gates" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-354" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (gate_status) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-355" edge="1" parent="wf-346" source="wf-350" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-353">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-356" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Start" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-357" parent="wf-346" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="print_stats" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-358" edge="1" parent="wf-346" source="wf-353" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-356">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-359" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="Während des Drucks" vertex="1">
+                    <mxGeometry height="320" width="488" x="1076" y="2930" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-360" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-361" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Aktuelles Tool, Gate und Farbe" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-362" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (tool, gate) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-363" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Aktion anzeigen (Laden, Entladen, Wechsel)" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-364" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (action) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-365" edge="1" parent="wf-359" source="wf-361" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-363">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-366" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Wechselzähler und Verbrauch" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-367" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (num_toolchanges) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-368" edge="1" parent="wf-359" source="wf-363" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-366">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-369" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Hinweise: Runout, EndlessSpool" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-370" parent="wf-359" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (operation) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-371" edge="1" parent="wf-359" source="wf-366" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-369">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-372" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="MMU-Fehler beheben" vertex="1">
+                    <mxGeometry height="320" width="488" x="1594" y="2930" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-373" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="P2" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-374" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="MMU pausiert: Grund anzeigen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-375" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (reason_for_pause) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-376" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Recover / Unlock auslösen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-377" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-378" edge="1" parent="wf-372" source="wf-374" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-376">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-379" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Gate und Filament prüfen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-380" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu (gate_status) ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-381" edge="1" parent="wf-372" source="wf-376" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-379">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-382" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Fortsetzen oder abbrechen" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-383" parent="wf-372" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="pause_resume" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="272" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-384" edge="1" parent="wf-372" source="wf-379" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-382">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-385" parent="1" style="swimlane;fontStyle=1;fontSize=14;align=left;spacingLeft=10;startSize=34;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;collapsible=0;" value="MMU warten und kalibrieren" vertex="1">
+                    <mxGeometry height="250" width="488" x="2112" y="2930" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-386" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f5f5f5;strokeColor=#999999;" value="P3" vertex="1">
+                    <mxGeometry height="22" width="36" x="442" y="6" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-387" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="Selector, Gear, Encoder, Bowden kalibrieren" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-388" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu_machine ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-389" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Hardware-Tests" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-390" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="132" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-391" edge="1" parent="wf-385" source="wf-387" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-389">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-392" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Statistik und Wartungszähler" vertex="1">
+                    <mxGeometry height="44" width="250" x="16" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-393" parent="wf-385" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="mmu ?" vertex="1">
+                    <mxGeometry height="20" width="190" x="282" y="202" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-394" edge="1" parent="wf-385" source="wf-389" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-392">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-395" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;fontSize=18;fontStyle=1;align=left;spacingLeft=12;" value="7 · Druck-Screen je Zustand (print_stats.state) – was zeigen, was anbieten" vertex="1">
+                    <mxGeometry height="44" width="3078" x="40" y="3320" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-396" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;align=left;spacingLeft=8;fillColor=#e6e6e6;strokeColor=#666666;" value="Zustand" vertex="1">
+                    <mxGeometry height="36" width="220" x="40" y="3378" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-397" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;align=left;spacingLeft=8;fillColor=#e6e6e6;strokeColor=#666666;" value="Anzeigen" vertex="1">
+                    <mxGeometry height="36" width="560" x="260" y="3378" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-398" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;align=left;spacingLeft=8;fillColor=#e6e6e6;strokeColor=#666666;" value="Anbieten" vertex="1">
+                    <mxGeometry height="36" width="620" x="820" y="3378" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-399" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;align=left;spacingLeft=8;fillColor=#e6e6e6;strokeColor=#666666;" value="Bewusst nicht anbieten" vertex="1">
+                    <mxGeometry height="36" width="1678" x="1440" y="3378" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-400" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="standby&lt;br&gt;(nichts geladen)" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3414" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-401" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Klipper-Status, Temperaturen, Position, Fehler der letzten Sitzung" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3414" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-402" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Datei wählen, Vorheizen, Filament laden/wechseln, Bewegen, Homing, Kalibrieren" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3414" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-403" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausieren, Fortsetzen" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3414" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-404" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="standby&lt;br&gt;(Datei geladen)" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3478" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-405" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Vorschau, geschätzte Dauer, Filamentbedarf, Layer, Temperaturen der Datei" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3478" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-406" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Start, andere Datei, Vorheizen, Warteschlange" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3478" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-407" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausieren, Live-Tuning" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3478" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-408" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="printing" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3542" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-409" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Fortschritt, ETA, Layer x/y, Temperaturen Ist/Soll, Speed und Flow, Dauer, Filament, Vorschau, Webcam" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3542" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-410" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausieren, Abbrechen, Live-Tuning (Z-Offset, Speed, Flow, Lüfter, PA), Objekt ausschließen" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3542" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-411" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Bewegen, Extrudieren, Homing, Kalibrieren" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3542" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-412" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="paused" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3606" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-413" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausengrund, geparkte Position, Temperaturen, Fortschritt" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3606" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-414" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Fortsetzen, Abbrechen, Filament wechseln, eingeschränkt Bewegen, Live-Tuning" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3606" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-415" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Neue Datei starten, Kalibrieren" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3606" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-416" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="complete" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3670" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-417" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Zusammenfassung: Dauer, Filament, Layer; Abkühlen der Heizer" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3670" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-418" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Nochmal drucken, neue Datei, Heizer aus, Motoren aus, Verlauf" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3670" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-419" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausieren, Abbrechen" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3670" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-420" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="cancelled" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3734" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-421" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Abbruchzeitpunkt, erreichter Fortschritt, Dauer" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3734" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-422" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Aufräumen (Abkühlen, Kopf parken), nochmal drucken, neue Datei" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3734" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-423" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausieren, Fortsetzen" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3734" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-424" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="error / shutdown" vertex="1">
+                    <mxGeometry height="64" width="220" x="40" y="3798" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-425" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Fehlermeldung groß (message, state_message), Zustand von Klipper" vertex="1">
+                    <mxGeometry height="64" width="560" x="260" y="3798" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-426" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Firmware Restart, Restart, Verbindung neu aufbauen, Konsole/Log lesen, Emergency Stop" vertex="1">
+                    <mxGeometry height="64" width="620" x="820" y="3798" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-427" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Alles, was Klipper ready voraussetzt" vertex="1">
+                    <mxGeometry height="64" width="1678" x="1440" y="3798" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-428" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=13;" value="Offene Fragen zum Abstimmen&lt;br&gt;1. Welche Workflows gehören auf den Touchscreen am Drucker, welche nur an den Desktop (z. B. Mainsail)?&lt;br&gt;2. Kalibrieren: geführte Assistenten (Schritt für Schritt) oder nur Makros auslösen?&lt;br&gt;3. Material-Presets: in der UI pflegen, aus dem Slicer/der Datei lesen oder beides?&lt;br&gt;4. Datei laden ohne direkt zu starten – gewollter Zwischenschritt?&lt;br&gt;5. Wie tief wird Happy Hare in den Standard-Druckfluss integriert (Tool-Wechsel im Druck-Screen)?&lt;br&gt;6. Ein starres Layout für alle Displays (4,3&quot;, 5&quot;, 7&quot;) – oder eigene Layouts pro Profil?" vertex="1">
+                    <mxGeometry height="190" width="1100" x="40" y="3922" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-429" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=26;fontStyle=1;" value="Workflows – was ein Mensch am Drucker tut (Entwurf zum Abstimmen)" vertex="1">
+                    <mxGeometry height="40" width="1400" x="40" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-430" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=13;" value="Prinzip: Der Workflow des Menschen kommt zuerst. Fähigkeiten (printer.objects.list, server.info, configfile) entscheiden nur, ob ein Schritt oder eine Variante angeboten wird.&lt;br&gt;Abgeleitet aus: KlipperScreen-Panels (Job Status, Move, Extrude, Temperature, Fine Tune, Bed Level, Z Calibrate, Input Shaper, Limits, Retraction, Spoolman, Power, Console, Macros, Updater), Mainsail (Dashboard, Dateien, History, Job-Queue, Presets, Bed Mesh, Webcam, Power, Objekt ausschließen) und den MMU-Panels von Happy Hare." vertex="1">
+                    <mxGeometry height="56" width="1500" x="40" y="64" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-431" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=14;fontStyle=1;" value="Legende" vertex="1">
+                    <mxGeometry height="22" width="120" x="1594" y="-70" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-432" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#ffffff;strokeColor=#333333;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="-44" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-433" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Schritt (immer sinnvoll)" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="-46" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-434" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="-20" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-435" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Schritt oder Variante nur mit passender Fähigkeit" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="-22" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-436" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#f8cecc;strokeColor=#b85450;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="4" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-437" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Problem-, Warn- oder Abbruchschritt" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="2" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-438" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-439" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Klipper-Objekt (Standard)" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-440" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-441" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Klipper-Objekt, optional (?)" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-442" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="76" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-443" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="Moonraker-Komponente (M:, server.info)" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-444" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" value="" vertex="1">
+                    <mxGeometry height="18" width="60" x="1594" y="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="wf-445" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;" value="P1 / P2 / P3: Vorschlag für die Priorität" vertex="1">
+                    <mxGeometry height="22" width="330" x="1664" y="98" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>
