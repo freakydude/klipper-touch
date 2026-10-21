@@ -39,23 +39,26 @@ pub fn bind(
         }
     });
 
-    let heater_service = service.clone();
-    actions.on_set_heater(move |heater, target| {
-        heater_service.send(Command::SetHeaterTarget { heater: heater.into(), target: f64::from(target) });
-    });
-    let (preset_service, preset_settings, preset_presenter) =
-        (service.clone(), Rc::clone(settings), Rc::clone(presenter));
-    actions.on_apply_preset(move |index| {
-        let Some(preset) = usize::try_from(index).ok().and_then(|index| preset_settings.preset(index)) else { return };
-        preset_service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: preset.extruder });
-        if preset_presenter.snapshot().capabilities.heater_bed {
-            preset_service.send(Command::SetHeaterTarget { heater: "heater_bed".into(), target: preset.bed });
+    let heater_presenter = Rc::clone(presenter);
+    actions.on_set_heater(move |heater, target| heater_presenter.set_heater_target(&heater, f64::from(target)));
+    let step_presenter = Rc::clone(presenter);
+    actions.on_step_heater(move |object, step| {
+        if let Some(heater) = step_presenter.heater(&object) {
+            step_presenter.set_heater_target(&object, heater.stepped_target(f64::from(step)));
         }
     });
-    let (cool_service, cool_presenter) = (service.clone(), Rc::clone(presenter));
+    let (preset_settings, preset_presenter) = (Rc::clone(settings), Rc::clone(presenter));
+    actions.on_apply_preset(move |index| {
+        let Some(preset) = usize::try_from(index).ok().and_then(|index| preset_settings.preset(index)) else { return };
+        preset_presenter.set_heater_target("extruder", preset.extruder);
+        if preset_presenter.capabilities().heater_bed {
+            preset_presenter.set_heater_target("heater_bed", preset.bed);
+        }
+    });
+    let cool_presenter = Rc::clone(presenter);
     actions.on_cool_down(move || {
         for heater in cool_presenter.snapshot().status.heaters {
-            cool_service.send(Command::SetHeaterTarget { heater: heater.object, target: 0.0 });
+            cool_presenter.set_heater_target(&heater.object, 0.0);
         }
     });
     actions.on_set_part_fan(with(service, |service, percent: f32| {
@@ -137,6 +140,11 @@ pub fn bind(
         text.pop();
         text.into()
     });
+    window.global::<TextTools>().on_mask(|text| mask(&text).into());
+}
+
+fn mask(text: &str) -> String {
+    "•".repeat(text.chars().count())
 }
 
 /// Callback with arguments that receives a cloned service.
@@ -172,5 +180,11 @@ mod tests {
         assert_eq!(parse_axis("e"), None);
         assert_eq!(round_offset(0.005_f32), 0.005);
         assert_eq!(round_offset(-0.025_f32), -0.025);
+    }
+
+    #[test]
+    fn masks_every_character() {
+        assert_eq!(mask("päss"), "••••");
+        assert_eq!(mask(""), "");
     }
 }

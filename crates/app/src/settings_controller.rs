@@ -1,5 +1,6 @@
 //! Connects `UiSettings` with the settings file and applies changes immediately.
 
+use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::{AppWindow, PresetItem, UiSettings};
 use klipper_touch_core::settings::{Settings, SettingsStore, TemperaturePreset};
@@ -15,6 +16,7 @@ pub struct SettingsController {
     settings: RefCell<Settings>,
     service: PrinterService,
     presenter: Rc<Presenter>,
+    network: Rc<NetworkController>,
     presets: Rc<VecModel<PresetItem>>,
 }
 
@@ -26,6 +28,7 @@ impl SettingsController {
         endpoint: &Endpoint,
         service: PrinterService,
         presenter: Rc<Presenter>,
+        network: Rc<NetworkController>,
     ) -> Rc<Self> {
         let controller = Rc::new(Self {
             window: window.as_weak(),
@@ -33,6 +36,7 @@ impl SettingsController {
             settings: RefCell::new(settings),
             service,
             presenter,
+            network,
             presets: Rc::default(),
         });
         controller.show(window, endpoint);
@@ -112,6 +116,7 @@ impl SettingsController {
                 if let Some(window) = self.window.upgrade() {
                     window.global::<UiSettings>().set_moonraker(display.as_str().into());
                 }
+                self.network.set_endpoint(&endpoint);
                 self.service.connect_to(endpoint);
                 self.presenter.show_notice(&format!("Connecting to {display}"), false);
             }

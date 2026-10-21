@@ -10,6 +10,8 @@ export struct HeaterItem {
     temperature: float,
     target: float,
     power: float,
+    // Target is below Klipper's max_temp.
+    can-raise: bool,
 }
 
 export struct SensorItem {
@@ -57,6 +59,32 @@ export struct PresetItem {
     bed: float,
 }
 
+export struct WifiItem {
+    ssid: string,
+    // Signal strength as bars 1..3.
+    bars: int,
+    secured: bool,
+    supported: bool,
+    known: bool,
+    active: bool,
+    // false: saved network that is currently not received.
+    in-range: bool,
+}
+
+export struct WiredItem {
+    interface: string,
+    cable: bool,
+    connected: bool,
+    address: string,
+}
+
+export struct HostInterfaceItem {
+    name: string,
+    wireless: bool,
+    addresses: string,
+    mac: string,
+}
+
 export global Printer {
     // Connection: connection = connecting | connected | disconnected; klippy-state as in Moonraker.
     in property <string> connection: "connecting";
@@ -67,6 +95,8 @@ export global Printer {
 
     // Print job (print_stats.state)
     in property <string> print-state: "standby";
+    // Machine activity (idle_timeout.state): ready | busy | idle
+    in property <string> activity: "ready";
     in property <string> filename;
     in property <string> job-name;
     in property <float> progress;
@@ -130,6 +160,8 @@ export global Printer {
     in property <bool> notice-is-error;
 
     out property <bool> is-printing: print-state == "printing" || print-state == "paused";
+    // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
+    out property <bool> host-actions-locked: is-printing || activity == "busy";
     out property <bool> homed-xy: homed-x && homed-y;
 }
 
@@ -158,6 +190,8 @@ export global Actions {
     callback disable-motors();
     callback level();
     callback set-heater(string, float);
+    // + or − by the step (with sign); respects Klipper's min_temp/max_temp.
+    callback step-heater(string, float);
     callback apply-preset(int);
     callback cool-down();
     callback set-part-fan(float);
@@ -194,11 +228,52 @@ export global Actions {
 // Text editing for the on-screen keyboard (Slint has no substring function).
 export global TextTools {
     pure callback remove-last(string) -> string;
+    // Replaces every character with a dot, e.g. for passwords.
+    pure callback mask(string) -> string;
+}
+
+// Networks of the host klipper-touch runs on. Rust writes the state, the UI calls the callbacks.
+export global Network {
+    // Changes are possible: NetworkManager present and Moonraker runs on this host.
+    in property <bool> managed;
+    // Moonraker runs on this host (otherwise only the printer host's interfaces are shown).
+    in property <bool> local;
+    in property <string> unavailable-reason;
+    in property <bool> wifi-present;
+    in property <bool> wifi-enabled;
+    in property <string> active-ssid;
+    in property <string> wifi-address;
+    in property <string> busy;
+    in property <[WifiItem]> networks;
+    in property <[WiredItem]> wired;
+    in property <[HostInterfaceItem]> host-interfaces;
+
+    // Connection waiting for confirmation while a print is running.
+    in-out property <string> pending-ssid;
+    in-out property <string> pending-password;
+    in-out property <bool> pending-hidden;
+
+    callback refresh();
+    // The network tab is shown or hidden; NetworkManager is only read regularly while it is visible.
+    callback watch(bool);
+    callback scan();
+    callback connect(string, string, bool);
+    callback disconnect();
+    callback forget(string);
+    callback set-wifi-enabled(bool);
+    callback set-wired(string, bool);
+
+    public function connect-pending() {
+        self.connect(self.pending-ssid, self.pending-password, self.pending-hidden);
+        self.pending-password = "";
+    }
 }
 
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
+    // 0 = general, 1 = network
+    in-out property <int> settings-tab;
 }
 
 // Confirmation dialog: pages set text and action, `execute` runs the action after OK.
@@ -234,18 +309,24 @@ export global Confirm {
         if (self.action == "restart-klipper") { Actions.restart-klipper(); }
         if (self.action == "disable-motors") { Actions.disable-motors(); }
         if (self.action == "power-off") { Actions.set-power(self.argument, false); }
+        if (self.action == "connect-network") { Network.connect-pending(); }
+        if (self.action == "disconnect-network") { Network.disconnect(); }
+        if (self.action == "forget-network") { Network.forget(self.argument); }
+        if (self.action == "wifi-off") { Network.set-wifi-enabled(false); }
+        if (self.action == "wired-off") { Network.set-wired(self.argument, false); }
     }
 }
 
-// Mapping of states to icons and display texts.
+// Icons and texts for the three state levels: connection/Klipper (webhooks), machine activity
+// (idle_timeout) and print job (print_stats). The same state name uses the same icon on every level.
 export global StateIcons {
     public pure function print-state-label(state: string) -> string {
         if (state == "printing") { return @tr("Printing"); }
         if (state == "paused") { return @tr("Paused"); }
         if (state == "complete") { return @tr("Complete"); }
         if (state == "cancelled") { return @tr("Cancelled"); }
-        if (state == "error") { return @tr("Error"); }
-        return @tr("Ready");
+        if (state == "error") { return @tr("Print error"); }
+        return @tr("No print");
     }
 
     public pure function print-state(state: string) -> image {
@@ -255,6 +336,42 @@ export global StateIcons {
         if (state == "cancelled") { return Icons.state-cancelled; }
         if (state == "error") { return Icons.state-error; }
         return Icons.state-standby;
+    }
+
+    public pure function activity-label(activity: string) -> string {
+        if (activity == "busy") { return @tr("Busy"); }
+        if (activity == "idle") { return @tr("Idle"); }
+        return @tr("Ready");
+    }
+
+    public pure function activity(activity: string) -> image {
+        if (activity == "busy") { return Icons.state-busy; }
+        if (activity == "idle") { return Icons.state-idle; }
+        return Icons.state-ready;
+    }
+
+    public pure function klippy-label(connection: string, state: string) -> string {
+        if (connection == "connecting") { return @tr("Moonraker: connecting"); }
+        if (connection != "connected") { return @tr("Moonraker: not reachable"); }
+        if (state == "ready") { return @tr("Klipper ready"); }
+        if (state == "startup") { return @tr("Klipper: starting"); }
+        if (state == "shutdown") { return @tr("Klipper: shutdown"); }
+        if (state == "error") { return @tr("Klipper: error"); }
+        return @tr("Klipper: not connected");
+    }
+
+    // Status bar: connection/Klipper while not ready, then a print job if there is one, otherwise the activity.
+    public pure function summary-label() -> string {
+        if (!Printer.ready) { return self.klippy-label(Printer.connection, Printer.klippy-state); }
+        if (Printer.is-printing) { return Printer.job-name + "  " + round(Printer.progress * 100) + "%"; }
+        if (Printer.print-state != "standby") { return self.print-state-label(Printer.print-state); }
+        return self.activity-label(Printer.activity);
+    }
+
+    public pure function summary() -> image {
+        if (!Printer.ready) { return self.klippy-state(Printer.connection, Printer.klippy-state); }
+        if (Printer.print-state != "standby") { return self.print-state(Printer.print-state); }
+        return self.activity(Printer.activity);
     }
 
     public pure function klippy-state(connection: string, state: string) -> image {

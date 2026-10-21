@@ -72,6 +72,10 @@ impl Host {
                 "system": { "name": "system", "configured_type": "system", "package_count": 2, "package_list": ["libc6", "openssl"] },
                 "moonraker": { "name": "moonraker", "configured_type": "git_repo", "version": "v0.9.3-50", "remote_version": "v0.9.3-50", "is_valid": true, "commits_behind_count": 0 },
                 "klipper": { "name": "klipper", "configured_type": "git_repo", "version": klipper_version, "remote_version": "v0.13.0-120", "is_valid": true, "commits_behind_count": if self.klipper_updated { 0 } else { 20 } },
+                "mainsail": { "name": "mainsail", "configured_type": "web", "version": "v2.14.0", "remote_version": "v2.14.0" },
+                "crowsnest": { "name": "crowsnest", "configured_type": "git_repo", "version": "v4.1.12", "remote_version": "v4.1.12", "is_valid": true, "commits_behind_count": 0 },
+                "moonraker-timelapse": { "name": "moonraker-timelapse", "configured_type": "git_repo", "version": "v0.0.1-150", "remote_version": "v0.0.1-150", "is_valid": true, "commits_behind_count": 0 },
+                "klipper-touch": { "name": "klipper-touch", "configured_type": "zip", "version": "v0.2.3", "remote_version": "v0.2.3" },
             }
         })
     }
@@ -80,6 +84,23 @@ impl Host {
         if matches!(name, None | Some("klipper")) {
             self.klipper_updated = true;
         }
+    }
+
+    /// Subset of `machine.system_info`: distribution and network interfaces.
+    pub fn system_info(&self) -> Value {
+        json!({ "system_info": {
+            "provider": "systemd_dbus",
+            "distribution": { "name": "Debian GNU/Linux 12 (bookworm)", "id": "debian", "version": "12" },
+            "network": {
+                "wlan0": { "mac_address": "b8:27:eb:00:00:01", "ip_addresses": [
+                    { "family": "ipv4", "address": "192.168.1.57", "is_link_local": false },
+                    { "family": "ipv6", "address": "fe80::ba27:ebff:fe00:1", "is_link_local": true }
+                ]},
+                "eth0": { "mac_address": "b8:27:eb:00:00:02", "ip_addresses": [
+                    { "family": "ipv4", "address": "192.168.1.42", "is_link_local": false }
+                ]}
+            }
+        }})
     }
 
     pub fn record(&mut self, kind: &str, message: &str, time: f64) {

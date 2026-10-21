@@ -105,6 +105,7 @@ impl Session {
                 Ok(ok())
             }
             "machine.services.restart" | "machine.reboot" | "machine.shutdown" => Ok(ok()),
+            "machine.system_info" => Ok(backend.with_host(|host| host.system_info())),
             "printer.objects.subscribe" => self.subscribe(backend, params),
             "printer.objects.list" => Ok(json!({ "objects": backend.object_names() })),
             "printer.objects.query" => query_objects(backend, params),

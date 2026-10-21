@@ -169,6 +169,19 @@ impl Command {
             other => format!("{other:?}").split([' ', '{']).next().unwrap_or_default().to_owned(),
         }
     }
+
+    /// Restarts, reboots and updates end a running print; they are refused while a job is active.
+    pub fn interrupts_print(&self) -> bool {
+        matches!(
+            self,
+            Self::RestartKlipper
+                | Self::FirmwareRestart
+                | Self::RestartService { .. }
+                | Self::RebootHost
+                | Self::ShutdownHost
+                | Self::Upgrade { .. }
+        )
+    }
 }
 
 fn home_gcode(x: bool, y: bool, z: bool) -> String {

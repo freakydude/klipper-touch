@@ -2,18 +2,19 @@
 
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, PowerItem, Printer, SensorItem, UpdateItem,
+    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, Network, PowerItem, Printer,
+    SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
 use klipper_touch_core::printer::{Capabilities, Heater};
-use klipper_touch_core::system::{ConsoleKind, ConsoleLine, PowerDevice, UpdateInfo};
-use klipper_touch_core::{ConnectionState, Event, PrinterService, Query, Snapshot};
+use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
+use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const CONSOLE_LIMIT: usize = 300;
 /// This many files get metadata and thumbnail right away; the rest stays plain.
@@ -32,6 +33,7 @@ pub struct Presenter {
     window: slint::Weak<AppWindow>,
     service: PrinterService,
     cache: RefCell<Cache>,
+    pending_targets: RefCell<view::PendingTargets>,
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
@@ -40,6 +42,7 @@ pub struct Presenter {
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
+    host_interfaces: Rc<VecModel<HostInterfaceItem>>,
     notice_timer: Timer,
 }
 
@@ -49,6 +52,7 @@ impl Presenter {
             window: window.as_weak(),
             service,
             cache: RefCell::default(),
+            pending_targets: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
@@ -57,6 +61,7 @@ impl Presenter {
             console: Rc::default(),
             power_devices: Rc::default(),
             updates: Rc::default(),
+            host_interfaces: Rc::default(),
             notice_timer: Timer::default(),
         });
         let printer = window.global::<Printer>();
@@ -68,6 +73,7 @@ impl Presenter {
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
         printer.set_updates(ModelRc::from(presenter.updates.clone()));
+        window.global::<Network>().set_host_interfaces(ModelRc::from(presenter.host_interfaces.clone()));
         presenter
     }
 
@@ -101,10 +107,27 @@ impl Presenter {
         self.cache.borrow().snapshot.capabilities.clone()
     }
 
+    /// Heater as the UI shows it, including targets Klipper has not reported back yet.
+    pub fn heater(&self, object: &str) -> Option<Heater> {
+        let mut heaters = self.cache.borrow().snapshot.status.heaters.clone();
+        self.pending_targets.borrow_mut().apply(&mut heaters, Instant::now());
+        heaters.into_iter().find(|heater| heater.object == object)
+    }
+
+    /// Sends a heater target and shows it right away instead of waiting for the next status update.
+    pub fn set_heater_target(&self, object: &str, target: f64) {
+        self.pending_targets.borrow_mut().request(object, target, Instant::now());
+        self.service.send(Command::SetHeaterTarget { heater: object.to_owned(), target });
+        let snapshot = self.snapshot();
+        self.apply_snapshot(&snapshot);
+    }
+
     pub fn apply_snapshot(&self, snapshot: &Snapshot) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
-        let status = &snapshot.status;
+        let mut shown = snapshot.status.clone();
+        self.pending_targets.borrow_mut().apply(&mut shown.heaters, Instant::now());
+        let status = &shown;
         let connected = snapshot.connection == ConnectionState::Connected;
         let ready = connected && status.klippy_state == klipper_touch_core::printer::KlippyState::Ready;
 
@@ -115,6 +138,7 @@ impl Presenter {
         printer.set_ready(ready);
 
         printer.set_print_state(status.job.state.as_str().into());
+        printer.set_activity(status.activity.as_str().into());
         printer.set_filename(status.job.filename.as_str().into());
         printer.set_progress(status.job.progress as f32);
         printer.set_job_message(status.job.message.as_str().into());
@@ -228,6 +252,9 @@ impl Presenter {
                 }
                 self.console.push(console_item(&line));
             }
+            Event::HostNetwork(interfaces) => {
+                replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
+            }
             Event::CommandFailed { command, message } => self.show_notice(&format!("{command}: {message}"), true),
         }
     }
@@ -335,7 +362,7 @@ fn connection_name(state: ConnectionState) -> &'static str {
 }
 
 /// Replaces the rows only on changes so Slint does not rebuild needlessly.
-fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
+pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
     let unchanged = model.row_count() == rows.len()
         && rows.iter().enumerate().all(|(index, row)| model.row_data(index).as_ref() == Some(row));
     if !unchanged {
@@ -350,6 +377,7 @@ fn heater_item(heater: &Heater) -> HeaterItem {
         temperature: heater.temperature as f32,
         target: heater.target as f32,
         power: heater.power as f32,
+        can_raise: heater.can_raise(),
     }
 }
 
@@ -374,6 +402,15 @@ fn console_item(line: &ConsoleLine) -> ConsoleItem {
 
 fn power_item(device: &PowerDevice) -> PowerItem {
     PowerItem { name: device.device.as_str().into(), on: device.is_on(), locked: device.locked_while_printing }
+}
+
+fn host_interface_item(interface: &HostInterface) -> HostInterfaceItem {
+    HostInterfaceItem {
+        name: interface.name.as_str().into(),
+        wireless: view::is_wireless_interface(&interface.name),
+        addresses: interface.addresses.join(", ").into(),
+        mac: interface.mac_address.as_str().into(),
+    }
 }
 
 fn update_item(update: &UpdateInfo) -> UpdateItem {

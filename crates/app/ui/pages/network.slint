@@ -1,0 +1,321 @@
+// Network section of the settings: Wi-Fi and Ethernet of this host, or the printer host's interfaces (read-only).
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Confirm, HostInterfaceItem, Network, Printer, WifiItem, WiredItem } from "../state.slint";
+import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
+import { TextEntryDialog } from "../components/overlays.slint";
+
+// One network: tap to connect; buttons to disconnect (active) or remove (saved).
+component WifiRow inherits Rectangle {
+    in property <WifiItem> network;
+    callback selected;
+    property <bool> can-connect: root.network.in-range && root.network.supported && !root.network.active;
+    height: Theme.touch;
+    border-radius: Theme.radius;
+    background: row-touch.pressed ? Theme.surface-active : root.network.active ? Theme.surface-active : Theme.surface-raised;
+    border-width: root.network.active ? 2px : 0px;
+    border-color: Theme.accent;
+    accessible-role: button;
+    accessible-label: root.network.ssid;
+
+    row-touch := TouchArea {
+        enabled: root.can-connect;
+        clicked => { root.selected(); }
+    }
+    HorizontalLayout {
+        padding-left: 10px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: !root.network.in-range ? Icons.network-wifi-saved : root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
+                colorize: root.network.active ? Theme.accent : root.network.in-range ? Theme.foreground : Theme.muted;
+                width: 24px;
+                height: 24px;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.network.ssid;
+                color: root.network.in-range && root.network.supported ? Theme.foreground : Theme.muted;
+                font-size: Theme.font-normal;
+                font-weight: root.network.active ? 700 : 400;
+                overflow: elide;
+            }
+            Text {
+                text: root.network.active ? @tr("Connected")
+                    : !root.network.in-range ? @tr("Saved, not in range")
+                    : !root.network.supported ? @tr("Not supported")
+                    : root.network.known ? @tr("Saved") : root.network.secured ? @tr("Password needed") : @tr("Open");
+                color: root.network.active ? Theme.accent : Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+        }
+        if root.network.secured && root.network.in-range: VerticalLayout {
+            alignment: center;
+            Image {
+                source: Icons.ui-lock;
+                colorize: Theme.muted;
+                width: 18px;
+                height: 18px;
+            }
+        }
+        if root.network.active: IconButton {
+            width: Theme.touch;
+            icon: Icons.network-wifi-off;
+            accessible-label: @tr("Disconnect {}", root.network.ssid);
+            clicked => {
+                Confirm.ask(@tr("Disconnect {}", root.network.ssid), Printer.is-printing
+                    ? @tr("A print is running. Without Wi-Fi this printer may no longer be reachable over the network.")
+                    : @tr("This printer may no longer be reachable over the network. The network stays saved."), "disconnect-network", "", true);
+            }
+        }
+        if root.network.known: IconButton {
+            width: Theme.touch;
+            icon: Icons.ui-delete;
+            accessible-label: @tr("Remove {}", root.network.ssid);
+            clicked => {
+                Confirm.ask(@tr("Remove network"), root.network.active
+                    ? @tr("\"{}\" is connected; removing it disconnects this printer from the network.", root.network.ssid)
+                    : @tr("The saved password of \"{}\" is deleted.", root.network.ssid), "forget-network", root.network.ssid, true);
+            }
+        }
+    }
+}
+
+component WifiCard inherits Card {
+    callback choose(WifiItem);
+    callback hidden-network;
+    // Below this width the button texts go under the icons.
+    property <bool> wide: root.width > 440px;
+    title: @tr("Wi-Fi");
+    icon: Icons.system-network;
+
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        height: 52px;
+        IconButton {
+            icon: Network.wifi-enabled ? Icons.system-network : Icons.network-wifi-off;
+            text: Network.wifi-enabled ? @tr("Wi-Fi on") : @tr("Wi-Fi off");
+            horizontal: root.wide;
+            checked: Network.wifi-enabled;
+            clicked => {
+                if (Network.wifi-enabled) {
+                    Confirm.ask(@tr("Switch off Wi-Fi"), Printer.is-printing
+                        ? @tr("A print is running. Without Wi-Fi this printer may no longer be reachable over the network.")
+                        : @tr("This printer may no longer be reachable over the network."), "wifi-off", "", true);
+                } else {
+                    Network.set-wifi-enabled(true);
+                }
+            }
+        }
+        IconButton {
+            icon: Icons.ui-refresh;
+            text: @tr("Search");
+            horizontal: root.wide;
+            enabled: Network.wifi-enabled;
+            clicked => { Network.scan(); }
+        }
+        IconButton {
+            icon: Icons.network-wifi-hidden;
+            text: @tr("Hidden");
+            horizontal: root.wide;
+            enabled: Network.wifi-enabled;
+            clicked => { root.hidden-network(); }
+        }
+    }
+    Text {
+        text: Network.busy != "" ? Network.busy + " …"
+            : Network.active-ssid != "" && Network.wifi-address != "" ? @tr("Connected to {} ({})", Network.active-ssid, Network.wifi-address)
+            : Network.active-ssid != "" ? @tr("Connected to {}", Network.active-ssid)
+            : Network.wifi-enabled ? @tr("Not connected") : @tr("Wi-Fi is switched off");
+        color: Network.busy != "" ? Theme.accent : Theme.muted;
+        font-size: Theme.font-small;
+        overflow: elide;
+    }
+    wifi-list := ScrollList {
+        property <length> row-pitch: Theme.touch + 6px;
+        vertical-stretch: 1;
+        content-height: Network.networks.length * self.row-pitch;
+        for network[index] in Network.networks: WifiRow {
+            y: index * wifi-list.row-pitch;
+            width: wifi-list.row-width;
+            network: network;
+            selected => { root.choose(network); }
+        }
+    }
+    if Network.wifi-enabled && Network.networks.length == 0: Text {
+        text: @tr("No networks found.");
+        color: Theme.muted;
+        font-size: Theme.font-small;
+    }
+}
+
+component WiredCard inherits Card {
+    title: @tr("Ethernet");
+    icon: Icons.network-ethernet;
+
+    for link in Network.wired: HorizontalLayout {
+        spacing: 6px;
+        height: Theme.touch;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            IconLabel {
+                icon: link.cable ? Icons.network-ethernet : Icons.network-ethernet-off;
+                text: link.interface;
+                color: link.connected ? Theme.accent : Theme.foreground;
+            }
+            Text {
+                text: !link.cable ? @tr("No cable") : link.connected ? link.address : @tr("Disconnected");
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+        }
+        IconButton {
+            width: Theme.touch;
+            icon: link.connected ? Icons.network-ethernet-off : Icons.network-ethernet;
+            accessible-label: link.connected ? @tr("Disconnect {}", link.interface) : @tr("Connect {}", link.interface);
+            enabled: link.cable;
+            clicked => {
+                if (link.connected) {
+                    Confirm.ask(@tr("Disconnect {}", link.interface), Printer.is-printing
+                        ? @tr("A print is running. This printer may no longer be reachable over the network.")
+                        : @tr("This printer may no longer be reachable over the network."), "wired-off", link.interface, true);
+                } else {
+                    Network.set-wired(link.interface, true);
+                }
+            }
+        }
+    }
+    if Network.wired.length == 0: Text {
+        text: @tr("No Ethernet adapter.");
+        color: Theme.muted;
+        font-size: Theme.font-small;
+    }
+}
+
+component HostNetworkCard inherits Card {
+    title: Network.local ? @tr("Network management not available") : @tr("Network of the printer host");
+    icon: Icons.ui-info;
+
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        Text {
+            text: Network.local
+                ? @tr("Wi-Fi and Ethernet can only be changed with NetworkManager on Linux: {}", Network.unavailable-reason)
+                : @tr("klipper-touch runs on another computer than Moonraker, so the network can only be viewed here. Change it on the printer's own display or via SSH.");
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+        IconButton {
+            width: 104px;
+            icon: Icons.ui-refresh;
+            text: @tr("Refresh");
+            clicked => { Network.refresh(); }
+        }
+    }
+    for interface in Network.host-interfaces: HorizontalLayout {
+        spacing: 8px;
+        height: 44px;
+        IconLabel {
+            width: 120px;
+            icon: interface.wireless ? Icons.system-network : Icons.network-ethernet;
+            text: interface.name;
+        }
+        Text {
+            text: interface.addresses != "" ? interface.addresses : @tr("No address");
+            color: Theme.foreground;
+            font-size: Theme.font-normal;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        Text {
+            text: interface.mac;
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            vertical-alignment: center;
+        }
+    }
+    if Network.host-interfaces.length == 0: Text {
+        text: Printer.connection == "connected" ? @tr("Moonraker reports no network interfaces.") : @tr("Not connected to Moonraker.");
+        color: Theme.muted;
+        font-size: Theme.font-small;
+    }
+    Rectangle { vertical-stretch: 1; }
+}
+
+export component NetworkSection inherits Rectangle {
+    property <string> password-title;
+
+    // Asks for confirmation while printing, otherwise connects right away.
+    function start-connect(ssid: string, password: string, hidden: bool) {
+        Network.pending-ssid = ssid;
+        Network.pending-password = password;
+        Network.pending-hidden = hidden;
+        if (Printer.is-printing) {
+            Confirm.ask(@tr("Change network"), @tr("A print is running. While switching to \"{}\" this printer is briefly not reachable over the network.", ssid), "connect-network", "", true);
+        } else {
+            Network.connect-pending();
+        }
+    }
+
+    if Network.managed && Network.wifi-present: HorizontalLayout {
+        spacing: Theme.spacing;
+        WifiCard {
+            horizontal-stretch: 1;
+            choose(network) => {
+                if (network.known || !network.secured) {
+                    root.start-connect(network.ssid, "", false);
+                } else {
+                    root.password-title = @tr("Password for {}", network.ssid);
+                    Network.pending-ssid = network.ssid;
+                    Network.pending-hidden = false;
+                    password.text = "";
+                    password.open = true;
+                }
+            }
+            hidden-network => {
+                ssid.text = "";
+                ssid.open = true;
+            }
+        }
+        VerticalLayout {
+            width: max(200px, root.width * 0.3);
+            spacing: Theme.spacing;
+            WiredCard { }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+
+    if Network.managed && !Network.wifi-present: WiredCard { }
+
+    if !Network.managed: HostNetworkCard { }
+
+    ssid := TextEntryDialog {
+        title: @tr("Network name");
+        accepted(text) => {
+            if (text != "") {
+                root.password-title = @tr("Password for {} (empty if open)", text);
+                Network.pending-ssid = text;
+                Network.pending-hidden = true;
+                password.text = "";
+                password.open = true;
+            }
+        }
+    }
+
+    password := TextEntryDialog {
+        title: root.password-title;
+        secret: true;
+        accepted(text) => { root.start-connect(Network.pending-ssid, text, Network.pending-hidden); }
+    }
+}

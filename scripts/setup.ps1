@@ -37,4 +37,15 @@ rustup toolchain install stable --profile minimal
 # Corporate proxy offers no revocation check (schannel: CRYPT_E_NO_REVOCATION_CHECK)
 [Environment]::SetEnvironmentVariable('CARGO_HTTP_CHECK_REVOKE', 'false', 'User')
 
+# Link with rust-lld from the toolchain instead of w64devkit's ld: halves the link time of every build.
+$cargoConfig = Join-Path $env:USERPROFILE '.cargo\config.toml'
+$existing = if (Test-Path $cargoConfig) { Get-Content $cargoConfig -Raw } else { '' }
+if ($existing -match '(?m)^\[target\.x86_64-pc-windows-gnu\]') {
+    if ($existing -notmatch 'fuse-ld=lld') { Write-Warning "$cargoConfig already has a GNU target section; add lld yourself (see docs\windows-without-admin.md)." }
+} else {
+    $gccLd = Join-Path (rustc +stable-x86_64-pc-windows-gnu --print sysroot) 'lib\rustlib\x86_64-pc-windows-gnu\bin\gcc-ld'
+    Add-Content $cargoConfig "`n[target.x86_64-pc-windows-gnu]`nrustflags = ['-C', 'link-arg=-fuse-ld=lld', '-C', 'link-arg=-B$gccLd']"
+    Write-Host "Linker rust-lld enabled in $cargoConfig (the next build compiles everything once)."
+}
+
 Write-Host 'Done. Fully restart VS Code, then: cargo run -p klipper-touch'

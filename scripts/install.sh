@@ -12,6 +12,7 @@ NAME="klipper-touch"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="$HOME/$NAME"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
+POLKIT_RULE="50-klipper-touch.rules"
 MOONRAKER="http://127.0.0.1:7125"
 DATA_DIR="$HOME/printer_data"
 CHANNEL="stable"
@@ -44,6 +45,15 @@ mapfile -t packages < <(python3 -c 'import json, sys; print("\n".join(json.load(
 sudo apt-get update
 sudo apt-get install -y "${packages[@]}"
 sudo usermod -aG video,input,render "$USER" || true
+
+report "Allowing network management (NetworkManager via polkit, group netdev)"
+if [ -f "$SOURCE_DIR/$POLKIT_RULE" ] && [ -d /etc/polkit-1/rules.d ]; then
+  sudo install -m 0644 "$SOURCE_DIR/$POLKIT_RULE" "/etc/polkit-1/rules.d/$POLKIT_RULE"
+  sudo groupadd -f netdev
+  sudo usermod -aG netdev "$USER" || true
+else
+  echo "polkit rules directory not found; Wi-Fi settings in klipper-touch will be read-only."
+fi
 
 report "Installing to $INSTALL_DIR"
 if [ "$SOURCE_DIR" != "$INSTALL_DIR" ]; then

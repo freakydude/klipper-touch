@@ -100,6 +100,10 @@ async fn runs_print_job_and_loads_file_details() {
     assert!(matches!(metadata, Event::FileMetadata(meta) if meta.estimated_time == Some(7200.0)));
     assert!(matches!(thumbnail, Event::Thumbnail { data, .. } if data.starts_with(b"<svg")));
 
+    service.send(Command::RestartService { service: "klipper".into() });
+    let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
+    assert!(matches!(refused, Event::CommandFailed { message, .. } if message.contains("print is running")));
+
     service.send(Command::CancelPrint);
     wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Cancelled).await;
 }

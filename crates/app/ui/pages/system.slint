@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
 
 export component SystemPage inherits Rectangle {
     init => { Actions.refresh-system(); }
@@ -30,13 +30,13 @@ export component SystemPage inherits Rectangle {
                     IconButton {
                         icon: Icons.system-restart;
                         text: @tr("Restart");
-                        enabled: Printer.connection == "connected";
+                        enabled: Printer.connection == "connected" && !Printer.host-actions-locked;
                         clicked => { Confirm.ask(@tr("Restart Klipper"), @tr("Reloads the configuration."), "restart-klipper", "", false); }
                     }
                     IconButton {
                         icon: Icons.system-firmware-restart;
                         text: @tr("Firmware");
-                        enabled: Printer.connection == "connected";
+                        enabled: Printer.connection == "connected" && !Printer.host-actions-locked;
                         clicked => { Confirm.ask(@tr("Firmware restart"), @tr("Restarts Klipper and all MCUs."), "firmware-restart", "", false); }
                     }
                 }
@@ -50,13 +50,13 @@ export component SystemPage inherits Rectangle {
                     IconButton {
                         icon: Icons.system-restart;
                         text: @tr("Reboot");
-                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        enabled: Printer.connection == "connected" && !Printer.host-actions-locked;
                         clicked => { Confirm.ask(@tr("Reboot host"), @tr("The printer host restarts. The connection is lost for a while."), "reboot-host", "", true); }
                     }
                     IconButton {
                         icon: Icons.system-shutdown;
                         text: @tr("Shutdown");
-                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        enabled: Printer.connection == "connected" && !Printer.host-actions-locked;
                         clicked => { Confirm.ask(@tr("Shut down host"), @tr("The printer host powers off and must be switched on by hand."), "shutdown-host", "", true); }
                     }
                 }
@@ -67,9 +67,15 @@ export component SystemPage inherits Rectangle {
                         text: service;
                         icon: Icons.system-restart;
                         icon-size: 20px;
-                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        enabled: Printer.connection == "connected" && !Printer.host-actions-locked;
                         clicked => { Confirm.ask(@tr("Restart service"), service, "restart-service", service, false); }
                     }
+                }
+                if Printer.host-actions-locked: IconLabel {
+                    icon: Icons.ui-lock;
+                    text: Printer.is-printing ? @tr("Locked while printing") : @tr("Locked while Klipper is busy");
+                    color: Theme.warning;
+                    font-size: Theme.font-small;
                 }
             }
             IconButton {
@@ -116,23 +122,30 @@ export component SystemPage inherits Rectangle {
                 title: @tr("Updates");
                 icon: Icons.system-update;
                 vertical-stretch: 1;
-                for update in Printer.updates: HorizontalLayout {
-                    spacing: Theme.spacing;
-                    height: 48px;
-                    VerticalLayout {
-                        horizontal-stretch: 1;
-                        alignment: center;
-                        Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
-                        Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
-                    }
-                    IconButton {
-                        width: 112px;
-                        icon: Icons.system-update;
-                        icon-size: 20px;
-                        horizontal: true;
-                        text: @tr("Update");
-                        enabled: update.has-update && !Printer.is-printing;
-                        clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                update-list := ScrollList {
+                    property <length> row-pitch: 54px;
+                    vertical-stretch: 1;
+                    content-height: Printer.updates.length * self.row-pitch;
+                    for update[index] in Printer.updates: HorizontalLayout {
+                        y: index * update-list.row-pitch;
+                        width: update-list.row-width;
+                        height: 48px;
+                        spacing: Theme.spacing;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
+                            Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
+                        }
+                        IconButton {
+                            width: 112px;
+                            icon: Icons.system-update;
+                            icon-size: 20px;
+                            horizontal: true;
+                            text: @tr("Update");
+                            enabled: update.has-update && !Printer.host-actions-locked;
+                            clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                        }
                     }
                 }
                 HorizontalLayout {
@@ -144,7 +157,7 @@ export component SystemPage inherits Rectangle {
                         icon-size: 20px;
                         horizontal: true;
                         text: @tr("Check");
-                        enabled: !Printer.is-printing;
+                        enabled: !Printer.host-actions-locked;
                         clicked => { Actions.refresh-updates(); }
                     }
                 }

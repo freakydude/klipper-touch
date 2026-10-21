@@ -1,9 +1,11 @@
 //! Assembling the application: settings, service, window and bridges.
 
 use crate::actions;
+use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::AppWindow;
+use klipper_touch_core::network::{NetworkBackend, NetworkService};
 use klipper_touch_core::settings::{SettingsError, SettingsStore};
 use klipper_touch_core::{Endpoint, PrinterService};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -18,6 +20,8 @@ pub struct Options {
     pub moonraker: Option<String>,
     pub fullscreen: bool,
     pub settings_file: Option<PathBuf>,
+    /// Simulated Wi-Fi and Ethernet instead of NetworkManager, for development.
+    pub simulate_network: bool,
 }
 
 #[derive(Debug, Error)]
@@ -40,6 +44,7 @@ pub struct Application {
     pub presenter: std::rc::Rc<Presenter>,
     pub service: PrinterService,
     _settings: std::rc::Rc<SettingsController>,
+    _network: std::rc::Rc<NetworkController>,
     _clock: Timer,
     _runtime: tokio::runtime::Runtime,
 }
@@ -61,10 +66,28 @@ impl Application {
         let window = AppWindow::new()?;
         let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
         let presenter = Presenter::new(&window, service.clone());
-        let settings =
-            SettingsController::bind(&window, store, settings, &endpoint, service.clone(), presenter.clone());
+        let backend = if options.simulate_network { NetworkBackend::Simulated } else { NetworkBackend::System };
+        let (network_service, network_channels) = NetworkService::start(runtime.handle(), backend);
+        let network = NetworkController::bind(
+            &window,
+            network_service,
+            service.clone(),
+            presenter.clone(),
+            &endpoint,
+            options.simulate_network,
+        );
+        let settings = SettingsController::bind(
+            &window,
+            store,
+            settings,
+            &endpoint,
+            service.clone(),
+            presenter.clone(),
+            network.clone(),
+        );
         actions::bind(&window, &service, &presenter, &settings);
         presenter.follow(channels)?;
+        network.follow(network_channels)?;
 
         let clock = Timer::default();
         let clock_presenter = presenter.clone();
@@ -74,7 +97,15 @@ impl Application {
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);
         }
-        Ok(Self { window, presenter, service, _settings: settings, _clock: clock, _runtime: runtime })
+        Ok(Self {
+            window,
+            presenter,
+            service,
+            _settings: settings,
+            _network: network,
+            _clock: clock,
+            _runtime: runtime,
+        })
     }
 
     pub fn run(self) -> Result<(), AppError> {

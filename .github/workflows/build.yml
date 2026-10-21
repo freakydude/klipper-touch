@@ -104,7 +104,7 @@ jobs:
           cargo build --release -p klipper-touch --bin klipper-touch --target ${{ matrix.target }}
           mkdir -p dist
           cp target/${{ matrix.target }}/release/klipper-touch dist/
-          cp scripts/install.sh scripts/uninstall.sh scripts/system-dependencies.json dist/
+          cp scripts/install.sh scripts/uninstall.sh scripts/system-dependencies.json scripts/polkit/50-klipper-touch.rules dist/
       - uses: actions/upload-artifact@v7
         with:
           name: klipper-touch-${{ matrix.target }}

@@ -3,20 +3,20 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, Printer } from "../state.slint";
-import { IconButton } from "../components/controls.slint";
+import { IconButton, ScrollList } from "../components/controls.slint";
 
 export component MacrosPage inherits Rectangle {
     property <int> columns: 3;
     property <length> tile-height: 72px;
-    property <length> cell-width: (list.width - (root.columns - 1) * Theme.spacing) / root.columns;
+    property <length> cell-width: (list.row-width - (root.columns - 1) * Theme.spacing) / root.columns;
 
     HorizontalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
-        list := Flickable {
+        list := ScrollList {
             horizontal-stretch: 1;
-            content-height: max(self.height, ceil(Printer.macros.length / root.columns) * (root.tile-height + Theme.spacing));
+            content-height: ceil(Printer.macros.length / root.columns) * (root.tile-height + Theme.spacing);
             for macro[index] in Printer.macros: IconButton {
                 x: mod(index, root.columns) * (root.cell-width + Theme.spacing);
                 y: floor(index / root.columns) * (root.tile-height + Theme.spacing);
@@ -34,22 +34,6 @@ export component MacrosPage inherits Rectangle {
             text: @tr("No macros found in the Klipper configuration.");
             color: Theme.muted;
             vertical-alignment: center;
-        }
-
-        VerticalLayout {
-            width: 80px;
-            spacing: Theme.spacing;
-            IconButton {
-                icon: Icons.ui-chevron-up;
-                enabled: list.content-y < 0;
-                clicked => { list.content-y = min(0px, list.content-y + list.height * 0.8); }
-            }
-            IconButton {
-                icon: Icons.ui-chevron-down;
-                enabled: list.content-y > list.height - list.content-height;
-                clicked => { list.content-y = max(list.height - list.content-height, list.content-y - list.height * 0.8); }
-            }
-            Rectangle { vertical-stretch: 1; }
         }
     }
 }

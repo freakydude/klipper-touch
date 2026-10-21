@@ -23,7 +23,8 @@ pub fn subscription(available: &[String], capabilities: &Capabilities) -> Value 
     add("motion_report", Some(&["live_position", "live_velocity", "live_extruder_velocity"]));
     add("gcode_move", Some(&["homing_origin", "speed_factor", "extrude_factor", "absolute_coordinates"]));
     add("extruder", Some(&["temperature", "target", "power", "pressure_advance", "smooth_time", "can_extrude"]));
-    add("configfile", Some(&["save_config_pending"]));
+    // `settings` holds the heater limits (min_temp/max_temp); sent once, it does not change at runtime.
+    add("configfile", Some(&["save_config_pending", "settings"]));
     add("heater_bed", Some(HEATER_FIELDS));
     add("fan", Some(&["speed"]));
     add("quad_gantry_level", Some(&["applied"]));

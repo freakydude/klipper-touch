@@ -1,10 +1,11 @@
-// Settings of this display: Moonraker address, fullscreen, temperature presets.
+// Settings of this display: Moonraker address, fullscreen, temperature presets and network.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { PresetItem, UiSettings } from "../state.slint";
+import { Navigation, Network, PresetItem, UiSettings } from "../state.slint";
 import { Card, IconButton, IconLabel } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
+import { NetworkSection } from "network.slint";
 
 component PresetEditor inherits HorizontalLayout {
     in property <PresetItem> preset;
@@ -39,66 +40,99 @@ component PresetEditor inherits HorizontalLayout {
 }
 
 export component SettingsPage inherits Rectangle {
-    HorizontalLayout {
+    VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
-        VerticalLayout {
-            width: 250px;
+        HorizontalLayout {
             spacing: Theme.spacing;
-            Card {
-                title: @tr("Moonraker address");
+            height: 48px;
+            alignment: start;
+            IconButton {
+                width: 160px;
+                icon: Icons.nav-settings;
+                text: @tr("General");
+                horizontal: true;
+                checked: Navigation.settings-tab == 0;
+                clicked => { Navigation.settings-tab = 0; }
+            }
+            IconButton {
+                width: 160px;
                 icon: Icons.system-network;
-                Text {
-                    text: UiSettings.moonraker;
-                    color: Theme.foreground;
-                    font-size: Theme.font-normal;
-                    overflow: elide;
-                }
-                IconButton {
-                    height: 52px;
-                    icon: Icons.ui-edit;
-                    text: @tr("Change");
-                    horizontal: true;
-                    clicked => {
-                        address.text = UiSettings.moonraker;
-                        address.open = true;
-                    }
+                text: @tr("Network");
+                horizontal: true;
+                checked: Navigation.settings-tab == 1;
+                clicked => {
+                    Navigation.settings-tab = 1;
+                    Network.refresh();
+                    Network.scan();
                 }
             }
-            Card {
-                title: @tr("Display");
-                icon: Icons.system-brightness;
-                IconButton {
-                    height: 52px;
-                    icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
-                    text: @tr("Fullscreen (kiosk)");
-                    horizontal: true;
-                    checked: UiSettings.fullscreen;
-                    clicked => {
-                        UiSettings.fullscreen = !UiSettings.fullscreen;
-                        UiSettings.fullscreen-toggled(UiSettings.fullscreen);
-                    }
-                }
-            }
-            Text {
-                text: "klipper-touch " + UiSettings.version + "\n" + @tr("Saved in {}", UiSettings.settings-file);
-                color: Theme.disabled-foreground;
-                font-size: Theme.font-small;
-                wrap: word-wrap;
-            }
-            Rectangle { vertical-stretch: 1; }
         }
 
-        Card {
-            title: @tr("Temperature presets (nozzle / bed)");
-            icon: Icons.thermal-preset;
-            horizontal-stretch: 1;
-            for preset[index] in UiSettings.presets: PresetEditor {
-                preset: preset;
-                index: index;
+        if Navigation.settings-tab == 1: NetworkSection { vertical-stretch: 1; }
+
+        if Navigation.settings-tab == 0: HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: Theme.spacing;
+
+            VerticalLayout {
+                width: 250px;
+                spacing: Theme.spacing;
+                Card {
+                    title: @tr("Moonraker address");
+                    icon: Icons.system-host;
+                    Text {
+                        text: UiSettings.moonraker;
+                        color: Theme.foreground;
+                        font-size: Theme.font-normal;
+                        overflow: elide;
+                    }
+                    IconButton {
+                        height: 52px;
+                        icon: Icons.ui-edit;
+                        text: @tr("Change");
+                        horizontal: true;
+                        clicked => {
+                            address.text = UiSettings.moonraker;
+                            address.open = true;
+                        }
+                    }
+                }
+                Card {
+                    title: @tr("Display");
+                    icon: Icons.system-brightness;
+                    IconButton {
+                        height: 52px;
+                        icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
+                        text: @tr("Fullscreen (kiosk)");
+                        horizontal: true;
+                        checked: UiSettings.fullscreen;
+                        clicked => {
+                            UiSettings.fullscreen = !UiSettings.fullscreen;
+                            UiSettings.fullscreen-toggled(UiSettings.fullscreen);
+                        }
+                    }
+                }
+                Text {
+                    text: "klipper-touch " + UiSettings.version + "\n" + @tr("Saved in {}", UiSettings.settings-file);
+                    color: Theme.disabled-foreground;
+                    font-size: Theme.font-small;
+                    wrap: word-wrap;
+                }
+                Rectangle { vertical-stretch: 1; }
             }
-            Rectangle { vertical-stretch: 1; }
+
+            Card {
+                title: @tr("Temperature presets (nozzle / bed)");
+                icon: Icons.thermal-preset;
+                horizontal-stretch: 1;
+                for preset[index] in UiSettings.presets: PresetEditor {
+                    preset: preset;
+                    index: index;
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
         }
     }
 

@@ -27,12 +27,15 @@ So far it has only run against the included fake Moonraker and on desktops.
 - **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel; file browser with thumbnails.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
 - **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
+  + and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
 - **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
 - **Extrude**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
 - **Macros**: all user macros (helpers starting with `_` are hidden).
 - **Console**: G-code history and live responses, quick commands, on-screen keyboard.
 - **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
 - **Settings**: Moonraker address, fullscreen, temperature presets — stored as JSON.
+- **Network** (Settings → Network): search and join Wi-Fi (open, WPA/WPA2, WPA3, hidden), remove saved networks,
+  Wi-Fi on/off, Ethernet status and connect/disconnect. See [Network settings](#network-settings).
 
 Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
 
@@ -94,7 +97,7 @@ system_dependencies: system-dependencies.json
 ### Command line
 
 ```text
-klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>]
+klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-network]
 ```
 
 | Option | Meaning |
@@ -102,16 +105,34 @@ klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>]
 | `-m, --moonraker` | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
 | `-f, --fullscreen` | Fullscreen/kiosk mode |
 | `--settings` | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`) |
+| `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development and screenshots) |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
 driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (bigger UI on high resolution displays).
 
 Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
 
+### Network settings
+
+Moonraker can only report the host's network (`machine.system_info`), it cannot change it. klipper-touch therefore talks
+to NetworkManager over D-Bus, like KlipperScreen. Managing Wi-Fi and Ethernet is offered when
+
+- klipper-touch runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and
+- Moonraker runs on the same host (`localhost`/`127.0.0.1`), so the changed network is the printer's network.
+
+The user needs the polkit rule `50-klipper-touch.rules` (allows the NetworkManager actions for the group `netdev`).
+`install.sh` installs it to `/etc/polkit-1/rules.d` and adds the user to `netdev`; the Debian package ships it in
+`/usr/share/polkit-1/rules.d`, add the user yourself: `sudo usermod -aG netdev $USER` (takes effect after re-login or a
+service restart). Changing the network while printing asks for confirmation, because the connection may drop.
+
+On Windows, on Linux without NetworkManager or with a remote Moonraker the section only shows the printer host's
+interfaces and addresses read from Moonraker.
+
 ## Development
 
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
-For Windows without admin rights see [docs/windows-without-admin.md](docs/windows-without-admin.md).
+For Windows without admin rights (setup, faster linking with `rust-lld`, build times) see
+[docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ```bash
 cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
@@ -119,6 +140,7 @@ cargo run -p klipper-touch -- -m http://127.0.0.1:7125
 cargo clippy --workspace --all-targets
 cargo test --workspace
 cargo run -p klipper-touch --bin ui-snapshot -- --out shots   # render all screens to PNG (needs the fake)
+                                                         # Windows: scripts\ui-snapshot.ps1 [-Size 640x400] starts the fake itself
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```
 

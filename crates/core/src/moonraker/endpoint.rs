@@ -43,6 +43,16 @@ impl Endpoint {
     pub fn display(&self) -> String {
         self.http_url("").trim_end_matches('/').to_owned()
     }
+
+    /// Moonraker runs on this machine, so local settings (e.g. the network) belong to the printer host.
+    pub fn is_local(&self) -> bool {
+        let host = match self.authority.strip_prefix('[') {
+            Some(bracketed) => bracketed.split(']').next().unwrap_or_default(),
+            None => self.authority.rsplit_once(':').map_or(self.authority.as_str(), |(host, _)| host),
+        };
+        host.eq_ignore_ascii_case("localhost")
+            || host.parse::<std::net::IpAddr>().is_ok_and(|address| address.is_loopback())
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +82,15 @@ mod tests {
         assert!(Endpoint::parse("ftp://pi").is_err());
         assert!(Endpoint::parse("http://").is_err());
         assert!(Endpoint::parse("  ").is_err());
+    }
+
+    #[test]
+    fn recognizes_local_hosts() {
+        for address in ["http://127.0.0.1:7125", "localhost", "LOCALHOST:80", "http://[::1]:7125", "127.0.1.1"] {
+            assert!(Endpoint::parse(address).unwrap().is_local(), "{address}");
+        }
+        for address in ["http://printer.local:7125", "192.168.1.5", "http://[fe80::1]:7125"] {
+            assert!(!Endpoint::parse(address).unwrap().is_local(), "{address}");
+        }
     }
 }
