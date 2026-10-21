@@ -26,7 +26,7 @@ jobs:
       changed: ${{ steps.compare.outputs.changed }}
       tag: ${{ steps.compare.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: compare
@@ -58,9 +58,10 @@ jobs:
     env:
       TAG: ${{ needs.changes.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
+          pattern: klipper-touch-*
           path: artifacts
       - name: Pack
         working-directory: artifacts
