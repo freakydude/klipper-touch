@@ -113,6 +113,7 @@ export component StepSelector inherits HorizontalLayout {
                 root.changed(value);
             }
         }
+
         Text {
             text: value + root.unit;
             color: Theme.foreground;
@@ -184,6 +185,7 @@ export component ValueTile inherits Rectangle {
                 font-size: Theme.font-small;
                 overflow: elide;
             }
+
             Text {
                 text: root.value;
                 color: Theme.foreground;
@@ -254,6 +256,7 @@ export component ScrollList inherits Rectangle {
             border-radius: 2px;
             background: Theme.surface-raised;
         }
+
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: root.range > 0 ? -list.content-y / root.range * bar.travel : 0;
@@ -262,6 +265,7 @@ export component ScrollList inherits Rectangle {
             border-radius: self.width / 2;
             background: bar-touch.pressed ? Theme.accent : Theme.muted;
         }
+
         bar-touch := TouchArea {
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down) {
@@ -307,6 +311,7 @@ export component TouchSlider inherits Rectangle {
         border-radius: 4px;
         background: Theme.surface-raised;
     }
+
     Rectangle {
         x: root.knob / 2;
         y: (root.height - self.height) / 2;
@@ -315,6 +320,7 @@ export component TouchSlider inherits Rectangle {
         border-radius: 4px;
         background: root.enabled ? Theme.accent : Theme.disabled-foreground;
     }
+
     Rectangle {
         x: (root.width - root.knob) * root.ratio;
         y: (root.height - self.height) / 2;
@@ -323,6 +329,7 @@ export component TouchSlider inherits Rectangle {
         border-radius: root.knob / 2;
         background: !root.enabled ? Theme.surface-active : slider-touch.pressed ? Theme.accent : Theme.foreground;
     }
+
     slider-touch := TouchArea {
         enabled: root.enabled;
         pointer-event(event) => {
@@ -337,6 +344,7 @@ export component TouchSlider inherits Rectangle {
         }
         moved => { root.dragged = root.value-at(self.mouse-x); }
     }
+
     Timer {
         interval: 3s;
         running: root.waiting;
@@ -362,6 +370,7 @@ export component IconLabel inherits HorizontalLayout {
             height: root.icon-size;
         }
     }
+
     Text {
         text: root.text;
         color: root.color;

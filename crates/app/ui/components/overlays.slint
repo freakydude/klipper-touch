@@ -9,6 +9,7 @@ import { IconButton } from "controls.slint";
 component Scrim inherits Rectangle {
     background: #000000b0;
     TouchArea { }
+
     @children
 }
 
@@ -33,6 +34,7 @@ export component ConfirmDialog inherits Scrim {
                 font-weight: 700;
                 overflow: elide;
             }
+
             Text {
                 text: Confirm.message;
                 color: Theme.muted;
@@ -40,6 +42,7 @@ export component ConfirmDialog inherits Scrim {
                 wrap: word-wrap;
                 vertical-stretch: 1;
             }
+
             HorizontalLayout {
                 spacing: 12px;
                 IconButton {
@@ -48,6 +51,7 @@ export component ConfirmDialog inherits Scrim {
                     horizontal: true;
                     clicked => { Confirm.open = false; }
                 }
+
                 IconButton {
                     icon: Confirm.danger ? Icons.ui-warning : Icons.ui-check;
                     text: @tr("Confirm");
@@ -82,6 +86,7 @@ export component Toast inherits Rectangle {
                 height: 22px;
             }
         }
+
         Text {
             text: Printer.notice;
             color: Theme.foreground;
@@ -106,6 +111,7 @@ component Key inherits Rectangle {
     key-touch := TouchArea {
         clicked => { root.pressed(); }
     }
+
     if root.icon.width > 0: Image {
         source: root.icon;
         colorize: Theme.foreground;
@@ -168,30 +174,36 @@ export component OnScreenKeyboard inherits VerticalLayout {
                 root.upper = !root.upper;
             }
         }
+
         Key {
             label: root.symbols ? "abc" : "#+=";
             horizontal-stretch: 2;
             pressed => { root.symbols = !root.symbols; }
         }
+
         Key {
             label: ":";
             pressed => { root.text += ":"; }
         }
+
         Key {
             label: "/";
             pressed => { root.text += "/"; }
         }
+
         Key {
             label: "space";
             horizontal-stretch: 3;
             pressed => { root.text += " "; }
         }
+
         Key {
             label: "backspace";
             icon: Icons.ui-chevron-left;
             horizontal-stretch: 2;
             pressed => { root.text = TextTools.remove-last(root.text); }
         }
+
         Key {
             label: "enter";
             icon: Icons.ui-check;
@@ -233,6 +245,7 @@ export component TextEntryDialog inherits Scrim {
                     max-width: 260px;
                     overflow: elide;
                 }
+
                 Rectangle {
                     horizontal-stretch: 1;
                     background: Theme.background;
@@ -249,6 +262,7 @@ export component TextEntryDialog inherits Scrim {
                         overflow: elide;
                     }
                 }
+
                 if root.secret: IconButton {
                     icon: root.reveal ? Icons.ui-unlock : Icons.ui-lock;
                     width: 56px;
@@ -265,6 +279,7 @@ export component TextEntryDialog inherits Scrim {
                     }
                 }
             }
+
             OnScreenKeyboard {
                 text <=> root.text;
                 vertical-stretch: 1;
