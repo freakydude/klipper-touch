@@ -14,7 +14,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Push-Location $root
 try {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-    cargo build -q -p fake-moonraker -p klipper-touch-slint --bins
+    cargo build -q -p fake-moonraker -p klipper-touch --bins
     if ($LASTEXITCODE -ne 0) { throw 'build failed' }
 
     Get-Process fake-moonraker, ui-snapshot -ErrorAction SilentlyContinue | Stop-Process -Force

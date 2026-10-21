@@ -2723,6 +2723,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
+name = "klipper-touch"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "env_logger",
+ "image",
+ "klipper-touch-core",
+ "log",
+ "slint",
+ "slint-build",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "klipper-touch-core"
 version = "0.2.0"
 dependencies = [
@@ -2736,22 +2752,6 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite 0.30.0",
-]
-
-[[package]]
-name = "klipper-touch-slint"
-version = "0.2.0"
-dependencies = [
- "chrono",
- "clap",
- "env_logger",
- "image",
- "klipper-touch-core",
- "log",
- "slint",
- "slint-build",
- "thiserror 2.0.21",
- "tokio",
 ]
 
 [[package]]

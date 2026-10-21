@@ -8,7 +8,7 @@ entscheiden nur, ob ein Schritt angeboten wird.
 
 ```mermaid
 flowchart LR
-    subgraph app [crates/app – klipper-touch-slint]
+    subgraph app [crates/app – klipper-touch]
         UI[ui/*.slint<br/>Seiten, Komponenten, Globals]
         P[presenter.rs<br/>Zustand → Globals]
         A[actions.rs<br/>Callbacks → Command]
@@ -40,7 +40,7 @@ flowchart LR
 | Crate | Aufgabe | Abhängig von |
 |---|---|---|
 | `crates/core` | Verbindung, Protokoll, Druckerzustand, Fähigkeiten, Befehle, Einstellungen. Kein UI-Code. | tokio, tokio-tungstenite, reqwest, serde |
-| `crates/app` | Slint-Oberfläche und Anbindung an den Kern; Binary `klipper-touch-slint`, Werkzeug `ui-snapshot`. | core, slint |
+| `crates/app` | Slint-Oberfläche und Anbindung an den Kern; Binary `klipper-touch`, Werkzeug `ui-snapshot`. | core, slint |
 | `crates/icon-index` | Prüft `assets/icons` und erzeugt `crates/app/ui/icons.slint` sowie `assets/icons/overview.html`. | – |
 | `fake-moonraker` | Simulierter Moonraker/Klipper für Entwicklung und Tests (Profile `basic`, `voron`, `happy-hare`). | axum, tokio |
 
@@ -91,4 +91,4 @@ flowchart LR
 
 - `cargo clippy --workspace --all-targets -- -D warnings` und `cargo test --workspace` (enthält Ende-zu-Ende-Tests des
   Dienstes gegen den Fake und die Prüfung des Icon-Sets).
-- `cargo run -p klipper-touch-slint --bin ui-snapshot` gegen einen laufenden Fake rendert alle Seiten ohne Fenster als PNG.
+- `cargo run -p klipper-touch --bin ui-snapshot` gegen einen laufenden Fake rendert alle Seiten ohne Fenster als PNG.

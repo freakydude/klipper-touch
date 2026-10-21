@@ -1,5 +1,5 @@
 [package]
-name = "klipper-touch-slint"
+name = "klipper-touch"
 description = "Touch screen UI for Klipper printers via Moonraker (Rust + Slint)"
 version.workspace = true
 edition.workspace = true
@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish = false
-default-run = "klipper-touch-slint"
+default-run = "klipper-touch"
 
 [features]
 default = []
