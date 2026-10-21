@@ -1,0 +1,32 @@
+// Farben, Abstände und Schriftgrößen. Ausgelegt auf 800x480 (BTT HDMI5), dunkles Design für Touch.
+
+export global Theme {
+    out property <color> background: #121417;
+    out property <color> surface: #1e2227;
+    out property <color> surface-raised: #2a2f36;
+    out property <color> surface-active: #3b424b;
+    out property <color> border: #343a42;
+    out property <color> foreground: #f1f3f5;
+    out property <color> muted: #9aa4ae;
+    out property <color> accent: #f76707;
+    out property <color> accent-pressed: #d9480f;
+    out property <color> danger: #e03131;
+    out property <color> danger-pressed: #b72727;
+    out property <color> success: #37b24d;
+    out property <color> warning: #f59f00;
+    out property <color> info: #4dabf7;
+    out property <color> disabled-foreground: #5c656f;
+
+    out property <length> radius: 8px;
+    out property <length> spacing: 8px;
+    out property <length> padding: 8px;
+    // Mindestgröße für sicher treffbare Touch-Flächen.
+    out property <length> touch: 56px;
+    out property <length> icon: 28px;
+    out property <length> icon-small: 20px;
+
+    out property <length> font-small: 13px;
+    out property <length> font-normal: 16px;
+    out property <length> font-large: 22px;
+    out property <length> font-huge: 34px;
+}

@@ -37,4 +37,4 @@ rustup toolchain install stable --profile minimal
 # Firmen-Proxy bietet keine Sperrlisten-Pruefung (schannel: CRYPT_E_NO_REVOCATION_CHECK)
 [Environment]::SetEnvironmentVariable('CARGO_HTTP_CHECK_REVOKE', 'false', 'User')
 
-Write-Host 'Fertig. VS Code komplett neu starten, danach: npm run tauri dev'
+Write-Host 'Fertig. VS Code komplett neu starten, danach: cargo run -p klipper-touch-slint'

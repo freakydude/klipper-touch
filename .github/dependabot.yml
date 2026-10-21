@@ -5,30 +5,8 @@
 
 version: 2
 updates:
-  - package-ecosystem: 'npm' # See documentation for possible values
-    directory: '/' # Location of package manifests
-    schedule:
-      interval: 'weekly'
-      timezone: 'Europe/Berlin'
-    assignees:
-      - 'freakydude'
-    groups:
-      npm-security-updates:
-        applies-to: security-updates
-        update-types:
-          - 'minor'
-          - 'patch'
-      npm-minor-updates:
-        applies-to: version-updates
-        update-types:
-          - 'minor'
-          - 'patch'
-      npm-major-updates:
-        applies-to: version-updates
-        update-types:
-          - 'major'
   - package-ecosystem: 'cargo' # See documentation for possible values
-    directory: '/src-tauri' # Location of package manifests
+    directory: '/' # Cargo-Workspace im Wurzelordner
     assignees:
       - 'freakydude'
     schedule:

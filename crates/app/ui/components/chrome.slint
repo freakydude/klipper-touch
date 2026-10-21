@@ -1,0 +1,149 @@
+// Rahmen der Anwendung: Statusleiste oben, Navigationsleiste links.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
+
+export component StatusBar inherits Rectangle {
+    height: 44px;
+    background: Theme.surface;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 4px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 6px;
+            horizontal-stretch: 1;
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: Printer.ready ? StateIcons.print-state(Printer.print-state) : StateIcons.klippy-state(Printer.connection, Printer.klippy-state);
+                    colorize: Printer.ready ? Theme.foreground : Theme.warning;
+                    width: 24px;
+                    height: 24px;
+                }
+            }
+            Text {
+                text: !Printer.ready ? (Printer.connection == "connected" ? @tr("Klipper: {}", Printer.klippy-state) : @tr("Moonraker: {}", Printer.connection))
+                    : Printer.is-printing ? Printer.job-name + "  " + round(Printer.progress * 100) + "%"
+                    : StateIcons.print-state-label(Printer.print-state);
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 4px;
+            visible: Printer.ready;
+            VerticalLayout {
+                alignment: center;
+                Image { source: Icons.thermal-nozzle; colorize: Printer.nozzle-target > 0 ? Theme.accent : Theme.muted; width: 20px; height: 20px; }
+            }
+            Text {
+                text: round(Printer.nozzle-temperature) + "°" + (Printer.nozzle-target > 0 ? " / " + round(Printer.nozzle-target) + "°" : "");
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                vertical-alignment: center;
+            }
+        }
+        if Printer.has-bed: HorizontalLayout {
+            spacing: 4px;
+            visible: Printer.ready;
+            VerticalLayout {
+                alignment: center;
+                Image { source: Icons.thermal-bed; colorize: Printer.bed-target > 0 ? Theme.accent : Theme.muted; width: 20px; height: 20px; }
+            }
+            Text {
+                text: round(Printer.bed-temperature) + "°" + (Printer.bed-target > 0 ? " / " + round(Printer.bed-target) + "°" : "");
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                vertical-alignment: center;
+            }
+        }
+        Text {
+            text: Printer.clock;
+            color: Theme.muted;
+            font-size: Theme.font-normal;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            width: 64px;
+            border-radius: Theme.radius;
+            background: stop-touch.pressed ? Theme.danger-pressed : Theme.danger;
+            accessible-role: button;
+            accessible-label: @tr("Emergency stop");
+            stop-touch := TouchArea {
+                clicked => {
+                    Confirm.ask(@tr("Emergency stop"), @tr("Stops all motors and heaters immediately. Klipper must be restarted afterwards."), "emergency-stop", "", true);
+                }
+            }
+            Image {
+                source: Icons.system-emergency-stop;
+                colorize: Theme.foreground;
+                width: 28px;
+                height: 28px;
+            }
+        }
+    }
+}
+
+component NavItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <Page> page;
+    in property <bool> enabled: true;
+    property <bool> active: Navigation.page == root.page;
+    property <color> content: !root.enabled ? Theme.disabled-foreground : root.active ? Theme.accent : Theme.foreground;
+
+    border-radius: Theme.radius;
+    background: root.active ? Theme.surface-active : nav-touch.pressed ? Theme.surface-raised : transparent;
+    accessible-role: tab;
+    accessible-label: root.label;
+
+    nav-touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { Navigation.page = root.page; }
+    }
+    VerticalLayout {
+        alignment: center;
+        spacing: 1px;
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.content;
+                width: 26px;
+                height: 26px;
+            }
+        }
+        Text {
+            text: root.label;
+            color: root.content;
+            font-size: 11px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+export component NavRail inherits Rectangle {
+    width: 76px;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding: 3px;
+        spacing: 1px;
+        NavItem { icon: StateIcons.print-state(Printer.print-state); label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
+        NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.is-printing; }
+        NavItem { icon: Icons.nav-temperature; label: @tr("Heat"); page: Page.temperature; enabled: Printer.ready; }
+        NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
+        NavItem { icon: Icons.filament-extrude; label: @tr("Extrude"); page: Page.extrude; enabled: Printer.ready && !Printer.is-printing; }
+        NavItem { icon: Icons.nav-macros; label: @tr("Macros"); page: Page.macros; enabled: Printer.ready; }
+        NavItem { icon: Icons.nav-console; label: @tr("Console"); page: Page.console; enabled: Printer.connection == "connected"; }
+        NavItem { icon: Icons.nav-system; label: @tr("System"); page: Page.system; }
+    }
+}

@@ -27,11 +27,7 @@ pub struct ServerConfig {
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        Self {
-            time_scale: 1.0,
-            status_interval: Duration::from_millis(250),
-            profile: MachineProfile::default(),
-        }
+        Self { time_scale: 1.0, status_interval: Duration::from_millis(250), profile: MachineProfile::default() }
     }
 }
 
@@ -45,11 +41,8 @@ struct AppState {
 pub async fn serve(listener: TcpListener, config: ServerConfig) -> io::Result<()> {
     let backend = Arc::new(Backend::with_profile(config.time_scale, config.profile));
     let simulation = tokio::spawn(simulate(Arc::clone(&backend)));
-    let state = AppState {
-        backend,
-        status_interval: config.status_interval,
-        next_connection_id: Arc::new(AtomicU64::new(1)),
-    };
+    let state =
+        AppState { backend, status_interval: config.status_interval, next_connection_id: Arc::new(AtomicU64::new(1)) };
 
     let result = axum::serve(listener, router(state)).await;
     simulation.abort();
@@ -82,6 +75,7 @@ async fn websocket(upgrade: WebSocketUpgrade, State(state): State<AppState>) -> 
 async fn run_session(mut socket: WebSocket, state: AppState, connection_id: u64) {
     let mut session = Session::new(connection_id);
     let mut status_ticker = tokio::time::interval(state.status_interval);
+    let mut notifications = state.backend.notifications();
 
     loop {
         let outgoing = tokio::select! {
@@ -91,6 +85,11 @@ async fn run_session(mut socket: WebSocket, state: AppState, connection_id: u64)
                 Some(Ok(_)) => None,
             },
             _ = status_ticker.tick() => session.status_notification(&state.backend),
+            notification = notifications.recv() => match notification {
+                Ok(message) => Some(message),
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => None,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            },
         };
 
         if let Some(message) = outgoing {

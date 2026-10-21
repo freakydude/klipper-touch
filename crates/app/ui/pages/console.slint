@@ -1,0 +1,85 @@
+// G-Code-Konsole: Verlauf, Schnellbefehle und Eingabe per Bildschirmtastatur.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Printer } from "../state.slint";
+import { IconButton } from "../components/controls.slint";
+import { TextEntryDialog } from "../components/overlays.slint";
+
+export component ConsolePage inherits Rectangle {
+    property <length> line-height: 22px;
+    property <string> draft;
+
+    init => { Actions.load-console(); }
+
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        Rectangle {
+            vertical-stretch: 1;
+            background: Theme.surface;
+            border-radius: Theme.radius;
+            clip: true;
+            log := Flickable {
+                x: 8px;
+                width: parent.width - 16px;
+                content-height: max(self.height, Printer.console.length * root.line-height + 8px);
+                // Neueste Zeilen unten; beim Öffnen ans Ende springen.
+                content-y: min(0px, self.height - self.content-height);
+                for line[index] in Printer.console: HorizontalLayout {
+                    y: 4px + index * root.line-height;
+                    height: root.line-height;
+                    width: log.width;
+                    spacing: 8px;
+                    Text {
+                        text: line.time;
+                        color: Theme.disabled-foreground;
+                        font-size: Theme.font-small;
+                        vertical-alignment: center;
+                        width: 64px;
+                    }
+                    Text {
+                        text: (line.is-command ? "> " : "") + line.text;
+                        color: line.is-error ? Theme.danger : line.is-command ? Theme.accent : Theme.foreground;
+                        font-size: Theme.font-small;
+                        font-family: "monospace";
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            height: 56px;
+            for command in ["HELP", "STATUS", "M114", "M115"]: IconButton {
+                text: command;
+                clicked => { Actions.run-gcode(command); }
+            }
+            IconButton {
+                icon: Icons.ui-edit;
+                text: @tr("Type");
+                kind: "accent";
+                clicked => {
+                    entry.text = root.draft;
+                    entry.open = true;
+                }
+            }
+            IconButton {
+                icon: Icons.ui-refresh;
+                width: 64px;
+                clicked => { Actions.load-console(); }
+            }
+        }
+    }
+
+    entry := TextEntryDialog {
+        title: @tr("G-code");
+        accepted(text) => {
+            root.draft = "";
+            if (text != "") { Actions.run-gcode(text); }
+        }
+    }
+}

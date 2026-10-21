@@ -7,7 +7,8 @@ use tokio::net::TcpListener;
 const DEFAULT_PORT: u16 = 7125;
 const DEFAULT_TIME_SCALE: f64 = 10.0;
 const DEFAULT_MMU_GATES: usize = 4;
-const USAGE: &str = "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare] [--gates <1-16>]";
+const USAGE: &str =
+    "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare] [--gates <1-16>]";
 
 enum Profile {
     Basic,
@@ -84,8 +85,8 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("cannot listen on port {}: {error}", options.port))?;
 
-    println!("Fake-Moonraker listening. Start Klipper-Touch with:");
-    println!("  -m http://127.0.0.1:{0}/ -w ws://127.0.0.1:{0}/websocket", options.port);
+    println!("Fake-Moonraker listening. Start klipper-touch-slint with:");
+    println!("  cargo run -p klipper-touch-slint -- --moonraker http://127.0.0.1:{}", options.port);
 
     let config = ServerConfig {
         time_scale: options.time_scale,

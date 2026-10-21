@@ -53,10 +53,8 @@ impl Session {
     pub fn handle_text(&mut self, backend: &Backend, text: &str) -> Option<String> {
         match serde_json::from_str::<Value>(text) {
             Ok(Value::Array(requests)) => {
-                let responses: Vec<Value> = requests
-                    .iter()
-                    .filter_map(|request| self.handle_request(backend, request))
-                    .collect();
+                let responses: Vec<Value> =
+                    requests.iter().filter_map(|request| self.handle_request(backend, request)).collect();
                 (!responses.is_empty()).then(|| Value::Array(responses).to_string())
             }
             Ok(request) => self.handle_request(backend, &request).map(|response| response.to_string()),
@@ -94,6 +92,19 @@ impl Session {
     fn dispatch(&mut self, backend: &Backend, method: &str, params: &Value) -> Result<Value, RpcError> {
         match method {
             "server.connection.identify" => Ok(json!({ "connection_id": self.connection_id })),
+            "server.info" => Ok(server_info(backend)),
+            "printer.info" => Ok(printer_info(backend)),
+            "server.gcode_store" => Ok(backend.with_host(|host| {
+                host.gcode_store(params.get("count").and_then(Value::as_u64).map(|count| count as usize))
+            })),
+            "machine.device_power.devices" => Ok(backend.with_host(|host| host.power_devices())),
+            "machine.device_power.post_device" => set_power(backend, params),
+            "machine.update.status" | "machine.update.refresh" => Ok(backend.with_host(|host| host.update_status())),
+            "machine.update.upgrade" => {
+                backend.with_host(|host| host.upgrade(params.get("name").and_then(Value::as_str)));
+                Ok(ok())
+            }
+            "machine.services.restart" | "machine.reboot" | "machine.shutdown" => Ok(ok()),
             "printer.objects.subscribe" => self.subscribe(backend, params),
             "printer.objects.list" => Ok(json!({ "objects": backend.object_names() })),
             "printer.objects.query" => query_objects(backend, params),
@@ -102,8 +113,18 @@ impl Session {
             "printer.print.pause" => control_printer(backend, Printer::pause_print),
             "printer.print.resume" => control_printer(backend, Printer::resume_print),
             "printer.print.cancel" => control_printer(backend, Printer::cancel_print),
-            "printer.emergency_stop" => Ok(acknowledge(backend, Printer::emergency_stop)),
-            "printer.restart" | "printer.firmware_restart" => Ok(acknowledge(backend, Printer::restart)),
+            "printer.emergency_stop" => {
+                backend.with_printer(Printer::emergency_stop);
+                backend.respond("!! Shutdown due to M112 command");
+                backend.notify("notify_klippy_shutdown", Value::Null);
+                Ok(ok())
+            }
+            "printer.restart" | "printer.firmware_restart" => {
+                backend.with_printer(Printer::restart);
+                backend.respond("// Klipper state: Ready");
+                backend.notify("notify_klippy_ready", Value::Null);
+                Ok(ok())
+            }
             "server.files.list" => Ok(backend.catalog().list()),
             "server.files.metadata" => Ok(find_file(backend, params)?.metadata()),
             "server.files.thumbnails" => Ok(find_file(backend, params)?.thumbnails()),
@@ -112,9 +133,7 @@ impl Session {
     }
 
     fn subscribe(&mut self, backend: &Backend, params: &Value) -> Result<Value, RpcError> {
-        let objects = params
-            .get("objects")
-            .ok_or_else(|| RpcError::invalid_params("missing parameter 'objects'"))?;
+        let objects = params.get("objects").ok_or_else(|| RpcError::invalid_params("missing parameter 'objects'"))?;
         self.subscription.replace_with(objects).map_err(RpcError::invalid_params)?;
         let status = self.subscription.snapshot(&backend.status());
         Ok(json!({ "eventtime": backend.eventtime(), "status": status }))
@@ -122,9 +141,7 @@ impl Session {
 }
 
 fn query_objects(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
-    let objects = params
-        .get("objects")
-        .ok_or_else(|| RpcError::invalid_params("missing parameter 'objects'"))?;
+    let objects = params.get("objects").ok_or_else(|| RpcError::invalid_params("missing parameter 'objects'"))?;
     let mut query = Subscription::default();
     query.replace_with(objects).map_err(RpcError::invalid_params)?;
     Ok(json!({ "eventtime": backend.eventtime(), "status": query.snapshot(&backend.status()) }))
@@ -132,9 +149,53 @@ fn query_objects(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
 
 fn run_script(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
     let script = required_str(params, "script")?;
-    let commands = gcode::parse_script(script)?;
-    backend.with_printer(|printer| commands.into_iter().try_for_each(|command| printer.apply(command)))?;
+    backend.record_command(script);
+    let outcome = gcode::parse_script(script).and_then(|commands| {
+        backend.with_printer(|printer| commands.into_iter().try_for_each(|command| printer.apply(command)))
+    });
+    if let Err(error) = &outcome {
+        backend.respond(&format!("!! {}", error.message()));
+    }
+    outcome?;
     Ok(ok())
+}
+
+fn server_info(backend: &Backend) -> Value {
+    let state = backend.with_printer(|printer| printer.klippy_state());
+    json!({
+        "klippy_connected": true,
+        "klippy_state": state,
+        "components": ["file_manager", "machine", "data_store", "update_manager", "power", "history"],
+        "failed_components": [],
+        "registered_directories": ["gcodes", "config"],
+        "warnings": [],
+        "websocket_count": 1,
+        "moonraker_version": "v0.9.3-fake",
+        "api_version": [1, 5, 0],
+        "api_version_string": "1.5.0",
+    })
+}
+
+fn printer_info(backend: &Backend) -> Value {
+    let (state, message) = backend.with_printer(|printer| (printer.klippy_state(), printer.state_message()));
+    json!({
+        "state": state,
+        "state_message": message,
+        "hostname": "fake-printer",
+        "software_version": "v0.13.0-fake",
+    })
+}
+
+fn set_power(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+    let device = required_str(params, "device")?;
+    let action = required_str(params, "action")?;
+    let printing = backend.with_printer(|printer| printer.print_state() == crate::printer::PrintState::Printing);
+    let result =
+        backend.with_host(|host| host.set_power(device, action, printing)).map_err(RpcError::invalid_params)?;
+    if let Some(status) = backend.with_host(|host| host.device_notification(device)) {
+        backend.notify("notify_power_changed", json!([status]));
+    }
+    Ok(result)
 }
 
 fn start_print(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
@@ -151,17 +212,9 @@ fn control_printer(
     Ok(ok())
 }
 
-fn acknowledge(backend: &Backend, action: impl FnOnce(&mut Printer)) -> Value {
-    backend.with_printer(action);
-    ok()
-}
-
 fn find_file<'a>(backend: &'a Backend, params: &Value) -> Result<&'a GcodeFile, RpcError> {
     let filename = required_str(params, "filename")?;
-    backend
-        .catalog()
-        .find(filename)
-        .ok_or_else(|| RpcError::new(NOT_FOUND, format!("File does not exist: {filename}")))
+    backend.catalog().find(filename).ok_or_else(|| RpcError::new(NOT_FOUND, format!("File does not exist: {filename}")))
 }
 
 fn required_str<'a>(params: &'a Value, name: &str) -> Result<&'a str, RpcError> {
@@ -223,7 +276,11 @@ mod tests {
     #[test]
     fn status_notification_reports_changes_after_gcode() {
         let (mut session, backend) = setup();
-        exchange(&mut session, &backend, call("printer.objects.subscribe", json!({ "objects": { "extruder": ["target"] } })));
+        exchange(
+            &mut session,
+            &backend,
+            call("printer.objects.subscribe", json!({ "objects": { "extruder": ["target"] } })),
+        );
         assert!(session.status_notification(&backend).is_none());
 
         let reply = exchange(&mut session, &backend, call("printer.gcode.script", json!({ "script": "M104 S100" })));
@@ -265,7 +322,8 @@ mod tests {
     #[test]
     fn notifications_without_id_get_no_reply() {
         let (mut session, backend) = setup();
-        let notification = json!({ "jsonrpc": "2.0", "method": "printer.gcode.script", "params": { "script": "M104 S50" } });
+        let notification =
+            json!({ "jsonrpc": "2.0", "method": "printer.gcode.script", "params": { "script": "M104 S50" } });
 
         assert!(session.handle_text(&backend, &notification.to_string()).is_none());
         assert_eq!(backend.status()["extruder"]["target"], 50.0);
@@ -274,10 +332,7 @@ mod tests {
     #[test]
     fn batch_requests_get_batch_responses() {
         let (mut session, backend) = setup();
-        let batch = json!([
-            call("server.connection.identify", json!({})),
-            call("server.files.list", json!({})),
-        ]);
+        let batch = json!([call("server.connection.identify", json!({})), call("server.files.list", json!({})),]);
 
         let reply: Value = serde_json::from_str(&session.handle_text(&backend, &batch.to_string()).unwrap()).unwrap();
 
@@ -301,7 +356,8 @@ mod tests {
 
         let reply = exchange(&mut session, &backend, call("printer.objects.list", json!({})));
 
-        let names: Vec<&str> = reply["result"]["objects"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
+        let names: Vec<&str> =
+            reply["result"]["objects"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
         assert!(names.contains(&"mmu"));
         assert!(names.contains(&"quad_gantry_level"));
     }

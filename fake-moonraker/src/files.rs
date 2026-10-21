@@ -121,10 +121,7 @@ impl Catalog {
     }
 
     pub fn thumbnail_svg(&self, thumbnail_path: &str) -> Option<String> {
-        self.files
-            .iter()
-            .find(|file| file.thumbnail_path() == thumbnail_path)
-            .map(GcodeFile::thumbnail_svg)
+        self.files.iter().find(|file| file.thumbnail_path() == thumbnail_path).map(GcodeFile::thumbnail_svg)
     }
 }
 

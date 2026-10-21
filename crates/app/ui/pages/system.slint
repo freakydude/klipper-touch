@@ -1,0 +1,154 @@
+// Klipper, Host, Schaltgeräte und Updates.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, Navigation, Page, Printer } from "../state.slint";
+import { Card, IconButton, IconLabel } from "../components/controls.slint";
+
+export component SystemPage inherits Rectangle {
+    init => { Actions.refresh-system(); }
+
+    HorizontalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        VerticalLayout {
+            width: 260px;
+            spacing: Theme.spacing;
+            Card {
+                title: @tr("Klipper");
+                icon: Icons.system-firmware-restart;
+                IconLabel {
+                    icon: Printer.connection == "connected" ? Icons.system-connected : Icons.system-disconnected;
+                    text: Printer.endpoint;
+                    font-size: Theme.font-small;
+                    color: Theme.muted;
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 64px;
+                    IconButton {
+                        icon: Icons.system-restart;
+                        text: @tr("Restart");
+                        enabled: Printer.connection == "connected";
+                        clicked => { Confirm.ask(@tr("Restart Klipper"), @tr("Reloads the configuration."), "restart-klipper", "", false); }
+                    }
+                    IconButton {
+                        icon: Icons.system-firmware-restart;
+                        text: @tr("Firmware");
+                        enabled: Printer.connection == "connected";
+                        clicked => { Confirm.ask(@tr("Firmware restart"), @tr("Restarts Klipper and all MCUs."), "firmware-restart", "", false); }
+                    }
+                }
+            }
+            Card {
+                title: @tr("Host");
+                icon: Icons.system-host;
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 64px;
+                    IconButton {
+                        icon: Icons.system-restart;
+                        text: @tr("Reboot");
+                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        clicked => { Confirm.ask(@tr("Reboot host"), @tr("The printer host restarts. The connection is lost for a while."), "reboot-host", "", true); }
+                    }
+                    IconButton {
+                        icon: Icons.system-shutdown;
+                        text: @tr("Shutdown");
+                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        clicked => { Confirm.ask(@tr("Shut down host"), @tr("The printer host powers off and must be switched on by hand."), "shutdown-host", "", true); }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 64px;
+                    for service in ["klipper", "moonraker"]: IconButton {
+                        text: service;
+                        icon: Icons.system-restart;
+                        icon-size: 20px;
+                        enabled: Printer.connection == "connected" && !Printer.is-printing;
+                        clicked => { Confirm.ask(@tr("Restart service"), service, "restart-service", service, false); }
+                    }
+                }
+            }
+            IconButton {
+                icon: Icons.nav-settings;
+                text: @tr("Settings");
+                horizontal: true;
+                clicked => { Navigation.page = Page.settings; }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: Theme.spacing;
+            if Printer.has-power: Card {
+                title: @tr("Power devices");
+                icon: Icons.accessory-power-device;
+                for device in Printer.power-devices: HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 52px;
+                    IconLabel {
+                        horizontal-stretch: 1;
+                        icon: device.on ? Icons.accessory-power-device : Icons.ui-minus;
+                        text: device.name;
+                        color: device.on ? Theme.foreground : Theme.muted;
+                    }
+                    IconButton {
+                        width: 96px;
+                        text: device.on ? @tr("On") : @tr("Off");
+                        checked: device.on;
+                        kind: device.on ? "accent" : "normal";
+                        enabled: !(device.locked && Printer.is-printing);
+                        clicked => {
+                            if (device.on) {
+                                Confirm.ask(@tr("Switch off"), device.name, "power-off", device.name, true);
+                            } else {
+                                Actions.set-power(device.name, true);
+                            }
+                        }
+                    }
+                }
+            }
+            if Printer.has-update-manager: Card {
+                title: @tr("Updates");
+                icon: Icons.system-update;
+                vertical-stretch: 1;
+                for update in Printer.updates: HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 48px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
+                        Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
+                    }
+                    IconButton {
+                        width: 112px;
+                        icon: Icons.system-update;
+                        icon-size: 20px;
+                        horizontal: true;
+                        text: @tr("Update");
+                        enabled: update.has-update && !Printer.is-printing;
+                        clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                    }
+                }
+                HorizontalLayout {
+                    alignment: end;
+                    IconButton {
+                        width: 140px;
+                        height: 48px;
+                        icon: Icons.ui-refresh;
+                        icon-size: 20px;
+                        horizontal: true;
+                        text: @tr("Check");
+                        enabled: !Printer.is-printing;
+                        clicked => { Actions.refresh-updates(); }
+                    }
+                }
+            }
+        }
+    }
+}

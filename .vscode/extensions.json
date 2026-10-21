@@ -1,12 +1,9 @@
 {
   "recommendations": [
-    "svelte.svelte-vscode",
-    "tauri-apps.tauri-vscode",
+    "slint.slint",
     "rust-lang.rust-analyzer",
     "tamasfe.even-better-toml",
-    "esbenp.prettier-vscode",
-    "bradlc.vscode-tailwindcss",
-    "dbaeumer.vscode-eslint",
-    "vadimcn.vscode-lldb"
+    "vadimcn.vscode-lldb",
+    "hediet.vscode-drawio"
   ]
 }

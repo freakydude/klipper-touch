@@ -50,6 +50,12 @@ pub enum Command {
     Move(Move),
     DisableSteppers,
     SetGcodeOffset { z: Option<f64>, z_adjust: Option<f64> },
+    AbsoluteExtrusion,
+    RelativeExtrusion,
+    SetSpeedFactor(f64),
+    SetExtrudeFactor(f64),
+    SetPressureAdvance(f64),
+    SetHeaterTemperature { heater: String, target: f64 },
     SaveConfig,
     QuadGantryLevel,
     Mmu(MmuCommand),
@@ -99,11 +105,7 @@ impl fmt::Display for CommandError {
 impl std::error::Error for CommandError {}
 
 pub fn parse_script(script: &str) -> Result<Vec<Command>, CommandError> {
-    script
-        .lines()
-        .filter_map(significant_part)
-        .map(parse_line)
-        .collect()
+    script.lines().filter_map(significant_part).map(parse_line).collect()
 }
 
 fn significant_part(line: &str) -> Option<&str> {
@@ -130,9 +132,19 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "G90" => Ok(Command::AbsolutePositioning),
         "G91" => Ok(Command::RelativePositioning),
         "G0" | "G1" => Ok(Command::Move(parse_move(&args)?)),
-        "SET_GCODE_OFFSET" => Ok(Command::SetGcodeOffset {
-            z: named_value(&args, "Z")?,
-            z_adjust: named_value(&args, "Z_ADJUST")?,
+        "SET_GCODE_OFFSET" => {
+            Ok(Command::SetGcodeOffset { z: named_value(&args, "Z")?, z_adjust: named_value(&args, "Z_ADJUST")? })
+        }
+        "M82" => Ok(Command::AbsoluteExtrusion),
+        "M83" => Ok(Command::RelativeExtrusion),
+        "M220" => Ok(Command::SetSpeedFactor(letter_value(&args, 'S')?.unwrap_or(100.0) / 100.0)),
+        "M221" => Ok(Command::SetExtrudeFactor(letter_value(&args, 'S')?.unwrap_or(100.0) / 100.0)),
+        "SET_PRESSURE_ADVANCE" => Ok(Command::SetPressureAdvance(
+            named_value(&args, "ADVANCE")?.ok_or_else(|| CommandError::new("Missing parameter ADVANCE"))?,
+        )),
+        "SET_HEATER_TEMPERATURE" => Ok(Command::SetHeaterTemperature {
+            heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
+            target: named_value(&args, "TARGET")?.unwrap_or(0.0),
         }),
         "SAVE_CONFIG" => Ok(Command::SaveConfig),
         "QUAD_GANTRY_LEVEL" => Ok(Command::QuadGantryLevel),
@@ -192,6 +204,13 @@ fn named_value(args: &[&str], name: &str) -> Result<Option<f64>, CommandError> {
         .transpose()
 }
 
+fn named_text(args: &[&str], name: &str) -> Option<String> {
+    args.iter()
+        .filter_map(|arg| arg.split_once('='))
+        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        .map(|(_, value)| value.to_owned())
+}
+
 fn required_index(args: &[&str], name: &str) -> Result<usize, CommandError> {
     named_index(args, name)?.ok_or_else(|| CommandError::new(format!("Missing parameter {name}")))
 }
@@ -225,9 +244,24 @@ mod tests {
 
         assert_eq!(
             commands,
+            vec![Command::RelativePositioning, Command::Move(Move { e: Some(10.0), ..Move::default() }),]
+        );
+    }
+
+    #[test]
+    fn parses_tuning_commands() {
+        let commands =
+            parse_script("M220 S110\nM221 S95\nSET_PRESSURE_ADVANCE ADVANCE=0.05\nM83\nSET_HEATER_TEMPERATURE HEATER=chamber TARGET=40")
+                .unwrap();
+
+        assert_eq!(
+            commands,
             vec![
-                Command::RelativePositioning,
-                Command::Move(Move { e: Some(10.0), ..Move::default() }),
+                Command::SetSpeedFactor(1.1),
+                Command::SetExtrudeFactor(0.95),
+                Command::SetPressureAdvance(0.05),
+                Command::RelativeExtrusion,
+                Command::SetHeaterTemperature { heater: "chamber".to_owned(), target: 40.0 },
             ]
         );
     }
@@ -255,15 +289,13 @@ mod tests {
     fn parses_named_gcode_offset_arguments() {
         let commands = parse_script("SET_GCODE_OFFSET Z_ADJUST=-0.05 MOVE=1").unwrap();
 
-        assert_eq!(
-            commands,
-            vec![Command::SetGcodeOffset { z: None, z_adjust: Some(-0.05) }]
-        );
+        assert_eq!(commands, vec![Command::SetGcodeOffset { z: None, z_adjust: Some(-0.05) }]);
     }
 
     #[test]
     fn parses_happy_hare_commands() {
-        let commands = parse_script("MMU_HOME\nMMU_SELECT GATE=2\nMMU_CHANGE_TOOL TOOL=1\nT3\nMMU_LOAD\nMMU_UNLOAD").unwrap();
+        let commands =
+            parse_script("MMU_HOME\nMMU_SELECT GATE=2\nMMU_CHANGE_TOOL TOOL=1\nT3\nMMU_LOAD\nMMU_UNLOAD").unwrap();
 
         assert_eq!(
             commands,

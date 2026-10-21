@@ -1,0 +1,115 @@
+// Feineinstellung während und vor dem Druck: Z-Offset, Geschwindigkeit, Fluss, Pressure Advance.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, Printer, UiSettings } from "../state.slint";
+import { Card, IconButton, StepSelector } from "../components/controls.slint";
+
+// Wert mit Minus/Plus und optionalem Zurücksetzen.
+component Adjuster inherits Card {
+    in property <string> value;
+    in property <bool> can-reset: true;
+    in property <bool> resettable: true;
+    callback decrease;
+    callback increase;
+    callback reset;
+
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        height: 56px;
+        IconButton { width: 64px; icon: Icons.ui-minus; clicked => { root.decrease(); } }
+        Text {
+            horizontal-stretch: 1;
+            text: root.value;
+            color: Theme.foreground;
+            font-size: Theme.font-large;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        IconButton { width: 64px; icon: Icons.ui-plus; clicked => { root.increase(); } }
+        if root.resettable: IconButton { width: 64px; icon: Icons.ui-refresh; enabled: root.can-reset; clicked => { root.reset(); } }
+    }
+}
+
+export component TunePage inherits Rectangle {
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.spacing;
+                Adjuster {
+                    title: @tr("Z offset (babystep)");
+                    icon: Icons.calibration-z-offset;
+                    value: Printer.z-offset.to-fixed(3) + " mm";
+                    can-reset: Printer.z-offset != 0;
+                    decrease => { Actions.adjust-z-offset(-UiSettings.z-offset-step); }
+                    increase => { Actions.adjust-z-offset(UiSettings.z-offset-step); }
+                    reset => { Actions.reset-z-offset(); }
+                }
+                StepSelector {
+                    values: [0.005, 0.01, 0.025, 0.05, 0.1];
+                    unit: "";
+                    selected <=> UiSettings.z-offset-step;
+                    changed => { UiSettings.steps-changed(); }
+                }
+                Adjuster {
+                    title: @tr("Pressure advance");
+                    icon: Icons.filament-pressure-advance;
+                    value: Printer.pressure-advance.to-fixed(3);
+                    resettable: false;
+                    decrease => { Actions.set-pressure-advance(max(0, Printer.pressure-advance - 0.005)); }
+                    increase => { Actions.set-pressure-advance(Printer.pressure-advance + 0.005); }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.spacing;
+                Adjuster {
+                    title: @tr("Speed factor");
+                    icon: Icons.motion-speed;
+                    value: round(Printer.speed-factor) + " %";
+                    can-reset: round(Printer.speed-factor) != 100;
+                    decrease => { Actions.set-speed-factor(max(10, Printer.speed-factor - 5)); }
+                    increase => { Actions.set-speed-factor(Printer.speed-factor + 5); }
+                    reset => { Actions.set-speed-factor(100); }
+                }
+                Adjuster {
+                    title: @tr("Flow factor");
+                    icon: Icons.filament-flow;
+                    value: round(Printer.extrude-factor) + " %";
+                    can-reset: round(Printer.extrude-factor) != 100;
+                    decrease => { Actions.set-extrude-factor(max(50, Printer.extrude-factor - 1)); }
+                    increase => { Actions.set-extrude-factor(Printer.extrude-factor + 1); }
+                    reset => { Actions.set-extrude-factor(100); }
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    height: 64px;
+                    IconButton {
+                        icon: Printer.has-probe ? Icons.calibration-probe : Icons.motion-home-z;
+                        text: @tr("Apply offset");
+                        enabled: Printer.z-offset != 0 && !Printer.is-printing;
+                        clicked => { Actions.apply-z-offset(); }
+                    }
+                    IconButton {
+                        icon: Icons.ui-save;
+                        text: @tr("Save config");
+                        enabled: Printer.save-config-pending && !Printer.is-printing;
+                        kind: Printer.save-config-pending ? "accent" : "normal";
+                        clicked => { Confirm.ask(@tr("Save config"), @tr("Klipper writes the configuration and restarts."), "save-config", "", false); }
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+    }
+}

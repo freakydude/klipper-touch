@@ -1,0 +1,249 @@
+// Überlagerungen: Bestätigung, Hinweis, Bildschirmtastatur und Texteingabe.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Confirm, Printer, TextTools } from "../state.slint";
+import { IconButton } from "controls.slint";
+
+// Abdunkelnder Hintergrund, der Eingaben an darunterliegende Elemente abfängt.
+component Scrim inherits Rectangle {
+    background: #000000b0;
+    TouchArea { }
+    @children
+}
+
+export component ConfirmDialog inherits Scrim {
+    visible: Confirm.open;
+
+    Rectangle {
+        width: min(parent.width - 80px, 480px);
+        height: 220px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: Confirm.danger ? Theme.danger : Theme.border;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            Text {
+                text: Confirm.title;
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+                font-weight: 700;
+                overflow: elide;
+            }
+            Text {
+                text: Confirm.message;
+                color: Theme.muted;
+                font-size: Theme.font-normal;
+                wrap: word-wrap;
+                vertical-stretch: 1;
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                IconButton {
+                    icon: Icons.ui-back;
+                    text: @tr("Back");
+                    horizontal: true;
+                    clicked => { Confirm.open = false; }
+                }
+                IconButton {
+                    icon: Confirm.danger ? Icons.ui-warning : Icons.ui-check;
+                    text: @tr("Confirm");
+                    kind: Confirm.danger ? "danger" : "accent";
+                    horizontal: true;
+                    clicked => { Confirm.execute(); }
+                }
+            }
+        }
+    }
+}
+
+// Kurzer Hinweis am unteren Rand; Rust setzt und löscht `Printer.notice`.
+export component Toast inherits Rectangle {
+    visible: Printer.notice != "";
+    height: 44px;
+    border-radius: Theme.radius;
+    background: Printer.notice-is-error ? Theme.danger : Theme.surface-active;
+    drop-shadow-blur: 8px;
+    drop-shadow-color: #00000080;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: Printer.notice-is-error ? Icons.ui-error : Icons.ui-info;
+                colorize: Theme.foreground;
+                width: 22px;
+                height: 22px;
+            }
+        }
+        Text {
+            text: Printer.notice;
+            color: Theme.foreground;
+            font-size: Theme.font-normal;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+component Key inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    callback pressed;
+    min-width: 40px;
+    horizontal-stretch: 1;
+    border-radius: 6px;
+    background: key-touch.pressed ? Theme.accent : Theme.surface-raised;
+    accessible-role: button;
+    accessible-label: root.label;
+
+    key-touch := TouchArea {
+        clicked => { root.pressed(); }
+    }
+    if root.icon.width > 0: Image {
+        source: root.icon;
+        colorize: Theme.foreground;
+        width: 22px;
+        height: 22px;
+    }
+    if root.icon.width == 0: Text {
+        text: root.label;
+        color: Theme.foreground;
+        font-size: Theme.font-normal;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Bildschirmtastatur für Geräte ohne physische Tastatur; bearbeitet `text` direkt.
+export component OnScreenKeyboard inherits VerticalLayout {
+    in-out property <string> text;
+    in-out property <bool> upper: true;
+    callback enter;
+
+    property <[[string]]> lower-rows: [
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+        ["a", "s", "d", "f", "g", "h", "j", "k", "l", "="],
+        ["z", "x", "c", "v", "b", "n", "m", ".", "-", "_"],
+    ];
+    property <[[string]]> upper-rows: [
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+        ["A", "S", "D", "F", "G", "H", "J", "K", "L", "="],
+        ["Z", "X", "C", "V", "B", "N", "M", ".", "-", "_"],
+    ];
+
+    spacing: 4px;
+
+    for row in (root.upper ? root.upper-rows : root.lower-rows): HorizontalLayout {
+        spacing: 4px;
+        height: 40px;
+        for key in row: Key {
+            label: key;
+            pressed => { root.text += key; }
+        }
+    }
+    HorizontalLayout {
+        spacing: 4px;
+        height: 40px;
+        Key {
+            label: root.upper ? "abc" : "ABC";
+            horizontal-stretch: 2;
+            pressed => { root.upper = !root.upper; }
+        }
+        Key {
+            label: ":";
+            pressed => { root.text += ":"; }
+        }
+        Key {
+            label: "/";
+            pressed => { root.text += "/"; }
+        }
+        Key {
+            label: "space";
+            horizontal-stretch: 4;
+            pressed => { root.text += " "; }
+        }
+        Key {
+            label: "backspace";
+            icon: Icons.ui-chevron-left;
+            horizontal-stretch: 2;
+            pressed => { root.text = TextTools.remove-last(root.text); }
+        }
+        Key {
+            label: "enter";
+            icon: Icons.ui-check;
+            horizontal-stretch: 2;
+            pressed => { root.enter(); }
+        }
+    }
+}
+
+// Vollflächige Texteingabe mit Bildschirmtastatur.
+export component TextEntryDialog inherits Scrim {
+    in property <string> title;
+    in-out property <string> text;
+    in-out property <bool> open;
+    callback accepted(string);
+    visible: root.open;
+
+    Rectangle {
+        x: 8px;
+        y: 8px;
+        width: parent.width - 16px;
+        height: parent.height - 16px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 8px;
+                height: 48px;
+                Text {
+                    text: root.title;
+                    color: Theme.muted;
+                    font-size: Theme.font-normal;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.background;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: Theme.accent;
+                    Text {
+                        x: 8px;
+                        width: parent.width - 16px;
+                        text: root.text + "|";
+                        color: Theme.foreground;
+                        font-size: Theme.font-large;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                }
+                IconButton {
+                    icon: Icons.ui-close;
+                    width: 56px;
+                    clicked => { root.open = false; }
+                }
+            }
+            OnScreenKeyboard {
+                text <=> root.text;
+                vertical-stretch: 1;
+                enter => {
+                    root.open = false;
+                    root.accepted(root.text);
+                }
+            }
+        }
+    }
+}

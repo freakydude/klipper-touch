@@ -1,248 +1,84 @@
-# Klipper-Touch
+# Klipper-Touch (Rust + Slint)
 
-Klipper-Touch is an alternative web-based UI for Klipper3d/Moonraker that focuses on small touch screens without keyboard or mouse.
+Touch screen UI for [Klipper](https://www.klipper3d.org/) printers, talking to [Moonraker](https://moonraker.readthedocs.io/).
+Built for small displays attached directly to the printer host (Raspberry Pi 3/4/5, BTT CB1/CB2), first target is the
+BTT HDMI5 (5", 800x480, landscape). Native Rust application with a [Slint](https://slint.dev/) UI — no browser, no WebView.
 
-This is currently nothing more than a personal experiment and a project to learn - even if it works.
+> Work in progress. Tested against the included fake Moonraker and on desktop, **not yet on real printers**.
+> Watch your printer, double check things. No warranty.
 
-## Caution
+![Print screen](docs/screenshots/print.png)
 
-First of all, and as always with my other posts and projects. I am not a company. I'm doing this in my spare time and mostly because I'm really excited about making these things work and improving them.
+| | | |
+|---|---|---|
+| ![Files](docs/screenshots/files.png) | ![Move](docs/screenshots/move.png) | ![Temperature](docs/screenshots/temperature.png) |
+| ![Tune](docs/screenshots/tune.png) | ![System](docs/screenshots/system.png) | ![Klipper shut down](docs/screenshots/klippy-shutdown.png) |
 
-I have tested all this stuff only with my own printer and the constellation around it. I have done my best to make it all work without problems. However, this is a work in progress. There is no guarantee. Be careful, watch your printer, double check things. Use it as is. I am not responsible for any damage or consequences of any kind.
+## Features
 
-And yes, help and improve if you find something.
+- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel; file browser with thumbnails.
+- **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
+- **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
+- **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
+- **Extrude**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
+- **Macros**: all user macros (helpers starting with `_` are hidden).
+- **Console**: G-code history and live responses, quick commands, on-screen keyboard.
+- **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
+- **Settings**: Moonraker address, fullscreen, temperature presets — stored as JSON.
 
-## Some early screens
+Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
 
-![Connect Screen](docs/pics/klipper-touch-0.1.0-experimental-connect.png 'Connect Screen')
+## Install on the printer host
 
-![Printing Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-printing.png 'Printing Screen')
+1. Download the archive for your system from the [releases](https://github.com/freakydude/klipper-touch/releases):
+   `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
+   Builds target Debian Bullseye and run on Bookworm and Trixie.
+2. Unpack and run the installer as your normal user:
 
-![Print Done Screen](docs/pics/klipper-touch-0.1.0-experimental-printstate-done.png 'Print Done Screen')
+   ```bash
+   tar -xzf klipper-touch-slint-aarch64-unknown-linux-gnu.tar.gz
+   ./install.sh -m http://127.0.0.1:7125
+   ```
 
-![Temperature Screen](docs/pics/klipper-touch-0.1.0-experimental-temperrature.png 'Temperature Screen')
+   The installer adds `cage` (a minimal Wayland kiosk compositor), installs the binary to `/usr/local/bin` and creates the
+   systemd service `klipper-touch-slint` that runs the UI fullscreen on `tty1`. Remove it with `./uninstall.sh`.
 
-## Prepare Bigtreetech CB1
+On a desktop (e.g. Raspberry Pi OS with desktop, Windows, Linux PC) simply start the binary; it opens as a normal window.
 
-- Install Btt image with panfrost support. >= v 2.3.3
+### Command line
 
-- Update to debian bookworm
+```text
+klipper-touch-slint [--moonraker <url>] [--fullscreen] [--settings <file>]
+```
 
-- ```bash
-  sudo nano /etc/apt/sources.list
-  ```
+| Option | Meaning |
+|---|---|
+| `-m, --moonraker` | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
+| `-f, --fullscreen` | Fullscreen/kiosk mode |
+| `--settings` | Settings file, default `~/.config/klipper-touch-slint/settings.json` (Windows: `%APPDATA%`) |
 
-  replace bullseye by bookworm, add non-free-firmware to all entries
+Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
+driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (bigger UI on high resolution displays).
 
-  ```bash
-  deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
-  
-  # deb-src <http://deb.debian.org/debian> bookworm main contrib non-free non-free-firmware
-  
-  deb < http://deb.debian.org/debian > bookworm-updates main contrib non-free non-free-firmware
-  # deb-src <http://deb.debian.org/debian> bookworm-updates main contrib non-free non-free-firmware
-  
-  deb < http://deb.debian.org/debian > bookworm-backports main contrib non-free non-free-firmware
-  # deb-src <http://deb.debian.org/debian> bookworm-backports main contrib non-free non-free-firmware
-  
-  deb < http://deb.debian.org/debian-security > bookworm-security main contrib non-free non-free-firmware
-  # deb-src <http://deb.debian.org/debian-security> bookworm-security main contrib non-free non-free-firmware
-  ```
-
-- Upgrade system from bullseye to bookworm
-
-  ```bash
-  sudo apt update
-  sudo apt dist-upgrade
-  sudo apt autoremove
-  ```
-
-- Install xinit and input drivers
-  sudo apt install xinit xf86-input-evdev
-
-## Install and run Klipper-Touch
-
-- Download it from [https://github.com/freakydude/klipper-touch/releases](https://github.com/freakydude/klipper-touch/releases)
-
-- Install Klipper-Touch
-  - Go to your manual downloaded package directory and run
-
-    ```bash
-    sudo apt install ./klipper-touch_0.1.0_arm64.deb
-    ```
-
-- Configure your `cors_domains` in `moonraker.conf` to allow Klipper-Touch to access the moonraker apis
-
-- Run Klipper-Touch
-  - exclusive: `/usr/bin/startx /usr/bin/klipper-touch -- -nocursor` or
-  - in a window manager: `/usr/bin/klipper-touch`
-
-- Klipper-Touch listen on url: `http://127.0.0.1/` and `ws://127.0.0.1/websocket` for a moonraker api connection.
-  - To use another url, use the commandline parameters
-
-    ```bash
-    -m <Moonraker-HTTP-URL>  eg. `http://192.168.1.1/`
-    -w <Moonraker-Websocket-URL>  eg. `ws://192.168.1.1/websocket`
-    ```
-
-  - To start in fullscreen mode
-
-    ```bash
-    -f
-    ```
-
-- Run standalone without xinit and window manager
-
-  ```bash
-  /usr/bin/startx /usr/bin/klipper-touch -f -- -nocursor
-  ```
-
-- Run standalone with wayland and cage. On rpi4, disable dma buffer renderer for webkit to avoid black screen issues. This is a workaround and should be fixed in the future.
-
-  - install cage
-
-    ```bash
-    sudo apt install cage
-    ```
-
-  - run with wayland and cage
-  
-    ```bash
-    export WEBKIT_DISABLE_DMABUF_RENDERER=1
-    export GDK_BACKEND=wayland
-
-    cage -- klipper-touch -f             
-    ```
+Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
 
 ## Development
 
-### Prequisities
+Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
+For Windows without admin rights see [docs/windows-ohne-admin.md](docs/windows-ohne-admin.md).
 
-- Common
+```bash
+cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
+cargo run -p klipper-touch-slint -- -m http://127.0.0.1:7125
+cargo clippy --workspace --all-targets
+cargo test --workspace
+cargo run -p klipper-touch-slint --bin ui-snapshot -- --out shots   # render all screens to PNG (needs the fake)
+cargo run -p icon-index                                  # after changing icons in assets/icons
+```
 
-- Docker & Docker Compose
-  see: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-- NPM Package manager (Node 26 runtime)
-  see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
-  and use Node 26.x for local development and builds.
-- Tauri
-  see: [https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux](https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux)
+Structure, data flow and conventions: [docs/architecture.md](docs/architecture.md).
+Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 
-  If you are using Archlinux, you can skip the rust paragraph
+## License
 
-### Install dependencies on ArchLinux / WSL2 ArchLinux
-
-- Install docker and docker-compose
-
-  ```bash
-  pacman -S docker docker-compose
-  ```
-
-- Install rust (if skipped before)
-
-  ```bash
-  pacman -S rustup
-  rustup default stable
-  ```
-
-### Run or Build project local
-
-- Install dependencies in the project root folder with
-
-  ```bash
-  npm install && npm install --save-dev @tauri-apps/cli
-  ```
-
-- Run:
-
-  ```bash
-  npm run tauri dev
-  ```
-
-  or with custom moonraker urls
-
-  ```bash
-  npm run tauri dev -- -- -- -m "http://<moonraker-ip>" -w "ws://<moonraker-ip>/websocket"
-  ```
-
-  or configure your `config.json` in the local storage folder (e.g. `~/.config/klipper-touch/config.json`) with or on windows in `%APPDATA%\klipper-touch\config.json` with
-
-  ```json
-  {
-    "fullscreen": false,
-    "moonrakerApi": "http://<moonraker-ip>",
-    "moonrakerWs": "ws://<moonraker-ip>/websocket"
-  }
-  ```
-
-  and run without parameters
-
-  ```bash
-  npm run tauri dev
-  ```
-
-  or with fullscreen mode
-
-  ```bash
-  npm run tauri dev -- -- -- -f
-  ```
-
-- Build:
-
-  ```bash
-  npm run tauri build
-  ```
-
-### Test without a printer (Fake-Moonraker)
-
-`fake-moonraker` is a small simulated Klipper/Moonraker (WebSocket JSON-RPC and thumbnails over HTTP) with heaters, homing, moves, a demo file list and print jobs. It listens on `127.0.0.1:7125` only.
-
-- Start it (`--time-scale` speeds up heating and printing, default 10):
-
-  ```bash
-  cargo run --manifest-path fake-moonraker/Cargo.toml -- --port 7125 --time-scale 10
-  ```
-
-  `--profile` selects which modules the simulated printer has, as `printer.objects.list` and `configfile` report them: `basic`, `voron` (default, adds `quad_gantry_level`) or `happy-hare` (adds a simplified Happy Hare MMU, `--gates 1-16`, default 4; `MMU_HOME`, `MMU_SELECT`, `MMU_CHANGE_TOOL`, `T<n>`, `MMU_LOAD`, `MMU_UNLOAD`).
-
-- Start Klipper-Touch against it:
-
-  ```bash
-  npm run tauri dev -- -- -- -m "http://127.0.0.1:7125/" -w "ws://127.0.0.1:7125/websocket"
-  ```
-
-  In VS Code the launch configuration `Tauri Development Debug (Fake-Moonraker)` starts both.
-
-- Run its tests with `cargo test --manifest-path fake-moonraker/Cargo.toml`.
-
-### CrossCompile with docker
-
-- CrossCompile:
-
-  ```bash
-  pacman -S qemu-user-static docker-buildx
-  ```
-
-- Build debian bullseye arm32v7 package (RPi 32 bit)
-
-  ```bash
-  docker compose up klipper-touch_build_arm32v7
-  ```
-
-- Build debian bullseye arm64v8 package (RPi 64 bit)
-
-  ```bash
-  docker compose up klipper-touch_build_arm64v8
-  ```
-
-## Final words
-
-Feel free to create pull requests and discussions. I can't solve anything alone.
-
-Have fun!
-
-If you like, buy me a coffee
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F2F7GC8PC)
-
-freakyDude
+GPL-3.0-or-later, see [LICENSE](LICENSE). Slint is used under its GPLv3 option.
