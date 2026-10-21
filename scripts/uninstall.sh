@@ -1,9 +1,36 @@
 #!/bin/bash
-# Entfernt den Kiosk-Dienst und das Programm wieder; Pakete und Einstellungen bleiben.
+# Entfernt Dienst, Programmordner und den Eintrag im Moonraker-Update-Manager wieder.
+# Systempakete und Einstellungen (~/.config/klipper-touch) bleiben.
+# Aufruf: ./uninstall.sh [-d <printer_data>]
 set -euo pipefail
 
-sudo systemctl disable --now klipper-touch-slint.service || true
-sudo rm -f /etc/systemd/system/klipper-touch-slint.service /usr/local/bin/klipper-touch-slint
+NAME="klipper-touch"
+INSTALL_DIR="$HOME/$NAME"
+DATA_DIR="$HOME/printer_data"
+
+while getopts "d:" option; do
+  case $option in
+    d) DATA_DIR=$OPTARG ;;
+    *) echo "usage: $0 [-d printer_data]"; exit 2 ;;
+  esac
+done
+
+sudo systemctl disable --now "$NAME.service" || true
+sudo rm -f "/etc/systemd/system/$NAME.service"
 sudo systemctl daemon-reload
 sudo systemctl enable getty@tty1.service || true
-echo "Removed. Settings remain in ~/.config/klipper-touch-slint/."
+
+MOONRAKER_CONF="$DATA_DIR/config/moonraker.conf"
+ALLOWED_SERVICES="$DATA_DIR/moonraker.asvc"
+if [ -f "$MOONRAKER_CONF" ] && grep -q "^\[update_manager $NAME\]" "$MOONRAKER_CONF"; then
+  # Abschnitt bis zur naechsten Abschnittsueberschrift entfernen.
+  awk -v header="[update_manager $NAME]" '$0 == header {skip = 1; next} /^\[/ {skip = 0} !skip' \
+    "$MOONRAKER_CONF" > "$MOONRAKER_CONF.tmp" && mv "$MOONRAKER_CONF.tmp" "$MOONRAKER_CONF"
+  sudo systemctl restart moonraker || true
+fi
+if [ -f "$ALLOWED_SERVICES" ]; then
+  sed -i "/^$NAME\$/d" "$ALLOWED_SERVICES"
+fi
+
+rm -rf "$INSTALL_DIR"
+echo "Removed. Settings remain in ~/.config/$NAME/."
