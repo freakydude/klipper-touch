@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import Icon from '$lib/icons/Icon.svelte';
   import type { IFile } from '$lib/moonraker/types/IFile';
 
   const printstateSubscription = definePrinterObjects({
@@ -306,14 +307,14 @@
           onclick={() => clickLoad()}
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Load
+          <Icon name="print-load" label="Load" class="h-8 w-8" />
         </button>
         {#if $printStatsFilename !== ''}
           <button
             onclick={() => commands.startPrint($printStatsFilename)}
             class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           >
-            Start
+            <Icon name="print-start" label="Start" class="h-8 w-8" />
           </button>
         {/if}
       {:else if $printStatsState === 'printing'}
@@ -321,26 +322,26 @@
           onclick={() => commands.pausePrint()}
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Pause
+          <Icon name="print-pause" label="Pause" class="h-8 w-8" />
         </button>
         <button
           onclick={() => (confirmCancelPrint = true)}
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Cancel
+          <Icon name="print-cancel" label="Cancel" class="h-8 w-8" />
         </button>
       {:else if $printStatsState === 'paused'}
         <button
           onclick={() => commands.resumePrint()}
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Continue
+          <Icon name="print-resume" label="Continue" class="h-8 w-8" />
         </button>
         <button
           onclick={() => (confirmCancelPrint = true)}
           class="flex h-14 w-full items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Cancel
+          <Icon name="print-cancel" label="Cancel" class="h-8 w-8" />
         </button>
       {/if}
     </div>
@@ -358,14 +359,16 @@
             commands.cancelPrint();
             confirmCancelPrint = false;
           }}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
+          class="flex w-1/2 items-center justify-center gap-2 rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
         >
+          <Icon name="print-cancel" />
           Cancel
         </button>
         <button
           onclick={() => (confirmCancelPrint = false)}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+          class="flex w-1/2 items-center justify-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
+          <Icon name="ui-back" />
           Abort
         </button>
       </span>
@@ -428,7 +431,7 @@
           }}
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Up
+          <Icon name="ui-chevron-up" label="Up" class="h-8 w-8" />
         </button>
         <button
           onclick={() => {
@@ -436,7 +439,7 @@
           }}
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Down
+          <Icon name="ui-chevron-down" label="Down" class="h-8 w-8" />
         </button>
         <button
           onclick={() => {
@@ -444,7 +447,7 @@
           }}
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Sort
+          <Icon name="ui-sort" label="Sort" />
         </button>
         <button
           onclick={() => {
@@ -452,7 +455,7 @@
           }}
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Load
+          <Icon name="ui-check" label="Load" />
         </button>
         <button
           onclick={() => {
@@ -460,7 +463,7 @@
           }}
           class="flex items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Close
+          <Icon name="ui-close" label="Close" />
         </button>
       </div>
     </div>

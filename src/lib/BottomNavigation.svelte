@@ -3,6 +3,8 @@
   import { page } from '$app/state';
   import { commands, moonraker, values } from './base.svelte';
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
+  import Icon from '$lib/icons/Icon.svelte';
+  import { printStateIcon } from '$lib/icons/stateIcons';
 
   const subscription = definePrinterObjects({
     print_stats: ['state']
@@ -30,7 +32,7 @@
     {page.url.pathname === '/printstate' ? 'bg-neutral-500' : 'bg-neutral-600'} 
       px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
   >
-    State
+    <Icon name={printStateIcon($printStatsState)} label="State" />
   </a>
   {#if $printStatsState !== 'printing'}
     <a
@@ -39,7 +41,7 @@
        px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       href="/move"
     >
-      Move
+      <Icon name="nav-move" label="Move" />
     </a>
   {/if}
   <a
@@ -48,7 +50,7 @@
     {page.url.pathname === '/temperature' ? 'bg-neutral-500' : 'bg-neutral-600'} 
     px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
   >
-    Temp
+    <Icon name="nav-temperature" label="Temp" />
   </a>
   <a
     href="/babysteps"
@@ -56,7 +58,7 @@
     {page.url.pathname === '/babysteps' ? 'bg-neutral-500' : 'bg-neutral-600'} 
     px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
   >
-    Baby
+    <Icon name="calibration-z-offset" label="Baby" />
   </a>
   {#if $printStatsState !== 'printing'}
     <a
@@ -65,7 +67,7 @@
       {page.url.pathname === '/extrusion' ? 'bg-neutral-500' : 'bg-neutral-600'}       
       px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
     >
-      Extr
+      <Icon name="filament-extrude" label="Extr" />
     </a>
   {/if}
   <div class="flex grow items-end justify-end">
@@ -75,7 +77,7 @@
     onclick={() => (confirmKill = true)}
     class="flex w-16 items-center justify-center rounded-b-lg bg-neutral-600 px-3 py-2 font-semibold text-red-700 drop-shadow-md active:bg-red-500 disabled:opacity-50"
   >
-    Kill
+    <Icon name="system-emergency-stop" label="Kill" />
   </button>
 </div>
 {#if confirmKill}
@@ -88,14 +90,16 @@
             commands.emergencyStop();
             confirmKill = false;
           }}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
+          class="flex w-1/2 items-center justify-center gap-2 rounded-lg bg-red-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-neutral-500 disabled:opacity-50"
         >
+          <Icon name="system-emergency-stop" />
           Kill
         </button>
         <button
           onclick={() => (confirmKill = false)}
-          class="flex w-1/2 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+          class="flex w-1/2 items-center justify-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
+          <Icon name="ui-back" />
           Abort
         </button>
       </span>
