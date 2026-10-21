@@ -1,6 +1,6 @@
 import type { CliMatches } from '@tauri-apps/plugin-cli';
 import { load, type Store } from '@tauri-apps/plugin-store';
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
 
 export class BootParams {
   public moonrakerApi: Writable<URL> = writable(new URL('http://127.0.0.1'));
@@ -11,19 +11,23 @@ export class BootParams {
   public async loadStore() {
     const store = await load('config.json', {
       autoSave: false,
-      defaults: { moonrakerApi: this.moonrakerApi, moonrakerWs: this.moonrakerWs, fullscreen: this.fullscreen }
+      defaults: {
+        moonrakerApi: get(this.moonrakerApi).href,
+        moonrakerWs: get(this.moonrakerWs).href,
+        fullscreen: get(this.fullscreen)
+      }
     });
-    const moonrakerApi = await store.get<string>('moonrakerApi');
-    const moonrakerWs = await store.get<string>('moonrakerWs');
-    const fullscreen = await store.get<boolean>('fullscreen');
+    const moonrakerApi = await store.get<unknown>('moonrakerApi');
+    const moonrakerWs = await store.get<unknown>('moonrakerWs');
+    const fullscreen = await store.get<unknown>('fullscreen');
 
-    if (moonrakerApi) {
+    if (typeof moonrakerApi === 'string') {
       this.moonrakerApi.set(new URL(moonrakerApi));
     }
-    if (moonrakerWs) {
+    if (typeof moonrakerWs === 'string') {
       this.moonrakerWs.set(new URL(moonrakerWs));
     }
-    if (fullscreen !== undefined) {
+    if (typeof fullscreen === 'boolean') {
       this.fullscreen.set(fullscreen);
     }
   }
