@@ -3,3 +3,7 @@ target/
 *.drawio.bkp
 # Reste des frueheren Node-Stacks, falls lokal noch vorhanden
 node_modules
+# Lokale Editor-Assistenz, nicht veroeffentlichen
+/.github/skills/
+/.github/instructions/
+/.github/copilot-instructions.md
