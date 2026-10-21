@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import Icon from '$lib/icons/Icon.svelte';
 
   const moveSubscription = definePrinterObjects({
     toolhead: ['position', 'homed_axes', 'axis_maximum', 'axis_minimum'],
@@ -81,7 +82,7 @@
             onclick={() => commands.moveAbsolute(getAbsolutePosition(0, -stepsArr[selectedStep]), undefined, undefined)}
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           >
-            Left
+            <Icon name="motion-x-minus" label="Left" class="h-8 w-8" />
           </button>
 
           <span class="flex flex-col gap-3">
@@ -90,14 +91,14 @@
               onclick={() => commands.moveAbsolute(undefined, getAbsolutePosition(1, +stepsArr[selectedStep]), undefined)}
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             >
-              Back
+              <Icon name="motion-y-plus" label="Back" class="h-8 w-8" />
             </button>
             <button
               disabled={!isHomedXY}
               onclick={() => commands.moveAbsolute(undefined, getAbsolutePosition(1, -stepsArr[selectedStep]), undefined)}
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             >
-              Front
+              <Icon name="motion-y-minus" label="Front" class="h-8 w-8" />
             </button>
           </span>
 
@@ -106,7 +107,7 @@
             onclick={() => commands.moveAbsolute(getAbsolutePosition(0, +stepsArr[selectedStep]), undefined, undefined)}
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           >
-            Right
+            <Icon name="motion-x-plus" label="Right" class="h-8 w-8" />
           </button>
         </div>
       </div>
@@ -131,14 +132,14 @@
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             onclick={() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, +stepsArr[selectedStep]))}
           >
-            Up
+            <Icon name="motion-z-plus" label="Up" class="h-8 w-8" />
           </button>
           <button
             disabled={!isHomedZ}
             class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             onclick={() => commands.moveAbsolute(undefined, undefined, getAbsolutePosition(2, -stepsArr[selectedStep]))}
           >
-            Down
+            <Icon name="motion-z-minus" label="Down" class="h-8 w-8" />
           </button>
         </span>
       </div>
@@ -148,7 +149,7 @@
         onclick={() => commands.disableSteppers()}
         class="flex h-10 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        Off
+        <Icon name="motion-steppers-off" label="Off" />
       </button>
       <button
         onclick={() => commands.homeXY()}
@@ -156,7 +157,7 @@
           ? 'bg-neutral-500'
           : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        HomeXY
+        <Icon name="motion-home-xy" label="HomeXY" class="h-8 w-8" />
       </button>
       <button
         onclick={() => commands.homeZ(isHomedXY)}
@@ -164,7 +165,7 @@
           ? 'bg-neutral-500'
           : 'bg-neutral-600'}  px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        HomeZ
+        <Icon name="motion-home-z" label="HomeZ" class="h-8 w-8" />
       </button>
     </span>
   </div>

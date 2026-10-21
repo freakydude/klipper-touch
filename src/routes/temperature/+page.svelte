@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import Icon from '$lib/icons/Icon.svelte';
 
   const temperatureSubscription = definePrinterObjects({
     heater_bed: ['temperature', 'target'],
@@ -77,14 +78,14 @@
           onclick={() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Up
+          <Icon name="thermal-heating" label="Nozzle up" class="h-8 w-8" />
         </button>
 
         <button
           onclick={() => commands.setNozzleTemperature(getAbsoluteNozzleTemperature(-stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Down
+          <Icon name="thermal-cooling" label="Nozzle down" class="h-8 w-8" />
         </button>
       </div>
       <div class="flex flex-col items-center gap-2 rounded-lg bg-neutral-700 p-1">
@@ -105,14 +106,14 @@
           onclick={() => commands.setBedTemperature(getAbsoluteBedTemperature(stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Up
+          <Icon name="thermal-heating" label="Bed up" class="h-8 w-8" />
         </button>
 
         <button
           onclick={() => commands.setBedTemperature(getAbsoluteBedTemperature(-stepsArr[selectedStep]))}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Down
+          <Icon name="thermal-cooling" label="Bed down" class="h-8 w-8" />
         </button>
       </div>
     </div>
@@ -124,13 +125,13 @@
           commands.setBedTemperature(0);
         }}
       >
-        Off
+        <Icon name="thermal-off" label="Off" />
       </button>
       <button
         onclick={() => (preselectDialog = true)}
         class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-700 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        Preset
+        <Icon name="thermal-preset" label="Preset" class="h-8 w-8" />
       </button>
     </span>
   </div>
@@ -242,8 +243,9 @@
       <span class="flex flex-wrap justify-center gap-3">
         <button
           onclick={() => (preselectDialog = false)}
-          class="flex items-center justify-center rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
+          class="flex items-center justify-center gap-2 rounded-lg bg-neutral-600 px-4 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
+          <Icon name="ui-close" />
           Abort
         </button>
       </span>

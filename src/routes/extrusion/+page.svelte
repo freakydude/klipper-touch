@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import Icon from '$lib/icons/Icon.svelte';
 
   const extrusionSubscription = definePrinterObjects({
     extruder: ['temperature', 'target', 'can_extrude'],
@@ -77,7 +78,7 @@
           onclick={() => commands.extrude(-stepsArr[selectedStep], speedArr[selectedSpeed])}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Retract
+          <Icon name="filament-retract" label="Retract" class="h-8 w-8" />
         </button>
 
         <button
@@ -85,7 +86,7 @@
           onclick={() => commands.extrude(stepsArr[selectedStep], speedArr[selectedSpeed])}
           class="flex h-14 w-full items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Extrude
+          <Icon name="filament-extrude" label="Extrude" class="h-8 w-8" />
         </button>
       </div>
 
@@ -119,13 +120,13 @@
         disabled={true}
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        Load
+        <Icon name="filament-load" label="Load" class="h-8 w-8" />
       </button>
       <button
         disabled={true}
         class="flex h-14 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
       >
-        Unload
+        <Icon name="filament-unload" label="Unload" class="h-8 w-8" />
       </button>
     </span>
   </div>
