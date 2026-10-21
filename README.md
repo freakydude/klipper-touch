@@ -111,7 +111,7 @@ Without a desktop or compositor the optional cargo feature `linuxkms` renders di
 ## Development
 
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
-For Windows without admin rights see [docs/windows-ohne-admin.md](docs/windows-ohne-admin.md).
+For Windows without admin rights see [docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ```bash
 cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
