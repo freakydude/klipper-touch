@@ -10,6 +10,8 @@ export struct HeaterItem {
     temperature: float,
     target: float,
     power: float,
+    // Target is below Klipper's max_temp.
+    can-raise: bool,
 }
 
 export struct SensorItem {
@@ -184,6 +186,8 @@ export global Actions {
     callback disable-motors();
     callback level();
     callback set-heater(string, float);
+    // + or − by the step (with sign); respects Klipper's min_temp/max_temp.
+    callback step-heater(string, float);
     callback apply-preset(int);
     callback cool-down();
     callback set-part-fan(float);
@@ -324,7 +328,7 @@ export global StateIcons {
         if (state == "complete") { return Icons.state-complete; }
         if (state == "cancelled") { return Icons.state-cancelled; }
         if (state == "error") { return Icons.state-error; }
-        return Icons.state-standby;
+        return Icons.state-ready;
     }
 
     public pure function klippy-state(connection: string, state: string) -> image {

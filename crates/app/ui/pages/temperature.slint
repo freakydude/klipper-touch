@@ -62,12 +62,13 @@ component HeaterRow inherits Rectangle {
             width: 64px;
             icon: Icons.ui-minus;
             enabled: root.heater.target > 0;
-            clicked => { Actions.set-heater(root.heater.object, max(0, root.heater.target - root.step)); }
+            clicked => { Actions.step-heater(root.heater.object, -root.step); }
         }
         IconButton {
             width: 64px;
             icon: Icons.ui-plus;
-            clicked => { Actions.set-heater(root.heater.object, root.heater.target + root.step); }
+            enabled: root.heater.can-raise;
+            clicked => { Actions.step-heater(root.heater.object, root.step); }
         }
         IconButton {
             width: 64px;

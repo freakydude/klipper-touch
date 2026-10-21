@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
 
 export component SystemPage inherits Rectangle {
     init => { Actions.refresh-system(); }
@@ -116,23 +116,30 @@ export component SystemPage inherits Rectangle {
                 title: @tr("Updates");
                 icon: Icons.system-update;
                 vertical-stretch: 1;
-                for update in Printer.updates: HorizontalLayout {
-                    spacing: Theme.spacing;
-                    height: 48px;
-                    VerticalLayout {
-                        horizontal-stretch: 1;
-                        alignment: center;
-                        Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
-                        Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
-                    }
-                    IconButton {
-                        width: 112px;
-                        icon: Icons.system-update;
-                        icon-size: 20px;
-                        horizontal: true;
-                        text: @tr("Update");
-                        enabled: update.has-update && !Printer.is-printing;
-                        clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                update-list := ScrollList {
+                    property <length> row-pitch: 54px;
+                    vertical-stretch: 1;
+                    content-height: Printer.updates.length * self.row-pitch;
+                    for update[index] in Printer.updates: HorizontalLayout {
+                        y: index * update-list.row-pitch;
+                        width: update-list.row-width;
+                        height: 48px;
+                        spacing: Theme.spacing;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
+                            Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
+                        }
+                        IconButton {
+                            width: 112px;
+                            icon: Icons.system-update;
+                            icon-size: 20px;
+                            horizontal: true;
+                            text: @tr("Update");
+                            enabled: update.has-update && !Printer.is-printing;
+                            clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                        }
                     }
                 }
                 HorizontalLayout {

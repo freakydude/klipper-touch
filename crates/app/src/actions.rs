@@ -43,6 +43,13 @@ pub fn bind(
     actions.on_set_heater(move |heater, target| {
         heater_service.send(Command::SetHeaterTarget { heater: heater.into(), target: f64::from(target) });
     });
+    let (step_service, step_presenter) = (service.clone(), Rc::clone(presenter));
+    actions.on_step_heater(move |object, step| {
+        if let Some(heater) = step_presenter.snapshot().status.heater(&object) {
+            let target = heater.stepped_target(f64::from(step));
+            step_service.send(Command::SetHeaterTarget { heater: object.into(), target });
+        }
+    });
     let (preset_service, preset_settings, preset_presenter) =
         (service.clone(), Rc::clone(settings), Rc::clone(presenter));
     actions.on_apply_preset(move |index| {

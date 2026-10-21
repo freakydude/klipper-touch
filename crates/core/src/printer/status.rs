@@ -166,6 +166,27 @@ pub struct Heater {
     pub temperature: f64,
     pub target: f64,
     pub power: f64,
+    /// `min_temp`/`max_temp` from the Klipper configuration; Klipper rejects targets outside (except 0 = off).
+    pub min_temp: f64,
+    pub max_temp: Option<f64>,
+}
+
+impl Heater {
+    /// Target after pressing + or − (`step` with sign): jumps over the forbidden range between off and
+    /// `min_temp` and stops at `max_temp`.
+    pub fn stepped_target(&self, step: f64) -> f64 {
+        let maximum = self.max_temp.unwrap_or(f64::INFINITY);
+        let next = (self.target + step).min(maximum);
+        if next <= 0.0 || (step < 0.0 && next < self.min_temp) {
+            0.0
+        } else {
+            next.max(self.min_temp)
+        }
+    }
+
+    pub fn can_raise(&self) -> bool {
+        self.max_temp.is_none_or(|maximum| self.target < maximum)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -273,6 +294,8 @@ fn read_extruder(extruder: &Value) -> ExtruderState {
 }
 
 fn read_heaters(store: &ObjectStore) -> Vec<Heater> {
+    let settings = store.object("configfile").and_then(|configfile| configfile.get("settings"));
+    let heater = |name: &str, value: &Value| heater(name, value, settings.and_then(|settings| settings.get(name)));
     let mut heaters: Vec<Heater> = ["extruder", "heater_bed"]
         .into_iter()
         .filter_map(|name| store.object(name).map(|value| heater(name, value)))
@@ -292,13 +315,16 @@ fn is_extra_heater(name: &str) -> bool {
         || (name.starts_with("extruder") && name != "extruder" && !name.contains(' '))
 }
 
-fn heater(object: &str, value: &Value) -> Heater {
+fn heater(object: &str, value: &Value, settings: Option<&Value>) -> Heater {
+    let settings = settings.unwrap_or(&Value::Null);
     Heater {
         object: object.to_owned(),
         label: label(object),
         temperature: number(value, "temperature"),
         target: number(value, "target"),
         power: number(value, "power"),
+        min_temp: number(settings, "min_temp").max(0.0),
+        max_temp: settings.get("max_temp").and_then(Value::as_f64),
     }
 }
 
@@ -434,6 +460,38 @@ mod tests {
         assert!(status.heaters.is_empty());
         assert_eq!(status.part_fan_speed, None);
         assert_eq!(status.leveling_applied, None);
+    }
+
+    #[test]
+    fn reads_heater_limits_from_the_configuration() {
+        let status = PrinterStatus::from_store(&store(json!({
+            "extruder": { "temperature": 20.0, "target": 0.0 },
+            "heater_bed": { "temperature": 20.0, "target": 0.0 },
+            "configfile": { "settings": { "extruder": { "min_temp": 10.0, "max_temp": 280.0 } } }
+        })));
+
+        let nozzle = status.heater("extruder").unwrap();
+        assert_eq!((nozzle.min_temp, nozzle.max_temp), (10.0, Some(280.0)));
+        let bed = status.heater("heater_bed").unwrap();
+        assert_eq!((bed.min_temp, bed.max_temp), (0.0, None));
+    }
+
+    #[test]
+    fn steps_skip_the_range_below_min_temp_and_stop_at_max_temp() {
+        let heater = |target| Heater { target, min_temp: 40.0, max_temp: Some(280.0), ..Heater::default() };
+
+        assert_eq!(heater(0.0).stepped_target(5.0), 40.0);
+        assert_eq!(heater(40.0).stepped_target(5.0), 45.0);
+        assert_eq!(heater(45.0).stepped_target(-10.0), 0.0);
+        assert_eq!(heater(60.0).stepped_target(-10.0), 50.0);
+        assert_eq!(heater(0.0).stepped_target(-5.0), 0.0);
+        assert_eq!(heater(275.0).stepped_target(10.0), 280.0);
+        assert_eq!(heater(300.0).stepped_target(-5.0), 280.0);
+        assert!(!heater(280.0).can_raise());
+
+        let unlimited = Heater { target: 0.0, ..Heater::default() };
+        assert_eq!(unlimited.stepped_target(5.0), 5.0);
+        assert!(unlimited.can_raise());
     }
 
     #[test]

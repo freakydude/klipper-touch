@@ -3,7 +3,7 @@
 use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, MmuCommand, Move};
 use crate::happy_hare::HappyHare;
-use crate::machine::MachineProfile;
+use crate::machine::{MachineProfile, FILAMENT_SENSORS};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
 
@@ -13,6 +13,7 @@ const COOL_RATE_PER_SECOND: f64 = 0.5;
 const MIN_EXTRUDE_TEMPERATURE: f64 = 170.0;
 const MAX_EXTRUDER_TARGET: f64 = 300.0;
 const MAX_BED_TARGET: f64 = 120.0;
+const MIN_HEATER_TEMPERATURE: f64 = 10.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
 /// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
@@ -90,9 +91,10 @@ impl Heater {
     }
 
     fn set_target(&mut self, target: f64, maximum: f64) -> Result<(), CommandError> {
-        if !(0.0..=maximum).contains(&target) {
+        // Like Klipper: 0 switches off, everything else must lie within min_temp..=max_temp.
+        if target != 0.0 && !(MIN_HEATER_TEMPERATURE..=maximum).contains(&target) {
             return Err(CommandError::new(format!(
-                "Requested temperature ({target:.1}) out of range (0.0:{maximum:.1})"
+                "Requested temperature ({target:.1}) out of range ({MIN_HEATER_TEMPERATURE:.1}:{maximum:.1})"
             )));
         }
         self.target = target;
@@ -283,6 +285,9 @@ impl Printer {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
         objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        for (index, name) in FILAMENT_SENSORS.iter().take(self.profile.filament_sensors).enumerate() {
+            objects.insert((*name).to_owned(), json!({ "enabled": true, "filament_detected": index != 1 }));
+        }
         for name in MACROS {
             objects.insert(format!("gcode_macro {name}"), json!({}));
         }
@@ -351,10 +356,21 @@ impl Printer {
             .insert("printer".to_owned(), json!({ "kinematics": "corexy", "max_velocity": 300, "max_accel": 3000 }));
         sections.insert(
             "extruder".to_owned(),
-            json!({ "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE, "max_temp": MAX_EXTRUDER_TARGET }),
+            json!({
+                "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE,
+                "min_temp": MIN_HEATER_TEMPERATURE,
+                "max_temp": MAX_EXTRUDER_TARGET
+            }),
         );
-        sections.insert("heater_bed".to_owned(), json!({ "max_temp": MAX_BED_TARGET }));
+        sections
+            .insert("heater_bed".to_owned(), json!({ "min_temp": MIN_HEATER_TEMPERATURE, "max_temp": MAX_BED_TARGET }));
         sections.insert("fan".to_owned(), json!({}));
+        if self.chamber.is_some() {
+            sections.insert(
+                "heater_generic chamber".to_owned(),
+                json!({ "min_temp": MIN_HEATER_TEMPERATURE, "max_temp": MAX_CHAMBER_TARGET }),
+            );
+        }
         if self.profile.quad_gantry_level {
             sections.insert("quad_gantry_level".to_owned(), json!({ "max_adjust": 10 }));
         }
@@ -605,7 +621,7 @@ mod tests {
     fn rejects_temperature_above_limit() {
         let error = run(&mut printer(), "M104 S350").unwrap_err();
 
-        assert_eq!(error.message(), "Requested temperature (350.0) out of range (0.0:300.0)");
+        assert_eq!(error.message(), "Requested temperature (350.0) out of range (10.0:300.0)");
     }
 
     #[test]

@@ -357,6 +357,7 @@ fn heater_item(heater: &Heater) -> HeaterItem {
         temperature: heater.temperature as f32,
         target: heater.target as f32,
         power: heater.power as f32,
+        can_raise: heater.can_raise(),
     }
 }
 

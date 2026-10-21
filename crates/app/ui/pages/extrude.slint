@@ -59,9 +59,17 @@ export component ExtrudePage inherits Rectangle {
                 if Printer.filament-sensors.length > 0: Card {
                     title: @tr("Filament sensors");
                     icon: Icons.filament-sensor;
-                    HorizontalLayout {
-                        spacing: 16px;
-                        for sensor in Printer.filament-sensors: IconLabel {
+                    // Grid with equal columns, so every name gets the same width.
+                    sensor-grid := Rectangle {
+                        property <int> columns: max(1, min(Printer.filament-sensors.length, floor(self.width / 180px)));
+                        property <length> cell-width: (self.width - (self.columns - 1) * Theme.spacing) / self.columns;
+                        property <length> row-height: 26px;
+                        height: ceil(Printer.filament-sensors.length / self.columns) * self.row-height;
+                        for sensor[index] in Printer.filament-sensors: IconLabel {
+                            x: mod(index, sensor-grid.columns) * (sensor-grid.cell-width + Theme.spacing);
+                            y: floor(index / sensor-grid.columns) * sensor-grid.row-height;
+                            width: sensor-grid.cell-width;
+                            height: sensor-grid.row-height;
                             icon: !sensor.enabled ? Icons.ui-minus : sensor.detected ? Icons.ui-check : Icons.filament-runout;
                             text: sensor.label;
                             color: !sensor.enabled ? Theme.muted : sensor.detected ? Theme.success : Theme.warning;

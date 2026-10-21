@@ -72,6 +72,10 @@ impl Host {
                 "system": { "name": "system", "configured_type": "system", "package_count": 2, "package_list": ["libc6", "openssl"] },
                 "moonraker": { "name": "moonraker", "configured_type": "git_repo", "version": "v0.9.3-50", "remote_version": "v0.9.3-50", "is_valid": true, "commits_behind_count": 0 },
                 "klipper": { "name": "klipper", "configured_type": "git_repo", "version": klipper_version, "remote_version": "v0.13.0-120", "is_valid": true, "commits_behind_count": if self.klipper_updated { 0 } else { 20 } },
+                "mainsail": { "name": "mainsail", "configured_type": "web", "version": "v2.14.0", "remote_version": "v2.14.0" },
+                "crowsnest": { "name": "crowsnest", "configured_type": "git_repo", "version": "v4.1.12", "remote_version": "v4.1.12", "is_valid": true, "commits_behind_count": 0 },
+                "moonraker-timelapse": { "name": "moonraker-timelapse", "configured_type": "git_repo", "version": "v0.0.1-150", "remote_version": "v0.0.1-150", "is_valid": true, "commits_behind_count": 0 },
+                "klipper-touch": { "name": "klipper-touch", "configured_type": "zip", "version": "v0.2.3", "remote_version": "v0.2.3" },
             }
         })
     }
