@@ -4,7 +4,8 @@ members = ["crates/core", "crates/app", "crates/icon-index", "fake-moonraker"]
 default-members = ["crates/app"]
 
 [workspace.package]
-version = "0.2.0"
+# Release versions come from git tags (.github/scripts/version.sh); local builds report this one with "-dev".
+version = "0.0.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/freakydude/klipper-touch"

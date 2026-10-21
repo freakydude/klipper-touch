@@ -247,7 +247,7 @@ impl<'a> Session<'a> {
     async fn introduce(&mut self) -> Result<(), CallError> {
         let identity = json!({
             "client_name": CLIENT_NAME,
-            "version": env!("CARGO_PKG_VERSION"),
+            "version": crate::VERSION,
             "type": "display",
             "url": env!("CARGO_PKG_REPOSITORY"),
         });

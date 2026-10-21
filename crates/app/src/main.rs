@@ -8,7 +8,7 @@ use std::process::ExitCode;
 
 /// Touch screen UI for Klipper printers via Moonraker.
 #[derive(Debug, Parser)]
-#[command(version, about)]
+#[command(version = klipper_touch_core::VERSION, about)]
 struct Cli {
     /// Moonraker address for this start, e.g. http://printer.local:7125 (default: saved setting)
     #[arg(short, long)]

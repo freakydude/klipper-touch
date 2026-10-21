@@ -14,3 +14,9 @@ pub use commands::Command;
 pub use moonraker::Endpoint;
 pub use service::{ConnectionState, Event, PrinterService, Query, ServiceChannels, Snapshot};
 pub use settings::{Settings, SettingsStore};
+
+/// Version of this build: set by CI from git tags, otherwise the crate version marked as a local build.
+pub const VERSION: &str = match option_env!("KLIPPER_TOUCH_VERSION") {
+    Some(version) => version,
+    None => concat!(env!("CARGO_PKG_VERSION"), "-dev"),
+};

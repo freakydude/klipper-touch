@@ -59,7 +59,7 @@ impl SettingsController {
         ui.set_extrude_length(settings.steps.extrude_mm as f32);
         ui.set_extrude_speed(settings.steps.extrude_speed as f32);
         ui.set_settings_file(self.store.path().display().to_string().into());
-        ui.set_version(env!("CARGO_PKG_VERSION").into());
+        ui.set_version(klipper_touch_core::VERSION.into());
         self.presets.set_vec(settings.temperature_presets.iter().map(preset_item).collect::<Vec<_>>());
         ui.set_presets(ModelRc::from(self.presets.clone()));
     }

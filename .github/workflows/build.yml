@@ -3,9 +3,15 @@ name: Build
 # Reusable: tests and release builds for all target platforms; results as artifacts.
 on:
   workflow_call:
+    inputs:
+      version:
+        description: "Version baked into the binaries (see .github/scripts/version.sh)"
+        type: string
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
+  KLIPPER_TOUCH_VERSION: ${{ inputs.version }}
 
 jobs:
   check:
