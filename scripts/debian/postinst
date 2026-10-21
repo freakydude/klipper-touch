@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ] && [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  echo "klipper-touch installed. Start it in kiosk mode on tty1 for user <name>:"
+  echo "  sudo systemctl enable --now klipper-touch@<name>"
+fi

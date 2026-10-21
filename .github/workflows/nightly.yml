@@ -69,7 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" artifacts/*.zip \
+          gh release create "$TAG" artifacts/*.zip artifacts/*.deb \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "Nightly $(date -u +%Y-%m-%d) ($(git rev-parse --short HEAD))" \

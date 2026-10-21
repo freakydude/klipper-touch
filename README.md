@@ -57,6 +57,22 @@ Functions only appear when the printer has them (capabilities from `printer.obje
    Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c beta` for nightly builds.
    Remove everything with `~/klipper-touch/uninstall.sh`; settings stay in `~/.config/klipper-touch`.
 
+### Alternative: Debian package
+
+Each release also contains `klipper-touch_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs the
+dependencies, removes the package cleanly, but Moonraker does **not** update it — install newer `.deb` files yourself.
+Use either the zip installer or the package, not both (they would compete for `tty1`).
+
+```bash
+sudo apt install ./klipper-touch_0.3.0_arm64.deb
+sudo systemctl disable getty@tty1                # free tty1 for the kiosk
+sudo systemctl enable --now klipper-touch@$USER  # fullscreen on tty1 as this user
+# remove again (stops and disables all klipper-touch@ instances)
+sudo apt remove klipper-touch && sudo systemctl enable getty@tty1
+```
+
+The Moonraker address is taken from the settings (default `http://127.0.0.1:7125`, changeable on the Settings page).
+
 On a desktop (e.g. Raspberry Pi OS with desktop, Windows, Linux PC) simply start the binary; it opens as a normal window.
 
 ### Updates
@@ -118,7 +134,8 @@ Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 
 - Every push and pull request: format, clippy, tests and builds for all targets (`.github/workflows/ci.yml`),
   with cargo caching.
-- Release assets: one zip per target. Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
+- Release assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
+  `scripts/debian`). Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
   `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `klipper-touch.exe`.
 - Nightly: at 02:00 UTC `main` is published as prerelease `nightly-<date>-<commit>`, replacing the previous one, only
   if `main` changed (`.github/workflows/nightly.yml`, manual run with `force` possible).
