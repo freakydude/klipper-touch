@@ -76,7 +76,7 @@ flowchart LR
   `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) mit Software-Renderer als Ausweichlösung
   (`SLINT_BACKEND=winit-software`).
 - Optional ohne Compositor: Cargo-Feature `linuxkms` (in Slint als experimentell markiert).
-- Builds für `aarch64`, `armv7` und `x86_64` laufen in CI in einem Debian-Bullseye-Container (älteste glibc).
+- Builds für `aarch64`, `armv7` und `x86_64` laufen in CI in einem Debian-Bookworm-Container (älteste noch gepflegte glibc).
 
 ## Erweitern
 

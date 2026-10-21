@@ -32,7 +32,7 @@ Functions only appear when the printer has them (capabilities from `printer.obje
 
 1. Download the archive for your system from the [releases](https://github.com/freakydude/klipper-touch/releases):
    `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
-   Builds target Debian Bullseye and run on Bookworm and Trixie.
+   Builds target Debian Bookworm and run on Bookworm and Trixie.
 2. Unpack and run the installer as your normal user:
 
    ```bash

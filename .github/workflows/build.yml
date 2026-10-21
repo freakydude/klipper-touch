@@ -39,8 +39,9 @@ jobs:
   linux:
     name: Linux ${{ matrix.target }}
     runs-on: ubuntu-latest
-    # Debian Bullseye: aelteste unterstuetzte glibc, damit das Programm auch auf Bookworm und Trixie laeuft.
-    container: debian:bullseye
+    # Debian Bookworm: aelteste noch gepflegte glibc (2.36), damit das Programm auch auf Trixie laeuft.
+    # Bullseye geht nicht mehr: nach LTS-Ende fehlen Pakete aus bullseye-security im Pool (404).
+    container: debian:bookworm
     strategy:
       fail-fast: false
       matrix:
