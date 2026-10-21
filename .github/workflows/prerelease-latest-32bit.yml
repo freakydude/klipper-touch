@@ -12,7 +12,7 @@ env:
   releaseName: prerelease-latest
   preRelease: true
   CARGO_TERM_COLOR: always
-  nodeVersion: 22.22.2
+  nodeVersion: 26.7.0
 jobs:
   release-armv7:
     permissions:
@@ -65,7 +65,7 @@ jobs:
             node -v
             npm -v
 
-            # armv7 uses Node 22 as a legacy fallback while project baseline is Node 24.
+            # armv7 uses the same Node 26 baseline as the rest of the project.
             npm config set engine-strict false
             npm ci
 

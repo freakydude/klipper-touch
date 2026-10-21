@@ -45,7 +45,7 @@
   });
 
   $effect(() => {
-    let stepIdx = stepsArr.indexOf($valuesStepsExtrusionSpeed);
+    let stepIdx = speedArr.indexOf($valuesStepsExtrusionSpeed);
     if (stepIdx != -1) {
       selectedSpeed = stepIdx;
     } else {

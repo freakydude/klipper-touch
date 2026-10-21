@@ -7,6 +7,8 @@
     "*.css": "tailwindcss"
   },
   "prettier.documentSelectors": ["**/*.svelte"],
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.linkedProjects": ["src-tauri/Cargo.toml", "egui-hello/Cargo.toml", "fake-moonraker/Cargo.toml"],
   "svelte.enable-ts-plugin": true,
   "tailwindCSS.emmetCompletions": true
 }

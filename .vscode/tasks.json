@@ -1,25 +1,48 @@
 {
+  "version": "2.0.0",
   "tasks": [
     {
       "label": "ui:dev",
       "type": "shell",
-      // `dev` keeps running in the background
-      // ideally you should also configure a `problemMatcher`
-      // see https://code.visualstudio.com/docs/editor/tasks#_can-a-background-task-be-used-as-a-prelaunchtask-in-launchjson
-      "isBackground": true,
-      // change this to your `beforeDevCommand`:
       "command": "npm",
-      "args": ["run", "dev"]
+      "args": ["run", "dev"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE v",
+          "endsPattern": "Local:\\s+http"
+        }
+      }
     },
     {
       "label": "ui:build",
       "type": "shell",
-      // change this to your `beforeBuildCommand`:
       "command": "npm",
       "args": ["run", "build"]
+    },
+    {
+      "label": "fake-moonraker",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["run", "--manifest-path", "fake-moonraker/Cargo.toml"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "fake-moonraker",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*$",
+          "endsPattern": "Fake-Moonraker listening"
+        }
+      }
+    },
+    {
+      "label": "dev:fake",
+      "dependsOn": ["ui:dev", "fake-moonraker"],
+      "dependsOrder": "parallel"
     }
-  ],
-  // See https://go.microsoft.com/fwlink/?LinkId=733558
-  // for the documentation about the tasks.json format
-  "version": "2.0.0"
+  ]
 }

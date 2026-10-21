@@ -10,3 +10,9 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 *.drawio.bkp
+
+# egui-Beispiel
+/egui-hello/target
+
+# Fake-Moonraker
+/fake-moonraker/target

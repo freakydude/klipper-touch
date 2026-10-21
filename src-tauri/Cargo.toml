@@ -15,7 +15,8 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "tauri_app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# cdylib/staticlib nur fuer Mobile; die GNU-DLL sprengt auf Windows das Limit von 65535 Exports.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.6.0", features = [] }

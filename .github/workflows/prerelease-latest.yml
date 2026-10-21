@@ -12,7 +12,7 @@ env:
   releaseName: prerelease-latest
   preRelease: true
   CARGO_TERM_COLOR: always
-  nodeVersion: 24.15.0
+  nodeVersion: 26.7.0
 jobs:
   release-amd64:
     permissions:

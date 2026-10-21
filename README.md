@@ -122,8 +122,9 @@ And yes, help and improve if you find something.
 
 - Docker & Docker Compose
   see: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-- NPM Package manager (nodejs installation)
+- NPM Package manager (Node 26 runtime)
   see: [https://github.com/nodesource/distributions#installation-instructions](https://github.com/nodesource/distributions#installation-instructions)
+  and use Node 26.x for local development and builds.
 - Tauri
   see: [https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux](https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux)
 
@@ -191,6 +192,28 @@ And yes, help and improve if you find something.
   ```bash
   npm run tauri build
   ```
+
+### Test without a printer (Fake-Moonraker)
+
+`fake-moonraker` is a small simulated Klipper/Moonraker (WebSocket JSON-RPC and thumbnails over HTTP) with heaters, homing, moves, a demo file list and print jobs. It listens on `127.0.0.1:7125` only.
+
+- Start it (`--time-scale` speeds up heating and printing, default 10):
+
+  ```bash
+  cargo run --manifest-path fake-moonraker/Cargo.toml -- --port 7125 --time-scale 10
+  ```
+
+  `--profile` selects which modules the simulated printer has, as `printer.objects.list` and `configfile` report them: `basic`, `voron` (default, adds `quad_gantry_level`) or `happy-hare` (adds a simplified Happy Hare MMU, `--gates 1-16`, default 4; `MMU_HOME`, `MMU_SELECT`, `MMU_CHANGE_TOOL`, `T<n>`, `MMU_LOAD`, `MMU_UNLOAD`).
+
+- Start Klipper-Touch against it:
+
+  ```bash
+  npm run tauri dev -- -- -- -m "http://127.0.0.1:7125/" -w "ws://127.0.0.1:7125/websocket"
+  ```
+
+  In VS Code the launch configuration `Tauri Development Debug (Fake-Moonraker)` starts both.
+
+- Run its tests with `cargo test --manifest-path fake-moonraker/Cargo.toml`.
 
 ### CrossCompile with docker
 

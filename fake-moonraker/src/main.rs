@@ -1,0 +1,107 @@
+use fake_moonraker::machine::MachineProfile;
+use fake_moonraker::server::{serve, ServerConfig};
+use std::process::ExitCode;
+use std::time::Duration;
+use tokio::net::TcpListener;
+
+const DEFAULT_PORT: u16 = 7125;
+const DEFAULT_TIME_SCALE: f64 = 10.0;
+const DEFAULT_MMU_GATES: usize = 4;
+const USAGE: &str = "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare] [--gates <1-16>]";
+
+enum Profile {
+    Basic,
+    Voron,
+    HappyHare,
+}
+
+struct Options {
+    port: u16,
+    time_scale: f64,
+    profile: Profile,
+    gates: usize,
+}
+
+impl Options {
+    fn machine_profile(&self) -> MachineProfile {
+        match self.profile {
+            Profile::Basic => MachineProfile::basic(),
+            Profile::Voron => MachineProfile::voron(),
+            Profile::HappyHare => MachineProfile::happy_hare(self.gates),
+        }
+    }
+}
+
+fn parse_options(mut args: impl Iterator<Item = String>) -> Result<Options, String> {
+    let mut options = Options {
+        port: DEFAULT_PORT,
+        time_scale: DEFAULT_TIME_SCALE,
+        profile: Profile::Voron,
+        gates: DEFAULT_MMU_GATES,
+    };
+
+    while let Some(flag) = args.next() {
+        let value = args.next().ok_or_else(|| format!("missing value for {flag}"))?;
+        match flag.as_str() {
+            "--port" => options.port = value.parse().map_err(|_| format!("invalid port '{value}'"))?,
+            "--time-scale" => options.time_scale = parse_time_scale(&value)?,
+            "--profile" => options.profile = parse_profile(&value)?,
+            "--gates" => options.gates = parse_gates(&value)?,
+            _ => return Err(format!("unknown option '{flag}'")),
+        }
+    }
+    Ok(options)
+}
+
+fn parse_profile(value: &str) -> Result<Profile, String> {
+    match value {
+        "basic" => Ok(Profile::Basic),
+        "voron" => Ok(Profile::Voron),
+        "happy-hare" => Ok(Profile::HappyHare),
+        _ => Err(format!("unknown profile '{value}'")),
+    }
+}
+
+fn parse_gates(value: &str) -> Result<usize, String> {
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|gates| (1..=MachineProfile::MAX_MMU_GATES).contains(gates))
+        .ok_or_else(|| format!("invalid gate count '{value}'"))
+}
+
+fn parse_time_scale(value: &str) -> Result<f64, String> {
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|scale| scale.is_finite() && *scale > 0.0)
+        .ok_or_else(|| format!("invalid time scale '{value}'"))
+}
+
+async fn run() -> Result<(), String> {
+    let options = parse_options(std::env::args().skip(1))?;
+    let listener = TcpListener::bind(("127.0.0.1", options.port))
+        .await
+        .map_err(|error| format!("cannot listen on port {}: {error}", options.port))?;
+
+    println!("Fake-Moonraker listening. Start Klipper-Touch with:");
+    println!("  -m http://127.0.0.1:{0}/ -w ws://127.0.0.1:{0}/websocket", options.port);
+
+    let config = ServerConfig {
+        time_scale: options.time_scale,
+        status_interval: Duration::from_millis(250),
+        profile: options.machine_profile(),
+    };
+    serve(listener, config).await.map_err(|error| error.to_string())
+}
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    match run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("{message}\n{USAGE}");
+            ExitCode::FAILURE
+        }
+    }
+}
