@@ -1,0 +1,268 @@
+// Gemeinsame Daten zwischen Rust und UI. Rust schreibt `Printer` und `UiSettings`, die UI ruft `Actions`.
+
+import { Icons } from "icons.slint";
+
+export enum Page { print, move, temperature, tune, extrude, macros, console, system, settings }
+
+export struct HeaterItem {
+    object: string,
+    label: string,
+    temperature: float,
+    target: float,
+    power: float,
+}
+
+export struct SensorItem {
+    label: string,
+    temperature: float,
+}
+
+export struct FilamentSensorItem {
+    label: string,
+    enabled: bool,
+    detected: bool,
+}
+
+export struct FileItem {
+    path: string,
+    name: string,
+    detail: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+}
+
+export struct ConsoleItem {
+    text: string,
+    time: string,
+    is-command: bool,
+    is-error: bool,
+}
+
+export struct PowerItem {
+    name: string,
+    on: bool,
+    locked: bool,
+}
+
+export struct UpdateItem {
+    name: string,
+    version: string,
+    detail: string,
+    has-update: bool,
+}
+
+export struct PresetItem {
+    name: string,
+    extruder: float,
+    bed: float,
+}
+
+export global Printer {
+    // Verbindung: connection = connecting | connected | disconnected; klippy-state wie Moonraker.
+    in property <string> connection: "connecting";
+    in property <string> klippy-state: "disconnected";
+    in property <string> klippy-message;
+    in property <string> endpoint;
+    in property <bool> ready;
+
+    // Druckauftrag (print_stats.state)
+    in property <string> print-state: "standby";
+    in property <string> filename;
+    in property <string> job-name;
+    in property <float> progress;
+    in property <string> elapsed;
+    in property <string> remaining;
+    in property <string> eta;
+    in property <string> layers;
+    in property <string> filament;
+    in property <string> job-message;
+    in property <image> job-thumbnail;
+    in property <bool> has-job-thumbnail;
+
+    // Bewegung
+    in property <float> position-x;
+    in property <float> position-y;
+    in property <float> position-z;
+    in property <bool> homed-x;
+    in property <bool> homed-y;
+    in property <bool> homed-z;
+    in property <float> z-offset;
+    in property <float> speed-factor: 100;
+    in property <float> extrude-factor: 100;
+    in property <float> pressure-advance;
+    in property <float> live-velocity;
+    in property <float> live-flow;
+
+    // Temperaturen und Lüfter
+    in property <[HeaterItem]> heaters;
+    in property <[SensorItem]> sensors;
+    in property <float> nozzle-temperature;
+    in property <float> nozzle-target;
+    in property <bool> has-bed;
+    in property <float> bed-temperature;
+    in property <float> bed-target;
+    in property <bool> has-part-fan;
+    in property <float> part-fan;
+    in property <bool> can-extrude;
+    in property <[FilamentSensorItem]> filament-sensors;
+
+    // Fähigkeiten
+    in property <bool> can-quad-gantry-level;
+    in property <bool> can-z-tilt;
+    in property <bool> has-probe;
+    in property <bool> has-load-macro;
+    in property <bool> has-unload-macro;
+    in property <bool> has-power;
+    in property <bool> has-update-manager;
+    in property <bool> save-config-pending;
+    in property <string> leveling-state;
+
+    // Listen
+    in property <[string]> macros;
+    in property <[FileItem]> files;
+    in property <bool> files-loading;
+    in property <[ConsoleItem]> console;
+    in property <[PowerItem]> power-devices;
+    in property <[UpdateItem]> updates;
+
+    in property <string> clock;
+    in property <string> notice;
+    in property <bool> notice-is-error;
+
+    out property <bool> is-printing: print-state == "printing" || print-state == "paused";
+    out property <bool> homed-xy: homed-x && homed-y;
+}
+
+export global UiSettings {
+    in-out property <string> moonraker;
+    in-out property <bool> fullscreen;
+    in-out property <float> move-step: 10;
+    in-out property <float> z-offset-step: 0.025;
+    in-out property <float> temperature-step: 5;
+    in-out property <float> extrude-length: 10;
+    in-out property <float> extrude-speed: 5;
+    in-out property <[PresetItem]> presets;
+    in property <string> settings-file;
+    in property <string> version;
+
+    // Rust speichert nach jeder Änderung.
+    callback steps-changed();
+    callback moonraker-entered(string);
+    callback fullscreen-toggled(bool);
+    callback preset-changed(int, float, float);
+}
+
+export global Actions {
+    callback home(bool, bool, bool);
+    callback jog(string, float);
+    callback disable-motors();
+    callback level();
+    callback set-heater(string, float);
+    callback apply-preset(int);
+    callback cool-down();
+    callback set-part-fan(float);
+    callback adjust-z-offset(float);
+    callback reset-z-offset();
+    callback apply-z-offset();
+    callback save-config();
+    callback set-speed-factor(float);
+    callback set-extrude-factor(float);
+    callback set-pressure-advance(float);
+    callback extrude(float, float);
+    callback load-filament();
+    callback unload-filament();
+    callback run-macro(string);
+    callback run-gcode(string);
+    callback refresh-files();
+    callback start-print(string);
+    callback pause-print();
+    callback resume-print();
+    callback cancel-print();
+    callback emergency-stop();
+    callback restart-klipper();
+    callback firmware-restart();
+    callback refresh-system();
+    callback set-power(string, bool);
+    callback restart-service(string);
+    callback reboot-host();
+    callback shutdown-host();
+    callback refresh-updates();
+    callback upgrade(string);
+    callback load-console();
+}
+
+// Textbearbeitung für die Bildschirmtastatur (Slint hat keine Teilstring-Funktion).
+export global TextTools {
+    pure callback remove-last(string) -> string;
+}
+
+export global Navigation {
+    in-out property <Page> page: Page.print;
+    in-out property <bool> files-open;
+}
+
+// Bestätigungsdialog: Seiten setzen Text und Aktion, `execute` führt die Aktion nach dem OK aus.
+export global Confirm {
+    in-out property <bool> open;
+    in-out property <string> title;
+    in-out property <string> message;
+    in-out property <string> action;
+    in-out property <string> argument;
+    in-out property <bool> danger;
+
+    public function ask(title: string, message: string, action: string, argument: string, danger: bool) {
+        self.title = title;
+        self.message = message;
+        self.action = action;
+        self.argument = argument;
+        self.danger = danger;
+        self.open = true;
+    }
+
+    public function execute() {
+        self.open = false;
+        if (self.action == "start-print") { Actions.start-print(self.argument); }
+        if (self.action == "cancel-print") { Actions.cancel-print(); }
+        if (self.action == "emergency-stop") { Actions.emergency-stop(); }
+        if (self.action == "run-macro") { Actions.run-macro(self.argument); }
+        if (self.action == "save-config") { Actions.save-config(); }
+        if (self.action == "reboot-host") { Actions.reboot-host(); }
+        if (self.action == "shutdown-host") { Actions.shutdown-host(); }
+        if (self.action == "restart-service") { Actions.restart-service(self.argument); }
+        if (self.action == "upgrade") { Actions.upgrade(self.argument); }
+        if (self.action == "firmware-restart") { Actions.firmware-restart(); }
+        if (self.action == "restart-klipper") { Actions.restart-klipper(); }
+        if (self.action == "disable-motors") { Actions.disable-motors(); }
+        if (self.action == "power-off") { Actions.set-power(self.argument, false); }
+    }
+}
+
+// Zuordnung von Zuständen zu Icons und Anzeigetexten.
+export global StateIcons {
+    public pure function print-state-label(state: string) -> string {
+        if (state == "printing") { return @tr("Printing"); }
+        if (state == "paused") { return @tr("Paused"); }
+        if (state == "complete") { return @tr("Complete"); }
+        if (state == "cancelled") { return @tr("Cancelled"); }
+        if (state == "error") { return @tr("Error"); }
+        return @tr("Ready");
+    }
+
+    public pure function print-state(state: string) -> image {
+        if (state == "printing") { return Icons.state-printing; }
+        if (state == "paused") { return Icons.state-paused; }
+        if (state == "complete") { return Icons.state-complete; }
+        if (state == "cancelled") { return Icons.state-cancelled; }
+        if (state == "error") { return Icons.state-error; }
+        return Icons.state-standby;
+    }
+
+    public pure function klippy-state(connection: string, state: string) -> image {
+        if (connection != "connected") { return Icons.system-disconnected; }
+        if (state == "ready") { return Icons.state-ready; }
+        if (state == "startup") { return Icons.state-startup; }
+        if (state == "shutdown") { return Icons.state-shutdown; }
+        if (state == "error") { return Icons.state-error; }
+        return Icons.state-disconnected;
+    }
+}

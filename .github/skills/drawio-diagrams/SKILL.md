@@ -1,6 +1,6 @@
 ---
 name: drawio-diagrams
-description: 'Use when creating, extending or reviewing draw.io diagrams in docs/ (e.g. UseCases and Dependencies.drawio): add a page, generate cells by script, avoid layout overlaps, validate the XML and render a page to a PNG with the real draw.io viewer. Triggers: drawio, draw.io, Diagramm, Workflows, Seite hinzufügen, Legende überlappt, Use Cases, mxGraph.'
+description: "Use when creating, extending or reviewing draw.io diagrams in docs/ (e.g. UseCases and Dependencies.drawio): add a page, generate cells by script, avoid layout overlaps, validate the XML and render a page to a PNG with the real draw.io viewer. Triggers: drawio, draw.io, Diagramm, Workflows, Seite hinzufügen, Legende überlappt, Use Cases, mxGraph."
 ---
 
 # draw.io-Dateien bearbeiten und prüfen
@@ -29,7 +29,7 @@ description: 'Use when creating, extending or reviewing draw.io diagrams in docs
 
 1. Viewer-Skript einmalig nach `%TEMP%` laden (nicht ins Repo, 4,5 MB): `curl.exe -sS --ssl-no-revoke -o $env:TEMP\viewer-static.min.js https://viewer.diagrams.net/js/viewer-static.min.js`
 2. `node .github\skills\drawio-diagrams\scripts\render-drawio.mjs "<datei.drawio>" <seitenindex ab 0> "$env:TEMP\viewer-static.min.js" "$env:TEMP\seite.png"`
-3. PNG ansehen. Das Skript startet einen eigenen headless Edge (eigenes Profil, Debug-Port 9333) und beendet ihn wieder. Die Tauri-App wird dafür nicht gebraucht.
+3. PNG ansehen. Das Skript startet einen eigenen headless Edge (eigenes Profil, Debug-Port 9333) und beendet ihn wieder. Die App wird dafür nicht gebraucht.
 4. Temporäre Dateien löschen.
 
 ## Inhaltliche Konventionen im Projektdiagramm

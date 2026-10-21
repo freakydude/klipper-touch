@@ -1,6 +1,6 @@
 ---
 name: workflow-review
-description: 'Use when a UI change, new screen or planned increment must be checked against the workflow diagram (docs/UseCases and Dependencies.drawio, page Workflows): does the UI cover each workflow completely, per print state, per capability (printer.objects.list), within touch constraints? Produces a coverage matrix and proposals. Triggers: Workflow prüfen, Abdeckung, Review UI, Inkrement planen, Use Case, Prioritäten P1, Druck-Screen Zustand, Capability, fehlender Schritt.'
+description: "Use when a UI change, new screen or planned increment must be checked against the workflow diagram (docs/UseCases and Dependencies.drawio, page Workflows): does the UI cover each workflow completely, per print state, per capability (printer.objects.list), within touch constraints? Produces a coverage matrix and proposals. Triggers: Workflow prüfen, Abdeckung, Review UI, Inkrement planen, Use Case, Prioritäten P1, Druck-Screen Zustand, Capability, fehlender Schritt."
 ---
 
 # Workflow-Review
@@ -16,9 +16,9 @@ Ziel: Der Workflow des Menschen steht vor der Technik. Dieser Review prüft, ob 
 
 ## 2. Ist erfassen
 
-- Routen und Screens: `src/routes/**`, gemeinsame Teile in `src/lib/**` (Navigation, Statuszeile).
-- Welche Moonraker-Objekte/Methoden eine Seite nutzt: `definePrinterObjects(...)` und `commands.*`.
-- Verhalten je Zustand und je Profil mit dem Fake: Skill `webview-ui-check`; Profile `basic`, `voron`, `happy-hare` (Skill `fake-moonraker`).
+- Seiten und Bausteine: `crates/app/ui/pages/*.slint`, Rahmen in `crates/app/ui/components/chrome.slint` (Statusleiste, Navigation), Zustände/Callbacks in `crates/app/ui/state.slint`.
+- Welche Moonraker-Objekte/Methoden genutzt werden: `crates/core/src/printer/subscription.rs` (Abo), `crates/core/src/commands.rs` (Befehle), Fähigkeiten in `crates/core/src/printer/capabilities.rs`.
+- Verhalten je Zustand und je Profil mit dem Fake: Skill `ui-snapshot`; Profile `basic`, `voron`, `happy-hare` (Skill `fake-moonraker`).
 
 ## 3. Abdeckung bewerten
 
@@ -34,7 +34,7 @@ Status: `vollständig`, `teilweise`, `fehlt`, `nicht nötig (begründen)`. Pro Z
 3. **Fähigkeitsgerecht:** optionale Schritte erscheinen nur, wenn das Objekt in `printer.objects.list` bzw. die Komponente vorhanden ist; fehlende Fähigkeit führt zum Ausblenden oder zu einer Variante, nicht zu einem toten Button.
 4. **Fehlerpfade:** Problem-Schritte (rot) vorhanden und verständlich; Emergency Stop auf jeder Seite; Verbindungs- und Shutdown-Zustand sichtbar.
 5. **Rückmeldung:** laufende Aktionen zeigen Fortschritt oder Wartezustand.
-6. **Touch:** Mindestgröße der Bedienelemente, Lesbarkeit bei 480x320 und 800x480 (Skill `webview-ui-check`).
+6. **Touch:** Mindestgröße der Bedienelemente (`Theme.touch`), Lesbarkeit bei 800x480 (Skill `ui-snapshot`, optional `--size 640x400`).
 7. **Priorität:** P1-Lücken zuerst; P2/P3 nur nennen.
 
 ## 4. Ergebnis

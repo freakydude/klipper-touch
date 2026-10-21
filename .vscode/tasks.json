@@ -2,47 +2,51 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "ui:dev",
+      "label": "run: fake-moonraker",
       "type": "shell",
-      "command": "npm",
-      "args": ["run", "dev"],
+      "command": "cargo run -p fake-moonraker -- --port 7125 --time-scale 10 --profile voron",
       "isBackground": true,
       "problemMatcher": {
-        "owner": "vite",
-        "pattern": { "regexp": "^$" },
+        "owner": "rust",
+        "pattern": { "regexp": "^__never__$" },
         "background": {
-          "activeOnStart": true,
-          "beginsPattern": "VITE v",
-          "endsPattern": "Local:\\s+http"
+          "activeBegin": true,
+          "beginsPattern": "^.*(Compiling|Finished|Running).*$",
+          "endsPattern": "^Fake-Moonraker listening.*$"
         }
       }
     },
     {
-      "label": "ui:build",
+      "label": "run: klipper-touch-slint (Fake-Moonraker)",
       "type": "shell",
-      "command": "npm",
-      "args": ["run", "build"]
+      "command": "cargo run -p klipper-touch-slint -- --moonraker http://127.0.0.1:7125",
+      "dependsOn": "run: fake-moonraker",
+      "problemMatcher": ["$rustc"]
     },
     {
-      "label": "fake-moonraker",
+      "label": "run: klipper-touch-slint (Einstellungen)",
       "type": "shell",
-      "command": "cargo",
-      "args": ["run", "--manifest-path", "fake-moonraker/Cargo.toml"],
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "fake-moonraker",
-        "pattern": { "regexp": "^$" },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^.*$",
-          "endsPattern": "Fake-Moonraker listening"
-        }
-      }
+      "command": "cargo run -p klipper-touch-slint",
+      "problemMatcher": ["$rustc"]
     },
     {
-      "label": "dev:fake",
-      "dependsOn": ["ui:dev", "fake-moonraker"],
-      "dependsOrder": "parallel"
+      "label": "ui-snapshot",
+      "type": "shell",
+      "command": "powershell -File .github\\skills\\ui-snapshot\\scripts\\run-ui-snapshot.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "icon-index",
+      "type": "shell",
+      "command": "cargo run -p icon-index",
+      "problemMatcher": []
+    },
+    {
+      "label": "check",
+      "type": "shell",
+      "command": "cargo clippy --workspace --all-targets; cargo test --workspace",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": ["$rustc"]
     }
   ]
 }

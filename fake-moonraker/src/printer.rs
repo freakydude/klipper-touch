@@ -13,6 +13,10 @@ const COOL_RATE_PER_SECOND: f64 = 0.5;
 const MIN_EXTRUDE_TEMPERATURE: f64 = 170.0;
 const MAX_EXTRUDER_TARGET: f64 = 300.0;
 const MAX_BED_TARGET: f64 = 120.0;
+const MAX_CHAMBER_TARGET: f64 = 70.0;
+const HOST_TEMPERATURE: f64 = 45.0;
+/// Makros, die jeder simulierte Drucker kennt; `_`-Makros sind Hilfsmakros und fuer die UI unsichtbar.
+const MACROS: [&str; 6] = ["PRINT_START", "PRINT_END", "LOAD_FILAMENT", "UNLOAD_FILAMENT", "PARK", "_PURGE_HELPER"];
 const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
@@ -115,10 +119,15 @@ pub struct Printer {
     klippy: KlippyState,
     extruder: Heater,
     bed: Heater,
+    chamber: Option<Heater>,
     position: [f64; 4],
     homed: [bool; 3],
     relative_positioning: bool,
+    relative_extrusion: bool,
     fan_speed: f64,
+    speed_factor: f64,
+    extrude_factor: f64,
+    pressure_advance: f64,
     z_offset: f64,
     config_pending: bool,
     gantry_leveled: bool,
@@ -143,10 +152,15 @@ impl Printer {
             klippy: KlippyState::Ready,
             extruder: Heater::cold(),
             bed: Heater::cold(),
+            chamber: profile.chamber_heater.then(Heater::cold),
             position: [0.0; 4],
             homed: [false; 3],
             relative_positioning: false,
+            relative_extrusion: false,
             fan_speed: 0.0,
+            speed_factor: 1.0,
+            extrude_factor: 1.0,
+            pressure_advance: 0.04,
             z_offset: 0.0,
             config_pending: false,
             gantry_leveled: false,
@@ -167,6 +181,9 @@ impl Printer {
         let seconds = elapsed.as_secs_f64() * self.time_scale;
         self.extruder.advance(seconds);
         self.bed.advance(seconds);
+        if let Some(chamber) = self.chamber.as_mut() {
+            chamber.advance(seconds);
+        }
         self.advance_print(seconds);
     }
 
@@ -182,6 +199,12 @@ impl Printer {
             Command::Move(movement) => self.move_toolhead(movement)?,
             Command::DisableSteppers => self.homed = [false; 3],
             Command::SetGcodeOffset { z, z_adjust } => self.set_z_offset(z, z_adjust),
+            Command::AbsoluteExtrusion => self.relative_extrusion = false,
+            Command::RelativeExtrusion => self.relative_extrusion = true,
+            Command::SetSpeedFactor(factor) => self.speed_factor = factor.max(0.01),
+            Command::SetExtrudeFactor(factor) => self.extrude_factor = factor.max(0.01),
+            Command::SetPressureAdvance(value) => self.pressure_advance = value.max(0.0),
+            Command::SetHeaterTemperature { heater, target } => self.set_named_heater(&heater, target)?,
             Command::SaveConfig => self.config_pending = false,
             Command::QuadGantryLevel => self.level_gantry()?,
             Command::Mmu(command) => self.apply_mmu(command)?,
@@ -256,7 +279,32 @@ impl Printer {
         if let Some(mmu) = &self.mmu {
             objects.extend(mmu.status(self.print_state.as_str()));
         }
+        if let Some(chamber) = self.chamber {
+            objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
+        }
+        objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        for name in MACROS {
+            objects.insert(format!("gcode_macro {name}"), json!({}));
+        }
         Value::Object(objects)
+    }
+
+    /// Klipper-Text zum aktuellen Zustand, wie ihn `printer.info` liefert.
+    pub fn state_message(&self) -> &'static str {
+        self.klippy.message()
+    }
+
+    pub fn klippy_state(&self) -> &'static str {
+        self.klippy.as_str()
+    }
+
+    fn set_named_heater(&mut self, heater: &str, target: f64) -> Result<(), CommandError> {
+        match (heater, self.chamber.as_mut()) {
+            ("extruder", _) => self.extruder.set_target(target, MAX_EXTRUDER_TARGET),
+            ("heater_bed", _) => self.bed.set_target(target, MAX_BED_TARGET),
+            ("chamber", Some(chamber)) => chamber.set_target(target, MAX_CHAMBER_TARGET),
+            _ => Err(CommandError::new(format!("Unknown heater '{heater}'"))),
+        }
     }
 
     fn core_status(&self) -> Map<String, Value> {
@@ -269,8 +317,8 @@ impl Printer {
             "gcode_move": {
                 "homing_origin": [0.0, 0.0, self.z_offset, 0.0],
                 "speed": 1500.0,
-                "speed_factor": 1.0,
-                "extrude_factor": 1.0,
+                "speed_factor": self.speed_factor,
+                "extrude_factor": self.extrude_factor,
             },
             "print_stats": self.print_stats_json(),
             "display_status": { "progress": round(self.progress(), 4), "message": null },
@@ -299,7 +347,8 @@ impl Printer {
 
     fn config_sections(&self) -> Map<String, Value> {
         let mut sections = Map::new();
-        sections.insert("printer".to_owned(), json!({ "kinematics": "corexy", "max_velocity": 300, "max_accel": 3000 }));
+        sections
+            .insert("printer".to_owned(), json!({ "kinematics": "corexy", "max_velocity": 300, "max_accel": 3000 }));
         sections.insert(
             "extruder".to_owned(),
             json!({ "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE, "max_temp": MAX_EXTRUDER_TARGET }),
@@ -383,7 +432,11 @@ impl Printer {
             if self.extruder.temperature < MIN_EXTRUDE_TEMPERATURE {
                 return Err(CommandError::new("Extrude below minimum temp"));
             }
-            target[EXTRUDER_INDEX] = self.resolve(self.position[EXTRUDER_INDEX], distance);
+            target[EXTRUDER_INDEX] = if self.relative_positioning || self.relative_extrusion {
+                self.position[EXTRUDER_INDEX] + distance
+            } else {
+                distance
+            };
         }
         self.position = target;
         Ok(())
@@ -415,9 +468,7 @@ impl Printer {
     }
 
     fn progress(&self) -> f64 {
-        self.job
-            .as_ref()
-            .map_or(0.0, |job| (self.print_duration / job.estimated_time).min(1.0))
+        self.job.as_ref().map_or(0.0, |job| (self.print_duration / job.estimated_time).min(1.0))
     }
 
     fn filament_used(&self) -> f64 {
@@ -435,11 +486,7 @@ impl Printer {
     }
 
     fn homed_axes(&self) -> String {
-        ALL_AXES
-            .iter()
-            .filter(|axis| self.homed[axis.index()])
-            .map(|axis| axis.letter())
-            .collect()
+        ALL_AXES.iter().filter(|axis| self.homed[axis.index()]).map(|axis| axis.letter()).collect()
     }
 
     fn rounded_position(&self) -> [f64; 4] {
@@ -450,7 +497,9 @@ impl Printer {
         json!({
             "temperature": round(self.extruder.temperature, 2),
             "target": self.extruder.target,
-            "pressure_advance": 0.04,
+            "power": if self.extruder.target > self.extruder.temperature { 1.0 } else { 0.0 },
+            "pressure_advance": self.pressure_advance,
+            "smooth_time": 0.04,
             "can_extrude": self.extruder.temperature >= MIN_EXTRUDE_TEMPERATURE,
         })
     }

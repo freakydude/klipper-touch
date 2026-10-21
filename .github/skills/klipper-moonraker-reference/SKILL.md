@@ -1,6 +1,6 @@
 ---
 name: klipper-moonraker-reference
-description: 'Use when designing or implementing anything that talks to Klipper, Moonraker or Happy Hare: which API method or printer object to use, capability detection (printer.objects.list, server.info, configfile), print_stats and webhooks states, Happy Hare printer.mmu variables, or where to read the official docs. Triggers: Moonraker API, JSON-RPC, objects.list, print_stats, webhooks, Happy Hare, mmu, Capability, Klipper-Objekt.'
+description: "Use when designing or implementing anything that talks to Klipper, Moonraker or Happy Hare: which API method or printer object to use, capability detection (printer.objects.list, server.info, configfile), print_stats and webhooks states, Happy Hare printer.mmu variables, or where to read the official docs. Triggers: Moonraker API, JSON-RPC, objects.list, print_stats, webhooks, Happy Hare, mmu, Capability, Klipper-Objekt."
 ---
 
 # Klipper / Moonraker / Happy Hare – Referenz
@@ -16,7 +16,7 @@ Fremdsysteme (Docs, GitHub, Foren, echte Drucker) nur **lesend** ansehen. Unten 
   - KlipperScreen: https://klipperscreen.readthedocs.io/en/latest/ (Panels: https://klipperscreen.readthedocs.io/en/latest/Panels/) | Repo https://github.com/KlipperScreen/KlipperScreen
   - KlipperScreen Happy Hare Edition (Fork für Happy Hare): https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition (MMU-Panels: im Repo unter docs/MMU.md)
   - Mainsail: https://docs.mainsail.xyz/ | Repo https://github.com/mainsail-crew/mainsail; Happy-Hare-Forks: mainsail-happy-hare-edition, fluidd-happy-hare-edition (github.com/moggieuk)
-- Tauri: https://tauri.app/start/
+- Slint: https://docs.slint.dev/latest/docs/slint/ (Backends/Renderer: guide/backends-and-renderers)
 
 ## Verbindung und Protokoll
 
@@ -25,6 +25,10 @@ Fremdsysteme (Docs, GitHub, Foren, echte Drucker) nur **lesend** ansehen. Unten 
 - Änderungen kommen als `notify_status_update` (`params[0]` = geänderte Felder, `params[1]` = eventtime); außerdem `notify_klippy_ready`, `notify_klippy_disconnected`, `notify_klippy_error`.
 - Nach Klippy-Neustart verliert Moonraker die Abos; neu abonnieren.
 - Häufig genutzte Methoden: `printer.gcode.script`, `printer.print.start|pause|resume|cancel`, `printer.emergency_stop`, `printer.restart`, `printer.firmware_restart`, `server.files.list|metadata|thumbnails`, `printer.objects.list|query|subscribe`.
+- Host-Funktionen (laut Moonraker-Doku, 2026-10 gelesen): `server.info` (`klippy_connected`, `klippy_state`, `components`), `printer.info` (`state_message`), `server.gcode_store` (`count`; Einträge `message`, `time`, `type` command/response), Live-Ausgabe `notify_gcode_response`; `machine.device_power.devices` / `post_device` (`device`, `action` on/off/toggle) mit `notify_power_changed`; `machine.update.status` / `refresh` / `upgrade` (`name`, ab API 1.5.0; ältere `machine.update.full|klipper|moonraker|system|client` sind veraltet); `machine.services.restart` (`service`), `machine.reboot`, `machine.shutdown`.
+- `server.connection.identify` erwartet `client_name`, `version`, `type` (für Anzeigen: `display`), `url`.
+- Vorschaubilder: `thumbnails[].relative_path` ist relativ zum Ordner der G-Code-Datei; abrufen per HTTP unter `/server/files/gcodes/<ordner>/<relative_path>`.
+- Babystep dauerhaft machen: `Z_OFFSET_APPLY_PROBE` bzw. `Z_OFFSET_APPLY_ENDSTOP`, danach `SAVE_CONFIG` (`configfile.save_config_pending`).
 
 ## Capability-Erkennung
 

@@ -1,0 +1,223 @@
+//! Prüft das SVG-Icon-Set unter `assets/icons` und erzeugt daraus die Slint-Icon-Liste und eine Übersichtsseite.
+
+use std::fmt::Write as _;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+
+/// Pflicht-Wurzelelement jedes Icons; eine Stiländerung für alle Icons beginnt hier.
+pub const WRAPPER_OPEN: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">"#;
+const FORBIDDEN: [&str; 6] = ["style=", "<script", "rgb(", "hsl(", " on", "url("];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Icon {
+    pub category: String,
+    pub name: String,
+    pub svg: String,
+}
+
+impl Icon {
+    pub fn file(&self) -> String {
+        format!("{}/{}.svg", self.category, self.name)
+    }
+}
+
+/// Ablageorte relativ zur Repository-Wurzel.
+pub struct Layout {
+    pub icons: PathBuf,
+    pub slint_index: PathBuf,
+    pub overview: PathBuf,
+}
+
+impl Layout {
+    pub fn of_repository(root: &Path) -> Self {
+        Self {
+            icons: root.join("assets").join("icons"),
+            slint_index: root.join("crates").join("app").join("ui").join("icons.slint"),
+            overview: root.join("assets").join("icons").join("overview.html"),
+        }
+    }
+}
+
+pub fn repository_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
+}
+
+pub fn load_icons(directory: &Path) -> io::Result<Vec<Icon>> {
+    let mut icons = Vec::new();
+    let mut categories: Vec<PathBuf> = fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    categories.sort();
+    for category_path in categories {
+        let category = file_name(&category_path);
+        let mut files: Vec<PathBuf> = fs::read_dir(&category_path)?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().is_some_and(|extension| extension == "svg"))
+            .collect();
+        files.sort();
+        for file in files {
+            let name = file.file_stem().map(|stem| stem.to_string_lossy().into_owned()).unwrap_or_default();
+            let svg = fs::read_to_string(&file)?.replace("\r\n", "\n");
+            icons.push(Icon { category: category.clone(), name, svg });
+        }
+    }
+    Ok(icons)
+}
+
+/// Alle Regelverstöße des Sets; leer bedeutet in Ordnung.
+pub fn check_icons(icons: &[Icon]) -> Vec<String> {
+    let mut problems = Vec::new();
+    for (index, icon) in icons.iter().enumerate() {
+        let file = icon.file();
+        if !is_kebab_case(&icon.name) || !icon.name.contains('-') {
+            problems.push(format!("{file}: name must be <category>-<name> in kebab-case"));
+        }
+        if !icon.name.starts_with(&format!("{}-", icon.category)) {
+            problems.push(format!("{file}: name must start with \"{}-\"", icon.category));
+        }
+        if !icon.svg.starts_with(WRAPPER_OPEN) {
+            problems.push(format!("{file}: root element differs from the standard (viewBox, stroke, linecap ...)"));
+        }
+        if !icon.svg.trim_end().ends_with("</svg>") {
+            problems.push(format!("{file}: closing </svg> missing"));
+        }
+        if has_fixed_color(&icon.svg) || FORBIDDEN.iter().any(|pattern| icon.svg.contains(pattern)) {
+            problems.push(format!("{file}: fixed colors, style, scripts or event handlers are not allowed"));
+        }
+        let body = &icon.svg[WRAPPER_OPEN.len().min(icon.svg.len())..];
+        if let Some(twin) =
+            icons[..index].iter().find(|other| other.svg[WRAPPER_OPEN.len().min(other.svg.len())..] == *body)
+        {
+            problems.push(format!("{file}: identical to {}", twin.file()));
+        }
+    }
+    problems
+}
+
+fn has_fixed_color(svg: &str) -> bool {
+    svg.match_indices('#').any(|(position, _)| {
+        let digits = svg[position + 1..].chars().take_while(char::is_ascii_hexdigit).count();
+        matches!(digits, 3 | 4 | 6 | 8)
+    })
+}
+
+fn is_kebab_case(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .split('-')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit()))
+}
+
+/// Slint-Datei mit einer `image`-Property je Icon, Pfade relativ zu `crates/app/ui`.
+pub fn slint_index(icons: &[Icon]) -> String {
+    let mut text = String::from(
+        "// Automatisch erzeugt von crates/icon-index (cargo run -p icon-index) - nicht von Hand aendern.\n\nexport global Icons {\n",
+    );
+    for icon in icons {
+        let _ = writeln!(
+            text,
+            "    out property <image> {}: @image-url(\"../../../assets/icons/{}\");",
+            icon.name,
+            icon.file()
+        );
+    }
+    text.push_str("}\n");
+    text
+}
+
+/// Übersichtsseite für die Sichtprüfung: schwarz auf weiß und weiß auf dunkel.
+pub fn overview_html(icons: &[Icon]) -> String {
+    let sheet = |foreground: &str, background: &str| {
+        let mut sections = String::new();
+        let mut categories: Vec<&str> = icons.iter().map(|icon| icon.category.as_str()).collect();
+        categories.dedup();
+        for category in categories {
+            let _ = write!(
+                sections,
+                r#"<section style="color:{foreground};background:{background}"><h2>{category}</h2><div class="grid">"#
+            );
+            for icon in icons.iter().filter(|icon| icon.category == category) {
+                let short = icon.name.strip_prefix(&format!("{category}-")).unwrap_or(&icon.name);
+                let _ = write!(
+                    sections,
+                    r#"<figure><div class="icon">{}</div><figcaption>{short}</figcaption></figure>"#,
+                    icon.svg.trim_end()
+                );
+            }
+            sections.push_str("</div></section>");
+        }
+        sections
+    };
+    format!(
+        r#"<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>klipper-touch icon set</title>
+<style>
+body{{margin:0;font-family:system-ui,sans-serif}}
+h1{{margin:16px 24px;font-size:20px}}
+section{{padding:12px 24px 20px}}
+h2{{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.08em;opacity:.7}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}}
+figure{{margin:0;text-align:center}}
+.icon svg{{width:48px;height:48px}}
+figcaption{{font-size:11px;opacity:.8;word-break:break-all}}
+</style></head><body>
+<h1>klipper-touch icon set ({count} icons) - generated by crates/icon-index</h1>
+{light}
+{dark}
+</body></html>
+"#,
+        count = icons.len(),
+        light = sheet("#000", "#fff"),
+        dark = sheet("#fff", "#222"),
+    )
+}
+
+fn file_name(path: &Path) -> String {
+    path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn icon(category: &str, name: &str, body: &str) -> Icon {
+        Icon { category: category.into(), name: name.into(), svg: format!("{WRAPPER_OPEN}\n  {body}\n</svg>\n") }
+    }
+
+    #[test]
+    fn accepts_valid_icons() {
+        let icons =
+            [icon("ui", "ui-close", r#"<path d="M6 6l12 12"/>"#), icon("ui", "ui-plus", r#"<path d="M12 5v14"/>"#)];
+
+        assert!(check_icons(&icons).is_empty());
+    }
+
+    #[test]
+    fn reports_naming_color_and_duplicate_problems() {
+        let icons = [
+            icon("ui", "ui-close", r#"<path d="M6 6l12 12"/>"#),
+            icon("ui", "nav-Close", r#"<path d="M6 6l12 12"/>"#),
+            icon("ui", "ui-red", r##"<path stroke="#ff0000" d="M1 1"/>"##),
+        ];
+
+        let problems = check_icons(&icons);
+
+        assert!(problems.iter().any(|problem| problem.contains("kebab-case")));
+        assert!(problems.iter().any(|problem| problem.contains("must start with \"ui-\"")));
+        assert!(problems.iter().any(|problem| problem.contains("identical to ui/ui-close.svg")));
+        assert!(problems.iter().any(|problem| problem.contains("ui-red.svg: fixed colors")));
+    }
+
+    #[test]
+    fn slint_index_lists_every_icon() {
+        let index = slint_index(&[icon("motion", "motion-x-plus", "")]);
+
+        assert!(index.contains(
+            r#"out property <image> motion-x-plus: @image-url("../../../assets/icons/motion/motion-x-plus.svg");"#
+        ));
+    }
+}

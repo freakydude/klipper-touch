@@ -1,0 +1,241 @@
+// Grundbausteine für Touch-Bedienung: Knöpfe, Schrittwahl, Karten, Fortschritt.
+
+import { Theme } from "../theme.slint";
+
+// Knopf mit Icon und optionalem Text. `kind`: normal | accent | danger.
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> checked;
+    in property <string> kind: "normal";
+    in property <length> icon-size: Theme.icon;
+    // Icon links vom Text statt darüber.
+    in property <bool> horizontal;
+    callback clicked;
+
+    property <bool> has-icon: root.icon.width > 0;
+    property <color> base: root.kind == "accent" ? Theme.accent : root.kind == "danger" ? Theme.danger : root.checked ? Theme.surface-active : Theme.surface-raised;
+    property <color> pressed: root.kind == "accent" ? Theme.accent-pressed : root.kind == "danger" ? Theme.danger-pressed : Theme.surface-active;
+    property <color> content: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+
+    min-width: Theme.touch;
+    min-height: Theme.touch;
+    border-radius: Theme.radius;
+    background: !root.enabled ? Theme.surface : touch.pressed ? root.pressed : root.base;
+    border-width: root.checked && root.kind == "normal" ? 2px : 0px;
+    border-color: Theme.accent;
+    accessible-role: button;
+    accessible-label: root.text;
+
+    animate background { duration: 80ms; }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    if !root.horizontal: VerticalLayout {
+        padding: 4px;
+        spacing: 2px;
+        alignment: center;
+        if root.has-icon: HorizontalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.content;
+                width: root.icon-size;
+                height: root.icon-size;
+            }
+        }
+        if root.text != "": Text {
+            text: root.text;
+            color: root.content;
+            font-size: root.has-icon ? Theme.font-small : Theme.font-normal;
+            font-weight: root.has-icon ? 400 : 600;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    if root.horizontal: HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        alignment: center;
+        if root.has-icon: VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: root.content;
+                width: root.icon-size;
+                height: root.icon-size;
+            }
+        }
+        if root.text != "": Text {
+            text: root.text;
+            color: root.content;
+            font-size: Theme.font-normal;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+// Auswahl einer Schrittweite aus festen Stufen.
+export component StepSelector inherits HorizontalLayout {
+    in property <[float]> values;
+    in property <string> unit;
+    in property <string> label;
+    in-out property <float> selected;
+    callback changed(float);
+
+    spacing: 4px;
+    alignment: center;
+
+    if root.label != "": Text {
+        text: root.label;
+        color: Theme.muted;
+        font-size: Theme.font-small;
+        vertical-alignment: center;
+    }
+    for value in root.values: Rectangle {
+        min-width: 52px;
+        height: 44px;
+        border-radius: Theme.radius;
+        background: value == root.selected ? Theme.accent : step-touch.pressed ? Theme.surface-active : Theme.surface-raised;
+        accessible-role: button;
+        accessible-label: value + root.unit;
+        step-touch := TouchArea {
+            clicked => {
+                root.selected = value;
+                root.changed(value);
+            }
+        }
+        Text {
+            text: value + root.unit;
+            color: Theme.foreground;
+            font-size: Theme.font-small;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Fläche mit optionaler Überschrift für zusammengehörige Bedienelemente.
+export component Card inherits Rectangle {
+    in property <string> title;
+    in property <image> icon;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: 6px;
+        if root.title != "": HorizontalLayout {
+            spacing: 6px;
+            height: 20px;
+            if root.icon.width > 0: Image {
+                source: root.icon;
+                colorize: Theme.muted;
+                width: 18px;
+                height: 18px;
+            }
+            Text {
+                text: root.title;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        @children
+    }
+}
+
+// Beschriftung über einem Wert, z. B. "Elapsed / 01:23".
+export component ValueTile inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <image> icon;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    min-height: 52px;
+
+    HorizontalLayout {
+        padding: 6px;
+        spacing: 8px;
+        if root.icon.width > 0: VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                colorize: Theme.muted;
+                width: 22px;
+                height: 22px;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.label;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+            Text {
+                text: root.value;
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+export component ProgressBar inherits Rectangle {
+    in property <float> progress;
+    in property <color> bar-color: Theme.accent;
+    height: 12px;
+    border-radius: self.height / 2;
+    background: Theme.surface-raised;
+    clip: true;
+
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.progress, 0, 1);
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: root.bar-color;
+        animate width { duration: 250ms; }
+    }
+}
+
+// Zeile mit Icon und Text, z. B. für Zustandsanzeigen.
+export component IconLabel inherits HorizontalLayout {
+    in property <image> icon;
+    in property <string> text;
+    in property <color> color: Theme.foreground;
+    in property <length> font-size: Theme.font-normal;
+    in property <length> icon-size: 20px;
+    spacing: 6px;
+
+    VerticalLayout {
+        alignment: center;
+        Image {
+            source: root.icon;
+            colorize: root.color;
+            width: root.icon-size;
+            height: root.icon-size;
+        }
+    }
+    Text {
+        text: root.text;
+        color: root.color;
+        font-size: root.font-size;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}

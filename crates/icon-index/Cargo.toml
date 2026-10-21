@@ -1,0 +1,9 @@
+[package]
+name = "icon-index"
+description = "Checks the SVG icon set and generates the Slint icon index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]

@@ -1,6 +1,6 @@
 ---
 name: session-handover
-description: 'Use at the start of a new chat, at the end of a work package, when the user says merk dir / Stand / Übergabe, or when new rules or insights came up: where to look for the project state, what goes into memory vs skills vs instructions vs docs, a handover checklist, and the routine that keeps the skills current (check script, change proposals). Triggers: Übergabe, neuer Chat, Stand festhalten, merk dir, Skills aktuell, Skill-Pflege, Memory, Checkliste.'
+description: "Use at the start of a new chat, at the end of a work package, when the user says merk dir / Stand / Übergabe, or when new rules or insights came up: where to look for the project state, what goes into memory vs skills vs instructions vs docs, a handover checklist, and the routine that keeps the skills current (check script, change proposals). Triggers: Übergabe, neuer Chat, Stand festhalten, merk dir, Skills aktuell, Skill-Pflege, Memory, Checkliste."
 ---
 
 # Übergabe und Skill-Pflege
@@ -27,8 +27,8 @@ description: 'Use at the start of a new chat, at the end of a work package, when
 1. Stand in der passenden Repo-Notiz aktualisieren (nicht doppelt anlegen); `00-index.md` bei neuen Dateien anpassen.
 2. Neue Regel oder Erkenntnis? Als Skill- oder Instruction-Änderung vorschlagen (siehe unten).
 3. Offene Punkte, Annahmen und Nicht-Geprüftes ausdrücklich benennen.
-4. Temporäre Dateien, Prozesse (`klipper-touch`, `fake-moonraker`, Edge mit Debug-Port) und Testordner aufräumen.
-5. Prüfen: `cargo test`/`clippy` der geänderten Crates, `npm run check`, bei UI-Änderung `webview-ui-check`.
+4. Temporäre Dateien, Prozesse (`klipper-touch-slint`, `fake-moonraker`, Edge mit Debug-Port) und Testordner aufräumen.
+5. Prüfen: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, bei UI-Änderung Skill `ui-snapshot`.
 6. `powershell -File .github\skills\session-handover\scripts\check-skills.ps1` ausführen.
 7. Kurze Übergabe an den Nutzer: was ist fertig, was ungeprüft, was wird als Nächstes vorgeschlagen.
 

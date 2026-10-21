@@ -1,0 +1,62 @@
+// Hauptfenster: Statusleiste, Navigation, aktuelle Seite und Überlagerungen.
+
+import { Theme } from "theme.slint";
+import { Actions, Confirm, Navigation, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
+import { NavRail, StatusBar } from "components/chrome.slint";
+import { ConfirmDialog, Toast } from "components/overlays.slint";
+import { PrintPage } from "pages/print.slint";
+import { MovePage } from "pages/move.slint";
+import { TemperaturePage } from "pages/temperature.slint";
+import { TunePage } from "pages/tune.slint";
+import { ExtrudePage } from "pages/extrude.slint";
+import { MacrosPage } from "pages/macros.slint";
+import { ConsolePage } from "pages/console.slint";
+import { SystemPage } from "pages/system.slint";
+import { SettingsPage } from "pages/settings.slint";
+import { ConnectionPage } from "pages/connection.slint";
+
+export { Actions, Confirm, Navigation, Page, Printer, TextTools, UiSettings }
+export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, ConsoleItem, PowerItem, UpdateItem, PresetItem } from "state.slint";
+
+export component AppWindow inherits Window {
+    title: "klipper-touch";
+    preferred-width: 800px;
+    preferred-height: 480px;
+    min-width: 640px;
+    min-height: 400px;
+    background: Theme.background;
+    default-font-size: Theme.font-normal;
+
+    // Seiten, die auch ohne bereiten Drucker sinnvoll sind.
+    property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
+        || (Navigation.page == Page.console && Printer.connection == "connected");
+
+    VerticalLayout {
+        StatusBar { }
+        HorizontalLayout {
+            vertical-stretch: 1;
+            NavRail { }
+            Rectangle {
+                horizontal-stretch: 1;
+                if Navigation.page == Page.print: PrintPage { }
+                if Navigation.page == Page.move: MovePage { }
+                if Navigation.page == Page.temperature: TemperaturePage { }
+                if Navigation.page == Page.tune: TunePage { }
+                if Navigation.page == Page.extrude: ExtrudePage { }
+                if Navigation.page == Page.macros: MacrosPage { }
+                if Navigation.page == Page.console: ConsolePage { }
+                if Navigation.page == Page.system: SystemPage { }
+                if Navigation.page == Page.settings: SettingsPage { }
+                if !Printer.ready && !root.page-works-offline: ConnectionPage { }
+            }
+        }
+    }
+
+    Toast {
+        x: 88px;
+        y: parent.height - self.height - 12px;
+        width: parent.width - 100px;
+    }
+
+    ConfirmDialog { }
+}

@@ -9,8 +9,8 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 $skills = Get-ChildItem (Join-Path $root '.github\skills') -Directory
 $warnings = 0
 
-# Relative Pfade (z. B. tests/websocket.rs) in den Projektordnern suchen; target/node_modules werden bewusst nicht durchsucht.
-$searchRoots = 'docs', 'scripts', '.github', 'src', 'src-tauri\src', 'src-tauri\capabilities', 'fake-moonraker\src', 'fake-moonraker\tests', 'egui-hello\src', '.vscode' |
+# Relative Pfade (z. B. tests/websocket.rs) in den Projektordnern suchen; target wird bewusst nicht durchsucht.
+$searchRoots = 'docs', 'scripts', '.github', 'assets', 'crates', 'fake-moonraker\src', 'fake-moonraker\tests', '.vscode' |
 ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ }
 $knownFiles = @($searchRoots | ForEach-Object { Get-ChildItem $_ -Recurse -File } | ForEach-Object { $_.FullName })
 
@@ -43,7 +43,7 @@ foreach ($skill in $skills) {
         if (-not (Test-Path (Join-Path $skill.FullName $link))) { Warn $skill.Name "Link ohne Ziel: $link" }
     }
 
-    $pathPattern = '^[\w.\- \\/]+\.(md|ps1|mjs|rs|toml|ts|svelte|json|drawio|yml|cfg)$'
+    $pathPattern = '^[\w.\- \\/]+\.(md|ps1|mjs|rs|toml|slint|svg|html|json|drawio|yml|cfg|sh)$'
     foreach ($token in [regex]::Matches($text, '`([^`\r\n]+)`') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) {
         if ($token -match $pathPattern -and $token -notmatch '^\.\.?[\\/]' -and $token -notmatch '\s-' -and $token -match '[\\/]') {
             if (-not (Exists $token $skill.FullName)) { Warn $skill.Name "Pfad existiert nicht: $token" }

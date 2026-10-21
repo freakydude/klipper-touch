@@ -99,10 +99,7 @@ mod tests {
 
         let snapshot = subscription.snapshot(&status);
 
-        assert_eq!(
-            snapshot,
-            json!({ "extruder": { "target": 0.0 }, "fan": { "speed": 0.0, "rpm": null } })
-        );
+        assert_eq!(snapshot, json!({ "extruder": { "target": 0.0 }, "fan": { "speed": 0.0, "rpm": null } }));
     }
 
     #[test]
