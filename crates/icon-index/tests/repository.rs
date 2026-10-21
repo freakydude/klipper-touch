@@ -1,0 +1,15 @@
+//! Prüft das echte Icon-Set im Repository; schlägt fehl, wenn eine Datei gegen die Regeln verstößt
+//! oder `crates/app/ui/icons.slint` nicht zum Ordnerinhalt passt.
+
+use icon_index::{check_icons, load_icons, repository_root, slint_index, Layout};
+
+#[test]
+fn repository_icon_set_is_valid_and_index_is_current() {
+    let layout = Layout::of_repository(&repository_root());
+    let icons = load_icons(&layout.icons).expect("icon folder readable");
+
+    assert!(!icons.is_empty());
+    assert_eq!(check_icons(&icons), Vec::<String>::new());
+    let current = std::fs::read_to_string(&layout.slint_index).expect("icons.slint exists").replace("\r\n", "\n");
+    assert!(current == slint_index(&icons), "icons.slint is outdated, run: cargo run -p icon-index");
+}

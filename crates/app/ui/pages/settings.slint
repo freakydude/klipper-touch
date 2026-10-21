@@ -1,0 +1,109 @@
+// Einstellungen dieser Anzeige: Moonraker-Adresse, Vollbild, Temperaturvorgaben.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { PresetItem, UiSettings } from "../state.slint";
+import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { TextEntryDialog } from "../components/overlays.slint";
+
+component PresetEditor inherits HorizontalLayout {
+    in property <PresetItem> preset;
+    in property <int> index;
+    spacing: 4px;
+    height: 48px;
+
+    Text {
+        text: root.preset.name;
+        color: Theme.foreground;
+        font-size: Theme.font-normal;
+        font-weight: 600;
+        vertical-alignment: center;
+        width: 52px;
+        overflow: elide;
+    }
+    IconButton { width: 44px; icon: Icons.ui-minus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, max(0, root.preset.extruder - 5), root.preset.bed); } }
+    IconLabel {
+        icon: Icons.thermal-nozzle;
+        text: round(root.preset.extruder) + "°";
+        width: 64px;
+    }
+    IconButton { width: 44px; icon: Icons.ui-plus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder + 5, root.preset.bed); } }
+    Rectangle { width: 4px; }
+    IconButton { width: 44px; icon: Icons.ui-minus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder, max(0, root.preset.bed - 5)); } }
+    IconLabel {
+        icon: Icons.thermal-bed;
+        text: round(root.preset.bed) + "°";
+        width: 64px;
+    }
+    IconButton { width: 44px; icon: Icons.ui-plus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder, root.preset.bed + 5); } }
+}
+
+export component SettingsPage inherits Rectangle {
+    HorizontalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        VerticalLayout {
+            width: 250px;
+            spacing: Theme.spacing;
+            Card {
+                title: @tr("Moonraker address");
+                icon: Icons.system-network;
+                Text {
+                    text: UiSettings.moonraker;
+                    color: Theme.foreground;
+                    font-size: Theme.font-normal;
+                    overflow: elide;
+                }
+                IconButton {
+                    height: 52px;
+                    icon: Icons.ui-edit;
+                    text: @tr("Change");
+                    horizontal: true;
+                    clicked => {
+                        address.text = UiSettings.moonraker;
+                        address.open = true;
+                    }
+                }
+            }
+            Card {
+                title: @tr("Display");
+                icon: Icons.system-brightness;
+                IconButton {
+                    height: 52px;
+                    icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
+                    text: @tr("Fullscreen (kiosk)");
+                    horizontal: true;
+                    checked: UiSettings.fullscreen;
+                    clicked => {
+                        UiSettings.fullscreen = !UiSettings.fullscreen;
+                        UiSettings.fullscreen-toggled(UiSettings.fullscreen);
+                    }
+                }
+            }
+            Text {
+                text: "klipper-touch-slint " + UiSettings.version + "\n" + @tr("Saved in {}", UiSettings.settings-file);
+                color: Theme.disabled-foreground;
+                font-size: Theme.font-small;
+                wrap: word-wrap;
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        Card {
+            title: @tr("Temperature presets (nozzle / bed)");
+            icon: Icons.thermal-preset;
+            horizontal-stretch: 1;
+            for preset[index] in UiSettings.presets: PresetEditor {
+                preset: preset;
+                index: index;
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+
+    address := TextEntryDialog {
+        title: @tr("Moonraker");
+        accepted(text) => { UiSettings.moonraker-entered(text); }
+    }
+}

@@ -1,0 +1,106 @@
+// Extruder von Hand bewegen, Filament laden und entladen.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Printer, UiSettings } from "../state.slint";
+import { Card, IconButton, IconLabel, StepSelector } from "../components/controls.slint";
+
+export component ExtrudePage inherits Rectangle {
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.spacing;
+                Card {
+                    title: @tr("Nozzle");
+                    icon: Icons.thermal-nozzle;
+                    HorizontalLayout {
+                        spacing: Theme.spacing;
+                        Text {
+                            text: Printer.nozzle-temperature.to-fixed(1) + " / " + round(Printer.nozzle-target) + " °C";
+                            color: Theme.foreground;
+                            font-size: Theme.font-large;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        if !Printer.can-extrude: IconLabel {
+                            icon: Icons.ui-warning;
+                            text: @tr("Too cold to extrude");
+                            color: Theme.warning;
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    vertical-stretch: 1;
+                    IconButton {
+                        icon: Icons.filament-retract;
+                        text: @tr("Retract {} mm", UiSettings.extrude-length);
+                        icon-size: 40px;
+                        enabled: Printer.can-extrude;
+                        clicked => { Actions.extrude(-UiSettings.extrude-length, UiSettings.extrude-speed); }
+                    }
+                    IconButton {
+                        icon: Icons.filament-extrude;
+                        text: @tr("Extrude {} mm", UiSettings.extrude-length);
+                        icon-size: 40px;
+                        kind: "accent";
+                        enabled: Printer.can-extrude;
+                        clicked => { Actions.extrude(UiSettings.extrude-length, UiSettings.extrude-speed); }
+                    }
+                }
+                if Printer.filament-sensors.length > 0: Card {
+                    title: @tr("Filament sensors");
+                    icon: Icons.filament-sensor;
+                    HorizontalLayout {
+                        spacing: 16px;
+                        for sensor in Printer.filament-sensors: IconLabel {
+                            icon: !sensor.enabled ? Icons.ui-minus : sensor.detected ? Icons.ui-check : Icons.filament-runout;
+                            text: sensor.label;
+                            color: !sensor.enabled ? Theme.muted : sensor.detected ? Theme.success : Theme.warning;
+                            font-size: Theme.font-small;
+                        }
+                    }
+                }
+            }
+
+            VerticalLayout {
+                width: 120px;
+                spacing: Theme.spacing;
+                if Printer.has-load-macro: IconButton {
+                    icon: Icons.filament-load;
+                    text: @tr("Load");
+                    clicked => { Actions.load-filament(); }
+                }
+                if Printer.has-unload-macro: IconButton {
+                    icon: Icons.filament-unload;
+                    text: @tr("Unload");
+                    clicked => { Actions.unload-filament(); }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+
+        StepSelector {
+            label: @tr("Length");
+            values: [5, 10, 25, 50, 100];
+            unit: " mm";
+            selected <=> UiSettings.extrude-length;
+            changed => { UiSettings.steps-changed(); }
+        }
+        StepSelector {
+            label: @tr("Speed");
+            values: [1, 2, 5, 10];
+            unit: " mm/s";
+            selected <=> UiSettings.extrude-speed;
+            changed => { UiSettings.steps-changed(); }
+        }
+    }
+}

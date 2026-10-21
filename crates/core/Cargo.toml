@@ -1,0 +1,23 @@
+[package]
+name = "klipper-touch-core"
+description = "UI-independent Moonraker client, printer state and settings for klipper-touch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+dirs = "7.0.0"
+futures-util.workspace = true
+log.workspace = true
+reqwest = { version = "0.13.5", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+
+[dev-dependencies]
+fake-moonraker.workspace = true

@@ -4,38 +4,30 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Tauri Development Debug",
+      "name": "debug: klipper-touch-slint (Fake-Moonraker)",
       "cargo": {
-        "args": ["build", "--manifest-path=./src-tauri/Cargo.toml", "--no-default-features"]
+        "args": ["build", "-p", "klipper-touch-slint", "--bin", "klipper-touch-slint"]
       },
-      "preLaunchTask": "ui:dev"
+      "args": ["--moonraker", "http://127.0.0.1:7125"],
+      "env": { "RUST_LOG": "info,klipper_touch_core=debug" },
+      "preLaunchTask": "run: fake-moonraker"
     },
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Tauri Development Debug (Fake-Moonraker)",
+      "name": "debug: klipper-touch-slint (Einstellungen)",
       "cargo": {
-        "args": ["build", "--manifest-path=./src-tauri/Cargo.toml", "--no-default-features"]
-      },
-      "args": ["-m", "http://127.0.0.1:7125/", "-w", "ws://127.0.0.1:7125/websocket"],
-      "preLaunchTask": "dev:fake"
-    },
-    {
-      "type": "lldb",
-      "request": "launch",
-      "name": "Tauri Production Debug",
-      "cargo": {
-        "args": ["build", "--release", "--manifest-path=./src-tauri/Cargo.toml"]
-      },
-      "preLaunchTask": "ui:build"
-    },
-    {
-      "type": "lldb",
-      "request": "launch",
-      "name": "egui Hello Debug",
-      "cargo": {
-        "args": ["build", "--manifest-path=./egui-hello/Cargo.toml"]
+        "args": ["build", "-p", "klipper-touch-slint", "--bin", "klipper-touch-slint"]
       }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "debug: fake-moonraker",
+      "cargo": {
+        "args": ["build", "-p", "fake-moonraker"]
+      },
+      "args": ["--port", "7125", "--time-scale", "10", "--profile", "voron"]
     }
   ]
 }

@@ -25,9 +25,23 @@ struct Spool {
 
 const SPOOLS: [Spool; 4] = [
     Spool { name: "Red PLA", material: "PLA", vendor: "Fake", color: "red", rgb: [1.0, 0.0, 0.0], temperature: 210 },
-    Spool { name: "Green PETG", material: "PETG", vendor: "Fake", color: "green", rgb: [0.0, 0.8, 0.0], temperature: 235 },
+    Spool {
+        name: "Green PETG",
+        material: "PETG",
+        vendor: "Fake",
+        color: "green",
+        rgb: [0.0, 0.8, 0.0],
+        temperature: 235,
+    },
     Spool { name: "Blue PLA", material: "PLA", vendor: "Fake", color: "blue", rgb: [0.0, 0.2, 1.0], temperature: 210 },
-    Spool { name: "Black ABS", material: "ABS", vendor: "Fake", color: "black", rgb: [0.1, 0.1, 0.1], temperature: 250 },
+    Spool {
+        name: "Black ABS",
+        material: "ABS",
+        vendor: "Fake",
+        color: "black",
+        rgb: [0.1, 0.1, 0.1],
+        temperature: 250,
+    },
 ];
 
 #[derive(Debug, Clone)]
@@ -106,10 +120,8 @@ impl HappyHare {
 
     fn change_tool(&mut self, tool: usize) -> Result<(), CommandError> {
         self.require_homed()?;
-        let gate = *self
-            .tool_to_gate
-            .get(tool)
-            .ok_or_else(|| CommandError::new(format!("Tool T{tool} does not exist")))?;
+        let gate =
+            *self.tool_to_gate.get(tool).ok_or_else(|| CommandError::new(format!("Tool T{tool} does not exist")))?;
         self.require_filament_at(gate)?;
         self.select(gate);
         self.loaded = true;
@@ -144,11 +156,8 @@ impl HappyHare {
 
     fn select(&mut self, gate: usize) {
         self.gate = gate as i32;
-        self.tool = self
-            .tool_to_gate
-            .iter()
-            .position(|mapped| *mapped == gate)
-            .map_or(NONE_SELECTED, |tool| tool as i32);
+        self.tool =
+            self.tool_to_gate.iter().position(|mapped| *mapped == gate).map_or(NONE_SELECTED, |tool| tool as i32);
     }
 
     fn require_homed(&self) -> Result<(), CommandError> {
@@ -296,7 +305,9 @@ mod tests {
     fn every_move_requires_homing() {
         let mut hare = HappyHare::new(4);
 
-        for command in [MmuCommand::Select { gate: 1 }, MmuCommand::ChangeTool { tool: 1 }, MmuCommand::Load { gate: None }] {
+        for command in
+            [MmuCommand::Select { gate: 1 }, MmuCommand::ChangeTool { tool: 1 }, MmuCommand::Load { gate: None }]
+        {
             assert_eq!(hare.apply(command).unwrap_err().message(), "MMU is not homed");
         }
     }
@@ -385,7 +396,10 @@ mod tests {
         let objects = HappyHare::new(4).status("standby");
 
         let names: Vec<&str> = objects.keys().map(String::as_str).collect();
-        assert_eq!(names, ["mmu", "mmu_encoder unit0", "mmu_extruder extruder", "mmu_machine", "mmu_stepper unit0_gear"]);
+        assert_eq!(
+            names,
+            ["mmu", "mmu_encoder unit0", "mmu_extruder extruder", "mmu_machine", "mmu_stepper unit0_gear"]
+        );
         assert_eq!(objects["mmu_machine"]["unit_0"]["num_gates"], 4);
     }
 }

@@ -1,0 +1,151 @@
+// Temperaturen, Vorgaben und Bauteillüfter.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, HeaterItem, Printer, UiSettings } from "../state.slint";
+import { Card, IconButton, StepSelector } from "../components/controls.slint";
+
+component HeaterRow inherits Rectangle {
+    in property <HeaterItem> heater;
+    in property <float> step;
+    height: 64px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+
+    HorizontalLayout {
+        padding: 4px;
+        padding-left: 10px;
+        spacing: Theme.spacing;
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.heater.object == "heater_bed" ? Icons.thermal-bed : root.heater.object == "extruder" ? Icons.thermal-nozzle : Icons.thermal-chamber;
+                colorize: root.heater.target > 0 ? Theme.accent : Theme.muted;
+                width: 28px;
+                height: 28px;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.heater.label;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+            Text {
+                text: root.heater.temperature.to-fixed(1) + " °C";
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+                font-weight: 600;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            width: 80px;
+            Text {
+                text: @tr("Target");
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: root.heater.target > 0 ? round(root.heater.target) + " °C" : @tr("off");
+                color: root.heater.target > 0 ? Theme.accent : Theme.muted;
+                font-size: Theme.font-large;
+                font-weight: 600;
+                horizontal-alignment: center;
+            }
+        }
+        IconButton {
+            width: 64px;
+            icon: Icons.ui-minus;
+            enabled: root.heater.target > 0;
+            clicked => { Actions.set-heater(root.heater.object, max(0, root.heater.target - root.step)); }
+        }
+        IconButton {
+            width: 64px;
+            icon: Icons.ui-plus;
+            clicked => { Actions.set-heater(root.heater.object, root.heater.target + root.step); }
+        }
+        IconButton {
+            width: 64px;
+            icon: Icons.thermal-off;
+            enabled: root.heater.target > 0;
+            clicked => { Actions.set-heater(root.heater.object, 0); }
+        }
+    }
+}
+
+export component TemperaturePage inherits Rectangle {
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.spacing;
+                for heater in Printer.heaters: HeaterRow {
+                    heater: heater;
+                    step: UiSettings.temperature-step;
+                }
+                if Printer.sensors.length > 0: Card {
+                    title: @tr("Sensors");
+                    icon: Icons.thermal-heating;
+                    HorizontalLayout {
+                        spacing: 16px;
+                        for sensor in Printer.sensors: Text {
+                            text: sensor.label + ": " + sensor.temperature.to-fixed(1) + " °C";
+                            color: Theme.foreground;
+                            font-size: Theme.font-small;
+                        }
+                    }
+                }
+                if Printer.has-part-fan: Card {
+                    title: @tr("Part fan: {}%", round(Printer.part-fan));
+                    icon: Icons.thermal-fan;
+                    HorizontalLayout {
+                        spacing: 4px;
+                        height: 48px;
+                        for level in [0, 25, 50, 75, 100]: IconButton {
+                            text: level == 0 ? @tr("Off") : level + "%";
+                            checked: abs(Printer.part-fan - level) < 1;
+                            clicked => { Actions.set-part-fan(level); }
+                        }
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+
+            VerticalLayout {
+                width: 120px;
+                spacing: Theme.spacing;
+                for preset[index] in UiSettings.presets: IconButton {
+                    icon: Icons.thermal-preset;
+                    text: preset.name + "  " + round(preset.extruder) + "/" + round(preset.bed);
+                    clicked => { Actions.apply-preset(index); }
+                }
+                IconButton {
+                    icon: Icons.thermal-cooling;
+                    text: @tr("Cool down");
+                    kind: "accent";
+                    clicked => { Actions.cool-down(); }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+
+        StepSelector {
+            label: @tr("Step");
+            values: [1, 5, 10, 25];
+            unit: " °C";
+            selected <=> UiSettings.temperature-step;
+            changed => { UiSettings.steps-changed(); }
+        }
+    }
+}

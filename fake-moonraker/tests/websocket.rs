@@ -100,14 +100,10 @@ async fn subscribe_delivers_initial_status() {
 #[tokio::test]
 async fn heating_is_pushed_as_status_updates() {
     let mut client = Client::connect(start_server().await).await;
-    client
-        .request("printer.objects.subscribe", json!({ "objects": { "extruder": ["temperature", "target"] } }))
-        .await;
+    client.request("printer.objects.subscribe", json!({ "objects": { "extruder": ["temperature", "target"] } })).await;
 
     let script = client.request("printer.gcode.script", json!({ "script": "M104 S50" })).await;
-    let update = client
-        .wait_for_status_update(|status| status["extruder"]["temperature"] == 50.0)
-        .await;
+    let update = client.wait_for_status_update(|status| status["extruder"]["temperature"] == 50.0).await;
 
     assert_eq!(script["result"], "ok");
     assert_eq!(update["extruder"]["temperature"], 50.0);
@@ -116,14 +112,10 @@ async fn heating_is_pushed_as_status_updates() {
 #[tokio::test]
 async fn print_job_progresses_to_complete() {
     let mut client = Client::connect(start_server().await).await;
-    client
-        .request("printer.objects.subscribe", json!({ "objects": { "print_stats": ["state"] } }))
-        .await;
+    client.request("printer.objects.subscribe", json!({ "objects": { "print_stats": ["state"] } })).await;
 
     let start = client.request("printer.print.start", json!({ "filename": "calibration_cube.gcode" })).await;
-    let update = client
-        .wait_for_status_update(|status| status["print_stats"]["state"] == "complete")
-        .await;
+    let update = client.wait_for_status_update(|status| status["print_stats"]["state"] == "complete").await;
 
     assert_eq!(start["result"], "ok");
     assert_eq!(update["print_stats"]["state"], "complete");

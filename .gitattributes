@@ -1,0 +1,4 @@
+# Einheitlich LF im Repository und im Arbeitsverzeichnis, unabhängig von core.autocrlf.
+* text=auto eol=lf
+*.png binary
+*.ico binary

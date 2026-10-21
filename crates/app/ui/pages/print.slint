@@ -1,0 +1,276 @@
+// Druckauftrag: Vorschau, Fortschritt, Steuerung und Dateiauswahl.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, Navigation, Printer, StateIcons } from "../state.slint";
+import { IconButton, ProgressBar, ValueTile } from "../components/controls.slint";
+
+component Thumbnail inherits Rectangle {
+    in property <image> source;
+    in property <bool> available;
+    background: Theme.surface-raised;
+    border-radius: Theme.radius;
+    clip: true;
+
+    if root.available: Image {
+        width: parent.width;
+        height: parent.height;
+        source: root.source;
+        image-fit: contain;
+    }
+    if !root.available: Image {
+        source: Icons.file-gcode;
+        colorize: Theme.disabled-foreground;
+        width: parent.width / 3;
+        height: parent.width / 3;
+    }
+}
+
+component FileRow inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    in property <image> thumbnail;
+    in property <bool> has-thumbnail;
+    in property <bool> selected;
+    callback clicked;
+    height: 72px;
+    border-radius: Theme.radius;
+    background: root.selected ? Theme.surface-active : row-touch.pressed ? Theme.surface-raised : Theme.surface;
+    border-width: root.selected ? 2px : 0px;
+    border-color: Theme.accent;
+
+    row-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding: 4px;
+        spacing: 10px;
+        Thumbnail {
+            width: 64px;
+            source: root.thumbnail;
+            available: root.has-thumbnail;
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.name;
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                overflow: elide;
+            }
+            Text {
+                text: root.detail;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// Dateiliste über der Druckseite; Blättern per Wischen oder mit den Pfeiltasten.
+export component FileBrowser inherits Rectangle {
+    property <int> selected: -1;
+    property <length> row-step: 76px;
+    background: Theme.background;
+    visible: Navigation.files-open;
+
+    TouchArea { }
+
+    HorizontalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        list := Flickable {
+            horizontal-stretch: 1;
+            content-height: max(self.height, Printer.files.length * root.row-step);
+            for file[index] in Printer.files: FileRow {
+                y: index * root.row-step;
+                width: list.width;
+                name: file.name;
+                detail: file.detail;
+                thumbnail: file.thumbnail;
+                has-thumbnail: file.has-thumbnail;
+                selected: index == root.selected;
+                clicked => { root.selected = index; }
+            }
+        }
+
+        VerticalLayout {
+            width: 96px;
+            spacing: Theme.spacing;
+            IconButton {
+                icon: Icons.ui-close;
+                text: @tr("Close");
+                clicked => { Navigation.files-open = false; }
+            }
+            IconButton {
+                icon: Icons.ui-chevron-up;
+                text: @tr("Up");
+                enabled: list.content-y < 0;
+                clicked => { list.content-y = min(0px, list.content-y + list.height * 0.8); }
+            }
+            IconButton {
+                icon: Icons.ui-chevron-down;
+                text: @tr("Down");
+                enabled: list.content-y > list.height - list.content-height;
+                clicked => { list.content-y = max(list.height - list.content-height, list.content-y - list.height * 0.8); }
+            }
+            IconButton {
+                icon: Icons.ui-refresh;
+                text: Printer.files-loading ? @tr("Loading") : @tr("Refresh");
+                enabled: !Printer.files-loading;
+                clicked => {
+                    root.selected = -1;
+                    Actions.refresh-files();
+                }
+            }
+            IconButton {
+                icon: Icons.print-start;
+                text: @tr("Print");
+                kind: "accent";
+                vertical-stretch: 1;
+                enabled: root.selected >= 0 && root.selected < Printer.files.length && !Printer.is-printing;
+                clicked => {
+                    Confirm.ask(@tr("Start print"), Printer.files[root.selected].name, "start-print", Printer.files[root.selected].path, false);
+                    Navigation.files-open = false;
+                }
+            }
+        }
+    }
+}
+
+export component PrintPage inherits Rectangle {
+    property <bool> has-job: Printer.filename != "";
+    property <bool> finished: Printer.print-state == "complete" || Printer.print-state == "cancelled" || Printer.print-state == "error";
+
+    HorizontalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        VerticalLayout {
+            width: 220px;
+            spacing: Theme.spacing;
+            Thumbnail {
+                height: 220px;
+                source: Printer.job-thumbnail;
+                available: root.has-job && Printer.has-job-thumbnail;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                VerticalLayout {
+                    alignment: start;
+                    Image {
+                        source: StateIcons.print-state(Printer.print-state);
+                        colorize: Printer.print-state == "error" ? Theme.danger : Theme.accent;
+                        width: 22px;
+                        height: 22px;
+                    }
+                }
+                Text {
+                    text: root.has-job ? Printer.job-name : @tr("No print loaded");
+                    color: Theme.foreground;
+                    font-size: Theme.font-normal;
+                    font-weight: 600;
+                    wrap: word-wrap;
+                }
+            }
+            if Printer.job-message != "": Text {
+                text: Printer.job-message;
+                color: Printer.print-state == "error" ? Theme.danger : Theme.muted;
+                font-size: Theme.font-small;
+                wrap: word-wrap;
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: Theme.spacing;
+            HorizontalLayout {
+                spacing: 10px;
+                height: 48px;
+                Text {
+                    text: round(Printer.progress * 100) + "%";
+                    color: Theme.foreground;
+                    font-size: Theme.font-huge;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    ProgressBar {
+                        progress: Printer.progress;
+                        bar-color: Printer.print-state == "paused" ? Theme.warning : Printer.print-state == "error" ? Theme.danger : Theme.accent;
+                    }
+                }
+            }
+            GridLayout {
+                spacing: Theme.spacing;
+                Row {
+                    ValueTile { icon: Icons.print-duration; label: @tr("Elapsed"); value: Printer.elapsed; }
+                    ValueTile { icon: Icons.print-eta; label: @tr("Remaining"); value: Printer.remaining; }
+                }
+                Row {
+                    ValueTile { icon: Icons.print-layers; label: @tr("Layer"); value: Printer.layers; }
+                    ValueTile { icon: Icons.ui-info; label: @tr("ETA"); value: Printer.eta; }
+                }
+                Row {
+                    ValueTile { icon: Icons.filament-spool; label: @tr("Filament"); value: Printer.filament; }
+                    ValueTile {
+                        icon: Icons.motion-speed;
+                        label: @tr("Speed / Flow");
+                        value: round(Printer.live-velocity) + " mm/s · " + Printer.live-flow.to-fixed(1) + " mm³/s";
+                    }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        VerticalLayout {
+            width: 104px;
+            spacing: Theme.spacing;
+            if !Printer.is-printing: IconButton {
+                height: 96px;
+                icon: Icons.print-load;
+                text: @tr("Files");
+                clicked => {
+                    Navigation.files-open = true;
+                    Actions.refresh-files();
+                }
+            }
+            if !Printer.is-printing && root.has-job: IconButton {
+                height: 96px;
+                icon: root.finished ? Icons.print-repeat : Icons.print-start;
+                text: root.finished ? @tr("Reprint") : @tr("Start");
+                kind: "accent";
+                clicked => { Confirm.ask(@tr("Start print"), Printer.job-name, "start-print", Printer.filename, false); }
+            }
+            if Printer.print-state == "printing": IconButton {
+                height: 96px;
+                icon: Icons.print-pause;
+                text: @tr("Pause");
+                clicked => { Actions.pause-print(); }
+            }
+            if Printer.print-state == "paused": IconButton {
+                height: 96px;
+                icon: Icons.print-resume;
+                text: @tr("Resume");
+                kind: "accent";
+                clicked => { Actions.resume-print(); }
+            }
+            if Printer.is-printing: IconButton {
+                height: 96px;
+                icon: Icons.print-cancel;
+                text: @tr("Cancel");
+                kind: "danger";
+                clicked => { Confirm.ask(@tr("Cancel print"), @tr("The current print will be stopped and cannot be resumed."), "cancel-print", "", true); }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+
+    FileBrowser { }
+}
