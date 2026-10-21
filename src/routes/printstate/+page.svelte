@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import type { IFile } from '$lib/moonraker/types/IFile';
 
   const printstateSubscription = definePrinterObjects({
     heater_bed: ['temperature', 'target'],
@@ -41,11 +42,9 @@
   let clockFormatter = values.clockFormatter;
   let progress = moonraker.display_status.progress;
   let selectedFileThumbnailPath = values.largestAbsoluteThumbnailPath;
-  let metaFilamentTotal = $state(0);
+  let metaFilamentTotal = $derived($fileMeta?.filament_total ?? 0);
   let confirmCancelPrint = $state(false);
-  let metaPrintStartTime = $state(0);
-  let metaEstimatedTime = $state(0);
-  let estimatedDate = $state(Date.now());
+  let estimatedDate = $derived(Date.now() + remainingSeconds($fileMeta?.estimated_time, $progress, $printStatsPrintDuration) * 1000);
   let apiUrl = bootParams.moonrakerApi;
 
   let loadDialog = $state(false);
@@ -88,28 +87,28 @@
   ]);
 
   let fileEntries: FileListEntry[] = $state([]);
+  let sortedFileEntries = $derived([...fileEntries].sort(sortDic.get(currentSort)));
 
   async function clickLoad() {
     loadDialog = true;
 
-    let gcodeFiles = await commands.listFiles();
+    const gcodeFiles = await commands.listFiles();
+    fileEntries = await Promise.all(gcodeFiles.map(createFileListEntry));
+  }
 
-    await Promise.all(
-      gcodeFiles.map(async (file) => {
-        let meta = await values.getFileMetadata(file.path);
-        let index = gcodeFiles.indexOf(file);
-        let entry: FileListEntry = new FileListEntry();
-        if (meta !== null) {
-          entry.duration = meta.estimated_time;
-          entry.name = file.path;
-          entry.weight = meta.filament_weight_total;
-          entry.modified = meta.modified;
-          entry.thumbnailUrl = await values.getLargestAbsoluteThumbnailPath($apiUrl, meta.thumbnails);
-        }
+  async function createFileListEntry(file: IFile): Promise<FileListEntry> {
+    const entry = new FileListEntry();
+    entry.name = file.path;
 
-        fileEntries[index] = entry;
-      })
-    );
+    const meta = await values.getFileMetadata(file.path);
+    if (meta !== null) {
+      entry.duration = meta.estimated_time;
+      entry.weight = meta.filament_weight_total;
+      entry.modified = meta.modified;
+      entry.thumbnailUrl = await values.getLargestAbsoluteThumbnailPath($apiUrl, meta.thumbnails);
+    }
+
+    return entry;
   }
 
   let dateFormat = new Intl.DateTimeFormat('de', {
@@ -119,6 +118,31 @@
     month: 'numeric',
     day: 'numeric',
     year: 'numeric'
+  });
+
+  function remainingSeconds(estimatedTime: number | undefined, progress: number, printDuration: number): number {
+    if (estimatedTime !== undefined) {
+      return estimatedTime * (1 - progress);
+    }
+
+    return progress > 0 ? printDuration / progress - printDuration : 0;
+  }
+
+  async function updateMetadata(relativeFilename: string) {
+    if (relativeFilename === '') {
+      return;
+    }
+
+    const metadata = await values.getFileMetadata(relativeFilename);
+    values.fileMetadata.set(metadata);
+
+    if (metadata !== null) {
+      values.largestAbsoluteThumbnailPath.set(await values.getLargestAbsoluteThumbnailPath($apiUrl, metadata.thumbnails));
+    }
+  }
+
+  $effect(() => {
+    void updateMetadata($printStatsFilename);
   });
 
   onMount(async () => {
@@ -357,7 +381,7 @@
       <div class="flex max-h-full w-5/6 flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-lg" bind:this={divElement}>
         <table class="w-full table-auto gap-1 rounded-lg drop-shadow-md">
           <tbody>
-            {#each fileEntries.sort(sortDic.get(currentSort)) as entry, i}
+            {#each sortedFileEntries as entry, i}
               <tr
                 class="border-b border-neutral-800 drop-shadow-md active:bg-red-500 disabled:opacity-50 {i === selectedFileEntry
                   ? 'bg-neutral-500'
@@ -380,7 +404,7 @@
                   <div class="flex flex-col px-1 py-1">
                     <div class="pb-1 text-sm text-neutral-50">{entry.name.slice(0, entry.name.length - 6)}</div>
                     {#if entry.modified}
-                      <div class="text-xs text-neutral-300">Modified: {dateFormat.format(new Date(Date.now() + entry.modified))}</div>
+                      <div class="text-xs text-neutral-300">Modified: {dateFormat.format(new Date(entry.modified * 1000))}</div>
                     {/if}
                     <div class="flex flex-row">
                       {#if entry.duration}

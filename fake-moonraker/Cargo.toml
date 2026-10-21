@@ -1,0 +1,15 @@
+[package]
+name = "fake-moonraker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+serde_json = "1.0.154"
+tokio = { version = "1.54.0", features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
+
+[dev-dependencies]
+futures-util = "0.3.34"
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect"] }
+
+
