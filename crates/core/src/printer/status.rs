@@ -75,6 +75,35 @@ impl PrintState {
     }
 }
 
+/// `idle_timeout.state`: whether the machine is working, independent of a print job.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Activity {
+    #[default]
+    Ready,
+    /// Klipper calls this "Printing": any command is being executed, e.g. homing or heating.
+    Busy,
+    /// Inactive for longer than the idle timeout; Klipper has usually switched off heaters and motors.
+    Idle,
+}
+
+impl Activity {
+    pub fn parse(text: &str) -> Self {
+        match text {
+            "Printing" => Self::Busy,
+            "Idle" => Self::Idle,
+            _ => Self::Ready,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Busy => "busy",
+            Self::Idle => "idle",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Axis {
     X,
@@ -166,6 +195,27 @@ pub struct Heater {
     pub temperature: f64,
     pub target: f64,
     pub power: f64,
+    /// `min_temp`/`max_temp` from the Klipper configuration; Klipper rejects targets outside (except 0 = off).
+    pub min_temp: f64,
+    pub max_temp: Option<f64>,
+}
+
+impl Heater {
+    /// Target after pressing + or − (`step` with sign): jumps over the forbidden range between off and
+    /// `min_temp` and stops at `max_temp`.
+    pub fn stepped_target(&self, step: f64) -> f64 {
+        let maximum = self.max_temp.unwrap_or(f64::INFINITY);
+        let next = (self.target + step).min(maximum);
+        if next <= 0.0 || (step < 0.0 && next < self.min_temp) {
+            0.0
+        } else {
+            next.max(self.min_temp)
+        }
+    }
+
+    pub fn can_raise(&self) -> bool {
+        self.max_temp.is_none_or(|maximum| self.target < maximum)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -187,6 +237,7 @@ pub struct FilamentSensor {
 pub struct PrinterStatus {
     pub klippy_state: KlippyState,
     pub klippy_message: String,
+    pub activity: Activity,
     pub job: PrintJob,
     pub motion: Motion,
     pub extruder: ExtruderState,
@@ -207,6 +258,7 @@ impl PrinterStatus {
         Self {
             klippy_state: KlippyState::parse(text(webhooks, "state")),
             klippy_message: text(webhooks, "state_message").trim().to_owned(),
+            activity: Activity::parse(text(object("idle_timeout"), "state")),
             job: read_job(object("print_stats"), object("display_status"), object("virtual_sdcard")),
             motion: read_motion(object("toolhead"), object("motion_report"), object("gcode_move")),
             extruder: read_extruder(object("extruder")),
@@ -273,6 +325,8 @@ fn read_extruder(extruder: &Value) -> ExtruderState {
 }
 
 fn read_heaters(store: &ObjectStore) -> Vec<Heater> {
+    let settings = store.object("configfile").and_then(|configfile| configfile.get("settings"));
+    let heater = |name: &str, value: &Value| heater(name, value, settings.and_then(|settings| settings.get(name)));
     let mut heaters: Vec<Heater> = ["extruder", "heater_bed"]
         .into_iter()
         .filter_map(|name| store.object(name).map(|value| heater(name, value)))
@@ -292,13 +346,16 @@ fn is_extra_heater(name: &str) -> bool {
         || (name.starts_with("extruder") && name != "extruder" && !name.contains(' '))
 }
 
-fn heater(object: &str, value: &Value) -> Heater {
+fn heater(object: &str, value: &Value, settings: Option<&Value>) -> Heater {
+    let settings = settings.unwrap_or(&Value::Null);
     Heater {
         object: object.to_owned(),
         label: label(object),
         temperature: number(value, "temperature"),
         target: number(value, "target"),
         power: number(value, "power"),
+        min_temp: number(settings, "min_temp").max(0.0),
+        max_temp: settings.get("max_temp").and_then(Value::as_f64),
     }
 }
 
@@ -394,6 +451,7 @@ mod tests {
     fn reads_job_motion_and_heaters() {
         let status = PrinterStatus::from_store(&store(json!({
             "webhooks": { "state": "ready", "state_message": "Printer is ready\n" },
+            "idle_timeout": { "state": "Printing" },
             "print_stats": {
                 "state": "printing", "filename": "cube.gcode", "print_duration": 60.0,
                 "info": { "current_layer": 3, "total_layer": 100 }
@@ -411,6 +469,7 @@ mod tests {
 
         assert_eq!(status.klippy_state, KlippyState::Ready);
         assert_eq!(status.klippy_message, "Printer is ready");
+        assert_eq!(status.activity, Activity::Busy);
         assert_eq!(status.job.state, PrintState::Printing);
         assert_eq!(status.job.progress, 0.25);
         assert_eq!((status.job.current_layer, status.job.total_layer), (Some(3), Some(100)));
@@ -430,10 +489,44 @@ mod tests {
         let status = PrinterStatus::from_store(&ObjectStore::default());
 
         assert_eq!(status.klippy_state, KlippyState::Disconnected);
+        assert_eq!(status.activity, Activity::Ready);
+        assert_eq!(Activity::parse("Idle"), Activity::Idle);
         assert_eq!(status.job.state, PrintState::Standby);
         assert!(status.heaters.is_empty());
         assert_eq!(status.part_fan_speed, None);
         assert_eq!(status.leveling_applied, None);
+    }
+
+    #[test]
+    fn reads_heater_limits_from_the_configuration() {
+        let status = PrinterStatus::from_store(&store(json!({
+            "extruder": { "temperature": 20.0, "target": 0.0 },
+            "heater_bed": { "temperature": 20.0, "target": 0.0 },
+            "configfile": { "settings": { "extruder": { "min_temp": 10.0, "max_temp": 280.0 } } }
+        })));
+
+        let nozzle = status.heater("extruder").unwrap();
+        assert_eq!((nozzle.min_temp, nozzle.max_temp), (10.0, Some(280.0)));
+        let bed = status.heater("heater_bed").unwrap();
+        assert_eq!((bed.min_temp, bed.max_temp), (0.0, None));
+    }
+
+    #[test]
+    fn steps_skip_the_range_below_min_temp_and_stop_at_max_temp() {
+        let heater = |target| Heater { target, min_temp: 40.0, max_temp: Some(280.0), ..Heater::default() };
+
+        assert_eq!(heater(0.0).stepped_target(5.0), 40.0);
+        assert_eq!(heater(40.0).stepped_target(5.0), 45.0);
+        assert_eq!(heater(45.0).stepped_target(-10.0), 0.0);
+        assert_eq!(heater(60.0).stepped_target(-10.0), 50.0);
+        assert_eq!(heater(0.0).stepped_target(-5.0), 0.0);
+        assert_eq!(heater(275.0).stepped_target(10.0), 280.0);
+        assert_eq!(heater(300.0).stepped_target(-5.0), 280.0);
+        assert!(!heater(280.0).can_raise());
+
+        let unlimited = Heater { target: 0.0, ..Heater::default() };
+        assert_eq!(unlimited.stepped_target(5.0), 5.0);
+        assert!(unlimited.can_raise());
     }
 
     #[test]

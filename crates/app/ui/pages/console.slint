@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Printer } from "../state.slint";
-import { IconButton } from "../components/controls.slint";
+import { IconButton, ScrollList } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 
 export component ConsolePage inherits Rectangle {
@@ -21,16 +21,17 @@ export component ConsolePage inherits Rectangle {
             background: Theme.surface;
             border-radius: Theme.radius;
             clip: true;
-            log := Flickable {
+            log := ScrollList {
                 x: 8px;
-                width: parent.width - 16px;
-                content-height: max(self.height, Printer.console.length * root.line-height + 8px);
+                width: parent.width - 12px;
+                height: parent.height;
+                content-height: Printer.console.length * root.line-height + 8px;
                 // Newest lines at the bottom; jump to the end when opened.
-                content-y: min(0px, self.height - self.content-height);
+                offset: min(0px, self.height - self.content-height);
                 for line[index] in Printer.console: HorizontalLayout {
                     y: 4px + index * root.line-height;
                     height: root.line-height;
-                    width: log.width;
+                    width: log.row-width;
                     spacing: 8px;
                     Text {
                         text: line.time;

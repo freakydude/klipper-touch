@@ -16,7 +16,7 @@ while getopts "d:" option; do
 done
 
 sudo systemctl disable --now "$NAME.service" || true
-sudo rm -f "/etc/systemd/system/$NAME.service"
+sudo rm -f "/etc/systemd/system/$NAME.service" "/etc/polkit-1/rules.d/50-$NAME.rules"
 sudo systemctl daemon-reload
 sudo systemctl enable getty@tty1.service || true
 

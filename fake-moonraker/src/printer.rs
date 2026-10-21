@@ -3,7 +3,7 @@
 use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, MmuCommand, Move};
 use crate::happy_hare::HappyHare;
-use crate::machine::MachineProfile;
+use crate::machine::{MachineProfile, FILAMENT_SENSORS};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
 
@@ -13,6 +13,7 @@ const COOL_RATE_PER_SECOND: f64 = 0.5;
 const MIN_EXTRUDE_TEMPERATURE: f64 = 170.0;
 const MAX_EXTRUDER_TARGET: f64 = 300.0;
 const MAX_BED_TARGET: f64 = 120.0;
+const MIN_HEATER_TEMPERATURE: f64 = 10.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
 /// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
@@ -22,6 +23,10 @@ const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
 const EXTRUDER_INDEX: usize = 3;
 const SHUTDOWN_MESSAGE: &str = "Shutdown due to M112 command";
+/// Klipper's default `[idle_timeout] timeout`; afterwards heaters and motors are switched off.
+const IDLE_TIMEOUT_SECONDS: f64 = 600.0;
+/// How long `idle_timeout` reports "Printing" (busy) after a command.
+const BUSY_SECONDS: f64 = 2.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum KlippyState {
@@ -90,9 +95,10 @@ impl Heater {
     }
 
     fn set_target(&mut self, target: f64, maximum: f64) -> Result<(), CommandError> {
-        if !(0.0..=maximum).contains(&target) {
+        // Like Klipper: 0 switches off, everything else must lie within min_temp..=max_temp.
+        if target != 0.0 && !(MIN_HEATER_TEMPERATURE..=maximum).contains(&target) {
             return Err(CommandError::new(format!(
-                "Requested temperature ({target:.1}) out of range (0.0:{maximum:.1})"
+                "Requested temperature ({target:.1}) out of range ({MIN_HEATER_TEMPERATURE:.1}:{maximum:.1})"
             )));
         }
         self.target = target;
@@ -137,6 +143,8 @@ pub struct Printer {
     print_duration: f64,
     total_duration: f64,
     job: Option<PrintJob>,
+    /// Simulated seconds since the last command; drives `idle_timeout.state`.
+    inactive_seconds: f64,
 }
 
 impl Printer {
@@ -170,6 +178,7 @@ impl Printer {
             print_duration: 0.0,
             total_duration: 0.0,
             job: None,
+            inactive_seconds: BUSY_SECONDS,
         }
     }
 
@@ -185,10 +194,35 @@ impl Printer {
             chamber.advance(seconds);
         }
         self.advance_print(seconds);
+        self.advance_idle(seconds);
+    }
+
+    fn advance_idle(&mut self, seconds: f64) {
+        if self.print_state == PrintState::Printing {
+            self.inactive_seconds = 0.0;
+            return;
+        }
+        let was_idle = self.inactive_seconds >= IDLE_TIMEOUT_SECONDS;
+        self.inactive_seconds += seconds;
+        if !was_idle && self.inactive_seconds >= IDLE_TIMEOUT_SECONDS {
+            self.switch_heaters_off();
+            self.homed = [false; 3];
+        }
+    }
+
+    fn idle_state(&self) -> &'static str {
+        if self.print_state == PrintState::Printing || self.inactive_seconds < BUSY_SECONDS {
+            "Printing"
+        } else if self.inactive_seconds >= IDLE_TIMEOUT_SECONDS {
+            "Idle"
+        } else {
+            "Ready"
+        }
     }
 
     pub fn apply(&mut self, command: Command) -> Result<(), CommandError> {
         self.ensure_running()?;
+        self.inactive_seconds = 0.0;
         match command {
             Command::Home(axes) => self.home(&axes),
             Command::SetExtruderTarget(target) => self.extruder.set_target(target, MAX_EXTRUDER_TARGET)?,
@@ -283,6 +317,9 @@ impl Printer {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
         objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        for (index, name) in FILAMENT_SENSORS.iter().take(self.profile.filament_sensors).enumerate() {
+            objects.insert((*name).to_owned(), json!({ "enabled": true, "filament_detected": index != 1 }));
+        }
         for name in MACROS {
             objects.insert(format!("gcode_macro {name}"), json!({}));
         }
@@ -310,6 +347,7 @@ impl Printer {
     fn core_status(&self) -> Map<String, Value> {
         let Value::Object(objects) = json!({
             "webhooks": { "state": self.klippy.as_str(), "state_message": self.klippy.message() },
+            "idle_timeout": { "state": self.idle_state(), "printing_time": 0.0 },
             "heater_bed": self.bed.to_json(),
             "extruder": self.extruder_json(),
             "toolhead": self.toolhead_json(),
@@ -351,10 +389,21 @@ impl Printer {
             .insert("printer".to_owned(), json!({ "kinematics": "corexy", "max_velocity": 300, "max_accel": 3000 }));
         sections.insert(
             "extruder".to_owned(),
-            json!({ "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE, "max_temp": MAX_EXTRUDER_TARGET }),
+            json!({
+                "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE,
+                "min_temp": MIN_HEATER_TEMPERATURE,
+                "max_temp": MAX_EXTRUDER_TARGET
+            }),
         );
-        sections.insert("heater_bed".to_owned(), json!({ "max_temp": MAX_BED_TARGET }));
+        sections
+            .insert("heater_bed".to_owned(), json!({ "min_temp": MIN_HEATER_TEMPERATURE, "max_temp": MAX_BED_TARGET }));
         sections.insert("fan".to_owned(), json!({}));
+        if self.chamber.is_some() {
+            sections.insert(
+                "heater_generic chamber".to_owned(),
+                json!({ "min_temp": MIN_HEATER_TEMPERATURE, "max_temp": MAX_CHAMBER_TARGET }),
+            );
+        }
         if self.profile.quad_gantry_level {
             sections.insert("quad_gantry_level".to_owned(), json!({ "max_adjust": 10 }));
         }
@@ -605,7 +654,25 @@ mod tests {
     fn rejects_temperature_above_limit() {
         let error = run(&mut printer(), "M104 S350").unwrap_err();
 
-        assert_eq!(error.message(), "Requested temperature (350.0) out of range (0.0:300.0)");
+        assert_eq!(error.message(), "Requested temperature (350.0) out of range (10.0:300.0)");
+    }
+
+    #[test]
+    fn idle_timeout_goes_from_busy_to_ready_to_idle_and_switches_off() {
+        let mut printer = printer();
+        assert_eq!(printer.status()["idle_timeout"]["state"], "Ready");
+
+        run(&mut printer, "M104 S200\nG28").unwrap();
+        assert_eq!(printer.status()["idle_timeout"]["state"], "Printing");
+
+        printer.advance(Duration::from_secs(10));
+        assert_eq!(printer.status()["idle_timeout"]["state"], "Ready");
+
+        printer.advance(Duration::from_secs(600));
+        let status = printer.status();
+        assert_eq!(status["idle_timeout"]["state"], "Idle");
+        assert_eq!(status["extruder"]["target"], 0.0);
+        assert_eq!(status["toolhead"]["homed_axes"], "");
     }
 
     #[test]

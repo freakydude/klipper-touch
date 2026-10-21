@@ -23,6 +23,7 @@ depends=$(python3 -c 'import json, sys; print(", ".join(["libc6 (>= 2.36)", "lib
 root=$(mktemp -d)
 install -D -m 0755 "$artifact/klipper-touch" "$root/usr/bin/klipper-touch"
 install -D -m 0644 "$repo/scripts/debian/klipper-touch@.service" "$root/lib/systemd/system/klipper-touch@.service"
+install -D -m 0644 "$repo/scripts/polkit/50-klipper-touch.rules" "$root/usr/share/polkit-1/rules.d/50-klipper-touch.rules"
 install -D -m 0644 "$repo/LICENSE" "$root/usr/share/doc/klipper-touch/copyright"
 install -d "$root/DEBIAN"
 install -m 0755 "$repo/scripts/debian/postinst" "$repo/scripts/debian/prerm" "$repo/scripts/debian/postrm" "$root/DEBIAN/"
@@ -33,6 +34,7 @@ Version: $version
 Architecture: $arch
 Maintainer: Frank Roth <developer@freakydu.de>
 Depends: $depends
+Suggests: network-manager
 Section: misc
 Priority: optional
 Homepage: https://github.com/freakydude/klipper-touch

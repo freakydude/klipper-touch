@@ -19,12 +19,20 @@ struct Cli {
     /// Settings file (default: <config dir>/klipper-touch/settings.json)
     #[arg(long)]
     settings: Option<PathBuf>,
+    /// Simulated Wi-Fi and Ethernet instead of NetworkManager (development)
+    #[arg(long)]
+    simulate_network: bool,
 }
 
 fn main() -> ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
-    let options = Options { moonraker: cli.moonraker, fullscreen: cli.fullscreen, settings_file: cli.settings };
+    let options = Options {
+        moonraker: cli.moonraker,
+        fullscreen: cli.fullscreen,
+        settings_file: cli.settings,
+        simulate_network: cli.simulate_network,
+    };
     match Application::build(options).and_then(Application::run) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
