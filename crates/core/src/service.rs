@@ -16,7 +16,7 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 const KLIPPY_POLL_INTERVAL: Duration = Duration::from_secs(2);
 const QUERY_TIMEOUT: Duration = Duration::from_secs(15);
 const CONSOLE_HISTORY: u32 = 100;
-const CLIENT_NAME: &str = "klipper-touch-slint";
+const CLIENT_NAME: &str = "klipper-touch";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConnectionState {
