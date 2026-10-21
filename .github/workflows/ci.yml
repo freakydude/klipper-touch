@@ -43,6 +43,12 @@ jobs:
             dpkg-deb --info "$package"
             dpkg-deb --contents "$package"
           done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: |
+            artifacts/*.zip
+            artifacts/*.deb
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
