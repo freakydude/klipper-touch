@@ -68,6 +68,7 @@ jobs:
         run: |
           short=$(git rev-parse --short HEAD)
           gh release delete "$TAG" --yes --cleanup-tag || echo "no previous nightly"
+          git push origin ":refs/tags/$TAG" || echo "no previous nightly tag"
           gh release create "$TAG" artifacts/*.zip artifacts/*.tar.gz \
             --target "$GITHUB_SHA" \
             --prerelease \

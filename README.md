@@ -79,6 +79,14 @@ cargo run -p icon-index                                  # after changing icons 
 Structure, data flow and conventions: [docs/architecture.md](docs/architecture.md).
 Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 
+### CI and releases
+
+- Every push and pull request: format, clippy, tests and builds for all targets (`.github/workflows/ci.yml`).
+- Nightly: at 02:00 UTC `main` is published as prerelease `nightly`, replacing the previous one, only if `main` changed
+  (`.github/workflows/nightly.yml`, manual run with `force` possible).
+- Release: set `version` in `Cargo.toml` (`[workspace.package]`), commit, then `git tag -a v0.3.0 -m "v0.3.0"` and
+  `git push origin v0.3.0`. CI builds and creates the release with generated notes.
+
 ## License
 
 GPL-3.0-or-later, see [LICENSE](LICENSE). Slint is used under its GPLv3 option.
