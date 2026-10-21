@@ -12,7 +12,7 @@ jobs:
     name: Format, Clippy, Tests (Linux)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: System libraries for Slint
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - run: cargo fmt --all --check
@@ -23,7 +23,7 @@ jobs:
     name: Windows build and tests
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cargo test --workspace
       - run: cargo build --release -p klipper-touch-slint --bin klipper-touch-slint
       - name: Collect
@@ -77,7 +77,7 @@ jobs:
           apt_get update
           apt_get install -y --no-install-recommends curl ca-certificates git pkg-config build-essential \
             ${{ matrix.compiler }} libfontconfig1-dev:${{ matrix.arch }} libxkbcommon-dev:${{ matrix.arch }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Rust
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
