@@ -1,6 +1,6 @@
-//! UI-unabhängiger Kern von klipper-touch: Moonraker-Verbindung, Druckerzustand, Befehle und Einstellungen.
+//! UI-independent core of klipper-touch: Moonraker connection, printer state, commands and settings.
 //!
-//! Einstiegspunkt ist [`PrinterService`]; die UI liest [`Snapshot`]s und [`Event`]s und schickt [`Command`]s.
+//! The entry point is [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
 
 pub mod commands;
 pub mod files;
@@ -14,3 +14,9 @@ pub use commands::Command;
 pub use moonraker::Endpoint;
 pub use service::{ConnectionState, Event, PrinterService, Query, ServiceChannels, Snapshot};
 pub use settings::{Settings, SettingsStore};
+
+/// Version of this build: set by CI from git tags, otherwise the crate version marked as a local build.
+pub const VERSION: &str = match option_env!("KLIPPER_TOUCH_VERSION") {
+    Some(version) => version,
+    None => concat!(env!("CARGO_PKG_VERSION"), "-dev"),
+};

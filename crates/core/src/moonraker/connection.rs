@@ -1,4 +1,4 @@
-//! WebSocket-Verbindung zu Moonraker: ordnet Antworten ihren Anfragen zu und reicht Notifications weiter.
+//! WebSocket connection to Moonraker: matches responses to their requests and forwards notifications.
 
 use super::rpc::{self, Incoming, RpcError};
 use futures_util::{SinkExt, StreamExt};
@@ -26,7 +26,7 @@ pub struct Notification {
     pub params: Value,
 }
 
-/// Handle auf eine offene Verbindung; günstig zu klonen.
+/// Handle to an open connection; cheap to clone.
 #[derive(Clone)]
 pub struct Connection {
     outgoing: mpsc::UnboundedSender<String>,
@@ -35,8 +35,8 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Baut die Verbindung auf; Notifications kommen über den zurückgegebenen Empfänger,
-    /// der endet, sobald die Verbindung schließt.
+    /// Opens the connection; notifications arrive via the returned receiver,
+    /// which ends as soon as the connection closes.
     pub async fn open(
         url: &str,
     ) -> Result<(Self, mpsc::UnboundedReceiver<Notification>), tokio_tungstenite::tungstenite::Error> {

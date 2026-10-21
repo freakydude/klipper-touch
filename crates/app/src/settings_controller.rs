@@ -1,4 +1,4 @@
-//! Verbindet `UiSettings` mit der Einstellungsdatei und übernimmt Änderungen sofort.
+//! Connects `UiSettings` with the settings file and applies changes immediately.
 
 use crate::presenter::Presenter;
 use crate::{AppWindow, PresetItem, UiSettings};
@@ -11,7 +11,7 @@ use std::rc::Rc;
 pub struct SettingsController {
     window: slint::Weak<AppWindow>,
     store: SettingsStore,
-    /// Stand der Datei; eine Adresse von der Kommandozeile wird nicht gespeichert.
+    /// File contents; an address from the command line is not saved.
     settings: RefCell<Settings>,
     service: PrinterService,
     presenter: Rc<Presenter>,
@@ -59,7 +59,7 @@ impl SettingsController {
         ui.set_extrude_length(settings.steps.extrude_mm as f32);
         ui.set_extrude_speed(settings.steps.extrude_speed as f32);
         ui.set_settings_file(self.store.path().display().to_string().into());
-        ui.set_version(env!("CARGO_PKG_VERSION").into());
+        ui.set_version(klipper_touch_core::VERSION.into());
         self.presets.set_vec(settings.temperature_presets.iter().map(preset_item).collect::<Vec<_>>());
         ui.set_presets(ModelRc::from(self.presets.clone()));
     }

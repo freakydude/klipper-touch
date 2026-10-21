@@ -1,5 +1,5 @@
-//! `cargo run -p icon-index` schreibt `crates/app/ui/icons.slint` und `assets/icons/overview.html`;
-//! mit `--check` wird nur geprüft (Exit-Code 1 bei Fehlern).
+//! `cargo run -p icon-index` writes `crates/app/ui/icons.slint` and `assets/icons/overview.html`;
+//! with `--check` it only checks (exit code 1 on errors).
 
 use icon_index::{check_icons, load_icons, overview_html, repository_root, slint_index, Layout};
 use std::process::ExitCode;

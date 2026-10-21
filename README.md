@@ -54,7 +54,7 @@ Functions only appear when the printer has them (capabilities from `printer.obje
    - registers it with Moonraker's update manager (`[update_manager klipper-touch]` in `moonraker.conf`, service in
      `moonraker.asvc`) and restarts Moonraker.
 
-   Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c beta` for nightly builds.
+   Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c beta` for preview builds of every change on `main`.
    Remove everything with `~/klipper-touch/uninstall.sh`; settings stay in `~/.config/klipper-touch`.
 
 ### Alternative: Debian package
@@ -64,7 +64,7 @@ dependencies, removes the package cleanly, but Moonraker does **not** update it 
 Use either the zip installer or the package, not both (they would compete for `tty1`).
 
 ```bash
-sudo apt install ./klipper-touch_0.3.0_arm64.deb
+sudo apt install ./klipper-touch_0.2.0_arm64.deb
 sudo systemctl disable getty@tty1                # free tty1 for the kiosk
 sudo systemctl enable --now klipper-touch@$USER  # fullscreen on tty1 as this user
 # remove again (stops and disables all klipper-touch@ instances)
@@ -84,7 +84,7 @@ The section written by the installer (add it yourself if `moonraker.conf` lives 
 ```ini
 [update_manager klipper-touch]
 type: zip
-channel: stable          # beta = also nightly builds
+channel: stable          # beta = also preview builds of main
 repo: freakydude/klipper-touch
 path: ~/klipper-touch
 managed_services: klipper-touch
@@ -111,7 +111,7 @@ Without a desktop or compositor the optional cargo feature `linuxkms` renders di
 ## Development
 
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
-For Windows without admin rights see [docs/windows-ohne-admin.md](docs/windows-ohne-admin.md).
+For Windows without admin rights see [docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ```bash
 cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
@@ -130,19 +130,22 @@ Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 `main` is protected: changes go through a pull request, all CI checks must be green and the code owner
 (`.github/CODEOWNERS`) has to approve it.
 
-### CI and releases
+### CI, versions and releases
 
-- Every push and pull request: format, clippy, tests and builds for all targets (`.github/workflows/ci.yml`),
-  with cargo caching.
-- Release assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
+- Versions come from git tags (`.github/scripts/version.sh`): releases are `vX.Y.0`, every later commit on `main` adds
+  one to the patch number (`0.2.1`, `0.2.2`, ...). Pull request builds are `X.Y.Z-pr.<number>.<run>`, other branches
+  `X.Y.Z-dev.<commit>`, local builds `0.0.0-dev`. The version is shown on the Settings page and by `--version`.
+- Every push and pull request: format, clippy, tests, builds and packages for all targets (`.github/workflows/ci.yml`),
+  with cargo caching. The packages are attached to the run as artifact `packages-<version>`; pull requests get a
+  comment with the download link, so an open pull request can be tried before it is merged.
+- Every push to `main` is published as prerelease `vX.Y.Z`, replacing the previous prerelease. Moonraker offers it on
+  the `beta` channel.
+- Release: run the workflow **Release** (Actions tab) on `main` and choose `minor` or `major`. It tags `vX.Y.0`,
+  builds and publishes the release with generated notes; Moonraker offers it on the `stable` channel. The patch number
+  then starts again at 0.
+- Assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
   `scripts/debian`). Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
   `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `klipper-touch.exe`.
-  Every CI run also offers them as artifact `release-packages` (version `dev-<commit>`) for testing a branch or PR.
-- Nightly: at 02:00 UTC `main` is published as prerelease `nightly-<date>-<commit>`, replacing the previous one, only
-  if `main` changed (`.github/workflows/nightly.yml`, manual run with `force` possible).
-- Release: set `version` in `Cargo.toml` (`[workspace.package]`), commit via pull request, then
-  `git tag -a v0.3.0 -m "v0.3.0"` and `git push origin v0.3.0`. CI builds and creates the release with generated notes;
-  Moonraker offers it to every installation on the `stable` channel.
 
 ## License
 

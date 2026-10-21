@@ -1,4 +1,4 @@
-//! G-Code-Dateien, ihre Metadaten und Vorschaubilder.
+//! G-code files, their metadata and thumbnails.
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -55,7 +55,7 @@ impl FileMetadata {
             .max_by_key(|thumbnail| u64::from(thumbnail.width) * u64::from(thumbnail.height))
     }
 
-    /// HTTP-Pfad des größten Vorschaubilds relativ zum Moonraker-Server.
+    /// HTTP path of the largest thumbnail relative to the Moonraker server.
     pub fn thumbnail_path(&self) -> Option<String> {
         let thumbnail = self.largest_thumbnail()?;
         let directory = self.filename.rsplit_once('/').map_or("", |(directory, _)| directory);
@@ -82,7 +82,7 @@ pub fn parse_metadata(result: &Value) -> Option<FileMetadata> {
     serde_json::from_value(result.clone()).ok()
 }
 
-/// Kodiert jedes Pfadsegment für die URL; Schrägstriche bleiben erhalten.
+/// Encodes each path segment for the URL; slashes are kept.
 fn encode_path(path: &str) -> String {
     path.split('/').map(encode_segment).collect::<Vec<_>>().join("/")
 }

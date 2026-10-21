@@ -1,7 +1,7 @@
-//! klipper-touch: Touch-Oberfläche für Klipper über Moonraker.
+//! klipper-touch: touch UI for Klipper via Moonraker.
 //!
-//! Aufbau: `ui/*.slint` beschreibt die Oberfläche, [`presenter`] schreibt den Zustand aus
-//! `klipper-touch-core` hinein, [`actions`] leitet Bedienungen als Befehle weiter.
+//! Structure: `ui/*.slint` describes the UI, [`presenter`] writes the state from
+//! `klipper-touch-core` into it, [`actions`] forwards user input as commands.
 
 slint::include_modules!();
 

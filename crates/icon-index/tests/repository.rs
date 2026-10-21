@@ -1,5 +1,5 @@
-//! Prüft das echte Icon-Set im Repository; schlägt fehl, wenn eine Datei gegen die Regeln verstößt
-//! oder `crates/app/ui/icons.slint` nicht zum Ordnerinhalt passt.
+//! Checks the real icon set in the repository; fails if a file violates the rules
+//! or `crates/app/ui/icons.slint` does not match the folder contents.
 
 use icon_index::{check_icons, load_icons, repository_root, slint_index, Layout};
 

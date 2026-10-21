@@ -1,4 +1,4 @@
-//! Adresse eines Moonraker-Servers, aus der WebSocket- und HTTP-URL abgeleitet werden.
+//! Address of a Moonraker server from which the WebSocket and HTTP URLs are derived.
 
 use thiserror::Error;
 
@@ -13,7 +13,7 @@ pub struct Endpoint {
 pub struct InvalidEndpoint(String);
 
 impl Endpoint {
-    /// Akzeptiert `host[:port]`, `http(s)://host[:port]` und `ws(s)://host[:port]/websocket`.
+    /// Accepts `host[:port]`, `http(s)://host[:port]` and `ws(s)://host[:port]/websocket`.
     pub fn parse(address: &str) -> Result<Self, InvalidEndpoint> {
         let trimmed = address.trim();
         let (secure, rest) = match trimmed.split_once("://") {
@@ -39,7 +39,7 @@ impl Endpoint {
         format!("{scheme}://{}/{}", self.authority, path.trim_start_matches('/'))
     }
 
-    /// Kanonische Schreibweise für Anzeige und Einstellungen.
+    /// Canonical form for display and settings.
     pub fn display(&self) -> String {
         self.http_url("").trim_end_matches('/').to_owned()
     }

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Packt die heruntergeladenen Build-Artefakte (ein Ordner je Ziel) zu Release-Zips und baut je Linux-Ziel ein .deb.
-# Linux-Pakete bekommen release_info.json fuer den Moonraker-Update-Manager (type: zip).
-# Aufruf im Ordner mit den Artefakt-Unterordnern: pack-artifacts.sh <release-tag>
+# Packs the downloaded build artifacts (one folder per target) into release zips and builds a .deb per Linux target.
+# Linux packages get release_info.json for the Moonraker update manager (type: zip).
+# Run in the folder containing the artifact subfolders: pack-artifacts.sh <release-tag>
 set -euo pipefail
 
 version="$1"
@@ -17,7 +17,7 @@ for directory in */; do
   "asset_name": "$name.zip"
 }
 EOF
-    # upload-artifact verliert die Ausfuehrungsrechte; Moonraker uebernimmt sie beim Entpacken aus dem Zip.
+    # upload-artifact loses the execute bits; Moonraker restores them from the zip when extracting.
     chmod 0755 "$name/klipper-touch" "$name/install.sh" "$name/uninstall.sh"
     bash "$(dirname "${BASH_SOURCE[0]}")/build-deb.sh" "$name" "$version"
   fi

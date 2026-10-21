@@ -1,4 +1,4 @@
-//! Gemeinsamer Zustand aller Verbindungen: Drucker, Host, Dateikatalog und Laufzeit.
+//! Shared state of all connections: printer, host, file catalog and runtime.
 
 use crate::files::Catalog;
 use crate::host::Host;
@@ -34,7 +34,7 @@ impl Backend {
         }
     }
 
-    /// Empfaenger fuer Notifications an alle Verbindungen (G-Code-Antworten, Klippy-Zustand ...).
+    /// Receiver for notifications to all connections (G-code responses, Klippy state ...).
     pub fn notifications(&self) -> broadcast::Receiver<String> {
         self.notifications.subscribe()
     }
@@ -44,7 +44,7 @@ impl Backend {
         let _ = self.notifications.send(message.to_string());
     }
 
-    /// Meldet eine Klipper-Antwortzeile wie Moonraker: im Verlauf und als `notify_gcode_response`.
+    /// Reports a Klipper response line like Moonraker: in the history and as `notify_gcode_response`.
     pub fn respond(&self, message: &str) {
         self.with_host(|host| host.record("response", message, unix_time()));
         self.notify("notify_gcode_response", json!([message]));

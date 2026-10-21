@@ -1,4 +1,4 @@
-//! Textformate für die Anzeige (Dauer, Uhrzeit, Länge, Dateinamen).
+//! Display text formats (duration, time of day, length, file names).
 
 use chrono::{DateTime, Local, TimeZone};
 
@@ -17,7 +17,7 @@ pub fn clock(time: DateTime<Local>) -> String {
     time.format("%H:%M").to_string()
 }
 
-/// Uhrzeit, zu der eine Restdauer endet; mit Datum, wenn es nicht mehr heute ist.
+/// Time of day at which a remaining duration ends; with date if it is no longer today.
 pub fn finish_time(now: DateTime<Local>, remaining_seconds: f64) -> String {
     let finish = now + chrono::Duration::seconds(remaining_seconds.max(0.0).round() as i64);
     if finish.date_naive() == now.date_naive() {
@@ -41,7 +41,7 @@ pub fn unix_date(unix_seconds: f64) -> String {
         .map_or_else(String::new, |time| time.format("%d.%m.%Y %H:%M").to_string())
 }
 
-/// Filamentlänge in Metern aus Millimetern.
+/// Filament length in meters from millimeters.
 pub fn filament_length(millimeters: f64) -> String {
     format!("{:.2} m", millimeters.max(0.0) / 1000.0)
 }
@@ -61,7 +61,7 @@ pub fn file_size(bytes: u64) -> String {
     }
 }
 
-/// Anzeigename einer G-Code-Datei: ohne Ordner und Endung.
+/// Display name of a G-code file: without folder and extension.
 pub fn job_name(path: &str) -> String {
     let file = path.rsplit('/').next().unwrap_or(path);
     let lower = file.to_ascii_lowercase();

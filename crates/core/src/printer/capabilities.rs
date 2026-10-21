@@ -1,6 +1,6 @@
-//! Fähigkeiten des Druckers, abgeleitet aus `printer.objects.list` und `server.info`.
+//! Printer capabilities, derived from `printer.objects.list` and `server.info`.
 //!
-//! Die UI bietet Funktionen nur an, wenn die passende Fähigkeit erkannt wurde.
+//! The UI only offers functions when the matching capability was detected.
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Capabilities {
@@ -13,16 +13,16 @@ pub struct Capabilities {
     pub firmware_retraction: bool,
     pub exclude_object: bool,
     pub mmu: bool,
-    /// Weitere Heizungen mit Zieltemperatur (`heater_generic`, `temperature_fan`, weitere Extruder).
+    /// Additional heaters with a target temperature (`heater_generic`, `temperature_fan`, additional extruders).
     pub extra_heaters: Vec<String>,
     pub temperature_sensors: Vec<String>,
     pub filament_sensors: Vec<String>,
-    /// Aufrufbare Makros (ohne mit `_` beginnende Hilfsmakros), in Großschreibung.
+    /// Callable macros (excluding helper macros starting with `_`), in upper case.
     pub macros: Vec<String>,
     pub server: ServerComponents,
 }
 
-/// Geladene Moonraker-Komponenten, die eigene Bedienfunktionen ermöglichen.
+/// Loaded Moonraker components that enable their own operator functions.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ServerComponents {
     pub power: bool,
@@ -61,7 +61,7 @@ impl Capabilities {
         self.macros.iter().any(|candidate| candidate.eq_ignore_ascii_case(name))
     }
 
-    /// Mindestens ein Weg, das Bett bzw. den Gantry auszurichten.
+    /// At least one way to level the bed or gantry.
     pub fn can_level(&self) -> bool {
         self.quad_gantry_level || self.z_tilt
     }

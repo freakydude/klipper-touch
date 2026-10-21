@@ -1,9 +1,9 @@
 .DS_Store
 target/
 *.drawio.bkp
-# Reste des frueheren Node-Stacks, falls lokal noch vorhanden
-node_modules
-# Lokale Editor-Assistenz, nicht veroeffentlichen
+# Machine-specific cargo settings (e.g. proxy workarounds)
+/.cargo/config.toml
+# Local editor tooling, do not publish
 /.github/skills/
 /.github/instructions/
 /.github/copilot-instructions.md

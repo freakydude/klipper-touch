@@ -17,14 +17,14 @@
       }
     },
     {
-      "label": "run: klipper-touch (Fake-Moonraker)",
+      "label": "run: klipper-touch (fake Moonraker)",
       "type": "shell",
       "command": "cargo run -p klipper-touch -- --moonraker http://127.0.0.1:7125",
       "dependsOn": "run: fake-moonraker",
       "problemMatcher": ["$rustc"]
     },
     {
-      "label": "run: klipper-touch (Einstellungen)",
+      "label": "run: klipper-touch (saved settings)",
       "type": "shell",
       "command": "cargo run -p klipper-touch",
       "problemMatcher": ["$rustc"]

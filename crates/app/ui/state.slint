@@ -1,4 +1,4 @@
-// Gemeinsame Daten zwischen Rust und UI. Rust schreibt `Printer` und `UiSettings`, die UI ruft `Actions`.
+// Shared data between Rust and UI. Rust writes `Printer` and `UiSettings`, the UI calls `Actions`.
 
 import { Icons } from "icons.slint";
 
@@ -58,14 +58,14 @@ export struct PresetItem {
 }
 
 export global Printer {
-    // Verbindung: connection = connecting | connected | disconnected; klippy-state wie Moonraker.
+    // Connection: connection = connecting | connected | disconnected; klippy-state as in Moonraker.
     in property <string> connection: "connecting";
     in property <string> klippy-state: "disconnected";
     in property <string> klippy-message;
     in property <string> endpoint;
     in property <bool> ready;
 
-    // Druckauftrag (print_stats.state)
+    // Print job (print_stats.state)
     in property <string> print-state: "standby";
     in property <string> filename;
     in property <string> job-name;
@@ -79,7 +79,7 @@ export global Printer {
     in property <image> job-thumbnail;
     in property <bool> has-job-thumbnail;
 
-    // Bewegung
+    // Motion
     in property <float> position-x;
     in property <float> position-y;
     in property <float> position-z;
@@ -93,7 +93,7 @@ export global Printer {
     in property <float> live-velocity;
     in property <float> live-flow;
 
-    // Temperaturen und Lüfter
+    // Temperatures and fans
     in property <[HeaterItem]> heaters;
     in property <[SensorItem]> sensors;
     in property <float> nozzle-temperature;
@@ -106,7 +106,7 @@ export global Printer {
     in property <bool> can-extrude;
     in property <[FilamentSensorItem]> filament-sensors;
 
-    // Fähigkeiten
+    // Capabilities
     in property <bool> can-quad-gantry-level;
     in property <bool> can-z-tilt;
     in property <bool> has-probe;
@@ -117,7 +117,7 @@ export global Printer {
     in property <bool> save-config-pending;
     in property <string> leveling-state;
 
-    // Listen
+    // Lists
     in property <[string]> macros;
     in property <[FileItem]> files;
     in property <bool> files-loading;
@@ -145,7 +145,7 @@ export global UiSettings {
     in property <string> settings-file;
     in property <string> version;
 
-    // Rust speichert nach jeder Änderung.
+    // Rust saves after every change.
     callback steps-changed();
     callback moonraker-entered(string);
     callback fullscreen-toggled(bool);
@@ -191,7 +191,7 @@ export global Actions {
     callback load-console();
 }
 
-// Textbearbeitung für die Bildschirmtastatur (Slint hat keine Teilstring-Funktion).
+// Text editing for the on-screen keyboard (Slint has no substring function).
 export global TextTools {
     pure callback remove-last(string) -> string;
 }
@@ -201,7 +201,7 @@ export global Navigation {
     in-out property <bool> files-open;
 }
 
-// Bestätigungsdialog: Seiten setzen Text und Aktion, `execute` führt die Aktion nach dem OK aus.
+// Confirmation dialog: pages set text and action, `execute` runs the action after OK.
 export global Confirm {
     in-out property <bool> open;
     in-out property <string> title;
@@ -237,7 +237,7 @@ export global Confirm {
     }
 }
 
-// Zuordnung von Zuständen zu Icons und Anzeigetexten.
+// Mapping of states to icons and display texts.
 export global StateIcons {
     public pure function print-state-label(state: string) -> string {
         if (state == "printing") { return @tr("Printing"); }

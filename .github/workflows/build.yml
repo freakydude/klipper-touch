@@ -1,18 +1,24 @@
 name: Build
 
-# Wiederverwendbar: Tests und Release-Builds aller Zielplattformen; Ergebnisse als Artefakte.
+# Reusable: tests and release builds for all target platforms; results as artifacts.
 on:
   workflow_call:
+    inputs:
+      version:
+        description: "Version baked into the binaries (see .github/scripts/version.sh)"
+        type: string
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
+  KLIPPER_TOUCH_VERSION: ${{ inputs.version }}
 
 jobs:
   check:
     name: Format, Clippy, Tests (Linux)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: System libraries for Slint
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - uses: Swatinem/rust-cache@v2
@@ -24,7 +30,7 @@ jobs:
     name: Windows build and tests
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
       - run: cargo build --release -p klipper-touch --bin klipper-touch
@@ -33,7 +39,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/klipper-touch.exe dist/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: klipper-touch-x86_64-pc-windows-msvc
           path: dist/
@@ -41,8 +47,8 @@ jobs:
   linux:
     name: Linux ${{ matrix.target }}
     runs-on: ubuntu-latest
-    # Debian Bookworm: aelteste noch gepflegte glibc (2.36), damit das Programm auch auf Trixie laeuft.
-    # Bullseye geht nicht mehr: nach LTS-Ende fehlen Pakete aus bullseye-security im Pool (404).
+    # Debian Bookworm: oldest still maintained glibc (2.36), so the binary also runs on Trixie.
+    # Bullseye no longer works: after LTS end, packages from bullseye-security are missing from the pool (404).
     container: debian:bookworm
     strategy:
       fail-fast: false
@@ -70,7 +76,7 @@ jobs:
           apt_get() {
             if ! apt-get -o Acquire::Check-Valid-Until=false "$@" > apt.log 2>&1; then
               tail -n 15 apt.log
-              # Letzte Zeilen als Annotation, damit der Fehler ohne Log-Zugriff sichtbar ist.
+              # Last lines as an annotation, so the error is visible without log access.
               echo "::error title=apt-get $1 failed::$(grep -E '^(E|W):' apt.log | tail -n 5 | tr '\n' ' ')"
               exit 1
             fi
@@ -79,7 +85,7 @@ jobs:
           apt_get update
           apt_get install -y --no-install-recommends curl ca-certificates git pkg-config build-essential \
             ${{ matrix.compiler }} libfontconfig1-dev:${{ matrix.arch }} libxkbcommon-dev:${{ matrix.arch }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Rust
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
@@ -99,7 +105,7 @@ jobs:
           mkdir -p dist
           cp target/${{ matrix.target }}/release/klipper-touch dist/
           cp scripts/install.sh scripts/uninstall.sh scripts/system-dependencies.json dist/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: klipper-touch-${{ matrix.target }}
           path: dist/

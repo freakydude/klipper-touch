@@ -1,40 +1,61 @@
 name: CI
 
-# Jeder Push auf jeden Branch und jeder Pull Request: Tests und Builds aller Plattformen.
-# Ein Tag v* (z. B. v0.3.0) erzeugt zusaetzlich ein dauerhaftes Release.
+# Every push and pull request: tests, builds and packages for all platforms (artifact "packages-<version>").
+# Pull requests get a comment with the download link; every push to main is published as prerelease
+# vX.Y.<commits since the last release>, replacing the previous prerelease. Releases: workflow "Release".
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  # Runs on main are queued, so prereleases are published in commit order.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "version=$(bash .github/scripts/version.sh)" | tee -a "$GITHUB_OUTPUT"
+
   build:
+    needs: version
     uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
 
   release:
-    # Packt bei jedem Lauf (prueft das Paketformat); veroeffentlicht nur bei Tags v*.
     name: Package and release
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     env:
-      VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('dev-{0}', github.sha) }}
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
+          pattern: klipper-touch-*
           path: artifacts
       - name: Pack
         working-directory: artifacts
         run: |
-          bash ../.github/scripts/pack-artifacts.sh "$VERSION"
+          bash ../.github/scripts/pack-artifacts.sh "v$VERSION"
           for archive in *linux*.zip; do
             unzip -Z -l "$archive"
             unzip -p "$archive" release_info.json | python3 -m json.tool
@@ -43,18 +64,41 @@ jobs:
             dpkg-deb --info "$package"
             dpkg-deb --contents "$package"
           done
-      - uses: actions/upload-artifact@v4
+      - id: upload
+        uses: actions/upload-artifact@v7
         with:
-          name: release-packages
+          name: packages-${{ env.VERSION }}
           path: |
             artifacts/*.zip
             artifacts/*.deb
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Publish prerelease
+        # Versions ending in .0 are releases and are only published by the Release workflow.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !endsWith(env.VERSION, '.0')
         run: |
-          gh release create "${{ github.ref_name }}" artifacts/*.zip artifacts/*.deb \
-            --title "klipper-touch ${{ github.ref_name }}" \
-            --generate-notes \
-            --verify-tag
+          gh release create "v$VERSION" artifacts/*.zip artifacts/*.deb \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "klipper-touch v$VERSION (preview)" \
+            --notes "Automatic build of main at $GITHUB_SHA. Replaced by the next commit on main. Untested experiment, use at your own risk."
+          for old in $(gh release list --limit 100 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease) | .tagName'); do
+            if [ "$old" != "v$VERSION" ]; then gh release delete "$old" --yes --cleanup-tag; fi
+          done
+      - name: Link preview in pull request
+        # Pull requests from forks get a read-only token; the artifact is still listed in the run.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          marker='<!-- preview-packages -->'
+          body="$marker
+          **Preview build \`$VERSION\`** of this pull request: [download packages]($ARTIFACT_URL) (zips and .deb, GitHub login required).
+          Untested preview, use at your own risk."
+          comment=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$comment" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment" -f body="$body" > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" > /dev/null
+          fi

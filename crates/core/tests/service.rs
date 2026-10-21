@@ -1,4 +1,4 @@
-//! Ende-zu-Ende-Test des Dienstes gegen den Fake-Moonraker im selben Prozess.
+//! End-to-end test of the service against the fake Moonraker in the same process.
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
