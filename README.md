@@ -130,7 +130,8 @@ interfaces and addresses read from Moonraker.
 ## Development
 
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
-For Windows without admin rights see [docs/windows-without-admin.md](docs/windows-without-admin.md).
+For Windows without admin rights (setup, faster linking with `rust-lld`, build times) see
+[docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ```bash
 cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
@@ -138,6 +139,7 @@ cargo run -p klipper-touch -- -m http://127.0.0.1:7125
 cargo clippy --workspace --all-targets
 cargo test --workspace
 cargo run -p klipper-touch --bin ui-snapshot -- --out shots   # render all screens to PNG (needs the fake)
+                                                         # Windows: scripts\ui-snapshot.ps1 [-Size 640x400] starts the fake itself
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```
 
