@@ -1,4 +1,4 @@
-//! Virtuelle G-Code-Dateien samt Metadaten und Vorschaubild.
+//! Virtual G-code files with metadata and thumbnail.
 
 use serde_json::{json, Value};
 

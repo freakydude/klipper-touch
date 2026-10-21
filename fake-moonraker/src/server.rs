@@ -1,4 +1,4 @@
-//! HTTP- und WebSocket-Server, der sich wie ein Moonraker verhaelt.
+//! HTTP and WebSocket server that behaves like Moonraker.
 
 use crate::backend::Backend;
 use crate::machine::MachineProfile;
@@ -19,7 +19,7 @@ const SIMULATION_STEP: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServerConfig {
-    /// Beschleunigt Aufheizen und Druckfortschritt; 1.0 entspricht Echtzeit.
+    /// Speeds up heating and print progress; 1.0 means real time.
     pub time_scale: f64,
     pub status_interval: Duration,
     pub profile: MachineProfile,

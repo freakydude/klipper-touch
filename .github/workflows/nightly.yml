@@ -1,8 +1,8 @@
 name: Nightly
 
-# Jede Nacht: Stand von main als Vorab-Release "nightly-<datum>-<commit>" veroeffentlichen und die vorigen
-# Nightlies entfernen, aber nur, wenn sich main seit dem letzten Nightly geaendert hat. Manuell mit "force".
-# Eindeutiger Tag je Build, weil Moonraker (Kanal beta) Versionen nur auf Gleichheit vergleicht.
+# Every night: publish main as pre-release "nightly-<date>-<commit>" and remove the previous
+# nightlies, but only if main has changed since the last nightly. Manually with "force".
+# Unique tag per build, because Moonraker (channel beta) only compares versions for equality.
 on:
   schedule:
     - cron: "0 2 * * *"

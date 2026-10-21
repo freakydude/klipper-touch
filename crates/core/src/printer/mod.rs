@@ -1,4 +1,4 @@
-//! Druckerzustand und Fähigkeiten aus Klipper-Sicht.
+//! Printer state and capabilities from Klipper's point of view.
 
 mod capabilities;
 mod objects;

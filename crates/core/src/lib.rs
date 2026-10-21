@@ -1,6 +1,6 @@
-//! UI-unabhängiger Kern von klipper-touch: Moonraker-Verbindung, Druckerzustand, Befehle und Einstellungen.
+//! UI-independent core of klipper-touch: Moonraker connection, printer state, commands and settings.
 //!
-//! Einstiegspunkt ist [`PrinterService`]; die UI liest [`Snapshot`]s und [`Event`]s und schickt [`Command`]s.
+//! The entry point is [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
 
 pub mod commands;
 pub mod files;

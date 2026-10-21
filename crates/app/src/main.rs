@@ -1,4 +1,4 @@
-// Im Release-Build unter Windows kein Konsolenfenster öffnen.
+// Do not open a console window in Windows release builds.
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 use clap::Parser;

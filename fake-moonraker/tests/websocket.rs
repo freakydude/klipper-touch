@@ -1,4 +1,4 @@
-//! Ende-zu-Ende-Tests: echter WebSocket-Client gegen den laufenden Fake-Moonraker.
+//! End-to-end tests: real WebSocket client against the running Fake-Moonraker.
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};

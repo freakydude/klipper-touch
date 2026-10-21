@@ -1,4 +1,4 @@
-//! Fake-Moonraker: simulierter Klipper/Moonraker fuer UI-Entwicklung und Tests ohne Drucker.
+//! Fake-Moonraker: simulated Klipper/Moonraker for UI development and tests without a printer.
 
 pub mod backend;
 pub mod files;

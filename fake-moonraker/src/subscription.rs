@@ -1,4 +1,4 @@
-//! Abo einer Verbindung auf Druckerobjekte (`printer.objects.subscribe`).
+//! Subscription of a connection to printer objects (`printer.objects.subscribe`).
 
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -21,13 +21,13 @@ impl Subscription {
         Ok(())
     }
 
-    /// Vollstaendiger Stand aller abonnierten Felder; dient als Basis fuer spaetere Aenderungen.
+    /// Full state of all subscribed fields; serves as the baseline for later changes.
     pub fn snapshot(&mut self, status: &Value) -> Value {
         self.last_sent = self.select(status);
         Value::Object(self.last_sent.clone())
     }
 
-    /// Nur die seit dem letzten Aufruf geaenderten Felder, `None` wenn nichts neu ist.
+    /// Only the fields changed since the last call, `None` if nothing is new.
     pub fn changes(&mut self, status: &Value) -> Option<Value> {
         let current = self.select(status);
         let mut changed = Map::new();

@@ -1,13 +1,13 @@
-//! Reine Ableitungen aus dem Druckerzustand für die Anzeige; ohne Slint-Typen und damit testbar.
+//! Pure display derivations from the printer state; free of Slint types and therefore testable.
 
 use crate::format;
 use chrono::{DateTime, Local};
 use klipper_touch_core::files::FileMetadata;
 use klipper_touch_core::printer::{PrintJob, PrintState};
 
-/// Ab diesem Fortschritt ist die Hochrechnung aus der bisherigen Druckzeit genauer als die Slicer-Schätzung.
+/// From this progress on, extrapolating from the elapsed print time is more accurate than the slicer estimate.
 const PROGRESS_FOR_EXTRAPOLATION: f64 = 0.05;
-/// Querschnitt von 1,75-mm-Filament in mm².
+/// Cross section of 1.75 mm filament in mm².
 const FILAMENT_CROSS_SECTION: f64 = std::f64::consts::PI * 0.875 * 0.875;
 const NO_VALUE: &str = "-";
 
@@ -68,12 +68,12 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
     }
 }
 
-/// Volumenstrom in mm³/s aus der Extrudergeschwindigkeit.
+/// Volumetric flow in mm³/s from the extruder velocity.
 pub fn volumetric_flow(extruder_velocity: f64) -> f64 {
     extruder_velocity.max(0.0) * FILAMENT_CROSS_SECTION
 }
 
-/// Zeile unter dem Dateinamen in der Dateiliste.
+/// Line below the file name in the file list.
 pub fn file_detail(modified: f64, size: u64, metadata: Option<&FileMetadata>) -> String {
     let mut parts = vec![format::unix_date(modified)];
     if let Some(metadata) = metadata {

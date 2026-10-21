@@ -1,9 +1,9 @@
 .DS_Store
 target/
 *.drawio.bkp
-# Reste des frueheren Node-Stacks, falls lokal noch vorhanden
+# Leftovers of the former Node stack, in case they still exist locally
 node_modules
-# Lokale Editor-Assistenz, nicht veroeffentlichen
+# Local editor tooling, do not publish
 /.github/skills/
 /.github/instructions/
 /.github/copilot-instructions.md

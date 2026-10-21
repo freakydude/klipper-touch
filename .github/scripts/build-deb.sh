@@ -1,6 +1,6 @@
 #!/bin/bash
-# Baut aus einem Linux-Build-Artefakt ein Debian-Paket klipper-touch_<version>_<arch>.deb.
-# Aufruf: build-deb.sh <artefakt-ordner> <release-tag>  (im Ordner mit den Artefakten, Repo eine Ebene hoeher)
+# Builds a Debian package klipper-touch_<version>_<arch>.deb from a Linux build artifact.
+# Usage: build-deb.sh <artifact-folder> <release-tag>  (in the artifacts folder, repo one level up)
 set -euo pipefail
 
 artifact="$1"
@@ -14,7 +14,7 @@ case "$artifact" in
   *) echo "unknown architecture in '$artifact'"; exit 1 ;;
 esac
 
-# Debian-Versionen muessen mit einer Ziffer beginnen; Vorabversionen sortieren per ~ vor dem Release.
+# Debian versions must start with a digit; pre-releases sort before the release via ~.
 if [[ "$release" =~ ^v[0-9] ]]; then
   version=$(echo "${release#v}" | tr '-' '~')
 else

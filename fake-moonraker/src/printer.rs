@@ -1,4 +1,4 @@
-//! Simulierter Drucker: Heizer, Werkzeugkopf und Druckauftrag.
+//! Simulated printer: heaters, toolhead and print job.
 
 use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, MmuCommand, Move};
@@ -15,7 +15,7 @@ const MAX_EXTRUDER_TARGET: f64 = 300.0;
 const MAX_BED_TARGET: f64 = 120.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
-/// Makros, die jeder simulierte Drucker kennt; `_`-Makros sind Hilfsmakros und fuer die UI unsichtbar.
+/// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
 const MACROS: [&str; 6] = ["PRINT_START", "PRINT_END", "LOAD_FILAMENT", "UNLOAD_FILAMENT", "PARK", "_PURGE_HELPER"];
 const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
@@ -289,7 +289,7 @@ impl Printer {
         Value::Object(objects)
     }
 
-    /// Klipper-Text zum aktuellen Zustand, wie ihn `printer.info` liefert.
+    /// Klipper text for the current state, as returned by `printer.info`.
     pub fn state_message(&self) -> &'static str {
         self.klippy.message()
     }

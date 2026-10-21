@@ -1,7 +1,7 @@
-//! Vereinfachte Happy-Hare-Simulation (Objekte `mmu` und `mmu_machine`).
+//! Simplified Happy Hare simulation (objects `mmu` and `mmu_machine`).
 //!
-//! Feldnamen folgen der Happy-Hare-v4-Referenz "Printer Variables". Vorgaenge laufen ohne
-//! Zeitverlauf: `action` ist immer `Idle`, Laden und Entladen sind sofort abgeschlossen.
+//! Field names follow the Happy Hare v4 reference "Printer Variables". Operations run without
+//! elapsed time: `action` is always `Idle`, loading and unloading complete immediately.
 
 use crate::gcode::{CommandError, MmuCommand};
 use serde_json::{json, Map, Value};
@@ -58,7 +58,7 @@ pub struct HappyHare {
 
 impl HappyHare {
     pub fn new(gates: usize) -> Self {
-        // Das letzte Gate bleibt leer, damit die UI auch einen leeren Slot zeigen muss.
+        // The last gate stays empty so the UI also has to show an empty slot.
         let mut gate_status = vec![GATE_AVAILABLE; gates];
         if gates > 2 {
             gate_status[gates - 1] = GATE_EMPTY;

@@ -1,4 +1,4 @@
-//! Simulierte Host-Funktionen von Moonraker: Schaltgeraete, Update-Manager und G-Code-Verlauf.
+//! Simulated Moonraker host features: power devices, update manager and G-code history.
 
 use serde_json::{json, Value};
 use std::collections::VecDeque;
@@ -38,7 +38,7 @@ impl Host {
         json!({ "devices": devices })
     }
 
-    /// Schaltet ein Geraet; `printing` sperrt Geraete mit `locked_while_printing`.
+    /// Switches a device; `printing` locks devices with `locked_while_printing`.
     pub fn set_power(&mut self, name: &str, action: &str, printing: bool) -> Result<Value, String> {
         let device = self
             .power_devices

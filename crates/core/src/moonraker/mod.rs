@@ -1,4 +1,4 @@
-//! Zugriff auf Moonraker: Protokoll, Verbindung und Adresse.
+//! Access to Moonraker: protocol, connection and address.
 
 mod connection;
 mod endpoint;

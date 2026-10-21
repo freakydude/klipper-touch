@@ -1,7 +1,7 @@
-//! Hintergrunddienst: hält die Verbindung zu Moonraker, pflegt den Zustand und führt Befehle aus.
+//! Background service: keeps the connection to Moonraker, maintains the state and executes commands.
 //!
-//! Die UI spricht ausschließlich über [`PrinterService`] mit dem Drucker. Zustand kommt als
-//! [`Snapshot`] über einen `watch`-Kanal, einmalige Ergebnisse als [`Event`].
+//! The UI talks to the printer exclusively through [`PrinterService`]. State arrives as a
+//! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
 use crate::files::{self, FileEntry, FileMetadata};
@@ -26,7 +26,7 @@ pub enum ConnectionState {
     Disconnected,
 }
 
-/// Aktueller Gesamtzustand für die Anzeige.
+/// Current overall state for display.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Snapshot {
     pub endpoint: String,
@@ -35,11 +35,11 @@ pub struct Snapshot {
     pub capabilities: Capabilities,
 }
 
-/// Einmalige Anfragen nach Daten, die nicht im laufenden Abo stecken.
+/// One-off requests for data that is not part of the running subscription.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Query {
     Files,
-    /// Metadaten und anschließend das Vorschaubild einer Datei.
+    /// Metadata and then the thumbnail of a file.
     FileDetails {
         filename: String,
     },
@@ -66,7 +66,7 @@ enum Request {
     Connect(Endpoint),
 }
 
-/// Handle für die UI; günstig zu klonen.
+/// Handle for the UI; cheap to clone.
 #[derive(Clone)]
 pub struct PrinterService {
     requests: mpsc::UnboundedSender<Request>,
@@ -78,7 +78,7 @@ pub struct ServiceChannels {
 }
 
 impl PrinterService {
-    /// Startet den Dienst auf der übergebenen Tokio-Laufzeit.
+    /// Starts the service on the given Tokio runtime.
     pub fn start(runtime: &tokio::runtime::Handle, endpoint: Endpoint) -> (Self, ServiceChannels) {
         let (requests, requests_rx) = mpsc::unbounded_channel();
         let (snapshot_tx, snapshots) = watch::channel(Snapshot { endpoint: endpoint.display(), ..Snapshot::default() });
@@ -95,7 +95,7 @@ impl PrinterService {
         let _ = self.requests.send(Request::Query(query));
     }
 
-    /// Verbindet neu, z. B. nach Änderung der Adresse in den Einstellungen.
+    /// Reconnects, e.g. after the address was changed in the settings.
     pub fn connect_to(&self, endpoint: Endpoint) {
         let _ = self.requests.send(Request::Connect(endpoint));
     }
@@ -163,7 +163,7 @@ enum Retry {
     Shutdown,
 }
 
-/// Wartet vor dem nächsten Verbindungsversuch; Befehle schlagen in dieser Zeit sofort fehl.
+/// Waits before the next connection attempt; commands fail immediately during this time.
 async fn wait_for_retry(requests: &mut mpsc::UnboundedReceiver<Request>, outputs: &Outputs) -> Retry {
     let delay = tokio::time::sleep(RECONNECT_DELAY);
     tokio::pin!(delay);
@@ -243,7 +243,7 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// Anmeldung bei Moonraker und erster Abgleich des Klippy-Zustands.
+    /// Identifies with Moonraker and performs the first sync of the Klippy state.
     async fn introduce(&mut self) -> Result<(), CallError> {
         let identity = json!({
             "client_name": CLIENT_NAME,
@@ -268,7 +268,7 @@ impl<'a> Session<'a> {
         Ok(())
     }
 
-    /// Fähigkeiten ermitteln und die passenden Objekte abonnieren.
+    /// Determines capabilities and subscribes to the matching objects.
     async fn subscribe(&mut self) -> Result<(), CallError> {
         let listing = self.connection.call("printer.objects.list", None).await?;
         let available: Vec<String> = listing
@@ -287,7 +287,7 @@ impl<'a> Session<'a> {
         Ok(())
     }
 
-    /// Setzt den Klippy-Zustand ohne Abo, z. B. bei Shutdown oder während Klipper startet.
+    /// Sets the Klippy state without a subscription, e.g. on shutdown or while Klipper starts.
     async fn mark_klippy(&mut self, state: KlippyState, message: &str) {
         self.klippy_ready = false;
         if state == KlippyState::Disconnected {
@@ -298,7 +298,7 @@ impl<'a> Session<'a> {
         self.publish();
     }
 
-    /// Klipper meldet den Grund für Fehler und Shutdown über `printer.info`.
+    /// Klipper reports the reason for errors and shutdown via `printer.info`.
     async fn klippy_message(&self) -> String {
         match self.connection.call("printer.info", None).await {
             Ok(info) => info.get("state_message").and_then(Value::as_str).unwrap_or_default().trim().to_owned(),
@@ -336,7 +336,7 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// Veröffentlicht den Zustand und lädt bei Jobwechsel die Metadaten der Druckdatei.
+    /// Publishes the state and loads the print file's metadata when the job changes.
     fn publish(&mut self) {
         let status = PrinterStatus::from_store(&self.store);
         if status.job.filename != self.job_filename {

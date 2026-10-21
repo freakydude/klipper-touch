@@ -1,4 +1,4 @@
-//! Zusammensetzen der Anwendung: Einstellungen, Dienst, Fenster und Brücken.
+//! Assembling the application: settings, service, window and bridges.
 
 use crate::actions;
 use crate::presenter::Presenter;
@@ -11,10 +11,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
 
-/// Startoptionen, typischerweise von der Kommandozeile.
+/// Start options, typically from the command line.
 #[derive(Debug, Clone, Default)]
 pub struct Options {
-    /// Überschreibt die gespeicherte Moonraker-Adresse für diesen Start.
+    /// Overrides the saved Moonraker address for this start.
     pub moonraker: Option<String>,
     pub fullscreen: bool,
     pub settings_file: Option<PathBuf>,
@@ -34,7 +34,7 @@ pub enum AppError {
     EventLoop(#[from] slint::EventLoopError),
 }
 
-/// Laufende Anwendung; hält Laufzeit und Brücken am Leben, solange das Fenster existiert.
+/// Running application; keeps runtime and bridges alive as long as the window exists.
 pub struct Application {
     pub window: AppWindow,
     pub presenter: std::rc::Rc<Presenter>,

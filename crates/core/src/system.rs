@@ -1,4 +1,4 @@
-//! Host-Funktionen über Moonraker: Schaltgeräte, Updates, Konsole und Serverinfo.
+//! Host functions via Moonraker: power devices, updates, console and server info.
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -22,13 +22,13 @@ pub fn parse_power_devices(result: &Value) -> Vec<PowerDevice> {
     result.get("devices").cloned().and_then(|devices| serde_json::from_value(devices).ok()).unwrap_or_default()
 }
 
-/// Stand eines Software-Pakets im Update-Manager.
+/// State of a software package in the update manager.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UpdateInfo {
     pub name: String,
     pub version: String,
     pub remote_version: String,
-    /// Anzahl Systempakete bzw. 0/1 für Software mit neuer Version.
+    /// Number of system packages, or 0/1 for software with a newer version.
     pub pending: u32,
     pub valid: bool,
 }
@@ -84,7 +84,7 @@ pub enum ConsoleKind {
 pub struct ConsoleLine {
     pub kind: ConsoleKind,
     pub message: String,
-    /// Unix-Zeit in Sekunden.
+    /// Unix time in seconds.
     pub time: f64,
 }
 

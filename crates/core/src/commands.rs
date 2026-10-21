@@ -1,25 +1,25 @@
-//! Bedienbefehle an den Drucker und ihre Übersetzung in Moonraker-Aufrufe.
+//! Operator commands for the printer and their translation into Moonraker calls.
 
 use crate::printer::{Axis, Motion};
 use serde_json::{json, Value};
 
-/// Ein vom Menschen ausgelöster Befehl. Die UI kennt nur diese Ebene, nicht G-Code oder JSON-RPC.
+/// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
-    // Druckauftrag
+    // Print job
     StartPrint {
         filename: String,
     },
     PausePrint,
     ResumePrint,
     CancelPrint,
-    // Bewegung
+    // Motion
     Home {
         x: bool,
         y: bool,
         z: bool,
     },
-    /// Relativ verfahren; das Ziel wird auf den Achsbereich begrenzt.
+    /// Relative move; the target is clamped to the axis range.
     Jog {
         axis: Axis,
         distance: f64,
@@ -27,7 +27,7 @@ pub enum Command {
     DisableMotors,
     QuadGantryLevel,
     ZTiltAdjust,
-    // Temperaturen und Lüfter
+    // Temperatures and fans
     SetHeaterTarget {
         heater: String,
         target: f64,
@@ -40,7 +40,7 @@ pub enum Command {
         delta: f64,
     },
     ResetZOffset,
-    /// Übernimmt den Babystep-Offset in Probe- bzw. Endstop-Position (danach `SaveConfig`).
+    /// Applies the babystep offset to the probe or endstop position (followed by `SaveConfig`).
     ApplyZOffset {
         to_probe: bool,
     },
@@ -59,14 +59,14 @@ pub enum Command {
         length: f64,
         speed: f64,
     },
-    // Freie Befehle
+    // Free-form commands
     RunMacro {
         name: String,
     },
     RunGcode {
         script: String,
     },
-    // Klipper und Host
+    // Klipper and host
     EmergencyStop,
     RestartKlipper,
     FirmwareRestart,
@@ -85,7 +85,7 @@ pub enum Command {
     },
 }
 
-/// Ein konkreter Moonraker-Aufruf.
+/// A concrete Moonraker call.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     pub method: &'static str,
@@ -106,13 +106,13 @@ impl Call {
     }
 }
 
-/// Feste Geschwindigkeiten für Handbewegungen in mm/s.
+/// Fixed speeds for manual moves in mm/s.
 const JOG_SPEED_XY: f64 = 100.0;
 const JOG_SPEED_Z: f64 = 10.0;
 
 impl Command {
-    /// Übersetzt den Befehl; `motion` liefert die aktuelle Lage für begrenzte Bewegungen.
-    /// `None`, wenn der Befehl im aktuellen Zustand nichts bewirken würde.
+    /// Translates the command; `motion` provides the current position for clamped moves.
+    /// `None` if the command would have no effect in the current state.
     pub fn to_call(&self, motion: &Motion) -> Option<Call> {
         let call = match self {
             Self::StartPrint { filename } => Call::with("printer.print.start", json!({ "filename": filename })),
@@ -161,7 +161,7 @@ impl Command {
         Some(call)
     }
 
-    /// Kurzer Name für Rückmeldungen in der UI.
+    /// Short name for feedback in the UI.
     pub fn describe(&self) -> String {
         match self {
             Self::RunMacro { name } => name.clone(),
@@ -194,7 +194,7 @@ fn jog_gcode(motion: &Motion, axis: Axis, distance: f64) -> Option<String> {
     Some(format!("G90\nG1 {}{} F{}", axis.letter(), number(target), number(speed * 60.0)))
 }
 
-/// G-Code für eine Zieltemperatur, passend zur Art der Heizung.
+/// G-code for a target temperature, matching the kind of heater.
 fn heater_gcode(heater: &str, target: f64) -> String {
     let target = number(target);
     match heater.split_once(' ') {
@@ -206,7 +206,7 @@ fn heater_gcode(heater: &str, target: f64) -> String {
     }
 }
 
-/// Zahl ohne überflüssige Nachkommastellen, wie Klipper sie gern sieht.
+/// Number without redundant decimal places, the way Klipper likes it.
 fn number(value: f64) -> String {
     let rounded = (value * 10_000.0).round() / 10_000.0;
     let text = format!("{rounded:.4}");

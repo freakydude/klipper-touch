@@ -1,8 +1,8 @@
-// Grundbausteine für Touch-Bedienung: Knöpfe, Schrittwahl, Karten, Fortschritt.
+// Basic building blocks for touch input: buttons, step selection, cards, progress.
 
 import { Theme } from "../theme.slint";
 
-// Knopf mit Icon und optionalem Text. `kind`: normal | accent | danger.
+// Button with icon and optional text. `kind`: normal | accent | danger.
 export component IconButton inherits Rectangle {
     in property <image> icon;
     in property <string> text;
@@ -10,7 +10,7 @@ export component IconButton inherits Rectangle {
     in property <bool> checked;
     in property <string> kind: "normal";
     in property <length> icon-size: Theme.icon;
-    // Icon links vom Text statt darüber.
+    // Icon left of the text instead of above it.
     in property <bool> horizontal;
     callback clicked;
 
@@ -83,7 +83,7 @@ export component IconButton inherits Rectangle {
     }
 }
 
-// Auswahl einer Schrittweite aus festen Stufen.
+// Selection of a step size from fixed levels.
 export component StepSelector inherits HorizontalLayout {
     in property <[float]> values;
     in property <string> unit;
@@ -124,7 +124,7 @@ export component StepSelector inherits HorizontalLayout {
     }
 }
 
-// Fläche mit optionaler Überschrift für zusammengehörige Bedienelemente.
+// Panel with optional heading for related controls.
 export component Card inherits Rectangle {
     in property <string> title;
     in property <image> icon;
@@ -155,7 +155,7 @@ export component Card inherits Rectangle {
     }
 }
 
-// Beschriftung über einem Wert, z. B. "Elapsed / 01:23".
+// Label above a value, e.g. "Elapsed / 01:23".
 export component ValueTile inherits Rectangle {
     in property <string> label;
     in property <string> value;
@@ -213,7 +213,7 @@ export component ProgressBar inherits Rectangle {
     }
 }
 
-// Zeile mit Icon und Text, z. B. für Zustandsanzeigen.
+// Row with icon and text, e.g. for status displays.
 export component IconLabel inherits HorizontalLayout {
     in property <image> icon;
     in property <string> text;

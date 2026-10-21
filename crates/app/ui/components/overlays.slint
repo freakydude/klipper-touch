@@ -1,11 +1,11 @@
-// Überlagerungen: Bestätigung, Hinweis, Bildschirmtastatur und Texteingabe.
+// Overlays: confirmation, notice, on-screen keyboard and text entry.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, Printer, TextTools } from "../state.slint";
 import { IconButton } from "controls.slint";
 
-// Abdunkelnder Hintergrund, der Eingaben an darunterliegende Elemente abfängt.
+// Dimming background that intercepts input meant for elements underneath.
 component Scrim inherits Rectangle {
     background: #000000b0;
     TouchArea { }
@@ -60,7 +60,7 @@ export component ConfirmDialog inherits Scrim {
     }
 }
 
-// Kurzer Hinweis am unteren Rand; Rust setzt und löscht `Printer.notice`.
+// Short notice at the bottom edge; Rust sets and clears `Printer.notice`.
 export component Toast inherits Rectangle {
     visible: Printer.notice != "";
     height: 44px;
@@ -121,7 +121,7 @@ component Key inherits Rectangle {
     }
 }
 
-// Bildschirmtastatur für Geräte ohne physische Tastatur; bearbeitet `text` direkt.
+// On-screen keyboard for devices without a physical keyboard; edits `text` directly.
 export component OnScreenKeyboard inherits VerticalLayout {
     in-out property <string> text;
     in-out property <bool> upper: true;
@@ -186,7 +186,7 @@ export component OnScreenKeyboard inherits VerticalLayout {
     }
 }
 
-// Vollflächige Texteingabe mit Bildschirmtastatur.
+// Full-screen text entry with on-screen keyboard.
 export component TextEntryDialog inherits Scrim {
     in property <string> title;
     in-out property <string> text;

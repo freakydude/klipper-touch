@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: 'cargo' # See documentation for possible values
-    directory: '/' # Cargo-Workspace im Wurzelordner
+    directory: '/' # Cargo workspace in the root folder
     assignees:
       - 'freakydude'
     schedule:

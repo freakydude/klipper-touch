@@ -1,10 +1,10 @@
 #!/bin/bash
-# Installiert klipper-touch aus einem entpackten Release-Zip als Kiosk-Dienst (cage auf tty1) und
-# meldet es beim Moonraker-Update-Manager an (type: zip), damit Mainsail, Fluidd und klipper-touch
-# selbst spaetere Releases einspielen koennen.
+# Installs klipper-touch from an unpacked release zip as a kiosk service (cage on tty1) and
+# registers it with the Moonraker update manager (type: zip), so Mainsail, Fluidd and klipper-touch
+# itself can install later releases.
 #
-# Aufruf im entpackten Ordner: ./install.sh [-m <moonraker-url>] [-d <printer_data>] [-c stable|beta]
-# EXPERIMENT: nicht auf echten Geraeten geprueft, Benutzung auf eigenes Risiko.
+# Run inside the unpacked folder: ./install.sh [-m <moonraker-url>] [-d <printer_data>] [-c stable|beta]
+# EXPERIMENT: not tested on real devices, use at your own risk.
 
 set -euo pipefail
 

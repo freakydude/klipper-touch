@@ -1,4 +1,4 @@
-//! Welche optionalen Module der simulierte Drucker besitzt.
+//! Which optional modules the simulated printer has.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MachineProfile {

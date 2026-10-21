@@ -1,7 +1,7 @@
 name: CI
 
-# Jeder Push auf jeden Branch und jeder Pull Request: Tests und Builds aller Plattformen.
-# Ein Tag v* (z. B. v0.3.0) erzeugt zusaetzlich ein dauerhaftes Release.
+# Every push to any branch and every pull request: tests and builds for all platforms.
+# A tag v* (e.g. v0.3.0) additionally creates a permanent release.
 on:
   push:
     branches: ["**"]
@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   release:
-    # Packt bei jedem Lauf (prueft das Paketformat); veroeffentlicht nur bei Tags v*.
+    # Packs on every run (checks the package format); publishes only for tags v*.
     name: Package and release
     needs: build
     runs-on: ubuntu-latest
