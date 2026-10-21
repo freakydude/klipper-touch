@@ -5,6 +5,7 @@
   import { definePrinterObjects } from '$lib/moonraker/types/IPrinterObjects';
   import BottomNavigation from '$lib/BottomNavigation.svelte';
   import StatusLine from '$lib/StatusLine.svelte';
+  import Icon from '$lib/icons/Icon.svelte';
 
   const babystepsSubscription = definePrinterObjects({
     toolhead: ['homed_axes'],
@@ -72,14 +73,14 @@
               onclick={() => commands.changeOffset(stepsArr[selectedStep])}
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             >
-              Up
+              <Icon name="motion-z-plus" label="Up" class="h-8 w-8" />
             </button>
 
             <button
               onclick={() => commands.changeOffset(-stepsArr[selectedStep])}
               class="flex h-14 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
             >
-              Down
+              <Icon name="motion-z-minus" label="Down" class="h-8 w-8" />
             </button></span
           >
 
@@ -87,7 +88,7 @@
             onclick={() => commands.resetOffset()}
             class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           >
-            Reset
+            <Icon name="ui-refresh" label="Reset" />
           </button>
         </span>
       </div>
@@ -99,14 +100,14 @@
           class="flex h-10 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
           onclick={() => commands.homeZ(isHomedXY)}
         >
-          HomeZ
+          <Icon name="motion-home-z" label="HomeZ" />
         </button>
         <button
           disabled={!isHomedZ || $printStatsState === 'printing'}
           onclick={() => commands.moveAbsolute(undefined, undefined, 0)}
           class="flex h-10 w-20 items-center justify-center rounded-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Z = 0
+          <Icon name="motion-position" label="Z = 0" />
         </button>
 
         <button
@@ -114,7 +115,7 @@
           onclick={() => commands.saveConfig()}
           class="flex h-14 w-20 items-center justify-center rounded-l-lg bg-neutral-600 px-3 py-2 font-semibold text-neutral-50 drop-shadow-md active:bg-red-500 disabled:opacity-50"
         >
-          Save
+          <Icon name="ui-save" label="Save" class="h-8 w-8" />
         </button>
       </span>
     </span>

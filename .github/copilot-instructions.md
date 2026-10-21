@@ -16,6 +16,6 @@
 
 # Skills und Übergabe
 
-- Skills unter `.github/skills` zuerst laden, wenn eine Aufgabe passt (UI prüfen, Fake-Moonraker, draw.io, Windows-Build, Klipper/Moonraker-Referenz, Workflow-Review, Übergabe).
+- Skills unter `.github/skills` zuerst laden, wenn eine Aufgabe passt (UI prüfen, Fake-Moonraker, draw.io, Windows-Build, Klipper/Moonraker-Referenz, Workflow-Review, Icons, Übergabe).
 - Skills aktuell halten: bei neuen Regeln oder Erkenntnissen im Chat einen kurzen Skill-Vorschlag machen; nach größeren Arbeitspaketen `.github\skills\session-handover\scripts\check-skills.ps1` ausführen. Kleine Korrekturen direkt, inhaltliche Änderungen und neue Skills nur nach Zustimmung (Details im Skill `session-handover`).
 - Neuer Chat: zuerst `/memories/repo/00-index.md` lesen.
