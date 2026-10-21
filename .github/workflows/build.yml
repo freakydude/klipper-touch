@@ -1,0 +1,99 @@
+name: Build
+
+# Wiederverwendbar: Tests und Release-Builds aller Zielplattformen; Ergebnisse als Artefakte.
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Format, Clippy, Tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries for Slint
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  windows:
+    name: Windows build and tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --workspace
+      - run: cargo build --release -p klipper-touch-slint --bin klipper-touch-slint
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/klipper-touch-slint.exe dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klipper-touch-slint-x86_64-pc-windows-msvc
+          path: dist/
+
+  linux:
+    name: Linux ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    # Debian Bullseye: aelteste unterstuetzte glibc, damit das Programm auch auf Bookworm und Trixie laeuft.
+    container: debian:bullseye
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: amd64
+            triple: x86_64-linux-gnu
+            compiler: gcc
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
+            triple: aarch64-linux-gnu
+            compiler: gcc-aarch64-linux-gnu
+          - target: armv7-unknown-linux-gnueabihf
+            arch: armhf
+            triple: arm-linux-gnueabihf
+            compiler: gcc-arm-linux-gnueabihf
+    steps:
+      - name: Toolchain and target libraries
+        shell: bash
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -o pipefail
+          apt_get() {
+            if ! apt-get -o Acquire::Check-Valid-Until=false "$@" > apt.log 2>&1; then
+              tail -n 15 apt.log
+              # Letzte Zeilen als Annotation, damit der Fehler ohne Log-Zugriff sichtbar ist.
+              echo "::error title=apt-get $1 failed::$(grep -E '^(E|W):' apt.log | tail -n 5 | tr '\n' ' ')"
+              exit 1
+            fi
+          }
+          dpkg --add-architecture ${{ matrix.arch }}
+          apt_get update
+          apt_get install -y --no-install-recommends curl ca-certificates git pkg-config build-essential \
+            ${{ matrix.compiler }} libfontconfig1-dev:${{ matrix.arch }} libxkbcommon-dev:${{ matrix.arch }}
+      - uses: actions/checkout@v4
+      - name: Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Build
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_PATH: /usr/lib/${{ matrix.triple }}/pkgconfig
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --release -p klipper-touch-slint --bin klipper-touch-slint --target ${{ matrix.target }}
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/klipper-touch-slint dist/
+          cp scripts/install.sh scripts/uninstall.sh dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klipper-touch-slint-${{ matrix.target }}
+          path: dist/
