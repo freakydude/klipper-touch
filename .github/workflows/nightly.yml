@@ -1,0 +1,75 @@
+name: Nightly
+
+# Jede Nacht: Stand von main als Vorab-Release "nightly" veroeffentlichen und das vorige ersetzen,
+# aber nur, wenn sich main seit dem letzten Nightly geaendert hat. Manuell mit "force" erzwingbar.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build and publish even without new commits"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  TAG: nightly
+
+jobs:
+  changes:
+    name: Changes since last nightly
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: compare
+        run: |
+          current=$(git rev-parse HEAD)
+          previous=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || echo none)
+          echo "current=$current previous=$previous force=${{ inputs.force }}"
+          if [ "$current" != "$previous" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No changes on main since the last nightly ($previous); nothing to do."
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish nightly
+    needs: [changes, build]
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Pack
+        working-directory: artifacts
+        run: bash ../.github/scripts/pack-artifacts.sh
+      - name: Replace nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          short=$(git rev-parse --short HEAD)
+          gh release delete "$TAG" --yes --cleanup-tag || echo "no previous nightly"
+          gh release create "$TAG" artifacts/*.zip artifacts/*.tar.gz \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Nightly $(date -u +%Y-%m-%d) ($short)" \
+            --notes "Automatic build of main at $GITHUB_SHA. Replaced every night when main has changed. Not tested on real printers."
