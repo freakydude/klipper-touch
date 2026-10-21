@@ -1,11 +1,11 @@
-//! Welche Objekte und Felder abonniert werden, abhängig von den erkannten Fähigkeiten.
+//! Which objects and fields are subscribed, depending on the detected capabilities.
 
 use super::capabilities::Capabilities;
 use serde_json::{json, Map, Value};
 
 const HEATER_FIELDS: &[&str] = &["temperature", "target", "power"];
 
-/// Abo-Parameter für `printer.objects.subscribe`; nur vorhandene Objekte werden aufgenommen.
+/// Subscription parameters for `printer.objects.subscribe`; only available objects are included.
 pub fn subscription(available: &[String], capabilities: &Capabilities) -> Value {
     let mut objects = Map::new();
     let mut add = |name: &str, fields: Option<&[&str]>| {

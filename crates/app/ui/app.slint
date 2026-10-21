@@ -1,4 +1,4 @@
-// Hauptfenster: Statusleiste, Navigation, aktuelle Seite und Überlagerungen.
+// Main window: status bar, navigation, current page and overlays.
 
 import { Theme } from "theme.slint";
 import { Actions, Confirm, Navigation, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
@@ -27,7 +27,7 @@ export component AppWindow inherits Window {
     background: Theme.background;
     default-font-size: Theme.font-normal;
 
-    // Seiten, die auch ohne bereiten Drucker sinnvoll sind.
+    // Pages that are useful even without a ready printer.
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
         || (Navigation.page == Page.console && Printer.connection == "connected");
 

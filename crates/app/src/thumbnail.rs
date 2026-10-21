@@ -1,4 +1,4 @@
-//! Vorschaubilder aus Moonraker (PNG/JPEG vom Slicer, SVG vom Fake) in Slint-Bilder umwandeln.
+//! Convert Moonraker thumbnails (PNG/JPEG from the slicer, SVG from the fake) into Slint images.
 
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer};
 

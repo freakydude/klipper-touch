@@ -1,4 +1,4 @@
-//! Benutzereinstellungen als JSON-Datei im Konfigurationsordner des Benutzers.
+//! User settings as a JSON file in the user's configuration directory.
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -10,14 +10,14 @@ const FILE_NAME: &str = "settings.json";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    /// Adresse des Moonraker-Servers, z. B. `http://127.0.0.1:7125`.
+    /// Address of the Moonraker server, e.g. `http://127.0.0.1:7125`.
     pub moonraker: String,
     pub fullscreen: bool,
     pub steps: Steps,
     pub temperature_presets: Vec<TemperaturePreset>,
 }
 
-/// Zuletzt gewählte Schrittweiten; die UI bietet feste Stufen an und merkt sich die Auswahl.
+/// Last chosen step sizes; the UI offers fixed steps and remembers the selection.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Steps {
@@ -73,7 +73,7 @@ pub enum SettingsError {
     NoConfigDirectory,
 }
 
-/// Lädt und speichert Einstellungen an einem festen Ort.
+/// Loads and saves settings at a fixed location.
 #[derive(Debug, Clone)]
 pub struct SettingsStore {
     path: PathBuf,
@@ -84,7 +84,7 @@ impl SettingsStore {
         Self { path: path.into() }
     }
 
-    /// Standardort: `<config dir>/klipper-touch/settings.json`.
+    /// Default location: `<config dir>/klipper-touch/settings.json`.
     pub fn default_location() -> Result<Self, SettingsError> {
         let directory = dirs::config_dir().ok_or(SettingsError::NoConfigDirectory)?;
         Ok(Self::new(directory.join(APP_FOLDER).join(FILE_NAME)))
@@ -94,7 +94,7 @@ impl SettingsStore {
         &self.path
     }
 
-    /// Fehlt die Datei, gelten die Standardwerte.
+    /// If the file is missing, the defaults apply.
     pub fn load(&self) -> Result<Settings, SettingsError> {
         match std::fs::read_to_string(&self.path) {
             Ok(text) => {
@@ -105,7 +105,7 @@ impl SettingsStore {
         }
     }
 
-    /// Schreibt atomar über eine temporäre Datei, damit ein Stromausfall keine halbe Datei hinterlässt.
+    /// Writes atomically via a temporary file so a power loss never leaves a half-written file.
     pub fn save(&self, settings: &Settings) -> Result<(), SettingsError> {
         let io_error = |source| SettingsError::Io { path: self.path.clone(), source };
         if let Some(directory) = self.path.parent() {

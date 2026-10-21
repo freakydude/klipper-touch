@@ -1156,7 +1156,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="wf-workflows-page" name="Workflows">
-        <mxGraphModel dx="3780" dy="5792" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3158" pageHeight="4162" math="0" shadow="0">
+        <mxGraphModel dx="10080" dy="8509" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3158" pageHeight="4162" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>

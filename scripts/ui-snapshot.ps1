@@ -1,7 +1,7 @@
 <#
-  Rendert alle Seiten der Slint-UI ohne Fenster als PNG gegen einen frisch gestarteten Fake-Moonraker.
-  Aufruf (Repo-Wurzel): powershell -File scripts\ui-snapshot.ps1 [-OutDir <ordner>] [-Profile voron] [-Size 800x480]
-  Exit-Code 0 bei Erfolg; die PNG-Pfade stehen in der Ausgabe.
+  Renders all pages of the Slint UI headless as PNG against a freshly started fake Moonraker.
+  Usage (repo root): powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Profile voron] [-Size 800x480]
+  Exit code 0 on success; the PNG paths are printed in the output.
 #>
 param(
     [string]$OutDir = (Join-Path $env:TEMP 'kt-ui-snapshots'),

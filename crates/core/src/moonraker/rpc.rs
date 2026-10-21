@@ -1,9 +1,9 @@
-//! JSON-RPC-2.0-Nachrichten, wie Moonraker sie über den WebSocket austauscht.
+//! JSON-RPC 2.0 messages as Moonraker exchanges them over the WebSocket.
 
 use serde_json::{json, Map, Value};
 use thiserror::Error;
 
-/// Fehler, den Moonraker oder Klipper auf eine Anfrage zurückgibt.
+/// Error returned by Moonraker or Klipper for a request.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error("{message} ({code})")]
 pub struct RpcError {
@@ -11,7 +11,7 @@ pub struct RpcError {
     pub message: String,
 }
 
-/// Eingehende Nachricht vom Server.
+/// Incoming message from the server.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Incoming {
     Response { id: u64, result: Result<Value, RpcError> },
@@ -29,7 +29,7 @@ pub fn encode_request(id: u64, method: &str, params: Option<Value>) -> String {
     Value::Object(request).to_string()
 }
 
-/// Liest eine Server-Nachricht; unbekannte oder kaputte Nachrichten ergeben `None`.
+/// Reads a server message; unknown or broken messages yield `None`.
 pub fn decode(text: &str) -> Option<Incoming> {
     let message: Value = serde_json::from_str(text).ok()?;
     if let Some(method) = message.get("method").and_then(Value::as_str) {

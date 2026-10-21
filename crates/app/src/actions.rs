@@ -1,4 +1,4 @@
-//! Verbindet die `Actions`-Callbacks der UI mit Befehlen an den Drucker.
+//! Connects the UI's `Actions` callbacks to printer commands.
 
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
@@ -139,7 +139,7 @@ pub fn bind(
     });
 }
 
-/// Callback mit Argumenten, der einen geklonten Dienst bekommt.
+/// Callback with arguments that receives a cloned service.
 fn with<A, F>(service: &PrinterService, action: F) -> impl Fn(A) + 'static
 where
     F: Fn(&PrinterService, A) + 'static,
@@ -157,7 +157,7 @@ fn parse_axis(axis: &str) -> Option<Axis> {
     }
 }
 
-/// Slint rechnet in f32; kleine Schritte wie 0.005 werden auf fünf Nachkommastellen geglättet.
+/// Slint computes in f32; small steps like 0.005 are smoothed to five decimal places.
 fn round_offset(value: f32) -> f64 {
     (f64::from(value) * 100_000.0).round() / 100_000.0
 }

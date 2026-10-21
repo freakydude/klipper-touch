@@ -1,4 +1,4 @@
-//! Überträgt Zustand und Ereignisse des Kerns in die Slint-Globals. Läuft nur im UI-Thread.
+//! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
 use crate::{format, thumbnail, view};
 use crate::{
@@ -16,7 +16,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 const CONSOLE_LIMIT: usize = 300;
-/// So viele Dateien bekommen sofort Metadaten und Vorschaubild; der Rest bleibt schlicht.
+/// This many files get metadata and thumbnail right away; the rest stays plain.
 const FILE_DETAILS_LIMIT: usize = 40;
 const NOTICE_DURATION: Duration = Duration::from_secs(4);
 
@@ -71,7 +71,7 @@ impl Presenter {
         presenter
     }
 
-    /// Verbindet Snapshots und Ereignisse des Dienstes mit der UI (asynchron im Slint-Ereignisloop).
+    /// Connects the service's snapshots and events to the UI (asynchronously in the Slint event loop).
     pub fn follow(self: &Rc<Self>, channels: klipper_touch_core::ServiceChannels) -> Result<(), slint::EventLoopError> {
         let klipper_touch_core::ServiceChannels { mut snapshots, mut events } = channels;
         let presenter = Rc::clone(self);
@@ -193,7 +193,7 @@ impl Presenter {
         self.refresh_job_texts();
     }
 
-    /// Texte mit Zeitbezug; zusätzlich jede Sekunde vom Uhr-Timer aufgerufen.
+    /// Time-related texts; also called every second by the clock timer.
     pub fn refresh_job_texts(&self) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
@@ -334,7 +334,7 @@ fn connection_name(state: ConnectionState) -> &'static str {
     }
 }
 
-/// Ersetzt die Zeilen nur bei Änderungen, damit Slint nicht unnötig neu aufbaut.
+/// Replaces the rows only on changes so Slint does not rebuild needlessly.
 fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
     let unchanged = model.row_count() == rows.len()
         && rows.iter().enumerate().all(|(index, row)| model.row_data(index).as_ref() == Some(row));

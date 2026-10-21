@@ -1,4 +1,4 @@
-//! Rohzustand der abonnierten Klipper-Objekte, fortgeschrieben aus `notify_status_update`.
+//! Raw state of the subscribed Klipper objects, updated from `notify_status_update`.
 
 use serde_json::{Map, Value};
 
@@ -8,12 +8,12 @@ pub struct ObjectStore {
 }
 
 impl ObjectStore {
-    /// Ersetzt den gesamten Stand, z. B. mit der Antwort auf `printer.objects.subscribe`.
+    /// Replaces the entire state, e.g. with the response to `printer.objects.subscribe`.
     pub fn replace(&mut self, status: &Value) {
         self.objects = status.as_object().cloned().unwrap_or_default();
     }
 
-    /// Übernimmt geänderte Felder; nicht genannte Felder bleiben erhalten.
+    /// Applies changed fields; fields not mentioned are kept.
     pub fn merge(&mut self, changes: &Value) {
         let Some(changes) = changes.as_object() else { return };
         for (name, change) in changes {

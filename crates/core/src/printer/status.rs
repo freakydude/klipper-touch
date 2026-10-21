@@ -1,4 +1,4 @@
-//! Typisierte Sicht auf den Druckerzustand, gelesen aus dem [`ObjectStore`].
+//! Typed view of the printer state, read from the [`ObjectStore`].
 
 use super::objects::ObjectStore;
 use serde_json::Value;
@@ -69,7 +69,7 @@ impl PrintState {
         }
     }
 
-    /// Ein Auftrag läuft oder ist pausiert; Bewegen und Extrudieren von Hand sind dann gesperrt.
+    /// A job is running or paused; manual moves and extrusion are locked then.
     pub fn is_active(self) -> bool {
         matches!(self, Self::Printing | Self::Paused)
     }
@@ -158,7 +158,7 @@ pub struct ExtruderState {
     pub can_extrude: bool,
 }
 
-/// Heizung mit Zieltemperatur; `object` ist der Klipper-Objektname, z. B. `heater_generic chamber`.
+/// Heater with a target temperature; `object` is the Klipper object name, e.g. `heater_generic chamber`.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heater {
     pub object: String,
@@ -190,12 +190,12 @@ pub struct PrinterStatus {
     pub job: PrintJob,
     pub motion: Motion,
     pub extruder: ExtruderState,
-    /// Extruder zuerst, dann Bett, dann weitere Heizungen in Objektreihenfolge.
+    /// Extruder first, then bed, then additional heaters in object order.
     pub heaters: Vec<Heater>,
     pub sensors: Vec<TemperatureSensor>,
     pub part_fan_speed: Option<f64>,
     pub save_config_pending: bool,
-    /// `Some(applied)`, wenn Quad-Gantry-Level oder Z-Tilt vorhanden ist.
+    /// `Some(applied)` if quad gantry level or Z tilt is present.
     pub leveling_applied: Option<bool>,
     pub filament_sensors: Vec<FilamentSensor>,
 }
@@ -331,7 +331,7 @@ fn read_filament_sensors(store: &ObjectStore) -> Vec<FilamentSensor> {
         .collect()
 }
 
-/// Anzeigename aus dem Objektnamen: `heater_generic chamber` → `Chamber`, `heater_bed` → `Bed`.
+/// Display name from the object name: `heater_generic chamber` → `Chamber`, `heater_bed` → `Bed`.
 pub fn label(object: &str) -> String {
     let base = match object {
         "extruder" => "nozzle",

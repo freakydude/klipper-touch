@@ -1,4 +1,4 @@
-// Druckauftrag: Vorschau, Fortschritt, Steuerung und Dateiauswahl.
+// Print job: preview, progress, controls and file selection.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
@@ -69,7 +69,7 @@ component FileRow inherits Rectangle {
     }
 }
 
-// Dateiliste über der Druckseite; Blättern per Wischen oder mit den Pfeiltasten.
+// File list over the print page; scroll by swiping or with the arrow buttons.
 export component FileBrowser inherits Rectangle {
     property <int> selected: -1;
     property <length> row-step: 76px;

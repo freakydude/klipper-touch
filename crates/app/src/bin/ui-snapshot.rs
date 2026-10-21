@@ -1,6 +1,6 @@
-//! Rendert alle Seiten der UI gegen einen (Fake-)Moonraker als PNG, ohne Fenster und ohne GPU.
+//! Renders every UI page against a (fake) Moonraker as PNG, without a window and without a GPU.
 //!
-//! `cargo run -p klipper-touch --bin ui-snapshot -- --moonraker http://127.0.0.1:7125 --out <ordner>`
+//! `cargo run -p klipper-touch --bin ui-snapshot -- --moonraker http://127.0.0.1:7125 --out <folder>`
 
 use klipper_touch::presenter::Presenter;
 use klipper_touch::settings_controller::SettingsController;
@@ -74,7 +74,7 @@ struct Session {
 }
 
 impl Session {
-    /// Überträgt anstehende Snapshots und Ereignisse, wie es sonst der Ereignisloop tut.
+    /// Transfers pending snapshots and events, as the event loop otherwise does.
     fn pump(&mut self, duration: Duration) {
         let deadline = Instant::now() + duration;
         loop {

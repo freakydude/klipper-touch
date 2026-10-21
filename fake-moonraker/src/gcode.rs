@@ -1,4 +1,4 @@
-//! Parser fuer die G-Code-Zeilen, die die UI per `printer.gcode.script` schickt.
+//! Parser for the G-code lines the UI sends via `printer.gcode.script`.
 
 use std::fmt;
 
@@ -191,7 +191,7 @@ fn parse_axes(args: &[&str]) -> Vec<Axis> {
 fn letter_value(args: &[&str], letter: char) -> Result<Option<f64>, CommandError> {
     args.iter()
         .find(|arg| arg.chars().next().map(|first| first.to_ascii_uppercase()) == Some(letter))
-        // Das erste Zeichen ist ein ASCII-Buchstabe und damit genau ein Byte lang.
+        // The first character is an ASCII letter and therefore exactly one byte long.
         .map(|arg| parse_number(&arg[1..]))
         .transpose()
 }

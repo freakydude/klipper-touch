@@ -1,6 +1,6 @@
 #!/bin/bash
-# Baut aus einem Linux-Build-Artefakt ein Debian-Paket klipper-touch_<version>_<arch>.deb.
-# Aufruf: build-deb.sh <artefakt-ordner> <release-tag>  (im Ordner mit den Artefakten, Repo eine Ebene hoeher)
+# Builds a Debian package klipper-touch_<version>_<arch>.deb from a Linux build artifact.
+# Usage: build-deb.sh <artifact-folder> <tag>  (tag like v0.2.5 or v0.2.5-pr.147.3; in the artifacts folder, repo one level up)
 set -euo pipefail
 
 artifact="$1"
@@ -14,13 +14,8 @@ case "$artifact" in
   *) echo "unknown architecture in '$artifact'"; exit 1 ;;
 esac
 
-# Debian-Versionen muessen mit einer Ziffer beginnen; Vorabversionen sortieren per ~ vor dem Release.
-if [[ "$release" =~ ^v[0-9] ]]; then
-  version=$(echo "${release#v}" | tr '-' '~')
-else
-  cargo_version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$repo/Cargo.toml" | head -n 1)
-  version="${cargo_version}~${release//-/.}"
-fi
+# Pre-release suffixes sort before the release in Debian via ~.
+version=$(echo "${release#v}" | tr '-' '~')
 
 depends=$(python3 -c 'import json, sys; print(", ".join(["libc6 (>= 2.36)", "libfontconfig1"] + json.load(open(sys.argv[1]))["debian"]))' \
   "$repo/scripts/system-dependencies.json")

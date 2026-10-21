@@ -1,32 +1,32 @@
-# Architektur
+# Architecture
 
-Ziel: eine schlanke, native Touch-Oberfläche für Klipper, die direkt am Drucker-Host läuft. Die Bedienabläufe des Menschen
-bestimmen die Oberfläche (siehe `docs/UseCases and Dependencies.drawio`, Seite "Workflows"); die Fähigkeiten des Druckers
-entscheiden nur, ob ein Schritt angeboten wird.
+Goal: a lean, native touch UI for Klipper that runs directly on the printer host. The operator's workflows shape the UI
+(see `docs/UseCases and Dependencies.drawio`, page "Workflows"); the printer's capabilities only decide whether a step is
+offered.
 
-## Bausteine
+## Building blocks
 
 ```mermaid
 flowchart LR
     subgraph app [crates/app – klipper-touch]
-        UI[ui/*.slint<br/>Seiten, Komponenten, Globals]
-        P[presenter.rs<br/>Zustand → Globals]
-        A[actions.rs<br/>Callbacks → Command]
+        UI[ui/*.slint<br/>pages, components, globals]
+        P[presenter.rs<br/>state → globals]
+        A[actions.rs<br/>callbacks → Command]
         S[settings_controller.rs]
-        V[view.rs / format.rs<br/>reine Ableitungen]
+        V[view.rs / format.rs<br/>pure derivations]
     end
     subgraph core [crates/core – klipper-touch-core]
         SVC[service.rs<br/>PrinterService]
         CMD[commands.rs<br/>Command → Call]
-        PR[printer/*<br/>Objekte, Status, Capabilities]
-        MR[moonraker/*<br/>JSON-RPC über WebSocket]
-        SET[settings.rs<br/>JSON-Datei]
+        PR[printer/*<br/>objects, status, capabilities]
+        MR[moonraker/*<br/>JSON-RPC over WebSocket]
+        SET[settings.rs<br/>JSON file]
         FS[files.rs / system.rs]
     end
     M[(Moonraker / Klipper)]
     F[fake-moonraker]
 
-    UI -- Callbacks --> A --> SVC
+    UI -- callbacks --> A --> SVC
     SVC -- Snapshot / Event --> P --> UI
     P --> V
     S --> SET
@@ -34,61 +34,61 @@ flowchart LR
     SVC --> PR
     SVC --> FS
     SVC --> MR --> M
-    F -. ersetzt in Tests .-> M
+    F -. replaces in tests .-> M
 ```
 
-| Crate | Aufgabe | Abhängig von |
-|---|---|---|
-| `crates/core` | Verbindung, Protokoll, Druckerzustand, Fähigkeiten, Befehle, Einstellungen. Kein UI-Code. | tokio, tokio-tungstenite, reqwest, serde |
-| `crates/app` | Slint-Oberfläche und Anbindung an den Kern; Binary `klipper-touch`, Werkzeug `ui-snapshot`. | core, slint |
-| `crates/icon-index` | Prüft `assets/icons` und erzeugt `crates/app/ui/icons.slint` sowie `assets/icons/overview.html`. | – |
-| `fake-moonraker` | Simulierter Moonraker/Klipper für Entwicklung und Tests (Profile `basic`, `voron`, `happy-hare`). | axum, tokio |
+| Crate | Responsibility | Depends on |
+| --- | --- | --- |
+| `crates/core` | Connection, protocol, printer state, capabilities, commands, settings. No UI code. | tokio, tokio-tungstenite, reqwest, serde |
+| `crates/app` | Slint UI and its binding to the core; binary `klipper-touch`, tool `ui-snapshot`. | core, slint |
+| `crates/icon-index` | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | – |
+| `fake-moonraker` | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`). | axum, tokio |
 
-## Datenfluss
+## Data flow
 
-1. `PrinterService::start` startet im Tokio-Laufzeitsystem eine Schleife: verbinden, `server.connection.identify`,
-   `server.info`, bei `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`.
-2. `notify_status_update` wird in den `ObjectStore` gemischt; `PrinterStatus::from_store` liefert die typisierte Sicht.
-   Jeder neue Stand geht als `Snapshot` über einen `watch`-Kanal an die UI.
-3. Einmalige Daten (Dateien, Metadaten, Vorschaubilder, Schaltgeräte, Updates, Konsole, Fehler) kommen als `Event`.
-4. Die UI ruft `Actions`-Callbacks; `actions.rs` macht daraus `Command`s. `Command::to_call` übersetzt in G-Code oder
-   Moonraker-Methoden; Bewegungen werden dabei auf den Achsbereich begrenzt.
-5. `presenter.rs` läuft im Slint-Ereignisloop (`slint::spawn_local`) und schreibt in die Globals `Printer` und `UiSettings`.
-6. Verbindungsabbruch: Zustand `disconnected`, neuer Versuch alle 2 s; Klippy-Shutdown/-Neustart über
-   `notify_klippy_*` und Abfrage von `server.info`.
+1. `PrinterService::start` runs a loop on the Tokio runtime: connect, `server.connection.identify`, `server.info`, and
+   once `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`.
+2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view.
+   Every new state goes to the UI as a `Snapshot` through a `watch` channel.
+3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
+4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. `Command::to_call` translates them into
+   G-code or Moonraker methods; moves are clamped to the axis range.
+5. `presenter.rs` runs in the Slint event loop (`slint::spawn_local`) and writes the globals `Printer` and `UiSettings`.
+6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
+   `server.info` polling.
 
-## Oberfläche (`crates/app/ui`)
+## UI (`crates/app/ui`)
 
-- `app.slint`: Fenster 800x480 (wächst mit), Statusleiste, Navigationsleiste, Seite, Überlagerungen.
-- `state.slint`: Globals `Printer` (nur lesen), `UiSettings`, `Actions` (Callbacks), `Navigation`, `Confirm`, `StateIcons`.
+- `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
+- `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
 - `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar), `overlays.slint`
-  (Bestätigung, Hinweis, Bildschirmtastatur, Texteingabe), `chrome.slint` (Statusleiste, Navigation).
+  (confirmation, notice, on-screen keyboard, text input), `chrome.slint` (status bar, navigation).
 - `pages/`: print, move, temperature, tune, extrude, macros, console, system, settings, connection.
-- Seiten lesen nur Globals und rufen nur `Actions`/`Confirm`; Logik mit Druckerbezug gehört in den Kern.
-- Touch-Regeln: Bedienflächen mindestens 56 px (`Theme.touch`), Bestätigung bei Abbruch, Not-Aus, Host-Aktionen;
-  Bewegen und Extrudieren sind während eines Drucks gesperrt.
-- Texte englisch mit `@tr(...)`, damit Übersetzungen später ohne Codeänderung möglich sind.
-- Icons: `assets/icons/<kategorie>/<kategorie>-<name>.svg`, einfarbig (`currentColor`), eingefärbt mit `colorize`.
+- Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
+- Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;
+  moving and extruding are locked while printing.
+- Texts in English with `@tr(...)`, so translations can be added later without code changes.
+- Icons: `assets/icons/<category>/<category>-<name>.svg`, single colour (`currentColor`), tinted with `colorize`.
 
-## Darstellung auf dem Gerät
+## Display on the device
 
-- Standard ist das winit-Backend: am Desktop als Fenster, auf dem Drucker im Vollbild unter `cage` (Kiosk-Compositor,
-  `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) mit Software-Renderer als Ausweichlösung
+- Default is the winit backend: a window on the desktop, fullscreen under `cage` on the printer (kiosk compositor,
+  `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
   (`SLINT_BACKEND=winit-software`).
-- Optional ohne Compositor: Cargo-Feature `linuxkms` (in Slint als experimentell markiert).
-- Builds für `aarch64`, `armv7` und `x86_64` laufen in CI in einem Debian-Bookworm-Container (älteste noch gepflegte glibc).
+- Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
+- Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).
 
-## Erweitern
+## Extending
 
-- **Neuer Befehl**: Variante in `Command` + Übersetzung in `to_call` + Test; Callback in `state.slint` (`Actions`),
-  Verdrahtung in `actions.rs`, Bedienelement auf der Seite.
-- **Neue Fähigkeit**: Erkennung in `Capabilities::add_object` (oder `ServerComponents`), Abo in `subscription.rs`,
-  Feld in `PrinterStatus`, Property in `Printer` und Zuweisung in `presenter.rs`.
-- **Neue Seite**: `pages/<name>.slint`, Eintrag in `Page`, `NavRail` und `app.slint`; Prüfen mit `ui-snapshot`.
-- **Fake erweitern**: Methode in `fake-moonraker/src/session.rs`, G-Code in `gcode.rs`/`printer.rs`, Test dazu.
+- **New command**: variant in `Command` + translation in `to_call` + test; callback in `state.slint` (`Actions`),
+  wiring in `actions.rs`, control on the page.
+- **New capability**: detection in `Capabilities::add_object` (or `ServerComponents`), subscription in `subscription.rs`,
+  field in `PrinterStatus`, property in `Printer` and assignment in `presenter.rs`.
+- **New page**: `pages/<name>.slint`, entry in `Page`, `NavRail` and `app.slint`; check with `ui-snapshot`.
+- **Extend the fake**: method in `fake-moonraker/src/session.rs`, G-code in `gcode.rs`/`printer.rs`, plus a test.
 
-## Prüfen
+## Checks
 
-- `cargo clippy --workspace --all-targets -- -D warnings` und `cargo test --workspace` (enthält Ende-zu-Ende-Tests des
-  Dienstes gegen den Fake und die Prüfung des Icon-Sets).
-- `cargo run -p klipper-touch --bin ui-snapshot` gegen einen laufenden Fake rendert alle Seiten ohne Fenster als PNG.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` (includes end-to-end tests of the
+  service against the fake and the icon set check).
+- `cargo run -p klipper-touch --bin ui-snapshot` against a running fake renders all pages as PNG without a window.

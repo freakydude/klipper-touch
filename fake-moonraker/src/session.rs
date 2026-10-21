@@ -1,4 +1,4 @@
-//! JSON-RPC-Sitzung einer WebSocket-Verbindung.
+//! JSON-RPC session of a WebSocket connection.
 
 use crate::backend::Backend;
 use crate::files::GcodeFile;
@@ -49,7 +49,7 @@ impl Session {
         Self { connection_id, subscription: Subscription::default() }
     }
 
-    /// Verarbeitet eine eingehende Nachricht; `None`, wenn keine Antwort faellig ist.
+    /// Handles an incoming message; `None` if no reply is due.
     pub fn handle_text(&mut self, backend: &Backend, text: &str) -> Option<String> {
         match serde_json::from_str::<Value>(text) {
             Ok(Value::Array(requests)) => {
@@ -62,7 +62,7 @@ impl Session {
         }
     }
 
-    /// Aenderungen der abonnierten Objekte seit der letzten Meldung als `notify_status_update`.
+    /// Changes of the subscribed objects since the last report as `notify_status_update`.
     pub fn status_notification(&mut self, backend: &Backend) -> Option<String> {
         let changes = self.subscription.changes(&backend.status())?;
         let notification = json!({

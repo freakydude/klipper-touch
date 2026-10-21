@@ -1,4 +1,4 @@
-// G-Code-Konsole: Verlauf, Schnellbefehle und Eingabe per Bildschirmtastatur.
+// G-code console: history, quick commands and input via on-screen keyboard.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
@@ -25,7 +25,7 @@ export component ConsolePage inherits Rectangle {
                 x: 8px;
                 width: parent.width - 16px;
                 content-height: max(self.height, Printer.console.length * root.line-height + 8px);
-                // Neueste Zeilen unten; beim Öffnen ans Ende springen.
+                // Newest lines at the bottom; jump to the end when opened.
                 content-y: min(0px, self.height - self.content-height);
                 for line[index] in Printer.console: HorizontalLayout {
                     y: 4px + index * root.line-height;

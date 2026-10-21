@@ -1,11 +1,11 @@
-// Feineinstellung während und vor dem Druck: Z-Offset, Geschwindigkeit, Fluss, Pressure Advance.
+// Fine tuning during and before the print: Z offset, speed, flow, pressure advance.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, StepSelector } from "../components/controls.slint";
 
-// Wert mit Minus/Plus und optionalem Zurücksetzen.
+// Value with minus/plus and optional reset.
 component Adjuster inherits Card {
     in property <string> value;
     in property <bool> can-reset: true;

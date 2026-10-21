@@ -4,7 +4,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "debug: klipper-touch (Fake-Moonraker)",
+      "name": "debug: klipper-touch (fake Moonraker)",
       "cargo": {
         "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
       },
@@ -15,7 +15,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "debug: klipper-touch (Einstellungen)",
+      "name": "debug: klipper-touch (saved settings)",
       "cargo": {
         "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
       }
