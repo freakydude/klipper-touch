@@ -137,6 +137,7 @@ Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 - Release assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
   `scripts/debian`). Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
   `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `klipper-touch.exe`.
+  Every CI run also offers them as artifact `release-packages` (version `dev-<commit>`) for testing a branch or PR.
 - Nightly: at 02:00 UTC `main` is published as prerelease `nightly-<date>-<commit>`, replacing the previous one, only
   if `main` changed (`.github/workflows/nightly.yml`, manual run with `force` possible).
 - Release: set `version` in `Cargo.toml` (`[workspace.package]`), commit via pull request, then
