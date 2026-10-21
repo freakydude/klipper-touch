@@ -5,7 +5,7 @@ use super::{Availability, NetworkCommand, NetworkError, NetworkNotice, NetworkSt
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 
-/// NetworkManager does not push changes to us; the state is read again this often.
+/// NetworkManager does not push changes to us; while the UI shows the networks they are read this often.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Which implementation manages the networks.
@@ -20,7 +20,13 @@ pub enum NetworkBackend {
 /// Handle for the UI; cheap to clone.
 #[derive(Clone)]
 pub struct NetworkService {
-    commands: mpsc::UnboundedSender<NetworkCommand>,
+    requests: mpsc::UnboundedSender<Request>,
+}
+
+enum Request {
+    Command(NetworkCommand),
+    /// Whether the UI shows the networks and wants regular refreshes.
+    Watch(bool),
 }
 
 pub struct NetworkChannels {
@@ -30,15 +36,20 @@ pub struct NetworkChannels {
 
 impl NetworkService {
     pub fn start(runtime: &tokio::runtime::Handle, backend: NetworkBackend) -> (Self, NetworkChannels) {
-        let (commands, commands_rx) = mpsc::unbounded_channel();
+        let (requests, requests_rx) = mpsc::unbounded_channel();
         let (state_tx, states) = watch::channel(NetworkState::default());
         let (notice_tx, notices) = mpsc::unbounded_channel();
-        runtime.spawn(run(backend, commands_rx, Outputs { state: state_tx, notices: notice_tx }));
-        (Self { commands }, NetworkChannels { states, notices })
+        runtime.spawn(run(backend, requests_rx, Outputs { state: state_tx, notices: notice_tx }));
+        (Self { requests }, NetworkChannels { states, notices })
     }
 
     pub fn send(&self, command: NetworkCommand) {
-        let _ = self.commands.send(command);
+        let _ = self.requests.send(Request::Command(command));
+    }
+
+    /// Reads the state at once when `visible`, then regularly until hidden again.
+    pub fn watch(&self, visible: bool) {
+        let _ = self.requests.send(Request::Watch(visible));
     }
 }
 
@@ -153,25 +164,35 @@ impl Outputs {
     }
 }
 
-async fn run(choice: NetworkBackend, mut commands: mpsc::UnboundedReceiver<NetworkCommand>, outputs: Outputs) {
+async fn run(choice: NetworkBackend, mut requests: mpsc::UnboundedReceiver<Request>, outputs: Outputs) {
     let mut backend = match Backend::open(choice).await {
         Ok(backend) => backend,
         Err(error) => {
             log::info!("{error}");
             outputs.unavailable(&error);
             // Keep the channel open so the UI can send commands without effect.
-            while commands.recv().await.is_some() {}
+            while requests.recv().await.is_some() {}
             return;
         }
     };
+    // One read decides whether the UI offers management at all.
+    outputs.refresh(&backend).await;
+    let mut watching = false;
     let mut refresh = tokio::time::interval(REFRESH_INTERVAL);
     loop {
         tokio::select! {
-            command = commands.recv() => match command {
-                Some(command) => outputs.execute(&mut backend, command).await,
+            request = requests.recv() => match request {
+                Some(Request::Command(command)) => outputs.execute(&mut backend, command).await,
+                Some(Request::Watch(visible)) => {
+                    watching = visible;
+                    if visible {
+                        refresh.reset();
+                        outputs.refresh(&backend).await;
+                    }
+                }
                 None => return,
             },
-            _ = refresh.tick() => outputs.refresh(&backend).await,
+            _ = refresh.tick(), if watching => outputs.refresh(&backend).await,
         }
     }
 }

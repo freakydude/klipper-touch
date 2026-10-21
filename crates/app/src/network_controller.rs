@@ -120,6 +120,8 @@ impl NetworkController {
             }
         });
         let service = self.service.clone();
+        network.on_watch(move |visible| service.watch(visible));
+        let service = self.service.clone();
         network.on_scan(move || service.send(NetworkCommand::Scan));
         let service = self.service.clone();
         network.on_connect(move |ssid, password, hidden| {

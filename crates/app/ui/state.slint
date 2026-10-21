@@ -160,6 +160,8 @@ export global Printer {
     in property <bool> notice-is-error;
 
     out property <bool> is-printing: print-state == "printing" || print-state == "paused";
+    // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
+    out property <bool> host-actions-locked: is-printing || activity == "busy";
     out property <bool> homed-xy: homed-x && homed-y;
 }
 
@@ -252,6 +254,8 @@ export global Network {
     in-out property <bool> pending-hidden;
 
     callback refresh();
+    // The network tab is shown or hidden; NetworkManager is only read regularly while it is visible.
+    callback watch(bool);
     callback scan();
     callback connect(string, string, bool);
     callback disconnect();

@@ -357,8 +357,15 @@ impl<'a> Session<'a> {
     }
 
     fn execute(&self, command: Command) {
-        let motion = PrinterStatus::from_store(&self.store).motion;
-        let Some(call) = command.to_call(&motion) else { return };
+        let status = PrinterStatus::from_store(&self.store);
+        if command.interrupts_print() && status.job.state.is_active() {
+            self.outputs.event(Event::CommandFailed {
+                command: command.describe(),
+                message: "not possible while a print is running".to_owned(),
+            });
+            return;
+        }
+        let Some(call) = command.to_call(&status.motion) else { return };
         if let Command::RunGcode { script } = &command {
             self.outputs.event(Event::ConsoleLine(console_line(ConsoleKind::Command, script)));
         }

@@ -9,12 +9,12 @@ use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
 use klipper_touch_core::printer::{Capabilities, Heater};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
-use klipper_touch_core::{ConnectionState, Event, PrinterService, Query, Snapshot};
+use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const CONSOLE_LIMIT: usize = 300;
 /// This many files get metadata and thumbnail right away; the rest stays plain.
@@ -33,6 +33,7 @@ pub struct Presenter {
     window: slint::Weak<AppWindow>,
     service: PrinterService,
     cache: RefCell<Cache>,
+    pending_targets: RefCell<view::PendingTargets>,
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
@@ -51,6 +52,7 @@ impl Presenter {
             window: window.as_weak(),
             service,
             cache: RefCell::default(),
+            pending_targets: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
@@ -105,10 +107,27 @@ impl Presenter {
         self.cache.borrow().snapshot.capabilities.clone()
     }
 
+    /// Heater as the UI shows it, including targets Klipper has not reported back yet.
+    pub fn heater(&self, object: &str) -> Option<Heater> {
+        let mut heaters = self.cache.borrow().snapshot.status.heaters.clone();
+        self.pending_targets.borrow_mut().apply(&mut heaters, Instant::now());
+        heaters.into_iter().find(|heater| heater.object == object)
+    }
+
+    /// Sends a heater target and shows it right away instead of waiting for the next status update.
+    pub fn set_heater_target(&self, object: &str, target: f64) {
+        self.pending_targets.borrow_mut().request(object, target, Instant::now());
+        self.service.send(Command::SetHeaterTarget { heater: object.to_owned(), target });
+        let snapshot = self.snapshot();
+        self.apply_snapshot(&snapshot);
+    }
+
     pub fn apply_snapshot(&self, snapshot: &Snapshot) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
-        let status = &snapshot.status;
+        let mut shown = snapshot.status.clone();
+        self.pending_targets.borrow_mut().apply(&mut shown.heaters, Instant::now());
+        let status = &shown;
         let connected = snapshot.connection == ConnectionState::Connected;
         let ready = connected && status.klippy_state == klipper_touch_core::printer::KlippyState::Ready;
 

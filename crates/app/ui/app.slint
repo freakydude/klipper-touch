@@ -30,6 +30,9 @@ export component AppWindow inherits Window {
     // Pages that are useful even without a ready printer.
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
         || (Navigation.page == Page.console && Printer.connection == "connected");
+    property <bool> network-visible: Navigation.page == Page.settings && Navigation.settings-tab == 1;
+
+    changed network-visible => { Network.watch(self.network-visible); }
 
     VerticalLayout {
         StatusBar { }

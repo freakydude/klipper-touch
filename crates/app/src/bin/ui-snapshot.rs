@@ -241,6 +241,7 @@ fn run() -> Result<(), String> {
     session.pump(Duration::from_secs(1));
     session.show_page(Page::Print, "print-printing")?;
     session.show_page(Page::Temperature, "temperature-printing")?;
+    session.show_page(Page::System, "system-printing")?;
     session.window.global::<Navigation>().set_page(Page::Print);
     session.window.global::<Confirm>().invoke_ask(
         "Cancel print".into(),
