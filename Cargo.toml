@@ -8,7 +8,7 @@ version = "0.2.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/freakydude/klipper-touch"
-rust-version = "1.85"
+rust-version = "1.92"
 
 [workspace.dependencies]
 klipper-touch-core = { path = "crates/core" }

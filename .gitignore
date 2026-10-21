@@ -1,8 +1,8 @@
 .DS_Store
 target/
 *.drawio.bkp
-# Leftovers of the former Node stack, in case they still exist locally
-node_modules
+# Machine-specific cargo settings (e.g. proxy workarounds)
+/.cargo/config.toml
 # Local editor tooling, do not publish
 /.github/skills/
 /.github/instructions/

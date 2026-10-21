@@ -1,3 +1,0 @@
-[http]
-# Corporate proxy offers no revocation check (schannel: CRYPT_E_NO_REVOCATION_CHECK)
-check-revoke = false
