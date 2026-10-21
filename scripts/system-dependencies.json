@@ -1,0 +1,15 @@
+{
+  "debian": [
+    "cage",
+    "seatd",
+    "fontconfig",
+    "fonts-dejavu-core",
+    "libxkbcommon0",
+    "libegl1",
+    "libgles2",
+    "libwayland-client0",
+    "libwayland-cursor0",
+    "libwayland-egl1",
+    "libinput10"
+  ]
+}

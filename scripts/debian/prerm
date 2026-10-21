@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+# Alle aktivierten Instanzen klipper-touch@<user> stoppen und deaktivieren.
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ]; then
+  for link in /etc/systemd/system/*.wants/klipper-touch@*.service; do
+    [ -e "$link" ] || continue
+    systemctl disable --now "$(basename "$link")" || true
+  done
+fi

@@ -1,12 +1,12 @@
 # Rust unter Windows ohne Admin-Rechte
 
-Entwicklung von klipper-touch-slint unter Windows ohne Admin-Rechte, ohne WSL/Docker, mit rust-analyzer in VS Code.
+Entwicklung von klipper-touch unter Windows ohne Admin-Rechte, ohne WSL/Docker, mit rust-analyzer in VS Code.
 
 ## Einrichtung
 
 1. Rust über `rustup` installieren (geht ohne Admin, Standard-Toolchain egal).
 2. `powershell -File scripts\setup.ps1` ausführen und VS Code komplett neu starten.
-3. Prüfen: `cargo test --workspace`; starten: Task "run: klipper-touch-slint (Fake-Moonraker)" oder Debug-Konfiguration "debug: klipper-touch-slint (Fake-Moonraker)".
+3. Prüfen: `cargo test --workspace`; starten: Task "run: klipper-touch (Fake-Moonraker)" oder Debug-Konfiguration "debug: klipper-touch (Fake-Moonraker)".
 
 Der erste Build lädt und übersetzt Slint mit allen Abhängigkeiten und dauert einige Minuten.
 
@@ -26,4 +26,4 @@ Der Schlüssel ist der Linker: w64devkit liefert `gcc`/`ld` als reines Benutzerv
 
 - `cannot find -lshlwapi` beim Linken: In `%USERPROFILE%\.cargo\config.toml` steht `-C link-self-contained=yes`. Die Zeile entfernen; w64devkit plus leere `libgcc_eh.a` reichen.
 - Skia als Slint-Renderer braucht MSVC; das Projekt nutzt deshalb FemtoVG und den Software-Renderer.
-- Die UI ohne Fenster prüfen: `cargo run -p klipper-touch-slint --bin ui-snapshot` gegen einen laufenden Fake, bequemer mit `powershell -File scripts\ui-snapshot.ps1`.
+- Die UI ohne Fenster prüfen: `cargo run -p klipper-touch --bin ui-snapshot` gegen einen laufenden Fake, bequemer mit `powershell -File scripts\ui-snapshot.ps1`.

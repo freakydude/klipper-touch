@@ -1,13 +1,13 @@
 //! Rendert alle Seiten der UI gegen einen (Fake-)Moonraker als PNG, ohne Fenster und ohne GPU.
 //!
-//! `cargo run -p klipper-touch-slint --bin ui-snapshot -- --moonraker http://127.0.0.1:7125 --out <ordner>`
+//! `cargo run -p klipper-touch --bin ui-snapshot -- --moonraker http://127.0.0.1:7125 --out <ordner>`
 
+use klipper_touch::presenter::Presenter;
+use klipper_touch::settings_controller::SettingsController;
+use klipper_touch::{actions, AppWindow, Confirm, Navigation, Page};
 use klipper_touch_core::printer::{KlippyState, PrintState};
 use klipper_touch_core::settings::{Settings, SettingsStore};
 use klipper_touch_core::{Command, ConnectionState, Endpoint, PrinterService, Query, ServiceChannels, Snapshot};
-use klipper_touch_slint::presenter::Presenter;
-use klipper_touch_slint::settings_controller::SettingsController;
-use klipper_touch_slint::{actions, AppWindow, Confirm, Navigation, Page};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
 use slint::platform::{Platform, WindowAdapter};
 use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};

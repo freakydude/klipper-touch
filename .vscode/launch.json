@@ -4,9 +4,9 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "debug: klipper-touch-slint (Fake-Moonraker)",
+      "name": "debug: klipper-touch (Fake-Moonraker)",
       "cargo": {
-        "args": ["build", "-p", "klipper-touch-slint", "--bin", "klipper-touch-slint"]
+        "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
       },
       "args": ["--moonraker", "http://127.0.0.1:7125"],
       "env": { "RUST_LOG": "info,klipper_touch_core=debug" },
@@ -15,9 +15,9 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "debug: klipper-touch-slint (Einstellungen)",
+      "name": "debug: klipper-touch (Einstellungen)",
       "cargo": {
-        "args": ["build", "-p", "klipper-touch-slint", "--bin", "klipper-touch-slint"]
+        "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
       }
     },
     {

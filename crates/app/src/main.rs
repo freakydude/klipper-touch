@@ -2,7 +2,7 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 use clap::Parser;
-use klipper_touch_slint::app::{Application, Options};
+use klipper_touch::app::{Application, Options};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -16,7 +16,7 @@ struct Cli {
     /// Start in fullscreen (kiosk) mode
     #[arg(short, long)]
     fullscreen: bool,
-    /// Settings file (default: <config dir>/klipper-touch-slint/settings.json)
+    /// Settings file (default: <config dir>/klipper-touch/settings.json)
     #[arg(long)]
     settings: Option<PathBuf>,
 }
