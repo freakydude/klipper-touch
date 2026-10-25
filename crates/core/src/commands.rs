@@ -70,6 +70,19 @@ pub enum Command {
     ExcludeObject {
         name: String,
     },
+    // Happy Hare. `MMU_LOAD` and `MMU_UNLOAD` act on the selected gate; they have no gate parameter.
+    MmuSelectGate {
+        gate: usize,
+    },
+    MmuLoad,
+    MmuUnload,
+    /// Ejects the filament of a gate completely; without `gate` the selected one.
+    MmuEject {
+        gate: Option<usize>,
+    },
+    MmuHome,
+    MmuRecover,
+    MmuUnlock,
     // Klipper and host
     EmergencyStop,
     RestartKlipper,
@@ -150,6 +163,14 @@ impl Command {
             Self::RunMacro { name } => Call::gcode(name.clone()),
             Self::RunGcode { script } => Call::gcode(script.clone()),
             Self::ExcludeObject { name } => Call::gcode(exclude_object_gcode(name)?),
+            Self::MmuSelectGate { gate } => Call::gcode(format!("MMU_SELECT GATE={gate}")),
+            Self::MmuLoad => Call::gcode("MMU_LOAD"),
+            Self::MmuUnload => Call::gcode("MMU_UNLOAD"),
+            Self::MmuEject { gate: Some(gate) } => Call::gcode(format!("MMU_EJECT GATE={gate}")),
+            Self::MmuEject { gate: None } => Call::gcode("MMU_EJECT"),
+            Self::MmuHome => Call::gcode("MMU_HOME"),
+            Self::MmuRecover => Call::gcode("MMU_RECOVER"),
+            Self::MmuUnlock => Call::gcode("MMU_UNLOCK"),
             Self::EmergencyStop => Call::new("printer.emergency_stop"),
             Self::RestartKlipper => Call::new("printer.restart"),
             Self::FirmwareRestart => Call::new("printer.firmware_restart"),
@@ -260,6 +281,18 @@ mod tests {
         assert_eq!(script(Command::Home { x: true, y: true, z: false }), "G28 X Y");
         assert_eq!(script(Command::Home { x: true, y: true, z: true }), "G28");
         assert_eq!(script(Command::Home { x: false, y: false, z: true }), "G28 Z");
+    }
+
+    #[test]
+    fn happy_hare_commands_use_the_documented_parameters() {
+        assert_eq!(script(Command::MmuSelectGate { gate: 3 }), "MMU_SELECT GATE=3");
+        assert_eq!(script(Command::MmuLoad), "MMU_LOAD");
+        assert_eq!(script(Command::MmuUnload), "MMU_UNLOAD");
+        assert_eq!(script(Command::MmuEject { gate: None }), "MMU_EJECT");
+        assert_eq!(script(Command::MmuEject { gate: Some(1) }), "MMU_EJECT GATE=1");
+        assert_eq!(script(Command::MmuHome), "MMU_HOME");
+        assert_eq!(script(Command::MmuRecover), "MMU_RECOVER");
+        assert_eq!(script(Command::MmuUnlock), "MMU_UNLOCK");
     }
 
     #[test]

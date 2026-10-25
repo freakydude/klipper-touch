@@ -3,7 +3,7 @@
 use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, MmuCommand, Move};
 use crate::happy_hare::HappyHare;
-use crate::machine::{MachineProfile, FILAMENT_SENSORS};
+use crate::machine::{MachineProfile, FILAMENT_SENSORS, MMU_FILAMENT_SENSORS};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
 
@@ -344,7 +344,8 @@ impl Printer {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
         objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
-        for (index, name) in FILAMENT_SENSORS.iter().take(self.profile.filament_sensors).enumerate() {
+        let sensor_names: &[&str] = if self.mmu.is_some() { &MMU_FILAMENT_SENSORS } else { &FILAMENT_SENSORS };
+        for (index, name) in sensor_names.iter().take(self.profile.filament_sensors).enumerate() {
             objects.insert((*name).to_owned(), json!({ "enabled": true, "filament_detected": index != 1 }));
         }
         for name in MACROS {

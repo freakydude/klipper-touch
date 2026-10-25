@@ -97,12 +97,17 @@ fn pages(session: &mut Session) -> Result<(), String> {
         (Page::Move, "move"),
         (Page::Temperature, "temperature"),
         (Page::Tune, "tune"),
-        (Page::Extrude, "extrude"),
+        (Page::Filament, "filament"),
         (Page::Console, "console"),
         (Page::System, "system"),
         (Page::Settings, "settings"),
     ] {
         session.show_page(page, name)?;
+        if page == Page::Filament && session.presenter.snapshot().status.mmu.is_some() {
+            session.window.global::<Navigation>().set_filament_tab(1);
+            session.show_page(Page::Filament, "filament-mmu")?;
+            session.window.global::<Navigation>().set_filament_tab(0);
+        }
     }
     Ok(())
 }

@@ -2,7 +2,7 @@
 
 import { Icons } from "icons.slint";
 
-export enum Page { print, move, temperature, tune, extrude, console, system, settings }
+export enum Page { print, move, temperature, tune, filament, console, system, settings }
 
 export struct HeaterItem {
     object: string,
@@ -23,6 +23,25 @@ export struct FilamentSensorItem {
     label: string,
     enabled: bool,
     detected: bool,
+}
+
+// One gate of the MMU. `availability`: unknown | empty | available | buffered.
+export struct MmuGateItem {
+    index: int,
+    availability: string,
+    name: string,
+    material: string,
+    color: color,
+    has-color: bool,
+    // Tool mapped to this gate, -1 without one.
+    tool: int,
+    selected: bool,
+}
+
+// A sensor of the MMU. `state`: disabled | open | triggered.
+export struct MmuSensorItem {
+    label: string,
+    state: string,
 }
 
 export struct PrintObjectItem {
@@ -162,6 +181,33 @@ export global Printer {
     in property <[FilamentSensorItem]> filament-sensors;
     // Objects of the running print; excluded ones cannot be printed again.
     in property <[PrintObjectItem]> print-objects;
+    // Happy Hare (4.1 or newer). Without it the Filament page has no MMU tab.
+    in property <bool> has-mmu;
+    in property <bool> mmu-unsupported;
+    in property <[MmuGateItem]> mmu-gates;
+    in property <[MmuSensorItem]> mmu-sensors;
+    // loaded | unloaded | unknown
+    in property <string> mmu-filament;
+    // Klipper's action text, for example "Idle" or "Loading".
+    in property <string> mmu-action;
+    // Selected gate and tool, -1 for none or unknown.
+    in property <int> mmu-gate: -1;
+    in property <int> mmu-tool: -1;
+    in property <bool> mmu-paused;
+    in property <bool> mmu-locked;
+    // Why the MMU paused the print, empty if it did not.
+    in property <string> mmu-reason;
+    in property <bool> mmu-homed;
+    in property <bool> mmu-has-buffer;
+    // compressed | neutral | tension | inactive | disabled
+    in property <string> mmu-buffer-state;
+    // -1 (tension) over 0 (neutral) to +1 (compressed).
+    in property <float> mmu-buffer-bias;
+    // off | ready | monitoring | triggered
+    in property <string> mmu-flowguard-state;
+    in property <string> mmu-flowguard-detail;
+    // Percent from the encoder, -1 without an encoder.
+    in property <float> mmu-flow-rate: -1;
 
     // Capabilities
     in property <bool> can-quad-gantry-level;
@@ -245,6 +291,13 @@ export global Actions {
     callback unload-filament();
     callback run-macro(string);
     callback exclude-object(string);
+    callback mmu-select-gate(int);
+    callback mmu-load();
+    callback mmu-unload();
+    callback mmu-home();
+    callback mmu-eject();
+    callback mmu-recover();
+    callback mmu-unlock();
     callback run-gcode(string);
     callback refresh-files();
     callback start-print(string);
@@ -322,6 +375,10 @@ export global Navigation {
     in-out property <bool> messages-open;
     // 0 = general, 1 = network
     in-out property <int> settings-tab;
+    // Filament page: 0 = extruder, 1 = MMU
+    in-out property <int> filament-tab;
+    // First page of four gates that the MMU tab shows, counted from 0.
+    in-out property <int> mmu-page;
 }
 
 // Confirmation dialog: pages set text and action, `execute` runs the action after OK.
@@ -349,6 +406,7 @@ export global Confirm {
         if (self.action == "emergency-stop") { Actions.emergency-stop(); }
         if (self.action == "run-macro") { Actions.run-macro(self.argument); }
         if (self.action == "exclude-object") { Actions.exclude-object(self.argument); }
+        if (self.action == "mmu-eject") { Actions.mmu-eject(); }
         if (self.action == "save-config") { Actions.save-config(); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }

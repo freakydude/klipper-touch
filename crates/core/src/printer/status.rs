@@ -1,6 +1,7 @@
 //! Typed view of the printer state, read from the [`ObjectStore`].
 
 use super::macros::{self, MacroDetails};
+use super::mmu::{self, MmuStatus};
 use super::objects::ObjectStore;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -262,6 +263,8 @@ pub struct PrinterStatus {
     pub filament_sensors: Vec<FilamentSensor>,
     /// Objects of the print with their exclude state; empty without the `exclude_object` module.
     pub print_objects: Vec<PrintObject>,
+    /// Happy Hare; `None` without the `mmu` object.
+    pub mmu: Option<MmuStatus>,
 }
 
 impl PrinterStatus {
@@ -286,6 +289,7 @@ impl PrinterStatus {
                 .map(|leveling| flag(leveling, "applied")),
             filament_sensors: read_filament_sensors(store),
             print_objects: read_print_objects(object("exclude_object")),
+            mmu: mmu::read_mmu(store),
         }
     }
 

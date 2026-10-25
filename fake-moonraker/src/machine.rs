@@ -7,17 +7,23 @@ pub struct MachineProfile {
     pub mmu_gates: Option<usize>,
     /// Klipper `exclude_object` module with the objects of the print.
     pub exclude_object: bool,
-    /// Number of filament sensors, taken from the front of `FILAMENT_SENSORS`.
+    /// Number of filament sensors, taken from the front of the list of the profile (`FILAMENT_SENSORS` or `MMU_FILAMENT_SENSORS`).
     pub filament_sensors: usize,
 }
 
 /// Klipper object names of the simulated filament sensors; the second reports a runout.
-pub const FILAMENT_SENSORS: [&str; 5] = [
-    "filament_switch_sensor toolhead_runout",
-    "filament_motion_sensor extruder_encoder",
-    "filament_switch_sensor mmu_pre_gate_0",
-    "filament_switch_sensor mmu_pre_gate_1",
-    "filament_switch_sensor mmu_gear_extruder_entry",
+pub const FILAMENT_SENSORS: [&str; 2] =
+    ["filament_switch_sensor toolhead_runout", "filament_motion_sensor extruder_encoder"];
+
+/// Happy Hare sensors as Klipper objects, as listed by a real single-lane type-B machine with a sync-feedback buffer
+/// (Happy Hare 4.1.0, `objects.list`, 2026-10-25). Names come from `mmu_constants.py`; the gate suffix is kept.
+/// The machine has no shared exit sensor and no encoder.
+pub const MMU_FILAMENT_SENSORS: [&str; 5] = [
+    "filament_switch_sensor mmu_entry_0",
+    "filament_switch_sensor mmu_exit_0",
+    "filament_switch_sensor toolhead",
+    "filament_switch_sensor extruder",
+    "filament_switch_sensor filament_tension",
 ];
 
 impl MachineProfile {

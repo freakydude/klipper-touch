@@ -1,0 +1,334 @@
+// MMU tab of the Filament page: gates (four at a time), sensors with buffer, load and unload of the selected gate.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, MmuGateItem, Navigation, Printer } from "../state.slint";
+import { Card, IconButton, IconLabel } from "../components/controls.slint";
+
+// Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
+export global MmuTexts {
+    pure public function buffer(state: string) -> string {
+        if (state == "neutral") { return @tr("Neutral"); }
+        if (state == "tension") { return @tr("Tension"); }
+        if (state == "compressed") { return @tr("Compression"); }
+        if (state == "inactive") { return @tr("Inactive"); }
+        return @tr("Off");
+    }
+    pure public function flowguard(state: string, detail: string) -> string {
+        if (state == "triggered") { return @tr("FlowGuard triggered") + (detail == "" ? "" : ": " + detail); }
+        if (state == "monitoring") { return @tr("FlowGuard monitoring"); }
+        return @tr("FlowGuard ready");
+    }
+}
+
+component GateTile inherits Rectangle {
+    in property <MmuGateItem> gate;
+    callback clicked;
+
+    property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
+    property <color> status-color: root.has-filament ? Theme.success : root.gate.availability == "empty" ? Theme.warning : Theme.muted;
+
+    pure function availability-text() -> string {
+        if (root.gate.availability == "available") { return @tr("Available"); }
+        if (root.gate.availability == "buffered") { return @tr("Buffered"); }
+        if (root.gate.availability == "empty") { return @tr("Empty"); }
+        return @tr("Unknown");
+    }
+
+    border-radius: Theme.radius;
+    background: tile-touch.pressed ? Theme.surface-active : Theme.surface-raised;
+    border-width: root.gate.selected ? 3px : 0px;
+    border-color: Theme.accent;
+    accessible-role: button;
+    accessible-label: @tr("Gate {}", root.gate.index);
+
+    tile-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    VerticalLayout {
+        padding: 10px;
+        spacing: 6px;
+        HorizontalLayout {
+            Text {
+                text: @tr("Gate {}", root.gate.index);
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 700;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            if root.gate.tool >= 0: Text {
+                text: "T" + root.gate.tool;
+                color: Theme.accent;
+                font-size: Theme.font-normal;
+                font-weight: 700;
+            }
+        }
+        Rectangle {
+            height: 12px;
+            border-radius: 6px;
+            background: root.gate.has-color ? root.gate.color : Theme.border;
+        }
+        Text {
+            text: root.gate.material == "" ? "-" : root.gate.material;
+            color: Theme.foreground;
+            font-size: Theme.font-large;
+            overflow: elide;
+        }
+        Text {
+            text: root.gate.name;
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            overflow: elide;
+        }
+        Rectangle { vertical-stretch: 1; }
+        IconLabel {
+            icon: root.has-filament ? Icons.mmu-gate-available : root.gate.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
+            text: root.availability-text();
+            color: root.status-color;
+            font-size: Theme.font-small;
+        }
+    }
+}
+
+// Position of the filament in the buffer: tension on the left, compression on the right, the neutral zone in the middle.
+export component BufferGauge inherits Rectangle {
+    in property <float> bias;
+    in property <string> state;
+    out property <color> marker-color: root.state == "neutral" ? Theme.success : root.state == "tension" || root.state == "compressed" ? Theme.warning : Theme.muted;
+
+    height: 18px;
+    Rectangle {
+        border-radius: 4px;
+        background: Theme.border;
+    }
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        width: parent.width * 0.1;
+        background: Theme.success;
+        opacity: 0.35;
+    }
+    Rectangle {
+        width: 8px;
+        height: parent.height;
+        x: clamp((root.bias + 1) / 2, 0, 1) * (parent.width - self.width);
+        border-radius: 4px;
+        background: root.marker-color;
+    }
+}
+
+export component MmuTab inherits Rectangle {
+    property <int> gates-per-page: 4;
+    property <int> pages: max(1, ceil(Printer.mmu-gates.length / root.gates-per-page));
+    property <int> page: min(Navigation.mmu-page, root.pages - 1);
+    property <int> first: root.page * root.gates-per-page;
+
+    HorizontalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: Theme.spacing;
+
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: 150px;
+                if root.pages > 1: IconButton {
+                    width: 48px;
+                    icon: Icons.ui-chevron-left;
+                    enabled: root.page > 0;
+                    clicked => { Navigation.mmu-page = root.page - 1; }
+                }
+                tiles := Rectangle {
+                    horizontal-stretch: 1;
+                    property <length> cell-width: (self.width - (root.gates-per-page - 1) * Theme.spacing) / root.gates-per-page;
+                    for item in Printer.mmu-gates: GateTile {
+                        visible: item.index >= root.first && item.index < root.first + root.gates-per-page;
+                        x: mod(item.index, root.gates-per-page) * (tiles.cell-width + Theme.spacing);
+                        width: tiles.cell-width;
+                        height: tiles.height;
+                        gate: item;
+                        clicked => { Actions.mmu-select-gate(item.index); }
+                    }
+                }
+                if root.pages > 1: IconButton {
+                    width: 48px;
+                    icon: Icons.ui-chevron-right;
+                    enabled: root.page < root.pages - 1;
+                    clicked => { Navigation.mmu-page = root.page + 1; }
+                }
+            }
+
+            Card {
+                title: @tr("Sensors");
+                icon: Icons.filament-sensor;
+                VerticalLayout {
+                    spacing: 8px;
+                    // Grid with equal columns, so every name gets the same width.
+                    sensor-grid := Rectangle {
+                        property <int> columns: max(1, min(Printer.mmu-sensors.length, floor(self.width / 150px)));
+                        property <length> cell-width: (self.width - (self.columns - 1) * Theme.spacing) / self.columns;
+                        property <length> row-height: 26px;
+                        height: ceil(Printer.mmu-sensors.length / self.columns) * self.row-height;
+                        for sensor[index] in Printer.mmu-sensors: IconLabel {
+                            x: mod(index, sensor-grid.columns) * (sensor-grid.cell-width + Theme.spacing);
+                            y: floor(index / sensor-grid.columns) * sensor-grid.row-height;
+                            width: sensor-grid.cell-width;
+                            height: sensor-grid.row-height;
+                            icon: sensor.state == "disabled" ? Icons.ui-minus : sensor.state == "triggered" ? Icons.ui-check : Icons.filament-runout;
+                            text: sensor.label;
+                            color: sensor.state == "triggered" ? Theme.success : sensor.state == "disabled" ? Theme.disabled-foreground : Theme.muted;
+                            font-size: Theme.font-small;
+                        }
+                    }
+                    if Printer.mmu-has-buffer: VerticalLayout {
+                        spacing: 4px;
+                        IconLabel {
+                            icon: Icons.mmu-sync;
+                            text: @tr("Buffer: {}", MmuTexts.buffer(Printer.mmu-buffer-state));
+                            color: gauge.marker-color;
+                            font-size: Theme.font-small;
+                        }
+                        gauge := BufferGauge {
+                            bias: Printer.mmu-buffer-bias;
+                            state: Printer.mmu-buffer-state;
+                        }
+                        HorizontalLayout {
+                            Text { text: @tr("Tension"); color: Theme.muted; font-size: Theme.font-small; }
+                            Rectangle { horizontal-stretch: 1; }
+                            Text { text: @tr("Compression"); color: Theme.muted; font-size: Theme.font-small; }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: Theme.spacing;
+                        if Printer.mmu-flowguard-state != "off": IconLabel {
+                            icon: Icons.mmu-flowguard;
+                            text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
+                            color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Theme.muted;
+                            font-size: Theme.font-small;
+                        }
+                        if Printer.mmu-flow-rate >= 0: IconLabel {
+                            icon: Icons.filament-flow;
+                            text: @tr("Flow {} %", round(Printer.mmu-flow-rate));
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                        }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                }
+            }
+        }
+
+        VerticalLayout {
+            width: 120px;
+            spacing: Theme.spacing;
+            IconButton {
+                icon: Icons.mmu-load;
+                text: @tr("Load");
+                enabled: Printer.mmu-filament != "loaded";
+                clicked => { Actions.mmu-load(); }
+            }
+            IconButton {
+                icon: Icons.mmu-unload;
+                text: @tr("Unload");
+                enabled: Printer.mmu-filament != "unloaded";
+                clicked => { Actions.mmu-unload(); }
+            }
+            IconButton {
+                icon: Icons.mmu-eject;
+                text: @tr("Eject");
+                enabled: Printer.mmu-gate >= 0;
+                // Pulls the filament out of the MMU, so it asks first.
+                clicked => {
+                    Confirm.ask(@tr("Eject filament"), @tr("Pulls the filament of gate {} out of the MMU. If it is loaded, it is only unloaded; eject again to pull it out.", Printer.mmu-gate), "mmu-eject", "", false);
+                }
+            }
+            if !Printer.mmu-homed: IconButton {
+                icon: Icons.mmu-home;
+                text: @tr("Home");
+                kind: "accent";
+                clicked => { Actions.mmu-home(); }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+}
+
+// Condensed state of the MMU for the print page: selected tool and gate, buffer, FlowGuard and, when the MMU paused the
+// print, the reason with the buttons to recover.
+export component MmuStrip inherits Card {
+    title: @tr("MMU");
+    icon: Icons.mmu-unit;
+    VerticalLayout {
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            Text {
+                text: Printer.mmu-gate >= 0 ? (Printer.mmu-tool >= 0 ? "T" + Printer.mmu-tool + " · " : "") + @tr("Gate {}", Printer.mmu-gate) : @tr("No gate");
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 700;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
+                color: Theme.info;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+        }
+        // While the MMU holds the print, the reason and the buttons need the room; the reason already names the cause.
+        if Printer.mmu-has-buffer && !Printer.mmu-paused: VerticalLayout {
+            spacing: 4px;
+            IconLabel {
+                icon: Icons.mmu-sync;
+                text: @tr("Buffer: {}", MmuTexts.buffer(Printer.mmu-buffer-state));
+                color: strip-gauge.marker-color;
+                font-size: Theme.font-small;
+            }
+            strip-gauge := BufferGauge {
+                bias: Printer.mmu-buffer-bias;
+                state: Printer.mmu-buffer-state;
+            }
+        }
+        if !Printer.mmu-paused: HorizontalLayout {
+            spacing: Theme.spacing;
+            if Printer.mmu-flowguard-state != "off": IconLabel {
+                icon: Icons.mmu-flowguard;
+                text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
+                color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Theme.muted;
+                font-size: Theme.font-small;
+            }
+            if Printer.mmu-flow-rate >= 0: IconLabel {
+                icon: Icons.filament-flow;
+                text: @tr("Flow {} %", round(Printer.mmu-flow-rate));
+                color: Theme.muted;
+                font-size: Theme.font-small;
+            }
+        }
+        if Printer.mmu-paused && Printer.mmu-reason != "": Text {
+            text: Printer.mmu-reason;
+            color: Theme.warning;
+            font-size: Theme.font-small;
+            wrap: word-wrap;
+        }
+        if Printer.mmu-paused || Printer.mmu-locked: HorizontalLayout {
+            spacing: Theme.spacing;
+            height: Theme.touch;
+            IconButton {
+                icon: Icons.mmu-recover;
+                text: @tr("Recover");
+                horizontal: true;
+                kind: "accent";
+                clicked => { Actions.mmu-recover(); }
+            }
+            IconButton {
+                icon: Icons.ui-unlock;
+                text: @tr("Unlock");
+                horizontal: true;
+                clicked => { Actions.mmu-unlock(); }
+            }
+        }
+    }
+}
+

@@ -74,6 +74,33 @@ export global Sample {
     }
 
     // Ready printer with a job at 37 %.
+    // Happy Hare with four gates, one of them empty, and a sync-feedback buffer in tension.
+    public function mmu() {
+        self.ready-printer();
+        Printer.has-mmu = true;
+        Printer.mmu-homed = true;
+        Printer.mmu-filament = "unloaded";
+        Printer.mmu-action = "Idle";
+        Printer.mmu-gate = 0;
+        Printer.mmu-tool = 0;
+        Printer.mmu-gates = [
+            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #e03131, has-color: true, tool: 0, selected: true },
+            { index: 1, availability: "available", name: "Green PETG", material: "PETG", color: #37b24d, has-color: true, tool: 1, selected: false },
+            { index: 2, availability: "buffered", name: "", material: "ABS", color: #4dabf7, has-color: true, tool: 2, selected: false },
+            { index: 3, availability: "empty", name: "", material: "", color: #000000, has-color: false, tool: 3, selected: false },
+        ];
+        Printer.mmu-sensors = [
+            { label: "Entry", state: "triggered" },
+            { label: "Exit", state: "open" },
+            { label: "Extruder", state: "open" },
+            { label: "Toolhead", state: "open" },
+        ];
+        Printer.mmu-has-buffer = true;
+        Printer.mmu-buffer-state = "tension";
+        Printer.mmu-buffer-bias = -0.9;
+        Printer.mmu-flowguard-state = "ready";
+    }
+
     public function printing() {
         self.ready-printer();
         Printer.print-state = "printing";
