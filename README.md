@@ -140,10 +140,15 @@ cargo run -p klipper-touch -- -m http://127.0.0.1:7125
 cargo clippy --workspace --all-targets
 cargo test --workspace
 cargo run -p ui-snapshot -- --out shots                  # render the screens to PNG (needs the fake running)
-                                                         # Windows: scripts\ui-snapshot.ps1 [-Size 640x400] [-Scenes all] starts the fake itself
-# Windows: scripts\ui-preview.ps1 renders crates/app/ui/preview/*.slint with sample data in seconds (slint-viewer)
+scripts/ui-snapshot.sh [-s 640x400] [-S pages]           # WSL2/Arch: starts the fake itself, renders all screens
+scripts/ui-preview.sh                                    # WSL2/Arch: renders crates/app/ui/preview/*.slint with sample data in seconds
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```
+
+Scripts exist in two variants with the same behaviour:
+
+- `scripts/*.sh` (bash) for WSL2 with Arch Linux, the main development environment. `scripts/setup-wsl.sh` checks the environment.
+- `scripts/*.ps1` (PowerShell) for Windows without admin rights. `scripts\setup.ps1` prepares the GNU toolchain there, see [docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 Structure, data flow and conventions: [docs/architecture.md](docs/architecture.md).
 Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
@@ -154,7 +159,7 @@ Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 | -------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Rust (`rustup`)                                                                        | everything                                      | [rustup.rs](https://rustup.rs); `rust-toolchain.toml` selects the version                                               | `PATH`                                                                                 |
 | MinGW linker ([w64devkit](https://github.com/skeeto/w64devkit))                        | building on Windows without MSVC                | `scripts\setup.ps1` downloads it                                                                                        | `%USERPROFILE%\tools\w64devkit\bin`, added to the user `PATH` by the script            |
-| [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts\ui-preview.ps1`                        | the script downloads the version matching `slint` in `Cargo.lock`; Linux: `cargo install slint-viewer --version <same>` | `slint-viewer` on `PATH` first, otherwise `%USERPROFILE%\tools\slint-viewer-<version>` |
+| [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts/ui-preview.sh` (WSL2), `scripts\ui-preview.ps1` (Windows) | WSL2: the script compiles the version matching `slint` in `Cargo.lock` into `~/.local/bin` (`cargo install slint-viewer --version <same>`); Windows: the script downloads it | `slint-viewer` on `PATH` first, otherwise the script's install location |
 | Slint extension for VS Code (optional)                                                 | live preview of `crates/app/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
 
 To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.

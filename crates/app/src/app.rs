@@ -8,6 +8,7 @@ use crate::AppWindow;
 use klipper_touch_core::network::{NetworkBackend, NetworkService};
 use klipper_touch_core::settings::{SettingsError, SettingsStore};
 use klipper_touch_core::{Endpoint, PrinterService};
+use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Timer, TimerMode};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -95,6 +96,7 @@ impl Application {
 
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);
+            hide_pointer_when_shown(&window);
         }
         Ok(Self {
             window,
@@ -111,4 +113,20 @@ impl Application {
         self.window.run()?;
         Ok(())
     }
+}
+
+/// Fullscreen is the touch-only kiosk mode: a pointer there would only be the cursor of a touch screen.
+/// The winit window exists once the event loop runs, so the call waits for the first timer tick.
+pub fn hide_pointer_when_shown(window: &AppWindow) {
+    let weak = window.as_weak();
+    Timer::single_shot(Duration::ZERO, move || {
+        if let Some(window) = weak.upgrade() {
+            set_pointer_visible(window.window(), false);
+        }
+    });
+}
+
+/// Shows or hides the pointer; leaving fullscreen brings it back.
+pub fn set_pointer_visible(window: &slint::Window, visible: bool) {
+    let _ = window.with_winit_window(|winit_window| winit_window.set_cursor_visible(visible));
 }

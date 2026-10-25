@@ -58,6 +58,7 @@ pub enum Command {
     SetHeaterTemperature { heater: String, target: f64 },
     SaveConfig,
     QuadGantryLevel,
+    Help,
     Mmu(MmuCommand),
     Ignored,
 }
@@ -148,6 +149,7 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         }),
         "SAVE_CONFIG" => Ok(Command::SaveConfig),
         "QUAD_GANTRY_LEVEL" => Ok(Command::QuadGantryLevel),
+        "HELP" => Ok(Command::Help),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" => Ok(Command::Mmu(MmuCommand::Select { gate: required_index(&args, "GATE")? })),
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
@@ -320,6 +322,11 @@ mod tests {
     #[test]
     fn only_digits_after_t_make_a_tool_change() {
         assert_eq!(parse_script("TURN_OFF_HEATERS").unwrap(), vec![Command::Ignored]);
+    }
+
+    #[test]
+    fn parses_help() {
+        assert_eq!(parse_script("help").unwrap(), vec![Command::Help]);
     }
 
     #[test]

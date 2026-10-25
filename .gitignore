@@ -4,6 +4,4 @@ target/
 # Machine-specific cargo settings (e.g. proxy workarounds)
 /.cargo/config.toml
 # Local editor tooling, do not publish
-/.github/skills/
-/.github/instructions/
-/.github/copilot-instructions.md
+/.claude/

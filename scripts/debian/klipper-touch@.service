@@ -10,9 +10,11 @@ User=%i
 PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 ExecStart=/usr/bin/cage -s -- /usr/bin/klipper-touch --fullscreen
 Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=graphical.target
+# Klipper hosts run multi-user.target without a desktop; graphical.target is never reached there.
+WantedBy=multi-user.target
