@@ -21,6 +21,7 @@ So far it has only run against the included fake Moonraker and on desktops.
 | ------------------------------------ | -------------------------------------- | ---------------------------------------------------------- |
 | ![Files](docs/screenshots/files.png) | ![Move](docs/screenshots/move.png)     | ![Temperature](docs/screenshots/temperature.png)           |
 | ![Tune](docs/screenshots/tune.png)   | ![System](docs/screenshots/system.png) | ![Klipper shut down](docs/screenshots/klippy-shutdown.png) |
+| ![Console](docs/screenshots/console.png) | ![Filament](docs/screenshots/filament.png) | ![MMU (Happy Hare)](docs/screenshots/mmu.png)       |
 
 ## Features
 

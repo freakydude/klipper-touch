@@ -47,6 +47,8 @@ pub struct StatusLog {
     next_id: u64,
     /// The message the status bar shows.
     badge: Option<u64>,
+    /// Errors with a smaller id were seen in the flyout.
+    seen_before: u64,
     /// Reason of the last rejected command, to recognise its duplicate response.
     last_failure: Option<(String, f64)>,
 }
@@ -98,18 +100,29 @@ impl StatusLog {
     /// The flyout was opened: the status bar stops showing the message, the list keeps it.
     pub fn mark_seen(&mut self) {
         self.badge = None;
+        self.seen_before = self.next_id;
     }
 
-    /// An information ran out of display time. Hides it only while it is still the one shown.
+    /// An information ran out of display time. Hides it only while it is still the one shown; an error that
+    /// nobody has seen yet comes back, because errors stay until they are seen.
     pub fn hide_badge(&mut self, id: u64) {
         if self.badge == Some(id) {
-            self.badge = None;
+            self.badge = self.newest_unseen_error();
         }
+    }
+
+    fn newest_unseen_error(&self) -> Option<u64> {
+        self.messages
+            .iter()
+            .rev()
+            .find(|message| message.is_error && message.id >= self.seen_before)
+            .map(|message| message.id)
     }
 
     pub fn clear(&mut self) {
         self.messages.clear();
         self.badge = None;
+        self.seen_before = self.next_id;
     }
 }
 
@@ -231,5 +244,42 @@ mod tests {
 
         assert!(log.badge().is_none());
         assert_eq!(log.messages().count(), 0);
+    }
+
+    #[test]
+    fn an_unseen_error_returns_when_a_later_information_runs_out() {
+        let mut log = StatusLog::default();
+        log.add("fault", true, 1.0);
+        let info = log.add("note", false, 2.0);
+        assert_eq!(log.badge().map(Message::headline), Some("note"));
+
+        log.hide_badge(info);
+
+        assert_eq!(log.badge().map(Message::headline), Some("fault"));
+    }
+
+    #[test]
+    fn a_seen_error_does_not_return() {
+        let mut log = StatusLog::default();
+        log.add("fault", true, 1.0);
+        log.mark_seen();
+        let info = log.add("note", false, 2.0);
+
+        log.hide_badge(info);
+
+        assert!(log.badge().is_none());
+    }
+
+    #[test]
+    fn a_new_error_is_unseen_even_after_an_earlier_one_was_seen() {
+        let mut log = StatusLog::default();
+        log.add("old fault", true, 1.0);
+        log.mark_seen();
+        log.add("new fault", true, 2.0);
+        let info = log.add("note", false, 3.0);
+
+        log.hide_badge(info);
+
+        assert_eq!(log.badge().map(Message::headline), Some("new fault"));
     }
 }

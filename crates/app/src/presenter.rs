@@ -550,10 +550,10 @@ impl Presenter {
         if !is_error && !is_information {
             return;
         }
-        let text = strip_response_marker(message);
-        let added = self.status.log.borrow_mut().add_response(text, is_error, now_seconds());
+        let text = response_text(message);
+        let added = self.status.log.borrow_mut().add_response(&text, is_error, now_seconds());
         if let Some(id) = added {
-            self.show_message(id, text, is_error);
+            self.show_message(id, &text, is_error);
         }
     }
 
@@ -695,13 +695,19 @@ fn strip_response_marker(message: &str) -> &str {
     message.strip_prefix("!!").or_else(|| message.strip_prefix("//")).map_or(message, str::trim_start)
 }
 
+/// The text of a response as shown: without its marker and without the HTML of plugins.
+fn response_text(message: &str) -> String {
+    format::strip_markup(strip_response_marker(message))
+}
+
 /// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
 /// Only the first row of a message shows the time.
 fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
     let time = format::unix_clock(line.time);
     let is_command = line.kind == ConsoleKind::Command;
     let is_error = line.message.starts_with("!!");
-    let mut rows: Vec<&str> = strip_response_marker(&line.message).lines().collect();
+    let text = if is_command { line.message.clone() } else { response_text(&line.message) };
+    let mut rows: Vec<&str> = text.lines().collect();
     if rows.is_empty() {
         rows.push("");
     }
@@ -766,6 +772,15 @@ mod tests {
         let rows = console_items(&line(ConsoleKind::Response, ""));
         assert_eq!(rows.len(), 1);
         assert!(rows[0].text.is_empty());
+    }
+
+    #[test]
+    fn plugin_markup_does_not_reach_the_console() {
+        let rows = console_items(&line(
+            ConsoleKind::Response,
+            r#"// <b><span style="color:#87CEEB">EMPTY</span></b>&nbsp;gate"#,
+        ));
+        assert_eq!(rows[0].text, "EMPTY gate");
     }
 
     #[test]

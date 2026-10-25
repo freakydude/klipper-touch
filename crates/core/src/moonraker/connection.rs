@@ -44,6 +44,15 @@ pub struct Notification {
     pub params: Value,
 }
 
+/// A request that has been sent; its reply is awaited with [`PendingCall::response`].
+pub struct PendingCall(oneshot::Receiver<Result<Value, RpcError>>);
+
+impl PendingCall {
+    pub async fn response(self) -> Result<Value, CallError> {
+        self.0.await.map_err(|_| CallError::Closed)?.map_err(CallError::from)
+    }
+}
+
 /// Handle to an open connection; cheap to clone.
 #[derive(Clone)]
 pub struct Connection {
@@ -105,6 +114,12 @@ impl Connection {
     }
 
     pub async fn call(&self, method: &str, params: Option<Value>) -> Result<Value, CallError> {
+        self.start_call(method, params)?.response().await
+    }
+
+    /// Puts the request on the wire right away; only the reply is awaited. Requests started one after another
+    /// therefore reach Moonraker in that order, which matters for absolute values (heater targets) and for moves.
+    pub fn start_call(&self, method: &str, params: Option<Value>) -> Result<PendingCall, CallError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (reply, response) = oneshot::channel();
         lock(&self.pending).as_mut().ok_or(CallError::Closed)?.insert(id, reply);
@@ -114,7 +129,7 @@ impl Connection {
             }
             return Err(CallError::Closed);
         }
-        response.await.map_err(|_| CallError::Closed)?.map_err(CallError::from)
+        Ok(PendingCall(response))
     }
 
     pub fn is_closed(&self) -> bool {

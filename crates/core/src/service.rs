@@ -369,17 +369,25 @@ impl<'a> Session<'a> {
         if let Command::RunGcode { script } = &command {
             self.outputs.event(Event::ConsoleLine(console_line(ConsoleKind::Command, script)));
         }
-        let connection = self.connection.clone();
         let events = self.outputs.events.clone();
-        tokio::spawn(async move {
-            if let Err(error) = connection.call(call.method, call.params).await {
-                let message = match error {
-                    CallError::Rpc(rpc) => rpc.message,
-                    CallError::Closed => "connection to Moonraker closed".to_owned(),
-                };
-                let _ = events.send(Event::CommandFailed { command: command.describe(), message });
+        let failed = move |error: CallError| {
+            let message = match error {
+                CallError::Rpc(rpc) => rpc.message,
+                CallError::Closed => "connection to Moonraker closed".to_owned(),
+            };
+            let _ = events.send(Event::CommandFailed { command: command.describe(), message });
+        };
+        // Sent here, in the order of the commands; a task per command could overtake an earlier one.
+        match self.connection.start_call(call.method, call.params) {
+            Ok(pending) => {
+                tokio::spawn(async move {
+                    if let Err(error) = pending.response().await {
+                        failed(error);
+                    }
+                });
             }
-        });
+            Err(error) => failed(error),
+        }
     }
 
     fn answer(&self, query: Query) {
