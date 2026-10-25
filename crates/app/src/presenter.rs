@@ -1,25 +1,69 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, Network, PowerItem, Printer,
-    SensorItem, UpdateItem,
+    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
+    MessageItem, Network, PowerItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
-use klipper_touch_core::printer::{Capabilities, Heater};
+use klipper_touch_core::printer::{macro_script, Capabilities, Heater, MacroDetails};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 const CONSOLE_LIMIT: usize = 300;
 /// This many files get metadata and thumbnail right away; the rest stays plain.
 const FILE_DETAILS_LIMIT: usize = 40;
-const NOTICE_DURATION: Duration = Duration::from_secs(4);
+/// Status bar and its flyout. Shared with the timer that hides informations, hence the `Rc`.
+struct StatusView {
+    window: slint::Weak<AppWindow>,
+    log: RefCell<StatusLog>,
+    messages: Rc<VecModel<MessageItem>>,
+}
+
+impl StatusView {
+    /// Puts the log on screen: the flyout list and the message the status bar shows.
+    fn refresh(&self) {
+        let log = self.log.borrow();
+        let mut top = 0.0;
+        let items: Vec<MessageItem> = log
+            .messages()
+            .map(|message| {
+                let height = status_log::row_height(&message.text);
+                let item = MessageItem {
+                    text: SharedString::from(message.text.as_str()),
+                    time: format::unix_clock(message.time).into(),
+                    is_error: message.is_error,
+                    top,
+                    height,
+                };
+                top += height + status_log::ROW_GAP;
+                item
+            })
+            .collect();
+        replace_rows(&self.messages, items);
+        let Some(window) = self.window.upgrade() else { return };
+        let printer = window.global::<Printer>();
+        printer.set_messages_height(top);
+        let badge = log.badge();
+        printer.set_status_message(badge.map(|message| SharedString::from(message.headline())).unwrap_or_default());
+        printer.set_status_message_error(badge.is_some_and(|message| message.is_error));
+        printer.set_status_message_visible(badge.is_some());
+    }
+}
+
+fn now_seconds() -> f64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |elapsed| elapsed.as_secs_f64())
+}
+
+type MacrosLoaded = Box<dyn Fn(&[String])>;
 
 #[derive(Default)]
 struct Cache {
@@ -38,12 +82,20 @@ pub struct Presenter {
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
+    macro_items: Rc<VecModel<MacroItem>>,
+    all_macros: RefCell<Vec<String>>,
+    hidden_macros: RefCell<Vec<String>>,
+    macros_loaded: RefCell<Option<MacrosLoaded>>,
+    macro_details: RefCell<BTreeMap<String, MacroDetails>>,
+    macro_form: Rc<VecModel<MacroParamItem>>,
+    macro_form_name: RefCell<String>,
     files: Rc<VecModel<FileItem>>,
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
     host_interfaces: Rc<VecModel<HostInterfaceItem>>,
-    notice_timer: Timer,
+    status: Rc<StatusView>,
+    status_timer: Timer,
 }
 
 impl Presenter {
@@ -57,18 +109,29 @@ impl Presenter {
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
             macros: Rc::default(),
+            macro_items: Rc::default(),
+            all_macros: RefCell::default(),
+            hidden_macros: RefCell::default(),
+            macros_loaded: RefCell::default(),
+            macro_details: RefCell::default(),
+            macro_form: Rc::default(),
+            macro_form_name: RefCell::default(),
             files: Rc::default(),
             console: Rc::default(),
             power_devices: Rc::default(),
             updates: Rc::default(),
             host_interfaces: Rc::default(),
-            notice_timer: Timer::default(),
+            status: Rc::new(StatusView { window: window.as_weak(), log: RefCell::default(), messages: Rc::default() }),
+            status_timer: Timer::default(),
         });
         let printer = window.global::<Printer>();
         printer.set_heaters(ModelRc::from(presenter.heaters.clone()));
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
+        printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
+        printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
+        printer.set_messages(ModelRc::from(presenter.status.messages.clone()));
         printer.set_files(ModelRc::from(presenter.files.clone()));
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
@@ -207,7 +270,8 @@ impl Presenter {
         printer.set_has_unload_macro(capabilities.has_macro("UNLOAD_FILAMENT"));
         printer.set_has_power(capabilities.server.power);
         printer.set_has_update_manager(capabilities.server.update_manager);
-        replace_rows(&self.macros, capabilities.macros.iter().map(|name| SharedString::from(name.as_str())).collect());
+        self.set_macro_details(snapshot.status.macro_details.clone());
+        self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
 
         let previous_job =
             std::mem::replace(&mut self.cache.borrow_mut().snapshot, snapshot.clone()).status.job.filename;
@@ -253,25 +317,173 @@ impl Presenter {
                     }
                     self.console.push(item);
                 }
+                if line.kind == ConsoleKind::Response {
+                    self.show_console_response(&line.message);
+                }
             }
             Event::HostNetwork(interfaces) => {
                 replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
             }
-            Event::CommandFailed { command, message } => self.show_notice(&format!("{command}: {message}"), true),
+            Event::CommandFailed { command, message } => {
+                let shown = format!("{command}: {message}");
+                let id = self.status.log.borrow_mut().add_command_failure(&shown, &message, now_seconds());
+                self.show_message(id, &shown, true);
+            }
         }
     }
 
-    pub fn show_notice(&self, text: &str, is_error: bool) {
-        let Some(window) = self.window.upgrade() else { return };
-        let printer = window.global::<Printer>();
-        printer.set_notice(text.into());
-        printer.set_notice_is_error(is_error);
-        let weak = self.window.clone();
-        self.notice_timer.start(TimerMode::SingleShot, NOTICE_DURATION, move || {
-            if let Some(window) = weak.upgrade() {
-                window.global::<Printer>().set_notice(SharedString::new());
+    /// Applies the hidden macros from the settings.
+    pub fn set_hidden_macros(&self, hidden: Vec<String>) {
+        *self.hidden_macros.borrow_mut() = hidden;
+        self.refresh_macro_views();
+    }
+
+    /// Called with the printer's macros after a connection, so the settings can forget vanished ones.
+    pub fn on_macros_loaded(&self, handler: impl Fn(&[String]) + 'static) {
+        *self.macros_loaded.borrow_mut() = Some(Box::new(handler));
+    }
+
+    /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
+    fn set_macros(&self, macros: &[String], connected: bool) {
+        if self.all_macros.borrow().as_slice() == macros {
+            return;
+        }
+        *self.all_macros.borrow_mut() = macros.to_vec();
+        self.refresh_macro_views();
+        if connected && !macros.is_empty() {
+            if let Some(handler) = self.macros_loaded.borrow().as_ref() {
+                handler(macros);
             }
-        });
+        }
+    }
+
+    fn refresh_macro_views(&self) {
+        let details = self.macro_details.borrow();
+        let renamed = |name: &String| details.get(&name.to_ascii_uppercase()).is_some_and(|details| details.renamed);
+        let all = self.all_macros.borrow();
+        let hidden = self.hidden_macros.borrow();
+        let offered: Vec<&String> = all.iter().filter(|name| !renamed(name)).collect();
+        let visible: Vec<SharedString> = offered
+            .iter()
+            .filter(|name| !hidden.contains(name))
+            .map(|name| SharedString::from(name.as_str()))
+            .collect();
+        replace_rows(&self.macros, visible);
+        let items: Vec<MacroItem> = offered
+            .iter()
+            .map(|name| MacroItem { name: SharedString::from(name.as_str()), visible: !hidden.contains(name) })
+            .collect();
+        replace_rows(&self.macro_items, items);
+    }
+
+    fn set_macro_details(&self, details: BTreeMap<String, MacroDetails>) {
+        if *self.macro_details.borrow() == details {
+            return;
+        }
+        *self.macro_details.borrow_mut() = details;
+        self.refresh_macro_views();
+    }
+
+    /// Whether the macro takes parameters, so the form has to come before it runs.
+    pub fn macro_has_params(&self, name: &str) -> bool {
+        self.macro_details.borrow().get(&name.to_ascii_uppercase()).is_some_and(|details| !details.params.is_empty())
+    }
+
+    /// Fills the form with the parameters of a macro; empty values are left to Klipper's defaults.
+    pub fn open_macro_form(&self, name: &str) {
+        let params = self.macro_details.borrow().get(&name.to_ascii_uppercase()).map(|details| details.params.clone());
+        let rows: Vec<MacroParamItem> = params
+            .unwrap_or_default()
+            .iter()
+            .map(|param| MacroParamItem {
+                name: SharedString::from(param.name.as_str()),
+                placeholder: SharedString::from(param.default.as_deref().unwrap_or_default()),
+                value: SharedString::default(),
+            })
+            .collect();
+        *self.macro_form_name.borrow_mut() = name.to_owned();
+        self.macro_form.set_vec(rows);
+        self.show_macro_form_name();
+    }
+
+    /// Sets one parameter of the open form; values with spaces would split into several Klipper parameters.
+    pub fn set_macro_param(&self, index: usize, value: &str) {
+        if value.chars().any(char::is_whitespace) {
+            self.show_notice("Macro parameter values cannot contain spaces", true);
+            return;
+        }
+        if let Some(mut row) = self.macro_form.row_data(index) {
+            row.value = SharedString::from(value);
+            self.macro_form.set_row_data(index, row);
+        }
+    }
+
+    /// The command for the open form, e.g. `PARK Z=20`; parameters without a value are left out.
+    pub fn macro_form_script(&self) -> String {
+        let values: Vec<(String, String)> = self
+            .macro_form
+            .iter()
+            .filter(|row| !row.value.is_empty())
+            .map(|row| (row.name.to_string(), row.value.to_string()))
+            .collect();
+        let arguments: Vec<(&str, &str)> = values.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
+        macro_script(self.macro_form_name.borrow().as_str(), &arguments)
+    }
+
+    fn show_macro_form_name(&self) {
+        let Some(window) = self.window.upgrade() else { return };
+        window.global::<Printer>().set_macro_form_name(SharedString::from(self.macro_form_name.borrow().as_str()));
+    }
+
+    /// Empties the shown log only; the history on the printer stays and returns on the next load.
+    pub fn clear_console(&self) {
+        self.console.set_vec(Vec::new());
+    }
+
+    pub fn show_notice(&self, text: &str, is_error: bool) {
+        let id = self.status.log.borrow_mut().add(text, is_error, now_seconds());
+        self.show_message(id, text, is_error);
+    }
+
+    /// Shows a message in the status bar. Informations leave it again after a while, errors stay until seen.
+    fn show_message(&self, id: u64, text: &str, is_error: bool) {
+        if !is_error {
+            let status = Rc::clone(&self.status);
+            self.status_timer.start(TimerMode::SingleShot, info_display_time(text), move || {
+                status.log.borrow_mut().hide_badge(id);
+                status.refresh();
+            });
+        }
+        self.status.refresh();
+    }
+
+    /// A `!!` (error) or `//` (information) response of Klipper. Other responses stay in the console.
+    /// Informations are left out while a print runs, when Klipper sends many of them.
+    fn show_console_response(&self, message: &str) {
+        let is_error = message.starts_with("!!");
+        let is_information = message.starts_with("//") && !self.is_printing();
+        if !is_error && !is_information {
+            return;
+        }
+        let text = strip_response_marker(message);
+        let added = self.status.log.borrow_mut().add_response(text, is_error, now_seconds());
+        if let Some(id) = added {
+            self.show_message(id, text, is_error);
+        }
+    }
+
+    fn is_printing(&self) -> bool {
+        self.cache.borrow().snapshot.status.job.state.is_active()
+    }
+
+    pub fn mark_messages_seen(&self) {
+        self.status.log.borrow_mut().mark_seen();
+        self.status.refresh();
+    }
+
+    pub fn clear_messages(&self) {
+        self.status.log.borrow_mut().clear();
+        self.status.refresh();
     }
 
     pub fn request_files(&self) {
@@ -393,13 +605,18 @@ fn file_item(file: &FileEntry, metadata: Option<&FileMetadata>, thumbnail: Optio
     }
 }
 
+/// Klipper marks responses with `!!` (error) or `//` (information). The console shows the colour instead.
+fn strip_response_marker(message: &str) -> &str {
+    message.strip_prefix("!!").or_else(|| message.strip_prefix("//")).map_or(message, str::trim_start)
+}
+
 /// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
 /// Only the first row of a message shows the time.
 fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
     let time = format::unix_clock(line.time);
     let is_command = line.kind == ConsoleKind::Command;
     let is_error = line.message.starts_with("!!");
-    let mut rows: Vec<&str> = line.message.lines().collect();
+    let mut rows: Vec<&str> = strip_response_marker(&line.message).lines().collect();
     if rows.is_empty() {
         rows.push("");
     }
@@ -469,6 +686,7 @@ mod tests {
     #[test]
     fn error_flag_applies_to_every_row() {
         let rows = console_items(&line(ConsoleKind::Response, "!! Lost connection\nsee log"));
+        assert_eq!(rows[0].text, "Lost connection");
         assert!(rows.iter().all(|row| row.is_error));
         assert!(!rows.iter().any(|row| row.is_command));
     }

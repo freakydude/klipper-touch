@@ -1,0 +1,20 @@
+// Preview: console with sent commands (tappable, orange) and responses. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { ConsolePage } from "../pages/console.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+
+export component ConsolePreview inherits AppWindow {
+    ConsolePage { }
+
+    init => {
+        Navigation.page = Page.console;
+        Printer.console = [
+            { text: "G28", time: "11:30:12", is-command: true, is-error: false },
+            { text: "// Homing done", time: "11:30:13", is-command: false, is-error: false },
+            { text: "M117 Preheating", time: "11:31:02", is-command: true, is-error: false },
+            { text: "G1 X150 Y150 F6000", time: "11:31:40", is-command: true, is-error: false },
+            { text: "!! Must home axis first", time: "11:31:41", is-command: false, is-error: true },
+        ];
+    }
+}

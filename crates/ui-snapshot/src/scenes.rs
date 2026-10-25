@@ -98,7 +98,6 @@ fn pages(session: &mut Session) -> Result<(), String> {
         (Page::Temperature, "temperature"),
         (Page::Tune, "tune"),
         (Page::Extrude, "extrude"),
-        (Page::Macros, "macros"),
         (Page::Console, "console"),
         (Page::System, "system"),
         (Page::Settings, "settings"),

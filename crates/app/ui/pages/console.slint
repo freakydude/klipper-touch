@@ -1,14 +1,18 @@
-// G-code console: history, quick commands and input via on-screen keyboard.
+// G-code console: history, expandable macro list and a command field that opens the on-screen keyboard.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Printer } from "../state.slint";
+import { Actions, Confirm, Printer } from "../state.slint";
 import { IconButton, ScrollList } from "../components/controls.slint";
-import { TextEntryDialog } from "../components/overlays.slint";
+import { MacroFormDialog, TextEntryDialog } from "../components/overlays.slint";
 
 export component ConsolePage inherits Rectangle {
     property <length> line-height: 22px;
+    property <length> macro-panel-height: 160px;
+    property <int> macro-columns: 3;
+    property <length> macro-tile-height: 56px;
     property <string> draft;
+    property <bool> macros-open;
 
     init => { Actions.load-console(); }
 
@@ -28,56 +32,130 @@ export component ConsolePage inherits Rectangle {
                 content-height: Printer.console.length * root.line-height + 8px;
                 // Newest lines at the bottom; jump to the end when opened.
                 offset: min(0px, self.height - self.content-height);
-                for line[index] in Printer.console: HorizontalLayout {
+                for line[index] in Printer.console: Rectangle {
                     y: 4px + index * root.line-height;
                     height: root.line-height;
                     width: log.row-width;
-                    spacing: 8px;
-                    Text {
-                        text: line.time;
-                        color: Theme.disabled-foreground;
-                        font-size: Theme.font-small;
-                        vertical-alignment: center;
-                        width: 64px;
+                    HorizontalLayout {
+                        width: parent.width;
+                        height: parent.height;
+                        spacing: 8px;
+                        Text {
+                            text: line.time;
+                            color: Theme.disabled-foreground;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                            width: 64px;
+                        }
+                        Text {
+                            text: (line.is-command ? "> " : "") + line.text;
+                            color: line.is-error ? Theme.danger : line.is-command ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-small;
+                            font-family: "monospace";
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
                     }
-                    Text {
-                        text: (line.is-command ? "> " : "") + line.text;
-                        color: line.is-error ? Theme.danger : line.is-command ? Theme.accent : Theme.foreground;
-                        font-size: Theme.font-small;
-                        font-family: "monospace";
-                        vertical-alignment: center;
-                        overflow: elide;
+                    // A sent command can be put back into the field: tap it, then Enter runs it again.
+                    if line.is-command: TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+                        clicked => {
+                            root.draft = line.text;
+                            entry.open = true;
+                        }
                     }
                 }
+            }
+        }
+
+        if root.macros-open: macro-panel := Rectangle {
+            height: root.macro-panel-height;
+            background: Theme.surface;
+            border-radius: Theme.radius;
+            clip: true;
+            property <length> cell-width: (macro-list.row-width - (root.macro-columns - 1) * Theme.spacing) / root.macro-columns;
+            macro-list := ScrollList {
+                x: 8px;
+                width: parent.width - 12px;
+                height: parent.height - 8px;
+                y: 4px;
+                content-height: ceil(Printer.macros.length / root.macro-columns) * (root.macro-tile-height + Theme.spacing);
+                for macro[index] in Printer.macros: IconButton {
+                    x: mod(index, root.macro-columns) * (macro-panel.cell-width + Theme.spacing);
+                    y: floor(index / root.macro-columns) * (root.macro-tile-height + Theme.spacing);
+                    width: macro-panel.cell-width;
+                    height: root.macro-tile-height;
+                    icon: Icons.nav-macros;
+                    text: macro;
+                    icon-size: 20px;
+                    horizontal: true;
+                    enabled: !Printer.is-printing || macro != "PRINT_START";
+                    // Without parameters a macro runs at once, unless a print is running. With parameters the form comes first.
+                    clicked => {
+                        if (Actions.macro-has-params(macro)) {
+                            Actions.open-macro-form(macro);
+                            form.open = true;
+                        } else if (Printer.print-state == "printing") {
+                            Confirm.ask(@tr("Run macro"), macro, "run-macro", macro, false);
+                        } else {
+                            Actions.run-macro(macro);
+                        }
+                    }
+                }
+            }
+            if Printer.macros.length == 0: Text {
+                text: @tr("No macros found in the Klipper configuration.");
+                color: Theme.muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
             }
         }
 
         HorizontalLayout {
             spacing: Theme.spacing;
-            height: 56px;
-            for command in ["HELP", "STATUS", "M114", "M115"]: IconButton {
-                text: command;
-                clicked => { Actions.run-gcode(command); }
-            }
+            height: Theme.touch;
             IconButton {
-                icon: Icons.ui-edit;
-                text: @tr("Type");
-                kind: "accent";
-                clicked => {
-                    entry.text = root.draft;
-                    entry.open = true;
+                icon: Icons.nav-macros;
+                text: @tr("Macros");
+                horizontal: true;
+                checked: root.macros-open;
+                width: 150px;
+                clicked => { root.macros-open = !root.macros-open; }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.surface;
+                border-radius: Theme.radius;
+                border-width: 1px;
+                border-color: Theme.border;
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: root.draft == "" ? @tr("Enter G-code") : root.draft;
+                    color: root.draft == "" ? Theme.disabled-foreground : Theme.foreground;
+                    font-size: Theme.font-normal;
+                    font-family: "monospace";
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                TouchArea {
+                    clicked => { entry.open = true; }
                 }
             }
             IconButton {
-                icon: Icons.ui-refresh;
-                width: 64px;
-                clicked => { Actions.load-console(); }
+                icon: Icons.ui-delete;
+                width: Theme.touch;
+                clicked => { Actions.clear-console(); }
             }
         }
     }
 
+    form := MacroFormDialog { }
+
     entry := TextEntryDialog {
         title: @tr("G-code");
+        text <=> root.draft;
         accepted(text) => {
             root.draft = "";
             if (text != "") { Actions.run-gcode(text); }
