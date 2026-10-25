@@ -8,7 +8,8 @@ use crate::AppWindow;
 use klipper_touch_core::network::{NetworkBackend, NetworkService};
 use klipper_touch_core::settings::{SettingsError, SettingsStore};
 use klipper_touch_core::{Endpoint, PrinterService};
-use slint::winit_030::WinitWindowAccessor;
+use slint::winit_030::winit::event::WindowEvent;
+use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Timer, TimerMode};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -96,8 +97,8 @@ impl Application {
 
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);
-            hide_pointer_when_shown(&window);
         }
+        follow_fullscreen_pointer(&window);
         Ok(Self {
             window,
             presenter,
@@ -117,12 +118,14 @@ impl Application {
 
 /// Fullscreen is the touch-only kiosk mode: a pointer there would only be the cursor of a touch screen.
 /// The winit window exists once the event loop runs, so the call waits for the first timer tick.
-pub fn hide_pointer_when_shown(window: &AppWindow) {
-    let weak = window.as_weak();
-    Timer::single_shot(Duration::ZERO, move || {
-        if let Some(window) = weak.upgrade() {
-            set_pointer_visible(window.window(), false);
+/// The pointer belongs to windowed use only. winit may show it again on focus, resize or pointer entry, and the
+/// window is not yet created when the app starts, so the state is re-applied on those events instead of once.
+pub fn follow_fullscreen_pointer(window: &AppWindow) {
+    window.window().on_winit_window_event(|window, event| {
+        if matches!(event, WindowEvent::Focused(_) | WindowEvent::Resized(_) | WindowEvent::CursorEntered { .. }) {
+            set_pointer_visible(window, !window.is_fullscreen());
         }
+        EventResult::Propagate
     });
 }
 
