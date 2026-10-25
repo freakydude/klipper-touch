@@ -261,6 +261,11 @@ impl Presenter {
         }
     }
 
+    /// Empties the shown log only; the history on the printer stays and returns on the next load.
+    pub fn clear_console(&self) {
+        self.console.set_vec(Vec::new());
+    }
+
     pub fn show_notice(&self, text: &str, is_error: bool) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();

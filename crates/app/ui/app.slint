@@ -9,7 +9,6 @@ import { MovePage } from "pages/move.slint";
 import { TemperaturePage } from "pages/temperature.slint";
 import { TunePage } from "pages/tune.slint";
 import { ExtrudePage } from "pages/extrude.slint";
-import { MacrosPage } from "pages/macros.slint";
 import { ConsolePage } from "pages/console.slint";
 import { SystemPage } from "pages/system.slint";
 import { SettingsPage } from "pages/settings.slint";
@@ -46,7 +45,6 @@ export component AppWindow inherits Window {
                 if Navigation.page == Page.temperature: TemperaturePage { }
                 if Navigation.page == Page.tune: TunePage { }
                 if Navigation.page == Page.extrude: ExtrudePage { }
-                if Navigation.page == Page.macros: MacrosPage { }
                 if Navigation.page == Page.console: ConsolePage { }
                 if Navigation.page == Page.system: SystemPage { }
                 if Navigation.page == Page.settings: SettingsPage { }

@@ -2,7 +2,7 @@
 
 import { Icons } from "icons.slint";
 
-export enum Page { print, move, temperature, tune, extrude, macros, console, system, settings }
+export enum Page { print, move, temperature, tune, extrude, console, system, settings }
 
 export struct HeaterItem {
     object: string,
@@ -223,6 +223,7 @@ export global Actions {
     callback refresh-updates();
     callback upgrade(string);
     callback load-console();
+    callback clear-console();
 }
 
 // Text editing for the on-screen keyboard (Slint has no substring function).

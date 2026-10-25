@@ -30,8 +30,7 @@ So far it has only run against the included fake Moonraker and on desktops.
   - and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
 - **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
 - **Extrude**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
-- **Macros**: all user macros (helpers starting with `_` are hidden).
-- **Console**: G-code history and live responses, quick commands, on-screen keyboard.
+- **Console**: G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an expandable list of all user macros (helpers starting with `_` are hidden).
 - **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
 - **Settings**: Moonraker address, fullscreen, temperature presets — stored as JSON.
 - **Network** (Settings → Network): search and join Wi-Fi (open, WPA/WPA2, WPA3, hidden), remove saved networks,

@@ -134,6 +134,8 @@ pub fn bind(
     }));
     let console_service = service.clone();
     actions.on_load_console(move || console_service.query(Query::ConsoleHistory));
+    let console_presenter = presenter.clone();
+    actions.on_clear_console(move || console_presenter.clear_console());
 
     window.global::<TextTools>().on_remove_last(|text| {
         let mut text = text.to_string();
