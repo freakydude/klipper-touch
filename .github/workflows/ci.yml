@@ -14,6 +14,9 @@ concurrency:
   # Runs on main are queued, so prereleases are published in commit order.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions:
+  contents: read
+
 jobs:
   version:
     name: Version
