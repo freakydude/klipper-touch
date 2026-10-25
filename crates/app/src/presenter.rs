@@ -2,8 +2,8 @@
 
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, Network, PowerItem, Printer,
-    SensorItem, UpdateItem,
+    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, Network, PowerItem,
+    Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
@@ -20,6 +20,8 @@ const CONSOLE_LIMIT: usize = 300;
 /// This many files get metadata and thumbnail right away; the rest stays plain.
 const FILE_DETAILS_LIMIT: usize = 40;
 const NOTICE_DURATION: Duration = Duration::from_secs(4);
+
+type MacrosLoaded = Box<dyn Fn(&[String])>;
 
 #[derive(Default)]
 struct Cache {
@@ -38,6 +40,10 @@ pub struct Presenter {
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
+    macro_items: Rc<VecModel<MacroItem>>,
+    all_macros: RefCell<Vec<String>>,
+    hidden_macros: RefCell<Vec<String>>,
+    macros_loaded: RefCell<Option<MacrosLoaded>>,
     files: Rc<VecModel<FileItem>>,
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
@@ -57,6 +63,10 @@ impl Presenter {
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
             macros: Rc::default(),
+            macro_items: Rc::default(),
+            all_macros: RefCell::default(),
+            hidden_macros: RefCell::default(),
+            macros_loaded: RefCell::default(),
             files: Rc::default(),
             console: Rc::default(),
             power_devices: Rc::default(),
@@ -69,6 +79,7 @@ impl Presenter {
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
+        printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
         printer.set_files(ModelRc::from(presenter.files.clone()));
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
@@ -207,7 +218,7 @@ impl Presenter {
         printer.set_has_unload_macro(capabilities.has_macro("UNLOAD_FILAMENT"));
         printer.set_has_power(capabilities.server.power);
         printer.set_has_update_manager(capabilities.server.update_manager);
-        replace_rows(&self.macros, capabilities.macros.iter().map(|name| SharedString::from(name.as_str())).collect());
+        self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
 
         let previous_job =
             std::mem::replace(&mut self.cache.borrow_mut().snapshot, snapshot.clone()).status.job.filename;
@@ -259,6 +270,44 @@ impl Presenter {
             }
             Event::CommandFailed { command, message } => self.show_notice(&format!("{command}: {message}"), true),
         }
+    }
+
+    /// Applies the hidden macros from the settings.
+    pub fn set_hidden_macros(&self, hidden: Vec<String>) {
+        *self.hidden_macros.borrow_mut() = hidden;
+        self.refresh_macro_views();
+    }
+
+    /// Called with the printer's macros after a connection, so the settings can forget vanished ones.
+    pub fn on_macros_loaded(&self, handler: impl Fn(&[String]) + 'static) {
+        *self.macros_loaded.borrow_mut() = Some(Box::new(handler));
+    }
+
+    /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
+    fn set_macros(&self, macros: &[String], connected: bool) {
+        if self.all_macros.borrow().as_slice() == macros {
+            return;
+        }
+        *self.all_macros.borrow_mut() = macros.to_vec();
+        self.refresh_macro_views();
+        if connected && !macros.is_empty() {
+            if let Some(handler) = self.macros_loaded.borrow().as_ref() {
+                handler(macros);
+            }
+        }
+    }
+
+    fn refresh_macro_views(&self) {
+        let all = self.all_macros.borrow();
+        let hidden = self.hidden_macros.borrow();
+        let visible: Vec<SharedString> =
+            all.iter().filter(|name| !hidden.contains(name)).map(|name| SharedString::from(name.as_str())).collect();
+        replace_rows(&self.macros, visible);
+        let items: Vec<MacroItem> = all
+            .iter()
+            .map(|name| MacroItem { name: SharedString::from(name.as_str()), visible: !hidden.contains(name) })
+            .collect();
+        replace_rows(&self.macro_items, items);
     }
 
     /// Empties the shown log only; the history on the printer stays and returns on the next load.

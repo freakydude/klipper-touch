@@ -40,6 +40,11 @@ export struct ConsoleItem {
     is-error: bool,
 }
 
+export struct MacroItem {
+    name: string,
+    visible: bool,
+}
+
 export struct PowerItem {
     name: string,
     on: bool,
@@ -149,6 +154,8 @@ export global Printer {
 
     // Lists
     in property <[string]> macros;
+    // Every macro of the printer with its visibility, for the settings.
+    in property <[MacroItem]> macro-items;
     in property <[FileItem]> files;
     in property <bool> files-loading;
     in property <[ConsoleItem]> console;
@@ -224,6 +231,7 @@ export global Actions {
     callback upgrade(string);
     callback load-console();
     callback clear-console();
+    callback set-macro-visible(string, bool);
 }
 
 // Text editing for the on-screen keyboard (Slint has no substring function).

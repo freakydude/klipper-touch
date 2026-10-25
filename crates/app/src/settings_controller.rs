@@ -39,6 +39,13 @@ impl SettingsController {
             network,
             presets: Rc::default(),
         });
+        controller.apply_hidden_macros();
+        let weak = Rc::downgrade(&controller);
+        controller.presenter.on_macros_loaded(move |macros| {
+            if let Some(controller) = weak.upgrade() {
+                controller.reconcile_macros(macros);
+            }
+        });
         controller.show(window, endpoint);
         controller.connect_callbacks(window);
         controller
@@ -145,6 +152,29 @@ impl SettingsController {
                 self.presets.set_row_data(index, preset_item(&preset));
             }
         }
+    }
+
+    /// Shows a macro in the console or hides it; the choice is kept in the settings file.
+    pub fn set_macro_visible(&self, name: &str, visible: bool) {
+        self.update(|settings| {
+            settings.hidden_macros.retain(|hidden| hidden != name);
+            if !visible {
+                settings.hidden_macros.push(name.to_owned());
+            }
+        });
+        self.apply_hidden_macros();
+    }
+
+    /// Forgets macros the printer no longer has; new macros are known and visible.
+    fn reconcile_macros(&self, macros: &[String]) {
+        self.update(|settings| {
+            settings.reconcile_macros(macros);
+        });
+        self.apply_hidden_macros();
+    }
+
+    fn apply_hidden_macros(&self) {
+        self.presenter.set_hidden_macros(self.settings.borrow().hidden_macros.clone());
     }
 
     fn update(&self, change: impl FnOnce(&mut Settings)) {

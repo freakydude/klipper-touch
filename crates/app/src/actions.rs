@@ -136,6 +136,8 @@ pub fn bind(
     actions.on_load_console(move || console_service.query(Query::ConsoleHistory));
     let console_presenter = presenter.clone();
     actions.on_clear_console(move || console_presenter.clear_console());
+    let macro_settings = settings.clone();
+    actions.on_set_macro_visible(move |name, visible| macro_settings.set_macro_visible(name.as_str(), visible));
 
     window.global::<TextTools>().on_remove_last(|text| {
         let mut text = text.to_string();
