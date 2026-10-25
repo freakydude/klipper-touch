@@ -150,6 +150,10 @@ pub fn bind(
     });
     let script_presenter = presenter.clone();
     actions.on_macro_form_script(move || script_presenter.macro_form_script().into());
+    let seen_presenter = presenter.clone();
+    actions.on_messages_seen(move || seen_presenter.mark_messages_seen());
+    let clear_presenter = presenter.clone();
+    actions.on_messages_clear(move || clear_presenter.clear_messages());
 
     window.global::<TextTools>().on_remove_last(|text| {
         let mut text = text.to_string();

@@ -3,7 +3,7 @@
 import { Theme } from "theme.slint";
 import { Actions, Confirm, Navigation, Network, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
-import { ConfirmDialog, Toast } from "components/overlays.slint";
+import { ConfirmDialog, MessagesFlyout } from "components/overlays.slint";
 import { PrintPage } from "pages/print.slint";
 import { MovePage } from "pages/move.slint";
 import { TemperaturePage } from "pages/temperature.slint";
@@ -15,7 +15,7 @@ import { SettingsPage } from "pages/settings.slint";
 import { ConnectionPage } from "pages/connection.slint";
 
 export { Actions, Confirm, Navigation, Network, Page, Printer, TextTools, UiSettings }
-export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, ConsoleItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
+export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
 
 export component AppWindow inherits Window {
     title: "klipper-touch";
@@ -53,10 +53,9 @@ export component AppWindow inherits Window {
         }
     }
 
-    Toast {
-        x: 88px;
-        y: parent.height - self.height - 12px;
-        width: parent.width - 100px;
+    if Navigation.messages-open: MessagesFlyout {
+        width: parent.width;
+        height: parent.height;
     }
 
     ConfirmDialog { }

@@ -11,5 +11,6 @@ pub mod format;
 pub mod network_controller;
 pub mod presenter;
 pub mod settings_controller;
+pub mod status_log;
 pub mod thumbnail;
 pub mod view;

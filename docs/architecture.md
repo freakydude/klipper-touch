@@ -71,7 +71,8 @@ flowchart LR
 - `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
 - `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
 - `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar, ScrollList, TouchSlider), `overlays.slint`
-  (confirmation, notice, on-screen keyboard, text input), `chrome.slint` (status bar, navigation).
+  (confirmation, messages flyout, on-screen keyboard, text input), `chrome.slint` (status bar with the newest message,
+  navigation). Messages (errors and informations) are kept in `status_log.rs`, pure logic that the presenter shows.
 - `pages/`: print, move, temperature, tune, extrude, console (with the macro list), system, settings, connection.
 - Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
 - Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;

@@ -40,6 +40,14 @@ export struct ConsoleItem {
     is-error: bool,
 }
 
+export struct MessageItem {
+    text: string,
+    time: string,
+    is-error: bool,
+    top: length,
+    height: length,
+}
+
 export struct MacroItem {
     name: string,
     visible: bool,
@@ -173,8 +181,12 @@ export global Printer {
     in property <[UpdateItem]> updates;
 
     in property <string> clock;
-    in property <string> notice;
-    in property <bool> notice-is-error;
+    // Status bar: the message it shows (first line), and the flyout list, newest first.
+    in property <string> status-message;
+    in property <bool> status-message-error;
+    in property <bool> status-message-visible;
+    in property <[MessageItem]> messages;
+    in property <length> messages-height;
 
     out property <bool> is-printing: print-state == "printing" || print-state == "paused";
     // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
@@ -241,6 +253,8 @@ export global Actions {
     callback upgrade(string);
     callback load-console();
     callback clear-console();
+    callback messages-seen();
+    callback messages-clear();
     callback set-macro-visible(string, bool);
     callback macro-has-params(string) -> bool;
     callback open-macro-form(string);
@@ -295,6 +309,7 @@ export global Network {
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
+    in-out property <bool> messages-open;
     // 0 = general, 1 = network
     in-out property <int> settings-tab;
 }

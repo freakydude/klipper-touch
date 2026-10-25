@@ -1,9 +1,10 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    Network, PowerItem, Printer, SensorItem, UpdateItem,
+    MessageItem, Network, PowerItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
@@ -15,12 +16,52 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 const CONSOLE_LIMIT: usize = 300;
 /// This many files get metadata and thumbnail right away; the rest stays plain.
 const FILE_DETAILS_LIMIT: usize = 40;
-const NOTICE_DURATION: Duration = Duration::from_secs(4);
+/// Status bar and its flyout. Shared with the timer that hides informations, hence the `Rc`.
+struct StatusView {
+    window: slint::Weak<AppWindow>,
+    log: RefCell<StatusLog>,
+    messages: Rc<VecModel<MessageItem>>,
+}
+
+impl StatusView {
+    /// Puts the log on screen: the flyout list and the message the status bar shows.
+    fn refresh(&self) {
+        let log = self.log.borrow();
+        let mut top = 0.0;
+        let items: Vec<MessageItem> = log
+            .messages()
+            .map(|message| {
+                let height = status_log::row_height(&message.text);
+                let item = MessageItem {
+                    text: SharedString::from(message.text.as_str()),
+                    time: format::unix_clock(message.time).into(),
+                    is_error: message.is_error,
+                    top,
+                    height,
+                };
+                top += height + status_log::ROW_GAP;
+                item
+            })
+            .collect();
+        replace_rows(&self.messages, items);
+        let Some(window) = self.window.upgrade() else { return };
+        let printer = window.global::<Printer>();
+        printer.set_messages_height(top);
+        let badge = log.badge();
+        printer.set_status_message(badge.map(|message| SharedString::from(message.headline())).unwrap_or_default());
+        printer.set_status_message_error(badge.is_some_and(|message| message.is_error));
+        printer.set_status_message_visible(badge.is_some());
+    }
+}
+
+fn now_seconds() -> f64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |elapsed| elapsed.as_secs_f64())
+}
 
 type MacrosLoaded = Box<dyn Fn(&[String])>;
 
@@ -53,7 +94,8 @@ pub struct Presenter {
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
     host_interfaces: Rc<VecModel<HostInterfaceItem>>,
-    notice_timer: Timer,
+    status: Rc<StatusView>,
+    status_timer: Timer,
 }
 
 impl Presenter {
@@ -79,7 +121,8 @@ impl Presenter {
             power_devices: Rc::default(),
             updates: Rc::default(),
             host_interfaces: Rc::default(),
-            notice_timer: Timer::default(),
+            status: Rc::new(StatusView { window: window.as_weak(), log: RefCell::default(), messages: Rc::default() }),
+            status_timer: Timer::default(),
         });
         let printer = window.global::<Printer>();
         printer.set_heaters(ModelRc::from(presenter.heaters.clone()));
@@ -88,6 +131,7 @@ impl Presenter {
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
         printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
         printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
+        printer.set_messages(ModelRc::from(presenter.status.messages.clone()));
         printer.set_files(ModelRc::from(presenter.files.clone()));
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
@@ -273,11 +317,18 @@ impl Presenter {
                     }
                     self.console.push(item);
                 }
+                if line.kind == ConsoleKind::Response {
+                    self.show_console_response(&line.message);
+                }
             }
             Event::HostNetwork(interfaces) => {
                 replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
             }
-            Event::CommandFailed { command, message } => self.show_notice(&format!("{command}: {message}"), true),
+            Event::CommandFailed { command, message } => {
+                let shown = format!("{command}: {message}");
+                let id = self.status.log.borrow_mut().add_command_failure(&shown, &message, now_seconds());
+                self.show_message(id, &shown, true);
+            }
         }
     }
 
@@ -390,16 +441,49 @@ impl Presenter {
     }
 
     pub fn show_notice(&self, text: &str, is_error: bool) {
-        let Some(window) = self.window.upgrade() else { return };
-        let printer = window.global::<Printer>();
-        printer.set_notice(text.into());
-        printer.set_notice_is_error(is_error);
-        let weak = self.window.clone();
-        self.notice_timer.start(TimerMode::SingleShot, NOTICE_DURATION, move || {
-            if let Some(window) = weak.upgrade() {
-                window.global::<Printer>().set_notice(SharedString::new());
-            }
-        });
+        let id = self.status.log.borrow_mut().add(text, is_error, now_seconds());
+        self.show_message(id, text, is_error);
+    }
+
+    /// Shows a message in the status bar. Informations leave it again after a while, errors stay until seen.
+    fn show_message(&self, id: u64, text: &str, is_error: bool) {
+        if !is_error {
+            let status = Rc::clone(&self.status);
+            self.status_timer.start(TimerMode::SingleShot, info_display_time(text), move || {
+                status.log.borrow_mut().hide_badge(id);
+                status.refresh();
+            });
+        }
+        self.status.refresh();
+    }
+
+    /// A `!!` (error) or `//` (information) response of Klipper. Other responses stay in the console.
+    /// Informations are left out while a print runs, when Klipper sends many of them.
+    fn show_console_response(&self, message: &str) {
+        let is_error = message.starts_with("!!");
+        let is_information = message.starts_with("//") && !self.is_printing();
+        if !is_error && !is_information {
+            return;
+        }
+        let text = strip_response_marker(message);
+        let added = self.status.log.borrow_mut().add_response(text, is_error, now_seconds());
+        if let Some(id) = added {
+            self.show_message(id, text, is_error);
+        }
+    }
+
+    fn is_printing(&self) -> bool {
+        self.cache.borrow().snapshot.status.job.state.is_active()
+    }
+
+    pub fn mark_messages_seen(&self) {
+        self.status.log.borrow_mut().mark_seen();
+        self.status.refresh();
+    }
+
+    pub fn clear_messages(&self) {
+        self.status.log.borrow_mut().clear();
+        self.status.refresh();
     }
 
     pub fn request_files(&self) {
@@ -521,13 +605,18 @@ fn file_item(file: &FileEntry, metadata: Option<&FileMetadata>, thumbnail: Optio
     }
 }
 
+/// Klipper marks responses with `!!` (error) or `//` (information). The console shows the colour instead.
+fn strip_response_marker(message: &str) -> &str {
+    message.strip_prefix("!!").or_else(|| message.strip_prefix("//")).map_or(message, str::trim_start)
+}
+
 /// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
 /// Only the first row of a message shows the time.
 fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
     let time = format::unix_clock(line.time);
     let is_command = line.kind == ConsoleKind::Command;
     let is_error = line.message.starts_with("!!");
-    let mut rows: Vec<&str> = line.message.lines().collect();
+    let mut rows: Vec<&str> = strip_response_marker(&line.message).lines().collect();
     if rows.is_empty() {
         rows.push("");
     }
@@ -597,6 +686,7 @@ mod tests {
     #[test]
     fn error_flag_applies_to_every_row() {
         let rows = console_items(&line(ConsoleKind::Response, "!! Lost connection\nsee log"));
+        assert_eq!(rows[0].text, "Lost connection");
         assert!(rows.iter().all(|row| row.is_error));
         assert!(!rows.iter().any(|row| row.is_command));
     }

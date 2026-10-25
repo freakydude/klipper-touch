@@ -1,8 +1,8 @@
-// Overlays: confirmation, notice, on-screen keyboard and text entry.
+// Overlays: confirmation, messages flyout, on-screen keyboard and text entry.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Printer, TextTools } from "../state.slint";
+import { Actions, Confirm, Navigation, Page, Printer, TextTools } from "../state.slint";
 import { IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
@@ -64,35 +64,89 @@ export component ConfirmDialog inherits Scrim {
     }
 }
 
-// Short notice at the bottom edge; Rust sets and clears `Printer.notice`.
-export component Toast inherits Rectangle {
-    visible: Printer.notice != "";
-    height: 44px;
-    border-radius: Theme.radius;
-    background: Printer.notice-is-error ? Theme.danger : Theme.surface-active;
-    drop-shadow-blur: 8px;
-    drop-shadow-color: #00000080;
+// Flyout below the status bar with all errors and informations, newest first. Tapping outside closes it.
+export component MessagesFlyout inherits Rectangle {
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        clicked => { Navigation.messages-open = false; }
+    }
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 8px;
+    Rectangle {
+        x: root.width - self.width - 8px;
+        y: 52px;
+        width: min(560px, root.width - 16px);
+        height: root.height - 60px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
         VerticalLayout {
-            alignment: center;
-            Image {
-                source: Printer.notice-is-error ? Icons.ui-error : Icons.ui-info;
-                colorize: Theme.foreground;
-                width: 22px;
-                height: 22px;
+            padding: 10px;
+            spacing: 8px;
+            Text {
+                height: 36px;
+                text: @tr("Messages");
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+                vertical-alignment: center;
             }
-        }
 
-        Text {
-            text: Printer.notice;
-            color: Theme.foreground;
-            font-size: Theme.font-normal;
-            vertical-alignment: center;
-            overflow: elide;
+            messages-list := ScrollList {
+                vertical-stretch: 1;
+                content-height: Printer.messages-height;
+                for message in Printer.messages: Rectangle {
+                    x: 0;
+                    y: message.top;
+                    width: messages-list.row-width;
+                    height: message.height;
+                    background: Theme.surface-raised;
+                    border-radius: Theme.radius;
+                    HorizontalLayout {
+                        padding: 10px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 4px;
+                            background: message.is-error ? Theme.danger : Theme.info;
+                            border-radius: 2px;
+                        }
+                        Text {
+                            width: 60px;
+                            text: message.time;
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            horizontal-stretch: 1;
+                            text: message.text;
+                            color: message.is-error ? Theme.danger : Theme.foreground;
+                            font-size: Theme.font-normal;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                IconButton {
+                    text: @tr("Discard all");
+                    icon: Icons.ui-delete;
+                    clicked => { Actions.messages-clear(); }
+                }
+                IconButton {
+                    text: @tr("Console");
+                    icon: Icons.nav-console;
+                    kind: "accent";
+                    clicked => {
+                        Navigation.page = Page.console;
+                        Navigation.messages-open = false;
+                    }
+                }
+            }
         }
     }
 }
