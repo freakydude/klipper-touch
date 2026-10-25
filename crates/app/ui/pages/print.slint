@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Navigation, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Display, Navigation, Printer, StateIcons } from "../state.slint";
 import { IconButton, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
 import { MmuStrip } from "mmu.slint";
@@ -134,16 +134,18 @@ export component FileBrowser inherits Rectangle {
 export component PrintPage inherits Rectangle {
     property <bool> has-job: Printer.filename != "";
     property <bool> finished: Printer.print-state == "complete" || Printer.print-state == "cancelled" || Printer.print-state == "error";
+    // The thumbnail column gives room to the figures on displays narrower than 720 px.
+    property <length> side-width: Display.narrow ? 150px : 220px;
 
     HorizontalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
         VerticalLayout {
-            width: 220px;
+            width: root.side-width;
             spacing: Theme.spacing;
             Thumbnail {
-                height: 220px;
+                height: root.side-width;
                 source: Printer.job-thumbnail;
                 available: root.has-job && Printer.has-job-thumbnail;
             }

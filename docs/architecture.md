@@ -60,7 +60,9 @@ flowchart LR
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. `Command::to_call` translates them into
-   G-code or Moonraker methods; moves are clamped to the axis range.
+   G-code or Moonraker methods; moves are clamped to the axis range. Commands go onto the wire in the order they were
+   sent (`Connection::start_call`); only the replies are awaited concurrently. A task per command would let two taps
+   overtake each other, and a heater target is absolute.
 5. `presenter.rs` runs in the Slint event loop (`slint::spawn_local`) and writes the globals `Printer` and `UiSettings`.
 6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
    `server.info` polling.

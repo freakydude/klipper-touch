@@ -2,13 +2,16 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, HeaterItem, Printer, UiSettings } from "../state.slint";
+import { Actions, Display, HeaterItem, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, StepSelector, TouchSlider } from "../components/controls.slint";
 
 component HeaterRow inherits Rectangle {
     in property <HeaterItem> heater;
     in property <float> step;
-    height: 64px;
+    in property <length> row-height: 60px;
+    // Narrow displays: slimmer target block and buttons.
+    in property <bool> compact;
+    height: root.row-height;
     background: Theme.surface;
     border-radius: Theme.radius;
 
@@ -43,7 +46,7 @@ component HeaterRow inherits Rectangle {
         }
         VerticalLayout {
             alignment: center;
-            width: 80px;
+            width: root.compact ? 64px : 80px;
             Text {
                 text: @tr("Target");
                 color: Theme.muted;
@@ -59,19 +62,19 @@ component HeaterRow inherits Rectangle {
             }
         }
         IconButton {
-            width: 64px;
+            width: root.compact ? 52px : 64px;
             icon: Icons.ui-minus;
             enabled: root.heater.target > 0;
             clicked => { Actions.step-heater(root.heater.object, -root.step); }
         }
         IconButton {
-            width: 64px;
+            width: root.compact ? 52px : 64px;
             icon: Icons.ui-plus;
             enabled: root.heater.can-raise;
             clicked => { Actions.step-heater(root.heater.object, root.step); }
         }
         IconButton {
-            width: 64px;
+            width: root.compact ? 52px : 64px;
             icon: Icons.thermal-off;
             enabled: root.heater.target > 0;
             clicked => { Actions.set-heater(root.heater.object, 0); }
@@ -79,7 +82,33 @@ component HeaterRow inherits Rectangle {
     }
 }
 
+// Off, slider and 100 % for the part fan; in a card on normal displays, on one line on compact ones.
+component FanControl inherits HorizontalLayout {
+    out property <float> shown: fan-slider.shown;
+    spacing: Theme.spacing;
+    IconButton {
+        width: 72px;
+        text: @tr("Off");
+        checked: Printer.part-fan < 1;
+        clicked => { Actions.set-part-fan(0); }
+    }
+    fan-slider := TouchSlider {
+        horizontal-stretch: 1;
+        value: Printer.part-fan;
+        changed(level) => { Actions.set-part-fan(level); }
+    }
+    IconButton {
+        width: 72px;
+        text: "100%";
+        checked: Printer.part-fan > 99;
+        clicked => { Actions.set-part-fan(100); }
+    }
+}
+
 export component TemperaturePage inherits Rectangle {
+    // Displays up to 400 px high (640x400) get tighter rows and no sensor line, so the step selector stays visible.
+    property <bool> compact: Display.compact;
+
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
@@ -94,42 +123,32 @@ export component TemperaturePage inherits Rectangle {
                 for heater in Printer.heaters: HeaterRow {
                     heater: heater;
                     step: UiSettings.temperature-step;
+                    row-height: root.compact ? 52px : 60px;
+                    compact: root.compact;
                 }
-                if Printer.sensors.length > 0: Card {
-                    title: @tr("Sensors");
-                    icon: Icons.thermal-heating;
-                    HorizontalLayout {
-                        spacing: 16px;
-                        for sensor in Printer.sensors: Text {
-                            text: sensor.label + ": " + sensor.temperature.to-fixed(1) + " °C";
-                            color: Theme.foreground;
-                            font-size: Theme.font-small;
-                        }
+                // One line instead of a card: the page has to fit three heaters, the sensors and the fan on 800x480.
+                if Printer.sensors.length > 0 && !root.compact: HorizontalLayout {
+                    spacing: 16px;
+                    height: 22px;
+                    padding-left: 4px;
+                    VerticalLayout {
+                        alignment: center;
+                        Image { source: Icons.thermal-heating; colorize: Theme.muted; width: 18px; height: 18px; }
+                    }
+                    for sensor in Printer.sensors: Text {
+                        text: sensor.label + ": " + sensor.temperature.to-fixed(1) + " °C";
+                        color: Theme.foreground;
+                        font-size: Theme.font-small;
+                        vertical-alignment: center;
                     }
                 }
-                if Printer.has-part-fan: Card {
-                    title: @tr("Part fan: {}%", round(fan-slider.shown));
+                if Printer.has-part-fan && !root.compact: Card {
+                    title: @tr("Part fan: {}%", round(fan.shown));
                     icon: Icons.thermal-fan;
-                    HorizontalLayout {
-                        spacing: Theme.spacing;
-                        IconButton {
-                            width: 72px;
-                            text: @tr("Off");
-                            checked: Printer.part-fan < 1;
-                            clicked => { Actions.set-part-fan(0); }
-                        }
-                        fan-slider := TouchSlider {
-                            horizontal-stretch: 1;
-                            value: Printer.part-fan;
-                            changed(level) => { Actions.set-part-fan(level); }
-                        }
-                        IconButton {
-                            width: 72px;
-                            text: "100%";
-                            checked: Printer.part-fan > 99;
-                            clicked => { Actions.set-part-fan(100); }
-                        }
-                    }
+                    fan := FanControl { }
+                }
+                if Printer.has-part-fan && root.compact: FanControl {
+                    height: 52px;
                 }
                 Rectangle { vertical-stretch: 1; }
             }
@@ -139,11 +158,16 @@ export component TemperaturePage inherits Rectangle {
                 spacing: Theme.spacing;
                 for preset[index] in UiSettings.presets: IconButton {
                     icon: Icons.thermal-preset;
+                    // Compact: a smaller icon keeps the five buttons within the height of a 400 px display.
+                    icon-size: root.compact ? 18px : Theme.icon;
+                    min-height: root.compact ? 44px : Theme.touch;
                     text: preset.name + "  " + round(preset.extruder) + "/" + round(preset.bed);
                     clicked => { Actions.apply-preset(index); }
                 }
                 IconButton {
                     icon: Icons.thermal-cooling;
+                    icon-size: root.compact ? 18px : Theme.icon;
+                    min-height: root.compact ? 44px : Theme.touch;
                     text: @tr("Cool down");
                     kind: "accent";
                     clicked => { Actions.cool-down(); }

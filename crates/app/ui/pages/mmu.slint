@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, MmuGateItem, Navigation, Printer } from "../state.slint";
+import { Actions, Confirm, Display, MmuGateItem, Navigation, Printer } from "../state.slint";
 import { Card, IconButton, IconLabel } from "../components/controls.slint";
 
 // Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
@@ -23,6 +23,8 @@ export global MmuTexts {
 
 component GateTile inherits Rectangle {
     in property <MmuGateItem> gate;
+    // Small displays: no name line, and the status shows as an icon only.
+    in property <bool> compact;
     callback clicked;
 
     property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
@@ -49,6 +51,7 @@ component GateTile inherits Rectangle {
         padding: 10px;
         spacing: 6px;
         HorizontalLayout {
+            spacing: 6px;
             Text {
                 text: @tr("Gate {}", root.gate.index);
                 color: Theme.foreground;
@@ -74,7 +77,7 @@ component GateTile inherits Rectangle {
             font-size: Theme.font-large;
             overflow: elide;
         }
-        Text {
+        if !root.compact: Text {
             text: root.gate.name;
             color: Theme.muted;
             font-size: Theme.font-small;
@@ -83,7 +86,7 @@ component GateTile inherits Rectangle {
         Rectangle { vertical-stretch: 1; }
         IconLabel {
             icon: root.has-filament ? Icons.mmu-gate-available : root.gate.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
-            text: root.availability-text();
+            text: root.compact ? "" : root.availability-text();
             color: root.status-color;
             font-size: Theme.font-small;
         }
@@ -121,6 +124,8 @@ export component MmuTab inherits Rectangle {
     property <int> pages: max(1, ceil(Printer.mmu-gates.length / root.gates-per-page));
     property <int> page: min(Navigation.mmu-page, root.pages - 1);
     property <int> first: root.page * root.gates-per-page;
+    // 640x400 leaves about 290 px for the tab: smaller tiles, a denser sensor grid and no extra lines.
+    property <bool> compact: Display.compact;
 
     HorizontalLayout {
         padding: Theme.padding;
@@ -132,7 +137,7 @@ export component MmuTab inherits Rectangle {
 
             HorizontalLayout {
                 spacing: Theme.spacing;
-                height: 150px;
+                height: root.compact ? 118px : 150px;
                 if root.pages > 1: IconButton {
                     width: 48px;
                     icon: Icons.ui-chevron-left;
@@ -148,6 +153,7 @@ export component MmuTab inherits Rectangle {
                         width: tiles.cell-width;
                         height: tiles.height;
                         gate: item;
+                        compact: root.compact;
                         clicked => { Actions.mmu-select-gate(item.index); }
                     }
                 }
@@ -166,7 +172,7 @@ export component MmuTab inherits Rectangle {
                     spacing: 8px;
                     // Grid with equal columns, so every name gets the same width.
                     sensor-grid := Rectangle {
-                        property <int> columns: max(1, min(Printer.mmu-sensors.length, floor(self.width / 150px)));
+                        property <int> columns: max(1, min(Printer.mmu-sensors.length, floor(self.width / (root.compact ? 100px : 150px))));
                         property <length> cell-width: (self.width - (self.columns - 1) * Theme.spacing) / self.columns;
                         property <length> row-height: 26px;
                         height: ceil(Printer.mmu-sensors.length / self.columns) * self.row-height;
@@ -193,13 +199,13 @@ export component MmuTab inherits Rectangle {
                             bias: Printer.mmu-buffer-bias;
                             state: Printer.mmu-buffer-state;
                         }
-                        HorizontalLayout {
+                        if !root.compact: HorizontalLayout {
                             Text { text: @tr("Tension"); color: Theme.muted; font-size: Theme.font-small; }
                             Rectangle { horizontal-stretch: 1; }
                             Text { text: @tr("Compression"); color: Theme.muted; font-size: Theme.font-small; }
                         }
                     }
-                    HorizontalLayout {
+                    if !root.compact: HorizontalLayout {
                         spacing: Theme.spacing;
                         if Printer.mmu-flowguard-state != "off": IconLabel {
                             icon: Icons.mmu-flowguard;
