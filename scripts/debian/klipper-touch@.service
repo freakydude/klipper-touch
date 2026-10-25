@@ -11,7 +11,7 @@ PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 Environment=XDG_RUNTIME_DIR=/run/user/%U
-ExecStart=/usr/bin/cage -s -- /usr/bin/klipper-touch --fullscreen
+ExecStart=/usr/bin/cage -s -- /usr/bin/klipper-touch --fullscreen --settings /home/%i/printer_data/config/klipper-touch.json
 Restart=always
 RestartSec=5
 

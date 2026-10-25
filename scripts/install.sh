@@ -63,6 +63,14 @@ fi
 chmod 0755 "$INSTALL_DIR/$NAME" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/uninstall.sh"
 
 report "Creating $SERVICE_FILE"
+# Settings live next to the Klipper configs, like KlipperScreen.conf, so backups of printer_data include them.
+SETTINGS_FILE="$DATA_DIR/config/klipper-touch.json"
+OLD_SETTINGS_FILE="$HOME/.config/$NAME/settings.json"
+if [ -f "$OLD_SETTINGS_FILE" ] && [ ! -f "$SETTINGS_FILE" ]; then
+  mkdir -p "$(dirname "$SETTINGS_FILE")"
+  cp "$OLD_SETTINGS_FILE" "$SETTINGS_FILE"
+  echo "Copied existing settings from $OLD_SETTINGS_FILE"
+fi
 USER_ID=$(id -u)
 sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
@@ -78,7 +86,7 @@ PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 Environment=XDG_RUNTIME_DIR=/run/user/$USER_ID
-ExecStart=/usr/bin/cage -s -- $INSTALL_DIR/$NAME --fullscreen --moonraker $MOONRAKER
+ExecStart=/usr/bin/cage -s -- $INSTALL_DIR/$NAME --fullscreen --moonraker $MOONRAKER --settings $SETTINGS_FILE
 Restart=always
 RestartSec=5
 
@@ -96,8 +104,13 @@ ALLOWED_SERVICES="$DATA_DIR/moonraker.asvc"
 if [ ! -f "$MOONRAKER_CONF" ]; then
   echo "$MOONRAKER_CONF not found; add the [update_manager $NAME] section manually (see README)."
 else
-  if [ -f "$ALLOWED_SERVICES" ] && ! grep -qx "$NAME" "$ALLOWED_SERVICES"; then
-    echo "$NAME" >> "$ALLOWED_SERVICES"
+  if [ -f "$ALLOWED_SERVICES" ]; then
+    if ! grep -qx "$NAME" "$ALLOWED_SERVICES"; then
+      echo "$NAME" >> "$ALLOWED_SERVICES"
+    fi
+  else
+    echo "WARNING: $ALLOWED_SERVICES not found. Moonraker may refuse to restart $NAME after an update;"
+    echo "         add the line '$NAME' to that file yourself and restart Moonraker."
   fi
   if ! grep -q "^\[update_manager $NAME\]" "$MOONRAKER_CONF"; then
     cat >> "$MOONRAKER_CONF" << EOF
