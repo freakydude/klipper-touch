@@ -5,6 +5,8 @@ pub struct MachineProfile {
     pub quad_gantry_level: bool,
     pub chamber_heater: bool,
     pub mmu_gates: Option<usize>,
+    /// Klipper `exclude_object` module with the objects of the print.
+    pub exclude_object: bool,
     /// Number of filament sensors, taken from the front of `FILAMENT_SENSORS`.
     pub filament_sensors: usize,
 }
@@ -22,15 +24,33 @@ impl MachineProfile {
     pub const MAX_MMU_GATES: usize = 16;
 
     pub fn basic() -> Self {
-        Self { quad_gantry_level: false, chamber_heater: false, mmu_gates: None, filament_sensors: 0 }
+        Self {
+            quad_gantry_level: false,
+            chamber_heater: false,
+            mmu_gates: None,
+            exclude_object: false,
+            filament_sensors: 0,
+        }
     }
 
     pub fn voron() -> Self {
-        Self { quad_gantry_level: true, chamber_heater: true, mmu_gates: None, filament_sensors: 2 }
+        Self {
+            quad_gantry_level: true,
+            chamber_heater: true,
+            mmu_gates: None,
+            exclude_object: true,
+            filament_sensors: 2,
+        }
     }
 
     pub fn happy_hare(gates: usize) -> Self {
-        Self { quad_gantry_level: true, chamber_heater: true, mmu_gates: Some(gates), filament_sensors: 5 }
+        Self {
+            quad_gantry_level: true,
+            chamber_heater: true,
+            mmu_gates: Some(gates),
+            exclude_object: true,
+            filament_sensors: 5,
+        }
     }
 }
 

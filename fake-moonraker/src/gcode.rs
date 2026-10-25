@@ -49,13 +49,23 @@ pub enum Command {
     RelativePositioning,
     Move(Move),
     DisableSteppers,
-    SetGcodeOffset { z: Option<f64>, z_adjust: Option<f64> },
+    SetGcodeOffset {
+        z: Option<f64>,
+        z_adjust: Option<f64>,
+    },
     AbsoluteExtrusion,
     RelativeExtrusion,
     SetSpeedFactor(f64),
     SetExtrudeFactor(f64),
     SetPressureAdvance(f64),
-    SetHeaterTemperature { heater: String, target: f64 },
+    SetHeaterTemperature {
+        heater: String,
+        target: f64,
+    },
+    /// Empty name: Klipper only lists the excluded objects.
+    ExcludeObject {
+        name: String,
+    },
     SaveConfig,
     QuadGantryLevel,
     Help,
@@ -147,6 +157,7 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
             target: named_value(&args, "TARGET")?.unwrap_or(0.0),
         }),
+        "EXCLUDE_OBJECT" => Ok(Command::ExcludeObject { name: named_text(&args, "NAME").unwrap_or_default() }),
         "SAVE_CONFIG" => Ok(Command::SaveConfig),
         "QUAD_GANTRY_LEVEL" => Ok(Command::QuadGantryLevel),
         "HELP" => Ok(Command::Help),

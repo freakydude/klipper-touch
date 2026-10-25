@@ -33,6 +33,8 @@ const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
 const EXTRUDER_INDEX: usize = 3;
+/// Objects of every simulated print; Klipper takes them from `EXCLUDE_OBJECT_DEFINE` in the file, upper-cased.
+const PRINT_OBJECTS: [&str; 3] = ["BENCHY_0", "BENCHY_1", "CALIBRATION_CUBE"];
 const SHUTDOWN_MESSAGE: &str = "Shutdown due to M112 command";
 /// Klipper's default `[idle_timeout] timeout`; afterwards heaters and motors are switched off.
 const IDLE_TIMEOUT_SECONDS: f64 = 600.0;
@@ -154,6 +156,7 @@ pub struct Printer {
     print_duration: f64,
     total_duration: f64,
     job: Option<PrintJob>,
+    excluded_objects: Vec<String>,
     /// Simulated seconds since the last command; drives `idle_timeout.state`.
     inactive_seconds: f64,
 }
@@ -189,6 +192,7 @@ impl Printer {
             print_duration: 0.0,
             total_duration: 0.0,
             job: None,
+            excluded_objects: Vec::new(),
             inactive_seconds: BUSY_SECONDS,
         }
     }
@@ -250,6 +254,7 @@ impl Printer {
             Command::SetExtrudeFactor(factor) => self.extrude_factor = factor.max(0.01),
             Command::SetPressureAdvance(value) => self.pressure_advance = value.max(0.0),
             Command::SetHeaterTemperature { heater, target } => self.set_named_heater(&heater, target)?,
+            Command::ExcludeObject { name } => self.exclude_object(&name),
             Command::SaveConfig => self.config_pending = false,
             Command::QuadGantryLevel => self.level_gantry()?,
             Command::Mmu(command) => self.apply_mmu(command)?,
@@ -269,6 +274,7 @@ impl Printer {
         self.message.clear();
         self.print_duration = 0.0;
         self.total_duration = 0.0;
+        self.excluded_objects.clear();
         self.job = Some(PrintJob {
             estimated_time: file.estimated_time,
             layer_count: file.layer_count,
@@ -320,6 +326,16 @@ impl Printer {
         let mut objects = self.core_status();
         if self.profile.quad_gantry_level {
             objects.insert("quad_gantry_level".to_owned(), json!({ "applied": self.gantry_leveled }));
+        }
+        if self.profile.exclude_object {
+            objects.insert(
+                "exclude_object".to_owned(),
+                json!({
+                    "objects": PRINT_OBJECTS.iter().map(|name| json!({ "name": name })).collect::<Vec<_>>(),
+                    "excluded_objects": self.excluded_objects,
+                    "current_object": null,
+                }),
+            );
         }
         if let Some(mmu) = &self.mmu {
             objects.extend(mmu.status(self.print_state.as_str()));
@@ -435,6 +451,20 @@ impl Printer {
         match self.mmu.as_mut() {
             Some(mmu) => mmu.apply(command),
             None => Err(CommandError::new(format!("Unknown command:\"{}\"", command.gcode_name()))),
+        }
+    }
+
+    /// Mirrors Klipper's `cmd_EXCLUDE_OBJECT` (klippy/extras/exclude_object.py): names are upper-cased, unknown
+    /// names are accepted, the list stays sorted, and a missing NAME only lists the objects (not simulated here).
+    /// Without the module the command is unknown and ignored.
+    fn exclude_object(&mut self, name: &str) {
+        if !self.profile.exclude_object || name.is_empty() {
+            return;
+        }
+        let name = name.to_ascii_uppercase();
+        if !self.excluded_objects.contains(&name) {
+            self.excluded_objects.push(name);
+            self.excluded_objects.sort();
         }
     }
 
@@ -832,6 +862,30 @@ mod tests {
 
         assert!(names(&printer).contains(&"quad_gantry_level".to_owned()));
         assert_eq!(printer.status()["configfile"]["settings"]["quad_gantry_level"]["max_adjust"], 10);
+    }
+
+    #[test]
+    fn exclude_object_lists_objects_and_skips_them() {
+        let mut printer = Printer::with_profile(1.0, MachineProfile::voron());
+        assert!(names(&printer).contains(&"exclude_object".to_owned()));
+        assert_eq!(printer.status()["exclude_object"]["objects"].as_array().unwrap().len(), PRINT_OBJECTS.len());
+
+        run(&mut printer, "EXCLUDE_OBJECT NAME=benchy_1\nEXCLUDE_OBJECT NAME=BENCHY_1").unwrap();
+        assert_eq!(printer.status()["exclude_object"]["excluded_objects"], json!(["BENCHY_1"]));
+
+        run(&mut printer, "EXCLUDE_OBJECT NAME=unknown").unwrap();
+        run(&mut printer, "EXCLUDE_OBJECT NAME=BENCHY_0").unwrap();
+        assert_eq!(printer.status()["exclude_object"]["excluded_objects"], json!(["BENCHY_0", "BENCHY_1", "UNKNOWN"]));
+
+        run(&mut printer, "EXCLUDE_OBJECT").unwrap();
+        assert_eq!(printer.status()["exclude_object"]["excluded_objects"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn basic_profile_has_no_exclude_object() {
+        let mut printer = Printer::with_profile(1.0, MachineProfile::basic());
+        assert!(!names(&printer).contains(&"exclude_object".to_owned()));
+        assert!(run(&mut printer, "EXCLUDE_OBJECT NAME=BENCHY_0").is_ok());
     }
 
     #[test]
