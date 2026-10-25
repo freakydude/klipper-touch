@@ -146,6 +146,12 @@ fn printing(session: &mut Session) -> Result<(), String> {
     session.show_page(Page::System, "system-printing")?;
 
     session.window.global::<Navigation>().set_page(Page::Print);
+    session.service.send(Command::PausePrint);
+    session.wait_until("print paused", |snapshot| snapshot.status.job.state == PrintState::Paused)?;
+    session.pump(Duration::from_secs(1));
+    session.capture("print-paused")?;
+    session.service.send(Command::ResumePrint);
+    session.wait_until("print resumed", |snapshot| snapshot.status.job.state == PrintState::Printing)?;
     ask(session, "Cancel print", "The current print will be stopped and cannot be resumed.", "cancel-print", "");
     session.capture("confirm-cancel")?;
     session.window.global::<Confirm>().invoke_execute();
