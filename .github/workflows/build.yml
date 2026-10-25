@@ -9,6 +9,9 @@ on:
         type: string
         required: true
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   KLIPPER_TOUCH_VERSION: ${{ inputs.version }}
