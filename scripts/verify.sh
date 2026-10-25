@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Runs all checks of a work package in one go: formatting, Clippy, tests, app build, UI previews and the
+# skill check. Every step runs even when an earlier one fails; the exit code is 1 if any step failed.
+# WSL2/Linux only. Usage (repo root): scripts/verify.sh [--snapshot]
+#   --snapshot  also renders the UI snapshot scenes against a fake Moonraker (slower, needs a free port)
+set -uo pipefail
+
+cd "$(dirname "$0")/.." || exit 1
+log_dir=$(mktemp -d "${TMPDIR:-/tmp}/klipper-touch-verify.XXXXXX")
+with_snapshot=false
+[ "${1:-}" = "--snapshot" ] && with_snapshot=true
+failed=()
+
+run_step() {
+    local name=$1
+    shift
+    local log="$log_dir/${name// /_}.log"
+    if "$@" > "$log" 2>&1; then
+        echo "OK    $name"
+    else
+        echo "FAIL  $name (last lines in $log)"
+        tail -n 15 "$log" | sed 's/^/        /'
+        failed+=("$name")
+    fi
+}
+
+run_step "cargo fmt --check" cargo fmt --all -- --check
+run_step "cargo clippy" cargo clippy --workspace --all-targets -- -D warnings
+run_step "cargo test" cargo test --workspace
+run_step "cargo build" cargo build -p klipper-touch
+run_step "ui previews" scripts/ui-preview.sh
+run_step "skill check" .claude/skills/session-handover/scripts/check-skills.sh
+if [ "$with_snapshot" = true ]; then
+    run_step "ui snapshot" scripts/ui-snapshot.sh
+fi
+
+echo
+if [ "${#failed[@]}" -eq 0 ]; then
+    echo "All checks passed. Logs: $log_dir"
+    exit 0
+fi
+echo "Failed: ${failed[*]}. Logs: $log_dir"
+exit 1

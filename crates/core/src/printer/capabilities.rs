@@ -22,6 +22,14 @@ pub struct Capabilities {
     pub server: ServerComponents,
 }
 
+/// Where Load and Unload come from, see [`Capabilities::filament_handling`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilamentHandling {
+    Mmu,
+    Macros { load: bool, unload: bool },
+    None,
+}
+
 /// Loaded Moonraker components that enable their own operator functions.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ServerComponents {
@@ -59,6 +67,21 @@ impl Capabilities {
 
     pub fn has_macro(&self, name: &str) -> bool {
         self.macros.iter().any(|candidate| candidate.eq_ignore_ascii_case(name))
+    }
+
+    /// What the Load and Unload buttons run: Happy Hare first, otherwise the macros `LOAD_FILAMENT` and
+    /// `UNLOAD_FILAMENT` (as KlipperScreen does), otherwise nothing. There is no generic fallback: the sequence
+    /// depends on the length of the bowden tube and the temperatures of the machine.
+    pub fn filament_handling(&self) -> FilamentHandling {
+        if self.mmu {
+            return FilamentHandling::Mmu;
+        }
+        let (load, unload) = (self.has_macro("LOAD_FILAMENT"), self.has_macro("UNLOAD_FILAMENT"));
+        if load || unload {
+            FilamentHandling::Macros { load, unload }
+        } else {
+            FilamentHandling::None
+        }
     }
 
     /// At least one way to level the bed or gantry.
@@ -129,6 +152,19 @@ mod tests {
         assert_eq!(capabilities.filament_sensors, ["filament_switch_sensor runout"]);
         assert_eq!(capabilities.macros, ["LOAD_FILAMENT", "PRINT_START"]);
         assert!(capabilities.has_macro("load_filament"));
+    }
+
+    #[test]
+    fn load_and_unload_prefer_happy_hare_then_macros() {
+        let handling = |objects: &[&str]| Capabilities::from_objects(objects.iter().copied()).filament_handling();
+
+        assert_eq!(handling(&["mmu", "gcode_macro LOAD_FILAMENT"]), FilamentHandling::Mmu);
+        assert_eq!(
+            handling(&["gcode_macro load_filament", "gcode_macro UNLOAD_FILAMENT"]),
+            FilamentHandling::Macros { load: true, unload: true }
+        );
+        assert_eq!(handling(&["gcode_macro LOAD_FILAMENT"]), FilamentHandling::Macros { load: true, unload: false });
+        assert_eq!(handling(&["gcode_macro PRINT_START", "extruder"]), FilamentHandling::None);
     }
 
     #[test]

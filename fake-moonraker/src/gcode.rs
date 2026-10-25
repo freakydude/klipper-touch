@@ -49,13 +49,23 @@ pub enum Command {
     RelativePositioning,
     Move(Move),
     DisableSteppers,
-    SetGcodeOffset { z: Option<f64>, z_adjust: Option<f64> },
+    SetGcodeOffset {
+        z: Option<f64>,
+        z_adjust: Option<f64>,
+    },
     AbsoluteExtrusion,
     RelativeExtrusion,
     SetSpeedFactor(f64),
     SetExtrudeFactor(f64),
     SetPressureAdvance(f64),
-    SetHeaterTemperature { heater: String, target: f64 },
+    SetHeaterTemperature {
+        heater: String,
+        target: f64,
+    },
+    /// Empty name: Klipper only lists the excluded objects.
+    ExcludeObject {
+        name: String,
+    },
     SaveConfig,
     QuadGantryLevel,
     Help,
@@ -66,10 +76,20 @@ pub enum Command {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MmuCommand {
     Home,
-    Select { gate: usize },
-    ChangeTool { tool: usize },
-    Load { gate: Option<usize> },
+    Select {
+        gate: usize,
+    },
+    ChangeTool {
+        tool: usize,
+    },
+    /// Loads the selected gate; like Happy Hare's `MMU_LOAD` it has no gate parameter.
+    Load,
     Unload,
+    /// Pulls the filament of a gate out of the MMU; without `gate` the selected one.
+    Eject {
+        gate: Option<usize>,
+        force: bool,
+    },
 }
 
 impl MmuCommand {
@@ -78,8 +98,9 @@ impl MmuCommand {
             MmuCommand::Home => "MMU_HOME",
             MmuCommand::Select { .. } => "MMU_SELECT",
             MmuCommand::ChangeTool { .. } => "MMU_CHANGE_TOOL",
-            MmuCommand::Load { .. } => "MMU_LOAD",
+            MmuCommand::Load => "MMU_LOAD",
             MmuCommand::Unload => "MMU_UNLOAD",
+            MmuCommand::Eject { .. } => "MMU_EJECT",
         }
     }
 }
@@ -147,14 +168,19 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
             target: named_value(&args, "TARGET")?.unwrap_or(0.0),
         }),
+        "EXCLUDE_OBJECT" => Ok(Command::ExcludeObject { name: named_text(&args, "NAME").unwrap_or_default() }),
         "SAVE_CONFIG" => Ok(Command::SaveConfig),
         "QUAD_GANTRY_LEVEL" => Ok(Command::QuadGantryLevel),
         "HELP" => Ok(Command::Help),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" => Ok(Command::Mmu(MmuCommand::Select { gate: required_index(&args, "GATE")? })),
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
-        "MMU_LOAD" => Ok(Command::Mmu(MmuCommand::Load { gate: named_index(&args, "GATE")? })),
+        "MMU_LOAD" => Ok(Command::Mmu(MmuCommand::Load)),
         "MMU_UNLOAD" => Ok(Command::Mmu(MmuCommand::Unload)),
+        "MMU_EJECT" => Ok(Command::Mmu(MmuCommand::Eject {
+            gate: named_index(&args, "GATE")?,
+            force: named_index(&args, "FORCE")?.is_some_and(|value| value != 0),
+        })),
         _ => Ok(Command::Ignored),
     }
 }
@@ -306,7 +332,7 @@ mod tests {
                 Command::Mmu(MmuCommand::Select { gate: 2 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 1 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 3 }),
-                Command::Mmu(MmuCommand::Load { gate: None }),
+                Command::Mmu(MmuCommand::Load),
                 Command::Mmu(MmuCommand::Unload),
             ]
         );
@@ -314,6 +340,13 @@ mod tests {
 
     #[test]
     fn happy_hare_commands_validate_their_parameters() {
+        assert_eq!(
+            parse_script("MMU_EJECT\nMMU_EJECT GATE=2 FORCE=1").unwrap(),
+            vec![
+                Command::Mmu(MmuCommand::Eject { gate: None, force: false }),
+                Command::Mmu(MmuCommand::Eject { gate: Some(2), force: true }),
+            ]
+        );
         assert_eq!(parse_script("MMU_SELECT").unwrap_err().message(), "Missing parameter GATE");
         assert!(parse_script("MMU_SELECT GATE=1.5").is_err());
         assert!(parse_script("MMU_SELECT GATE=-1").is_err());

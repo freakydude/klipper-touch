@@ -1,0 +1,14 @@
+// Preview: Filament page without Happy Hare (extruder only, with a Klipper filament sensor). Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component FilamentExtruderPreview inherits AppWindow {
+    init => {
+        Sample.ready-printer();
+        Printer.has-load-macro = true;
+        Printer.has-unload-macro = true;
+        Navigation.page = Page.filament;
+    }
+}

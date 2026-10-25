@@ -2,7 +2,7 @@
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
-use klipper_touch_core::printer::{KlippyState, PrintState};
+use klipper_touch_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
 use klipper_touch_core::system::ConsoleKind;
 use klipper_touch_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
 use std::time::Duration;
@@ -12,13 +12,13 @@ use tokio::time::timeout;
 const WAIT_LIMIT: Duration = Duration::from_secs(10);
 
 async fn start_fake() -> Endpoint {
+    start_fake_with(MachineProfile::voron()).await
+}
+
+async fn start_fake_with(profile: MachineProfile) -> Endpoint {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    let config = ServerConfig {
-        time_scale: 1000.0,
-        status_interval: Duration::from_millis(20),
-        profile: MachineProfile::voron(),
-    };
+    let config = ServerConfig { time_scale: 1000.0, status_interval: Duration::from_millis(20), profile };
     tokio::spawn(serve(listener, config));
     Endpoint::parse(&address.to_string()).unwrap()
 }
@@ -76,6 +76,50 @@ async fn connects_detects_capabilities_and_follows_state() {
 
     service.send(Command::Jog { axis: klipper_touch_core::printer::Axis::X, distance: 25.0 });
     wait_for(&mut channels, |snapshot| snapshot.status.motion.position[0] == 25.0).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn follows_happy_hare_gates_sensors_and_loading() {
+    let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+
+    let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
+    assert_eq!(snapshot.capabilities.filament_handling(), FilamentHandling::Mmu);
+    let mmu = snapshot.status.mmu.unwrap();
+    assert_eq!((mmu.num_gates, mmu.filament), (4, LoadedFilament::Unloaded));
+    assert!(mmu.is_supported());
+    assert_eq!(mmu.gates[3].availability, GateAvailability::Empty);
+    assert!(mmu.sensors.iter().all(|sensor| sensor.name != "mmu_pre_gate"));
+
+    service.send(Command::MmuHome);
+    wait_for(&mut channels, |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed)).await;
+    service.send(Command::MmuSelectGate { gate: 1 });
+    // Every command is its own request, so the order of two sent at once is not fixed.
+    wait_for(&mut channels, |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 1)).await;
+    service.send(Command::MmuLoad);
+    let snapshot = wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.filament == LoadedFilament::Loaded)
+    })
+    .await;
+
+    let mmu = snapshot.status.mmu.unwrap();
+    assert_eq!(mmu.gate, 1);
+    let triggered =
+        |name: &str| mmu.sensors.iter().find(|sensor| sensor.name == name).and_then(|sensor| sensor.triggered);
+    assert_eq!((triggered("mmu_exit"), triggered("toolhead")), (Some(true), Some(true)));
+
+    // While loaded, eject only unloads; a second eject empties the gate.
+    service.send(Command::MmuEject { gate: None });
+    wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.filament == LoadedFilament::Unloaded)
+    })
+    .await;
+    service.send(Command::MmuEject { gate: None });
+    let snapshot = wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gates[1].availability == GateAvailability::Empty)
+    })
+    .await;
+    assert_eq!(snapshot.status.mmu.unwrap().gate, 1);
 }
 
 #[tokio::test(flavor = "multi_thread")]
