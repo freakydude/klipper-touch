@@ -32,25 +32,38 @@ export component ConsolePage inherits Rectangle {
                 content-height: Printer.console.length * root.line-height + 8px;
                 // Newest lines at the bottom; jump to the end when opened.
                 offset: min(0px, self.height - self.content-height);
-                for line[index] in Printer.console: HorizontalLayout {
+                for line[index] in Printer.console: Rectangle {
                     y: 4px + index * root.line-height;
                     height: root.line-height;
                     width: log.row-width;
-                    spacing: 8px;
-                    Text {
-                        text: line.time;
-                        color: Theme.disabled-foreground;
-                        font-size: Theme.font-small;
-                        vertical-alignment: center;
-                        width: 64px;
+                    HorizontalLayout {
+                        width: parent.width;
+                        height: parent.height;
+                        spacing: 8px;
+                        Text {
+                            text: line.time;
+                            color: Theme.disabled-foreground;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                            width: 64px;
+                        }
+                        Text {
+                            text: (line.is-command ? "> " : "") + line.text;
+                            color: line.is-error ? Theme.danger : line.is-command ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-small;
+                            font-family: "monospace";
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
                     }
-                    Text {
-                        text: (line.is-command ? "> " : "") + line.text;
-                        color: line.is-error ? Theme.danger : line.is-command ? Theme.accent : Theme.foreground;
-                        font-size: Theme.font-small;
-                        font-family: "monospace";
-                        vertical-alignment: center;
-                        overflow: elide;
+                    // A sent command can be put back into the field: tap it, then Enter runs it again.
+                    if line.is-command: TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+                        clicked => {
+                            root.draft = line.text;
+                            entry.open = true;
+                        }
                     }
                 }
             }
