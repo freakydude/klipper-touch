@@ -1,11 +1,11 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use klipper_touch::{Confirm, Navigation, Page};
+use klipper_touch::{Confirm, Navigation, Page, Printer};
 use klipper_touch_core::network::{Availability, NetworkCommand, NetworkState};
 use klipper_touch_core::printer::{Activity, KlippyState, PrintState};
 use klipper_touch_core::{Command, ConnectionState, Query};
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 use std::time::Duration;
 
 /// The fake's idle timeout passes after about 30 s at time scale 20.
@@ -97,12 +97,17 @@ fn pages(session: &mut Session) -> Result<(), String> {
         (Page::Move, "move"),
         (Page::Temperature, "temperature"),
         (Page::Tune, "tune"),
-        (Page::Extrude, "extrude"),
+        (Page::Filament, "filament"),
         (Page::Console, "console"),
         (Page::System, "system"),
         (Page::Settings, "settings"),
     ] {
         session.show_page(page, name)?;
+        if page == Page::Filament && session.presenter.snapshot().status.mmu.is_some() {
+            session.window.global::<Navigation>().set_filament_tab(1);
+            session.show_page(Page::Filament, "filament-mmu")?;
+            session.window.global::<Navigation>().set_filament_tab(0);
+        }
     }
     Ok(())
 }
@@ -150,6 +155,7 @@ fn printing(session: &mut Session) -> Result<(), String> {
     session.wait_until("print paused", |snapshot| snapshot.status.job.state == PrintState::Paused)?;
     session.pump(Duration::from_secs(1));
     session.capture("print-paused")?;
+    exclude_object(session)?;
     session.service.send(Command::ResumePrint);
     session.wait_until("print resumed", |snapshot| snapshot.status.job.state == PrintState::Printing)?;
     ask(session, "Cancel print", "The current print will be stopped and cannot be resumed.", "cancel-print", "");
@@ -157,6 +163,28 @@ fn printing(session: &mut Session) -> Result<(), String> {
     session.window.global::<Confirm>().invoke_execute();
     session.wait_until("print cancelled", |snapshot| snapshot.status.job.state == PrintState::Cancelled)?;
     session.capture("print-cancelled")
+}
+
+/// Excludes one object of the print and checks that the Objects dialog data follows. Skipped without the module.
+fn exclude_object(session: &mut Session) -> Result<(), String> {
+    if session.presenter.snapshot().status.print_objects.is_empty() {
+        return Ok(());
+    }
+    session.service.send(Command::ExcludeObject { name: "BENCHY_1".into() });
+    session.wait_until("object excluded", |snapshot| {
+        snapshot.status.print_objects.iter().any(|object| object.name == "BENCHY_1" && object.excluded)
+    })?;
+    session.pump(Duration::from_secs(1));
+    let items = session.window.global::<Printer>().get_print_objects();
+    let excluded: Vec<String> = (0..items.row_count())
+        .filter_map(|row| items.row_data(row))
+        .filter(|item| item.excluded)
+        .map(|item| item.name.to_string())
+        .collect();
+    if excluded != ["BENCHY_1"] {
+        return Err(format!("Printer.print-objects shows excluded {excluded:?}, expected [\"BENCHY_1\"]"));
+    }
+    session.capture("print-objects-excluded")
 }
 
 fn shutdown(session: &mut Session) -> Result<(), String> {

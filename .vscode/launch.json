@@ -15,6 +15,17 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "debug: klipper-touch (fake Moonraker, Happy Hare)",
+      "cargo": {
+        "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
+      },
+      "args": ["--moonraker", "http://127.0.0.1:7125"],
+      "env": { "RUST_LOG": "info,klipper_touch_core=debug" },
+      "preLaunchTask": "run: fake-moonraker (Happy Hare)"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "debug: klipper-touch (saved settings)",
       "cargo": {
         "args": ["build", "-p", "klipper-touch", "--bin", "klipper-touch"]
@@ -28,6 +39,15 @@
         "args": ["build", "-p", "fake-moonraker"]
       },
       "args": ["--port", "7125", "--time-scale", "10", "--profile", "voron"]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "debug: fake-moonraker (Happy Hare)",
+      "cargo": {
+        "args": ["build", "-p", "fake-moonraker"]
+      },
+      "args": ["--port", "7125", "--time-scale", "10", "--profile", "happy-hare", "--gates", "8"]
     }
   ]
 }

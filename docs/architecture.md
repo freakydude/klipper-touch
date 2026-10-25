@@ -53,7 +53,10 @@ flowchart LR
 
 1. `PrinterService::start` runs a loop on the Tokio runtime: connect, `server.connection.identify`, `server.info`, and
    once `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`.
-2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view.
+2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view
+   (heaters, motion, job, macros, objects to exclude, and Happy Hare in `printer/mmu.rs`: gates, sensors, buffer, FlowGuard).
+   `Capabilities::filament_handling` decides where Load and Unload come from: Happy Hare, else the macros
+   `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. `Command::to_call` translates them into
@@ -73,7 +76,7 @@ flowchart LR
 - `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar, ScrollList, TouchSlider), `overlays.slint`
   (confirmation, messages flyout, on-screen keyboard, text input), `chrome.slint` (status bar with the newest message,
   navigation). Messages (errors and informations) are kept in `status_log.rs`, pure logic that the presenter shows.
-- `pages/`: print, move, temperature, tune, extrude, console (with the macro list), system, settings, connection.
+- `pages/`: print, move, temperature, tune, filament (extruder tab and, with Happy Hare, the MMU tab in `mmu.slint`), console (with the macro list), system, settings, connection.
 - Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
 - Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;
   moving and extruding are locked while printing.

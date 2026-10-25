@@ -40,7 +40,9 @@ pub fn subscription(available: &[String], capabilities: &Capabilities) -> Value 
     for sensor in &capabilities.filament_sensors {
         add(sensor, Some(&["enabled", "filament_detected"]));
     }
-    add("mmu", Some(&["enabled", "num_gates", "tool", "gate", "filament", "action", "gate_status"]));
+    // All fields: the filament view needs gates, sensors, buffer and FlowGuard, and Happy Hare adds fields over time.
+    add("mmu", None);
+    add("mmu_machine", None);
 
     json!({ "objects": objects })
 }

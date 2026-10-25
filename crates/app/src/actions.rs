@@ -96,6 +96,17 @@ pub fn bind(
     actions.on_exclude_object(with(service, |service, name: slint::SharedString| {
         service.send(Command::ExcludeObject { name: name.into() })
     }));
+    actions.on_mmu_select_gate(with(service, |service, gate: i32| {
+        if let Ok(gate) = usize::try_from(gate) {
+            service.send(Command::MmuSelectGate { gate });
+        }
+    }));
+    actions.on_mmu_load(send(|| Command::MmuLoad));
+    actions.on_mmu_unload(send(|| Command::MmuUnload));
+    actions.on_mmu_home(send(|| Command::MmuHome));
+    actions.on_mmu_eject(send(|| Command::MmuEject { gate: None }));
+    actions.on_mmu_recover(send(|| Command::MmuRecover));
+    actions.on_mmu_unlock(send(|| Command::MmuUnlock));
     actions.on_run_gcode(with(service, |service, script: slint::SharedString| {
         let script = script.trim().to_owned();
         if !script.is_empty() {

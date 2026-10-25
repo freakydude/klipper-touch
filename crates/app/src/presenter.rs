@@ -4,11 +4,11 @@ use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    MessageItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
+    MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
-use klipper_touch_core::printer::{macro_script, Capabilities, Heater, MacroDetails};
+use klipper_touch_core::printer::{macro_script, Capabilities, FilamentHandling, Heater, MacroDetails, MmuStatus};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -82,6 +82,8 @@ pub struct Presenter {
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: Rc<VecModel<PrintObjectItem>>,
+    mmu_gates: Rc<VecModel<MmuGateItem>>,
+    mmu_sensors: Rc<VecModel<MmuSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
     macro_items: Rc<VecModel<MacroItem>>,
     all_macros: RefCell<Vec<String>>,
@@ -110,6 +112,8 @@ impl Presenter {
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
             print_objects: Rc::default(),
+            mmu_gates: Rc::default(),
+            mmu_sensors: Rc::default(),
             macros: Rc::default(),
             macro_items: Rc::default(),
             all_macros: RefCell::default(),
@@ -131,6 +135,8 @@ impl Presenter {
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_print_objects(ModelRc::from(presenter.print_objects.clone()));
+        printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
+        printer.set_mmu_sensors(ModelRc::from(presenter.mmu_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
         printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
         printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
@@ -252,11 +258,14 @@ impl Presenter {
                 })
                 .collect(),
         );
+        let has_mmu = status.mmu.as_ref().is_some_and(|mmu| mmu.enabled && mmu.is_supported());
         replace_rows(
             &self.filament_sensors,
             status
                 .filament_sensors
                 .iter()
+                // With Happy Hare its gate and buffer sensors belong to the MMU tab; this card keeps the common ones.
+                .filter(|sensor| !(has_mmu && view::is_mmu_klipper_sensor(&sensor.object)))
                 .map(|sensor| FilamentSensorItem {
                     label: sensor.label.as_str().into(),
                     enabled: sensor.enabled,
@@ -277,12 +286,14 @@ impl Presenter {
         printer.set_can_quad_gantry_level(capabilities.quad_gantry_level);
         printer.set_can_z_tilt(capabilities.z_tilt);
         printer.set_has_probe(capabilities.probe);
-        printer.set_has_load_macro(capabilities.has_macro("LOAD_FILAMENT"));
-        printer.set_has_unload_macro(capabilities.has_macro("UNLOAD_FILAMENT"));
+        let handling = capabilities.filament_handling();
+        printer.set_has_load_macro(matches!(handling, FilamentHandling::Macros { load: true, .. }));
+        printer.set_has_unload_macro(matches!(handling, FilamentHandling::Macros { unload: true, .. }));
         printer.set_has_power(capabilities.server.power);
         printer.set_has_update_manager(capabilities.server.update_manager);
         self.set_macro_details(snapshot.status.macro_details.clone());
         self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
+        self.set_mmu(status.mmu.as_ref());
 
         let previous_job =
             std::mem::replace(&mut self.cache.borrow_mut().snapshot, snapshot.clone()).status.job.filename;
@@ -355,6 +366,69 @@ impl Presenter {
     }
 
     /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
+    /// Happy Hare on the Filament page. Only version 4.1 or newer is shown; an older one gets a notice instead.
+    fn set_mmu(&self, mmu: Option<&MmuStatus>) {
+        let Some(window) = self.window.upgrade() else { return };
+        let printer = window.global::<Printer>();
+        let enabled = mmu.filter(|mmu| mmu.enabled);
+        let supported = enabled.filter(|mmu| mmu.is_supported());
+        printer.set_has_mmu(supported.is_some());
+        printer.set_mmu_unsupported(enabled.is_some() && supported.is_none());
+        let Some(mmu) = supported else {
+            replace_rows(&self.mmu_gates, Vec::new());
+            replace_rows(&self.mmu_sensors, Vec::new());
+            return;
+        };
+
+        let gates = mmu
+            .gates
+            .iter()
+            .map(|gate| MmuGateItem {
+                index: gate.index as i32,
+                availability: view::mmu_availability(gate.availability).into(),
+                name: gate.name.as_str().into(),
+                material: gate.material.as_str().into(),
+                color: gate.color.map_or_else(slint::Color::default, |[red, green, blue]| {
+                    slint::Color::from_rgb_u8(red, green, blue)
+                }),
+                has_color: gate.color.is_some(),
+                tool: gate.tool.map_or(-1, |tool| tool as i32),
+                selected: usize::try_from(mmu.gate) == Ok(gate.index),
+            })
+            .collect();
+        replace_rows(&self.mmu_gates, gates);
+        let has_buffer = mmu.sync_feedback.is_some();
+        let sensors = view::mmu_chip_sensors(&mmu.sensors, has_buffer)
+            .into_iter()
+            .map(|sensor| MmuSensorItem {
+                label: view::mmu_sensor_label(&sensor.name).into(),
+                state: view::mmu_sensor_state(sensor.triggered).into(),
+            })
+            .collect();
+        replace_rows(&self.mmu_sensors, sensors);
+
+        printer.set_mmu_filament(view::mmu_filament(mmu.filament).into());
+        printer.set_mmu_action(mmu.action.as_str().into());
+        printer.set_mmu_gate(mmu.gate.max(-1));
+        printer.set_mmu_tool(mmu.tool.max(-1));
+        printer.set_mmu_paused(mmu.paused);
+        printer.set_mmu_locked(mmu.locked);
+        printer.set_mmu_reason(mmu.reason_for_pause.as_str().into());
+        printer.set_mmu_homed(mmu.homed);
+        printer.set_mmu_has_buffer(has_buffer);
+        let feedback = mmu.sync_feedback.unwrap_or_default();
+        printer.set_mmu_buffer_state(view::mmu_buffer_state(feedback.state).into());
+        printer.set_mmu_buffer_bias(feedback.bias as f32);
+        let flowguard = mmu.flowguard.clone().unwrap_or_default();
+        printer.set_mmu_flowguard_state(view::mmu_flowguard_state(&flowguard).into());
+        let detail: Vec<&str> = [flowguard.trigger.as_str(), flowguard.reason.as_str()]
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .collect();
+        printer.set_mmu_flowguard_detail(detail.join(": ").into());
+        printer.set_mmu_flow_rate(mmu.encoder_flow_rate.map_or(-1.0, |rate| rate as f32));
+    }
+
     fn set_macros(&self, macros: &[String], connected: bool) {
         if self.all_macros.borrow().as_slice() == macros {
             return;

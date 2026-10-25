@@ -1,0 +1,13 @@
+// Preview: MMU tab of the Filament page, four gates with a buffer in tension. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component FilamentMmuPreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Navigation.page = Page.filament;
+        Navigation.filament-tab = 1;
+    }
+}

@@ -3,7 +3,9 @@
 use crate::format;
 use chrono::{DateTime, Local};
 use klipper_touch_core::files::FileMetadata;
-use klipper_touch_core::printer::{Heater, PrintJob, PrintState};
+use klipper_touch_core::printer::{
+    FlowGuard, GateAvailability, Heater, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
+};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -98,6 +100,97 @@ pub fn file_detail(modified: f64, size: u64, metadata: Option<&FileMetadata>) ->
 /// Linux names wireless interfaces `wlan0`, `wlp2s0`, ...
 pub fn is_wireless_interface(name: &str) -> bool {
     name.starts_with("wl")
+}
+
+/// Names of the MMU sensors as the operator reads them; unknown ones lose the `mmu_` prefix and get spaces.
+pub fn mmu_sensor_label(name: &str) -> String {
+    let known = match name {
+        "mmu_entry" => "Entry",
+        "mmu_exit" => "Exit",
+        "mmu_shared_exit" => "Shared exit",
+        "encoder" => "Encoder",
+        "extruder" => "Extruder",
+        "toolhead" => "Toolhead",
+        "filament_compression" => "Compression",
+        "filament_tension" => "Tension",
+        "filament_proportional" => "Proportional",
+        "mmu_gear_touch" => "Gear touch",
+        "mmu_ext_touch" => "Extruder touch",
+        "mmu_sel_touch" => "Selector touch",
+        "mmu_sel_home" => "Selector home",
+        "mmu_nfc" => "NFC",
+        _ => "",
+    };
+    if !known.is_empty() {
+        return known.to_owned();
+    }
+    let words = name.strip_prefix("mmu_").unwrap_or(name).replace('_', " ");
+    let mut characters = words.chars();
+    characters.next().map_or_else(String::new, |first| first.to_uppercase().chain(characters).collect())
+}
+
+/// A Klipper filament sensor that belongs to the MMU itself (gates and buffer). `toolhead` and `extruder` stay common:
+/// they sit behind the MMU and matter without one. `object` is the Klipper object name, for example
+/// `filament_switch_sensor mmu_entry_0`.
+pub fn is_mmu_klipper_sensor(object: &str) -> bool {
+    let name = object.split_once(' ').map_or(object, |(_, name)| name);
+    let name = name.rsplit_once(':').map_or(name, |(_, name)| name);
+    name.starts_with("mmu_") || matches!(name, "filament_compression" | "filament_tension" | "filament_proportional")
+}
+
+/// The sensors of the MMU for the chip list. The three buffer sensors are left out when a buffer gauge shows them.
+pub fn mmu_chip_sensors(sensors: &[MmuSensor], has_buffer: bool) -> Vec<&MmuSensor> {
+    const BUFFER_SENSORS: [&str; 3] = ["filament_compression", "filament_tension", "filament_proportional"];
+    sensors.iter().filter(|sensor| !(has_buffer && BUFFER_SENSORS.contains(&sensor.name.as_str()))).collect()
+}
+
+/// `triggered` means filament is present at the sensor; `None` is a disabled sensor.
+pub fn mmu_sensor_state(triggered: Option<bool>) -> &'static str {
+    match triggered {
+        None => "disabled",
+        Some(false) => "open",
+        Some(true) => "triggered",
+    }
+}
+
+pub fn mmu_availability(availability: GateAvailability) -> &'static str {
+    match availability {
+        GateAvailability::Unknown => "unknown",
+        GateAvailability::Empty => "empty",
+        GateAvailability::Available => "available",
+        GateAvailability::Buffered => "buffered",
+    }
+}
+
+pub fn mmu_filament(filament: LoadedFilament) -> &'static str {
+    match filament {
+        LoadedFilament::Loaded => "loaded",
+        LoadedFilament::Unloaded => "unloaded",
+        LoadedFilament::Unknown => "unknown",
+    }
+}
+
+pub fn mmu_buffer_state(state: SyncFeedbackState) -> &'static str {
+    match state {
+        SyncFeedbackState::Compressed => "compressed",
+        SyncFeedbackState::Neutral => "neutral",
+        SyncFeedbackState::Tension => "tension",
+        SyncFeedbackState::Inactive => "inactive",
+        SyncFeedbackState::Disabled => "disabled",
+    }
+}
+
+/// One word for the operator: a trigger wins over monitoring, which wins over ready.
+pub fn mmu_flowguard_state(flowguard: &FlowGuard) -> &'static str {
+    if !flowguard.enabled {
+        "off"
+    } else if !flowguard.trigger.is_empty() {
+        "triggered"
+    } else if flowguard.active {
+        "monitoring"
+    } else {
+        "ready"
+    }
 }
 
 /// Heater targets sent but not yet reported by Klipper, so quick taps on + and − build on each other
@@ -229,6 +322,52 @@ mod tests {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
         assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), now()).filament, "-");
+    }
+
+    #[test]
+    fn mmu_sensors_get_readable_names() {
+        assert_eq!(mmu_sensor_label("mmu_shared_exit"), "Shared exit");
+        assert_eq!(mmu_sensor_label("filament_tension"), "Tension");
+        assert_eq!(mmu_sensor_label("mmu_future_probe"), "Future probe");
+        assert_eq!(mmu_sensor_label("hotend"), "Hotend");
+        assert_eq!(mmu_sensor_label(""), "");
+    }
+
+    #[test]
+    fn mmu_sensors_are_told_apart_from_common_klipper_sensors() {
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor mmu_entry_0"));
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor filament_tension"));
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor unit0:mmu_exit_1"));
+        assert!(!is_mmu_klipper_sensor("filament_switch_sensor toolhead"));
+        assert!(!is_mmu_klipper_sensor("filament_switch_sensor extruder"));
+        assert!(!is_mmu_klipper_sensor("filament_motion_sensor extruder_encoder"));
+    }
+
+    #[test]
+    fn buffer_sensors_are_hidden_only_when_the_gauge_shows_them() {
+        let sensors = ["mmu_entry", "filament_tension", "filament_proportional", "toolhead"]
+            .map(|name| MmuSensor { name: name.into(), triggered: Some(false) });
+        let names = |has_buffer| -> Vec<String> {
+            mmu_chip_sensors(&sensors, has_buffer).iter().map(|sensor| sensor.name.clone()).collect()
+        };
+
+        assert_eq!(names(true), ["mmu_entry", "toolhead"]);
+        assert_eq!(names(false).len(), 4);
+    }
+
+    #[test]
+    fn mmu_states_become_words_for_the_ui() {
+        assert_eq!([None, Some(false), Some(true)].map(mmu_sensor_state), ["disabled", "open", "triggered"]);
+        let flowguard = |enabled, active, trigger: &str| FlowGuard {
+            enabled,
+            active,
+            trigger: trigger.into(),
+            ..FlowGuard::default()
+        };
+        assert_eq!(mmu_flowguard_state(&flowguard(false, true, "clog")), "off");
+        assert_eq!(mmu_flowguard_state(&flowguard(true, true, "clog")), "triggered");
+        assert_eq!(mmu_flowguard_state(&flowguard(true, true, "")), "monitoring");
+        assert_eq!(mmu_flowguard_state(&flowguard(true, false, "")), "ready");
     }
 
     #[test]

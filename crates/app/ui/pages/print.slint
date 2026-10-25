@@ -5,6 +5,7 @@ import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Printer, StateIcons } from "../state.slint";
 import { IconButton, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
+import { MmuStrip } from "mmu.slint";
 
 component Thumbnail inherits Rectangle {
     in property <image> source;
@@ -215,6 +216,7 @@ export component PrintPage inherits Rectangle {
                     }
                 }
             }
+            if Printer.has-mmu: MmuStrip { }
             Rectangle { vertical-stretch: 1; }
         }
 

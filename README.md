@@ -29,7 +29,7 @@ So far it has only run against the included fake Moonraker and on desktops.
 - **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
   - and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
 - **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
-- **Extrude**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
+- **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors. With Happy Hare 4.1 or newer an MMU tab shows the gates (four at a time: status, material, colour, mapped tool), the MMU sensors, the sync-feedback buffer and FlowGuard, and loads, unloads and homes the selected gate.
 - **Console**: G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an expandable list of macros. Macros starting with `_` and macros that rename a built-in command (`rename_existing`) are hidden; macros can be hidden in the settings. Macros with parameters open a form first: each parameter is read from the macro's template, Klipper defaults show as placeholders in brackets.
 - **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
 - **Settings**: Moonraker address, fullscreen, temperature presets — stored as JSON.

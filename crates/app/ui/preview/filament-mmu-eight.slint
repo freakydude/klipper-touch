@@ -1,0 +1,30 @@
+// Preview: MMU tab with eight gates on the second page, a loaded filament and FlowGuard watching. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component FilamentMmuEightPreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Navigation.page = Page.filament;
+        Navigation.filament-tab = 1;
+        Navigation.mmu-page = 1;
+        Printer.mmu-gates = [
+            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #e03131, has-color: true, tool: 0, selected: false },
+            { index: 1, availability: "available", name: "Green PETG", material: "PETG", color: #37b24d, has-color: true, tool: 1, selected: false },
+            { index: 2, availability: "available", name: "", material: "ABS", color: #4dabf7, has-color: true, tool: 2, selected: false },
+            { index: 3, availability: "empty", name: "", material: "", color: #000000, has-color: false, tool: 3, selected: false },
+            { index: 4, availability: "available", name: "Black ASA", material: "ASA", color: #212529, has-color: true, tool: 4, selected: true },
+            { index: 5, availability: "available", name: "Natural PLA", material: "PLA", color: #f1f3f5, has-color: true, tool: -1, selected: false },
+            { index: 6, availability: "unknown", name: "", material: "", color: #000000, has-color: false, tool: -1, selected: false },
+            { index: 7, availability: "empty", name: "", material: "", color: #000000, has-color: false, tool: 7, selected: false },
+        ];
+        Printer.mmu-filament = "loaded";
+        Printer.mmu-action = "Loading";
+        Printer.mmu-buffer-state = "neutral";
+        Printer.mmu-buffer-bias = 0.05;
+        Printer.mmu-flowguard-state = "monitoring";
+        Printer.mmu-flow-rate = 98;
+    }
+}
