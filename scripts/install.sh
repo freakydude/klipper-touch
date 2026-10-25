@@ -83,7 +83,8 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=graphical.target
+# Klipper hosts run multi-user.target without a desktop; graphical.target is never reached there.
+WantedBy=multi-user.target
 EOF
 sudo systemctl daemon-reload
 sudo systemctl disable getty@tty1.service || true

@@ -33,6 +33,7 @@ slint = { workspace = true, features = [
     "std",
     "compat-1-2",
     "backend-winit",
+    "unstable-winit-030",
     "renderer-femtovg",
     "renderer-software",
 ] }

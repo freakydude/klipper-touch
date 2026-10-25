@@ -242,15 +242,17 @@ impl Presenter {
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
             Event::Updates(updates) => replace_rows(&self.updates, updates.iter().map(update_item).collect()),
             Event::ConsoleHistory(lines) => {
-                let items: Vec<ConsoleItem> = lines.iter().map(console_item).collect();
+                let items: Vec<ConsoleItem> = lines.iter().flat_map(console_items).collect();
                 let skip = items.len().saturating_sub(CONSOLE_LIMIT);
                 self.console.set_vec(items.into_iter().skip(skip).collect::<Vec<_>>());
             }
             Event::ConsoleLine(line) => {
-                if self.console.row_count() >= CONSOLE_LIMIT {
-                    self.console.remove(0);
+                for item in console_items(&line) {
+                    if self.console.row_count() >= CONSOLE_LIMIT {
+                        self.console.remove(0);
+                    }
+                    self.console.push(item);
                 }
-                self.console.push(console_item(&line));
             }
             Event::HostNetwork(interfaces) => {
                 replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
@@ -391,13 +393,25 @@ fn file_item(file: &FileEntry, metadata: Option<&FileMetadata>, thumbnail: Optio
     }
 }
 
-fn console_item(line: &ConsoleLine) -> ConsoleItem {
-    ConsoleItem {
-        text: line.message.as_str().into(),
-        time: format::unix_clock(line.time).into(),
-        is_command: line.kind == ConsoleKind::Command,
-        is_error: line.message.starts_with("!!"),
+/// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
+/// Only the first row of a message shows the time.
+fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
+    let time = format::unix_clock(line.time);
+    let is_command = line.kind == ConsoleKind::Command;
+    let is_error = line.message.starts_with("!!");
+    let mut rows: Vec<&str> = line.message.lines().collect();
+    if rows.is_empty() {
+        rows.push("");
     }
+    rows.into_iter()
+        .enumerate()
+        .map(|(index, text)| ConsoleItem {
+            text: text.into(),
+            time: if index == 0 { time.as_str().into() } else { "".into() },
+            is_command,
+            is_error,
+        })
+        .collect()
 }
 
 fn power_item(device: &PowerDevice) -> PowerItem {
@@ -426,5 +440,36 @@ fn update_item(update: &UpdateInfo) -> UpdateItem {
         version: update.version.as_str().into(),
         detail: detail.into(),
         has_update: update.has_update(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(kind: ConsoleKind, message: &str) -> ConsoleLine {
+        ConsoleLine { kind, message: message.to_owned(), time: 0.0 }
+    }
+
+    #[test]
+    fn multi_line_message_becomes_one_row_per_line() {
+        let rows = console_items(&line(ConsoleKind::Response, "first\nsecond\r\nthird"));
+        let texts: Vec<&str> = rows.iter().map(|row| row.text.as_str()).collect();
+        assert_eq!(texts, ["first", "second", "third"]);
+        assert!(rows[1].time.is_empty() && rows[2].time.is_empty());
+    }
+
+    #[test]
+    fn empty_message_keeps_one_row() {
+        let rows = console_items(&line(ConsoleKind::Response, ""));
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].text.is_empty());
+    }
+
+    #[test]
+    fn error_flag_applies_to_every_row() {
+        let rows = console_items(&line(ConsoleKind::Response, "!! Lost connection\nsee log"));
+        assert!(rows.iter().all(|row| row.is_error));
+        assert!(!rows.iter().any(|row| row.is_command));
     }
 }

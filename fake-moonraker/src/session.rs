@@ -148,11 +148,27 @@ fn query_objects(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
     Ok(json!({ "eventtime": backend.eventtime(), "status": query.snapshot(&backend.status()) }))
 }
 
+/// Like Klipper's HELP: one response with a line per command, which Moonraker stores and forwards as a single message.
+const HELP_TEXT: &str = "Available commands:\n\
+    G0, G1: Move to a position\n\
+    G28: Home axes\n\
+    G90, G91: Absolute or relative positioning\n\
+    M104, M140: Set extruder or bed target\n\
+    M106, M107: Set fan speed\n\
+    M220, M221: Set speed or extrude factor\n\
+    SET_GCODE_OFFSET: Change the Z homing origin\n\
+    HELP: Show this list";
+
 fn run_script(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
     let script = required_str(params, "script")?;
     backend.record_command(script);
     let outcome = gcode::parse_script(script).and_then(|commands| {
-        backend.with_printer(|printer| commands.into_iter().try_for_each(|command| printer.apply(command)))
+        let help = commands.contains(&gcode::Command::Help);
+        backend.with_printer(|printer| commands.into_iter().try_for_each(|command| printer.apply(command)))?;
+        if help {
+            backend.respond(HELP_TEXT);
+        }
+        Ok(())
     });
     if let Err(error) = &outcome {
         backend.respond(&format!("!! {}", error.message()));
@@ -290,6 +306,20 @@ mod tests {
         assert_eq!(reply["result"], "ok");
         assert_eq!(notification["method"], "notify_status_update");
         assert_eq!(notification["params"][0], json!({ "extruder": { "target": 100.0 } }));
+    }
+
+    #[test]
+    fn help_is_stored_as_one_multi_line_response() {
+        let (mut session, backend) = setup();
+
+        let reply = exchange(&mut session, &backend, call("printer.gcode.script", json!({ "script": "HELP" })));
+        let store = backend.with_host(|host| host.gcode_store(Some(1)));
+        let entry = &store["gcode_store"][0];
+
+        assert_eq!(reply["result"], "ok");
+        assert_eq!(entry["type"], "response");
+        assert_eq!(entry["message"].as_str().unwrap().lines().count(), 9);
+        assert!(entry["message"].as_str().unwrap().starts_with("Available commands:\nG0, G1"));
     }
 
     #[test]

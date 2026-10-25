@@ -77,6 +77,7 @@ pub fn run(session: &mut Session, chosen: &[Scene]) -> Result<(), String> {
     session.service.query(Query::Updates);
     session.service.query(Query::ConsoleHistory);
     session.service.send(Command::RunGcode { script: "STATUS".into() });
+    session.service.send(Command::RunGcode { script: "HELP".into() });
     session.wait_until("homing", |snapshot| snapshot.status.motion.homed.all())?;
 
     for scene in Scene::ALL.into_iter().filter(|scene| chosen.contains(scene)) {
