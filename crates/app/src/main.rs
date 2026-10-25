@@ -17,7 +17,7 @@ struct Cli {
     /// Start in fullscreen (kiosk) mode
     #[arg(short, long)]
     fullscreen: bool,
-    /// Settings file (default: <config dir>/klipper-touch/settings.json)
+    /// Settings file (default: <config dir>/klipper-touch/settings.json; the installer uses printer_data/config)
     #[arg(long)]
     settings: Option<PathBuf>,
     /// Simulated Wi-Fi and Ethernet instead of NetworkManager (development build only)
