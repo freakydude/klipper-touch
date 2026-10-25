@@ -5,6 +5,7 @@
 //! NetworkManager. The UI therefore offers management only when this host is the printer host.
 
 mod service;
+#[cfg(feature = "dev-mode")]
 mod simulated;
 
 #[cfg(target_os = "linux")]

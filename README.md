@@ -17,17 +17,17 @@ So far it has only run against the included fake Moonraker and on desktops.
 
 ![Print screen](docs/screenshots/print.png)
 
-| | | |
-|---|---|---|
-| ![Files](docs/screenshots/files.png) | ![Move](docs/screenshots/move.png) | ![Temperature](docs/screenshots/temperature.png) |
-| ![Tune](docs/screenshots/tune.png) | ![System](docs/screenshots/system.png) | ![Klipper shut down](docs/screenshots/klippy-shutdown.png) |
+|                                      |                                        |                                                            |
+| ------------------------------------ | -------------------------------------- | ---------------------------------------------------------- |
+| ![Files](docs/screenshots/files.png) | ![Move](docs/screenshots/move.png)     | ![Temperature](docs/screenshots/temperature.png)           |
+| ![Tune](docs/screenshots/tune.png)   | ![System](docs/screenshots/system.png) | ![Klipper shut down](docs/screenshots/klippy-shutdown.png) |
 
 ## Features
 
 - **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel; file browser with thumbnails.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
 - **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
-  + and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
+  - and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
 - **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
 - **Extrude**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
 - **Macros**: all user macros (helpers starting with `_` are hidden).
@@ -100,12 +100,12 @@ system_dependencies: system-dependencies.json
 klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-network]
 ```
 
-| Option | Meaning |
-|---|---|
-| `-m, --moonraker` | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
-| `-f, --fullscreen` | Fullscreen/kiosk mode |
-| `--settings` | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`) |
-| `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development and screenshots) |
+| Option               | Meaning                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `-m, --moonraker`    | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
+| `-f, --fullscreen`   | Fullscreen/kiosk mode                                                                            |
+| `--settings`         | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`)            |
+| `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
 driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (bigger UI on high resolution displays).
@@ -139,13 +139,32 @@ cargo run -p fake-moonraker -- --profile voron          # simulated printer on p
 cargo run -p klipper-touch -- -m http://127.0.0.1:7125
 cargo clippy --workspace --all-targets
 cargo test --workspace
-cargo run -p klipper-touch --bin ui-snapshot -- --out shots   # render all screens to PNG (needs the fake)
-                                                         # Windows: scripts\ui-snapshot.ps1 [-Size 640x400] starts the fake itself
+cargo run -p ui-snapshot -- --out shots                  # render the screens to PNG (needs the fake running)
+                                                         # Windows: scripts\ui-snapshot.ps1 [-Size 640x400] [-Scenes all] starts the fake itself
+# Windows: scripts\ui-preview.ps1 renders crates/app/ui/preview/*.slint with sample data in seconds (slint-viewer)
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```
 
 Structure, data flow and conventions: [docs/architecture.md](docs/architecture.md).
 Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
+
+### Tools
+
+| Tool                                                                                   | Needed for                                      | How to get it                                                                                                           | Where it is looked up                                                                  |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Rust (`rustup`)                                                                        | everything                                      | [rustup.rs](https://rustup.rs); `rust-toolchain.toml` selects the version                                               | `PATH`                                                                                 |
+| MinGW linker ([w64devkit](https://github.com/skeeto/w64devkit))                        | building on Windows without MSVC                | `scripts\setup.ps1` downloads it                                                                                        | `%USERPROFILE%\tools\w64devkit\bin`, added to the user `PATH` by the script            |
+| [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts\ui-preview.ps1`                        | the script downloads the version matching `slint` in `Cargo.lock`; Linux: `cargo install slint-viewer --version <same>` | `slint-viewer` on `PATH` first, otherwise `%USERPROFILE%\tools\slint-viewer-<version>` |
+| Slint extension for VS Code (optional)                                                 | live preview of `crates/app/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
+
+To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.
+
+### Development builds and releases
+
+Local builds of `klipper-touch` include the cargo feature `dev-mode` (default): the option `--simulate-network`
+and the simulated networks in the core. Releases are built with `--no-default-features` and contain none of it.
+The development tools are separate programs and never shipped: `fake-moonraker` (simulated printer) and
+`ui-snapshot` (screenshots of the UI).
 
 ### Contributing
 

@@ -1,0 +1,12 @@
+// Preview: temperature page with three heaters, presets and part fan.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component TemperaturePreview inherits AppWindow {
+    init => {
+        Sample.ready-printer();
+        Navigation.page = Page.temperature;
+    }
+}

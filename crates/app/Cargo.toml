@@ -7,21 +7,29 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish = false
-default-run = "klipper-touch"
 
 [features]
-default = []
+# Local builds include the development aids; release builds use `--no-default-features`.
+default = ["dev-mode"]
+# Development aids that are not shipped: option `--simulate-network`.
+dev-mode = ["klipper-touch-core/dev-mode"]
 # Render directly via DRM/KMS without desktop or compositor (Linux only, experimental).
 linuxkms = ["slint/backend-linuxkms-noseat"]
 
 [dependencies]
 klipper-touch-core.workspace = true
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono = { version = "0.4", default-features = false, features = [
+    "clock",
+    "std",
+] }
 clap = { version = "4.6.7", features = ["derive"] }
-env_logger = { version = "0.11.11", default-features = false, features = ["auto-color", "humantime"] }
-image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+env_logger = { version = "0.11.11", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }
+image.workspace = true
 log.workspace = true
-slint = { version = "1.18.1", default-features = false, features = [
+slint = { workspace = true, features = [
     "std",
     "compat-1-2",
     "backend-winit",

@@ -1,5 +1,6 @@
 //! Background task that owns the network backend, applies commands and publishes the state.
 
+#[cfg(feature = "dev-mode")]
 use super::simulated::Simulated;
 use super::{Availability, NetworkCommand, NetworkError, NetworkNotice, NetworkState};
 use std::time::Duration;
@@ -9,12 +10,25 @@ use tokio::sync::{mpsc, watch};
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Which implementation manages the networks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NetworkBackend {
     /// NetworkManager of this host (Linux only).
+    #[default]
     System,
     /// In-memory networks for development and screenshots.
+    #[cfg(feature = "dev-mode")]
     Simulated,
+}
+
+impl NetworkBackend {
+    /// Simulated networks count as local, so they can be tried against any Moonraker.
+    pub fn is_simulated(self) -> bool {
+        match self {
+            Self::System => false,
+            #[cfg(feature = "dev-mode")]
+            Self::Simulated => true,
+        }
+    }
 }
 
 /// Handle for the UI; cheap to clone.
@@ -53,15 +67,18 @@ impl NetworkService {
     }
 }
 
+/// Without Linux and without `dev-mode` this enum has no variant: `open` then always reports unavailable.
 enum Backend {
     #[cfg(target_os = "linux")]
     NetworkManager(super::networkmanager::NetworkManager),
+    #[cfg(feature = "dev-mode")]
     Simulated(Simulated),
 }
 
 impl Backend {
     async fn open(choice: NetworkBackend) -> Result<Self, NetworkError> {
         match choice {
+            #[cfg(feature = "dev-mode")]
             NetworkBackend::Simulated => Ok(Self::Simulated(Simulated::default())),
             #[cfg(target_os = "linux")]
             NetworkBackend::System => super::networkmanager::NetworkManager::connect().await.map(Self::NetworkManager),
@@ -72,44 +89,23 @@ impl Backend {
         }
     }
 
+    // `match *self` instead of `match self`: it also compiles when the enum has no variant.
     async fn read(&self) -> Result<NetworkState, NetworkError> {
-        match self {
+        match *self {
             #[cfg(target_os = "linux")]
-            Self::NetworkManager(manager) => manager.read().await,
-            Self::Simulated(simulated) => Ok(simulated.read()),
+            Self::NetworkManager(ref manager) => manager.read().await,
+            #[cfg(feature = "dev-mode")]
+            Self::Simulated(ref simulated) => Ok(simulated.read()),
         }
     }
 
+    #[cfg_attr(not(any(target_os = "linux", feature = "dev-mode")), allow(unused_variables))]
     async fn apply(&mut self, command: &NetworkCommand) -> Result<(), NetworkError> {
-        match self {
+        match *self {
             #[cfg(target_os = "linux")]
-            Self::NetworkManager(manager) => match command {
-                NetworkCommand::Refresh => Ok(()),
-                NetworkCommand::Scan => manager.scan().await,
-                NetworkCommand::Connect { ssid, password, hidden } => {
-                    manager.connect_wifi(ssid, password.as_deref(), *hidden).await
-                }
-                NetworkCommand::Disconnect => manager.disconnect_wifi().await,
-                NetworkCommand::Forget { ssid } => manager.forget(ssid).await,
-                NetworkCommand::SetWifiEnabled(enabled) => manager.set_wifi_enabled(*enabled).await,
-                NetworkCommand::SetWired { interface, connected } => manager.set_wired(interface, *connected).await,
-            },
-            Self::Simulated(simulated) => match command {
-                NetworkCommand::Refresh | NetworkCommand::Scan => Ok(()),
-                NetworkCommand::Connect { ssid, password, hidden } => {
-                    simulated.connect(ssid, password.as_deref(), *hidden).await
-                }
-                NetworkCommand::Disconnect => {
-                    simulated.disconnect();
-                    Ok(())
-                }
-                NetworkCommand::Forget { ssid } => simulated.forget(ssid),
-                NetworkCommand::SetWifiEnabled(enabled) => {
-                    simulated.set_wifi_enabled(*enabled);
-                    Ok(())
-                }
-                NetworkCommand::SetWired { interface, connected } => simulated.set_wired(interface, *connected),
-            },
+            Self::NetworkManager(ref manager) => manager.apply(command).await,
+            #[cfg(feature = "dev-mode")]
+            Self::Simulated(ref mut simulated) => simulated.apply(command).await,
         }
     }
 }
@@ -230,6 +226,7 @@ fn describe(command: &NetworkCommand) -> String {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "dev-mode")]
     #[tokio::test]
     async fn simulated_service_publishes_state_and_notices() {
         let runtime = tokio::runtime::Handle::current();

@@ -20,8 +20,8 @@ pub struct Options {
     pub moonraker: Option<String>,
     pub fullscreen: bool,
     pub settings_file: Option<PathBuf>,
-    /// Simulated Wi-Fi and Ethernet instead of NetworkManager, for development.
-    pub simulate_network: bool,
+    /// NetworkManager, or simulated networks in development builds.
+    pub network: NetworkBackend,
 }
 
 #[derive(Debug, Error)]
@@ -66,15 +66,14 @@ impl Application {
         let window = AppWindow::new()?;
         let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
         let presenter = Presenter::new(&window, service.clone());
-        let backend = if options.simulate_network { NetworkBackend::Simulated } else { NetworkBackend::System };
-        let (network_service, network_channels) = NetworkService::start(runtime.handle(), backend);
+        let (network_service, network_channels) = NetworkService::start(runtime.handle(), options.network);
         let network = NetworkController::bind(
             &window,
             network_service,
             service.clone(),
             presenter.clone(),
             &endpoint,
-            options.simulate_network,
+            options.network.is_simulated(),
         );
         let settings = SettingsController::bind(
             &window,
