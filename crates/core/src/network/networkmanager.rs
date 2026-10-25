@@ -1,6 +1,9 @@
 //! NetworkManager over D-Bus, see <https://networkmanager.dev/docs/api/latest/>.
 
-use super::{wifi_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink};
+use super::{
+    wifi_networks, wifi_profile, AccessPoint, Availability, NetworkCommand, NetworkError, NetworkState, Security,
+    WiredLink,
+};
 use std::collections::HashMap;
 use std::time::Duration;
 use zbus::proxy::CacheProperties;
@@ -172,6 +175,20 @@ impl NetworkManager {
             .map_err(unavailable)?;
         manager.wireless_enabled().await.map_err(unavailable)?;
         Ok(Self { connection, manager })
+    }
+
+    pub async fn apply(&self, command: &NetworkCommand) -> Result<(), NetworkError> {
+        match command {
+            NetworkCommand::Refresh => Ok(()),
+            NetworkCommand::Scan => self.scan().await,
+            NetworkCommand::Connect { ssid, password, hidden } => {
+                self.connect_wifi(ssid, password.as_deref(), *hidden).await
+            }
+            NetworkCommand::Disconnect => self.disconnect_wifi().await,
+            NetworkCommand::Forget { ssid } => self.forget(ssid).await,
+            NetworkCommand::SetWifiEnabled(enabled) => self.set_wifi_enabled(*enabled).await,
+            NetworkCommand::SetWired { interface, connected } => self.set_wired(interface, *connected).await,
+        }
     }
 
     pub async fn read(&self) -> Result<NetworkState, NetworkError> {

@@ -8,6 +8,10 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+# Development aids that are not shipped: simulated Wi-Fi/Ethernet (`NetworkBackend::Simulated`).
+dev-mode = []
+
 [dependencies]
 dirs = "7.0.0"
 futures-util.workspace = true

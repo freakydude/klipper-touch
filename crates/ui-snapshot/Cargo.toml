@@ -1,0 +1,20 @@
+[package]
+name = "ui-snapshot"
+description = "Development tool: renders the klipper-touch UI headless to PNG files against a (fake) Moonraker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+klipper-touch = { workspace = true, features = ["dev-mode"] }
+klipper-touch-core = { workspace = true, features = ["dev-mode"] }
+image.workspace = true
+slint = { workspace = true, features = [
+    "std",
+    "compat-1-2",
+    "renderer-software",
+] }
+tokio.workspace = true

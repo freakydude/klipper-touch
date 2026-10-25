@@ -41,12 +41,13 @@ flowchart LR
     N --> NET --> NM
 ```
 
-| Crate | Responsibility | Depends on |
-| --- | --- | --- |
-| `crates/core` | Connection, protocol, printer state, capabilities, commands, settings. No UI code. | tokio, tokio-tungstenite, reqwest, serde |
-| `crates/app` | Slint UI and its binding to the core; binary `klipper-touch`, tool `ui-snapshot`. | core, slint |
-| `crates/icon-index` | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | – |
-| `fake-moonraker` | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`). | axum, tokio |
+| Crate                | Responsibility                                                                                    | Depends on                               |
+| -------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `crates/core`        | Connection, protocol, printer state, capabilities, commands, settings. No UI code.                | tokio, tokio-tungstenite, reqwest, serde |
+| `crates/app`         | Slint UI and its binding to the core; binary `klipper-touch` (the only shipped program).          | core, slint                              |
+| `crates/ui-snapshot` | Development tool: renders the UI headless to PNG against a running (fake) Moonraker, in scenes.   | app, core                                |
+| `crates/icon-index`  | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
+| `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`).  | axum, tokio                              |
 
 ## Data flow
 
@@ -61,7 +62,7 @@ flowchart LR
 6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
    `server.info` polling.
 7. Network: `NetworkService` (own task, `NetworkCommand` in, `NetworkState`/`NetworkNotice` out) uses the backend
-   `networkmanager.rs` (zbus, only compiled on Linux) or `simulated.rs` (`--simulate-network`, tests). The
+   `networkmanager.rs` (zbus, only compiled on Linux) or `simulated.rs` (feature `dev-mode`: `--simulate-network`, tests). The
    `NetworkController` only offers management when the backend is available **and** Moonraker is local
    (`Endpoint::is_local`); otherwise it shows the host interfaces from `machine.system_info` read-only.
 
@@ -101,4 +102,17 @@ flowchart LR
 
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` (includes end-to-end tests of the
   service against the fake and the icon set check).
-- `cargo run -p klipper-touch --bin ui-snapshot` against a running fake renders all pages as PNG without a window.
+- `powershell -File scripts\ui-preview.ps1 [-Name temperature]` renders the previews in `crates/app/ui/preview`
+  with `slint-viewer` in under a second each, without building Rust code. A preview is a small component that
+  inherits `AppWindow` and fills the globals with sample data (`preview/sample.slint`); the same files open in the
+  Slint live preview of VS Code. The app never imports this folder. Fastest way to check layouts; keep the sample
+  data in line when globals change (the script fails on compile errors).
+- `powershell -File scripts\ui-snapshot.ps1` (or `cargo run -p ui-snapshot` against a running fake) renders the pages
+  as PNG without a window. Scenes: `pages`, `network`, `printing`, `shutdown`, `idle` (slow, only with `-Scenes idle|all`).
+
+## Development mode
+
+Cargo feature `dev-mode` (default of `crates/app`, passed on to `crates/core`) bundles everything that is only meant
+for development: today the simulated networks and the option `--simulate-network`. Release builds use
+`--no-default-features`; CI runs Clippy for that configuration too. `cargo test --workspace` includes `dev-mode`
+because `crates/ui-snapshot` requires it.

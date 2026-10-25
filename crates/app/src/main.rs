@@ -3,6 +3,7 @@
 
 use clap::Parser;
 use klipper_touch::app::{Application, Options};
+use klipper_touch_core::network::NetworkBackend;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -19,19 +20,30 @@ struct Cli {
     /// Settings file (default: <config dir>/klipper-touch/settings.json)
     #[arg(long)]
     settings: Option<PathBuf>,
-    /// Simulated Wi-Fi and Ethernet instead of NetworkManager (development)
+    /// Simulated Wi-Fi and Ethernet instead of NetworkManager (development build only)
+    #[cfg(feature = "dev-mode")]
     #[arg(long)]
     simulate_network: bool,
+}
+
+impl Cli {
+    fn network_backend(&self) -> NetworkBackend {
+        #[cfg(feature = "dev-mode")]
+        if self.simulate_network {
+            return NetworkBackend::Simulated;
+        }
+        NetworkBackend::System
+    }
 }
 
 fn main() -> ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
     let options = Options {
+        network: cli.network_backend(),
         moonraker: cli.moonraker,
         fullscreen: cli.fullscreen,
         settings_file: cli.settings,
-        simulate_network: cli.simulate_network,
     };
     match Application::build(options).and_then(Application::run) {
         Ok(()) => ExitCode::SUCCESS,
