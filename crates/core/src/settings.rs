@@ -15,6 +15,27 @@ pub struct Settings {
     pub fullscreen: bool,
     pub steps: Steps,
     pub temperature_presets: Vec<TemperaturePreset>,
+    /// Macros the printer had when the touch screen last saw it; a macro missing here counts as new.
+    pub known_macros: Vec<String>,
+    /// Known macros the user hides from the console.
+    pub hidden_macros: Vec<String>,
+}
+
+impl Settings {
+    /// Brings the macro lists in line with the macros the printer currently has.
+    /// Macros that vanished are forgotten (also as hidden), new ones are known and visible.
+    /// Returns whether anything changed.
+    pub fn reconcile_macros(&mut self, current: &[String]) -> bool {
+        let before = (self.known_macros.clone(), self.hidden_macros.clone());
+        self.known_macros.retain(|name| current.contains(name));
+        self.hidden_macros.retain(|name| current.contains(name));
+        for name in current {
+            if !self.known_macros.contains(name) {
+                self.known_macros.push(name.clone());
+            }
+        }
+        before != (self.known_macros.clone(), self.hidden_macros.clone())
+    }
 }
 
 /// Last chosen step sizes; the UI offers fixed steps and remembers the selection.
@@ -47,6 +68,8 @@ impl Default for Settings {
                 TemperaturePreset::new("ABS", 250.0, 105.0),
                 TemperaturePreset::new("TPU", 225.0, 50.0),
             ],
+            known_macros: Vec::new(),
+            hidden_macros: Vec::new(),
         }
     }
 }
@@ -122,6 +145,45 @@ impl SettingsStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn new_macros_are_known_and_visible() {
+        let mut settings = Settings::default();
+
+        assert!(settings.reconcile_macros(&names(&["PARK", "PRINT_END"])));
+        assert_eq!(settings.known_macros, names(&["PARK", "PRINT_END"]));
+        assert!(settings.hidden_macros.is_empty());
+        assert!(!settings.reconcile_macros(&names(&["PARK", "PRINT_END"])));
+    }
+
+    #[test]
+    fn vanished_macros_are_forgotten_including_hidden() {
+        let mut settings = Settings {
+            known_macros: names(&["PARK", "OLD"]),
+            hidden_macros: names(&["PARK", "OLD"]),
+            ..Settings::default()
+        };
+
+        assert!(settings.reconcile_macros(&names(&["PARK"])));
+        assert_eq!(settings.known_macros, names(&["PARK"]));
+        assert_eq!(settings.hidden_macros, names(&["PARK"]));
+    }
+
+    #[test]
+    fn returning_macro_counts_as_new_and_visible_again() {
+        let mut settings =
+            Settings { known_macros: names(&["PARK"]), hidden_macros: names(&["PARK"]), ..Settings::default() };
+
+        settings.reconcile_macros(&[]);
+        settings.reconcile_macros(&names(&["PARK"]));
+
+        assert!(settings.hidden_macros.is_empty());
+        assert_eq!(settings.known_macros, names(&["PARK"]));
+    }
 
     fn temporary_store(name: &str) -> SettingsStore {
         let path = std::env::temp_dir().join(format!("kt-settings-{name}-{}", std::process::id())).join(FILE_NAME);

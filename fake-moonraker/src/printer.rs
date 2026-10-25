@@ -17,7 +17,18 @@ const MIN_HEATER_TEMPERATURE: f64 = 10.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
 /// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
-const MACROS: [&str; 6] = ["PRINT_START", "PRINT_END", "LOAD_FILAMENT", "UNLOAD_FILAMENT", "PARK", "_PURGE_HELPER"];
+const MACROS: [&str; 7] =
+    ["PRINT_START", "PRINT_END", "LOAD_FILAMENT", "UNLOAD_FILAMENT", "PARK", "_PURGE_HELPER", "PAUSE"];
+/// Templates of the macros above, so parameters and defaults can be read like on a real printer.
+const MACRO_TEMPLATES: [(&str, &str); 7] = [
+    ("PRINT_START", "{% set BED = params.BED|default(60) %}\nM140 S{BED}\nM109 S{params.EXTRUDER|default(210)}"),
+    ("PRINT_END", "M104 S0\nM140 S0"),
+    ("LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(230)|float %}\nM104 S{TEMP}"),
+    ("UNLOAD_FILAMENT", "{% if 'SKIP_HEAT' not in params %}M104 S{params.TEMP|default(230)}{% endif %}"),
+    ("PARK", "{% set Z = params.Z|default(10) %}\nG91\nG1 Z{Z}\nG90"),
+    ("_PURGE_HELPER", "G1 E{params.AMOUNT|default(5)}"),
+    ("PAUSE", "PAUSE_BASE"),
+];
 const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
@@ -406,6 +417,13 @@ impl Printer {
         }
         if self.profile.quad_gantry_level {
             sections.insert("quad_gantry_level".to_owned(), json!({ "max_adjust": 10 }));
+        }
+        for (name, template) in MACRO_TEMPLATES {
+            let mut section = json!({ "gcode": template });
+            if name == "PAUSE" {
+                section["rename_existing"] = json!("BASE_PAUSE");
+            }
+            sections.insert(format!("gcode_macro {name}"), section);
         }
         if let Some(mmu) = &self.mmu {
             sections.extend(mmu.config_sections());

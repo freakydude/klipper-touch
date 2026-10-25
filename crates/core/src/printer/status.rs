@@ -1,7 +1,9 @@
 //! Typed view of the printer state, read from the [`ObjectStore`].
 
+use super::macros::{self, MacroDetails};
 use super::objects::ObjectStore;
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum KlippyState {
@@ -237,6 +239,8 @@ pub struct FilamentSensor {
 pub struct PrinterStatus {
     pub klippy_state: KlippyState,
     pub klippy_message: String,
+    /// Macros from the configuration, keyed by upper-case name.
+    pub macro_details: BTreeMap<String, MacroDetails>,
     pub activity: Activity,
     pub job: PrintJob,
     pub motion: Motion,
@@ -266,6 +270,7 @@ impl PrinterStatus {
             sensors: read_sensors(store),
             part_fan_speed: store.object("fan").map(|fan| number(fan, "speed")),
             save_config_pending: flag(object("configfile"), "save_config_pending"),
+            macro_details: macros::details_from_settings(object("configfile").get("settings")),
             leveling_applied: store
                 .object("quad_gantry_level")
                 .or_else(|| store.object("z_tilt"))

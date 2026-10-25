@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
 
 export component StatusBar inherits Rectangle {
     height: 44px;
@@ -60,6 +60,42 @@ export component StatusBar inherits Rectangle {
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
                 vertical-alignment: center;
+            }
+        }
+        // Newest message of the status bar; tapping it opens the flyout with all messages.
+        if Printer.status-message-visible: Rectangle {
+            horizontal-stretch: 1;
+            max-width: 340px;
+            border-radius: Theme.radius;
+            background: Printer.status-message-error ? Theme.danger : Theme.info;
+            accessible-role: button;
+            accessible-label: Printer.status-message;
+            status-touch := TouchArea {
+                clicked => {
+                    Navigation.messages-open = true;
+                    Actions.messages-seen();
+                }
+            }
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 6px;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: Printer.status-message-error ? Icons.ui-error : Icons.ui-info;
+                        colorize: Theme.foreground;
+                        width: 20px;
+                        height: 20px;
+                    }
+                }
+                Text {
+                    text: Printer.status-message;
+                    color: Theme.foreground;
+                    font-size: Theme.font-small;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
             }
         }
         Text {
@@ -144,7 +180,6 @@ export component NavRail inherits Rectangle {
         NavItem { icon: Icons.nav-temperature; label: @tr("Heat"); page: Page.temperature; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
         NavItem { icon: Icons.filament-extrude; label: @tr("Extrude"); page: Page.extrude; enabled: Printer.ready && !Printer.is-printing; }
-        NavItem { icon: Icons.nav-macros; label: @tr("Macros"); page: Page.macros; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-console; label: @tr("Console"); page: Page.console; enabled: Printer.connection == "connected"; }
         NavItem { icon: Icons.nav-system; label: @tr("System"); page: Page.system; }
     }

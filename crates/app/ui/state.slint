@@ -2,7 +2,7 @@
 
 import { Icons } from "icons.slint";
 
-export enum Page { print, move, temperature, tune, extrude, macros, console, system, settings }
+export enum Page { print, move, temperature, tune, extrude, console, system, settings }
 
 export struct HeaterItem {
     object: string,
@@ -38,6 +38,26 @@ export struct ConsoleItem {
     time: string,
     is-command: bool,
     is-error: bool,
+}
+
+export struct MessageItem {
+    text: string,
+    time: string,
+    is-error: bool,
+    top: length,
+    height: length,
+}
+
+export struct MacroItem {
+    name: string,
+    visible: bool,
+}
+
+// One parameter of a macro in the run form; `placeholder` is the Klipper default, used when `value` stays empty.
+export struct MacroParamItem {
+    name: string,
+    placeholder: string,
+    value: string,
 }
 
 export struct PowerItem {
@@ -149,6 +169,11 @@ export global Printer {
 
     // Lists
     in property <[string]> macros;
+    // Every macro of the printer with its visibility, for the settings.
+    in property <[MacroItem]> macro-items;
+    // Parameter form of the macro chosen in the console.
+    in property <string> macro-form-name;
+    in property <[MacroParamItem]> macro-form;
     in property <[FileItem]> files;
     in property <bool> files-loading;
     in property <[ConsoleItem]> console;
@@ -156,8 +181,12 @@ export global Printer {
     in property <[UpdateItem]> updates;
 
     in property <string> clock;
-    in property <string> notice;
-    in property <bool> notice-is-error;
+    // Status bar: the message it shows (first line), and the flyout list, newest first.
+    in property <string> status-message;
+    in property <bool> status-message-error;
+    in property <bool> status-message-visible;
+    in property <[MessageItem]> messages;
+    in property <length> messages-height;
 
     out property <bool> is-printing: print-state == "printing" || print-state == "paused";
     // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
@@ -223,6 +252,14 @@ export global Actions {
     callback refresh-updates();
     callback upgrade(string);
     callback load-console();
+    callback clear-console();
+    callback messages-seen();
+    callback messages-clear();
+    callback set-macro-visible(string, bool);
+    callback macro-has-params(string) -> bool;
+    callback open-macro-form(string);
+    callback set-macro-param(int, string);
+    callback macro-form-script() -> string;
 }
 
 // Text editing for the on-screen keyboard (Slint has no substring function).
@@ -272,6 +309,7 @@ export global Network {
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
+    in-out property <bool> messages-open;
     // 0 = general, 1 = network
     in-out property <int> settings-tab;
 }

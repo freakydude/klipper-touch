@@ -1,9 +1,9 @@
-// Settings of this display: Moonraker address, fullscreen, temperature presets and network.
+// Settings of this display: Moonraker address, fullscreen, temperature presets, network and macro visibility.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Navigation, Network, PresetItem, UiSettings } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Actions, Navigation, Network, PresetItem, Printer, UiSettings } from "../state.slint";
+import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 import { NetworkSection } from "network.slint";
 
@@ -68,9 +68,39 @@ export component SettingsPage inherits Rectangle {
                     Network.scan();
                 }
             }
+            IconButton {
+                width: 160px;
+                icon: Icons.nav-macros;
+                text: @tr("Macros");
+                horizontal: true;
+                checked: Navigation.settings-tab == 2;
+                clicked => { Navigation.settings-tab = 2; }
+            }
         }
 
         if Navigation.settings-tab == 1: NetworkSection { vertical-stretch: 1; }
+
+        if Navigation.settings-tab == 2: macro-list := ScrollList {
+            vertical-stretch: 1;
+            content-height: Printer.macro-items.length * (Theme.touch + Theme.spacing);
+            for macro[index] in Printer.macro-items: IconButton {
+                x: 8px;
+                y: index * (Theme.touch + Theme.spacing);
+                width: macro-list.row-width - 16px;
+                height: Theme.touch;
+                horizontal: true;
+                icon: macro.visible ? Icons.ui-check : Icons.ui-minus;
+                text: macro.name;
+                checked: macro.visible;
+                clicked => { Actions.set-macro-visible(macro.name, !macro.visible); }
+            }
+        }
+        if Navigation.settings-tab == 2 && Printer.macro-items.length == 0: Text {
+            text: @tr("Connect to the printer to see its macros. New macros appear here automatically.");
+            color: Theme.muted;
+            font-size: Theme.font-normal;
+            wrap: word-wrap;
+        }
 
         if Navigation.settings-tab == 0: HorizontalLayout {
             vertical-stretch: 1;

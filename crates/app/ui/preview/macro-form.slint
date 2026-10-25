@@ -1,0 +1,21 @@
+// Preview: parameter form of a console macro, with one parameter still empty. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { MacroFormDialog } from "../components/overlays.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+
+export component MacroFormPreview inherits AppWindow {
+    MacroFormDialog {
+        open: true;
+    }
+
+    init => {
+        Navigation.page = Page.console;
+        Printer.macro-form-name = "PARK";
+        Printer.macro-form = [
+            { name: "Z", placeholder: "10", value: "" },
+            { name: "SPEED", placeholder: "", value: "1200" },
+            { name: "TEMP", placeholder: "", value: "" },
+        ];
+    }
+}
