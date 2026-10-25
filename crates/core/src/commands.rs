@@ -66,6 +66,10 @@ pub enum Command {
     RunGcode {
         script: String,
     },
+    /// Skips an object of the running print (Klipper `exclude_object`).
+    ExcludeObject {
+        name: String,
+    },
     // Klipper and host
     EmergencyStop,
     RestartKlipper,
@@ -145,6 +149,7 @@ impl Command {
             }
             Self::RunMacro { name } => Call::gcode(name.clone()),
             Self::RunGcode { script } => Call::gcode(script.clone()),
+            Self::ExcludeObject { name } => Call::gcode(exclude_object_gcode(name)?),
             Self::EmergencyStop => Call::new("printer.emergency_stop"),
             Self::RestartKlipper => Call::new("printer.restart"),
             Self::FirmwareRestart => Call::new("printer.firmware_restart"),
@@ -193,6 +198,11 @@ fn home_gcode(x: bool, y: bool, z: bool) -> String {
         .filter_map(|(selected, letter)| selected.then_some(letter))
         .collect();
     format!("G28 {}", axes.join(" "))
+}
+
+/// `EXCLUDE_OBJECT` reads the name up to the next space, so names with spaces cannot be excluded.
+fn exclude_object_gcode(name: &str) -> Option<String> {
+    (!name.is_empty() && !name.contains(char::is_whitespace)).then(|| format!("EXCLUDE_OBJECT NAME={name}"))
 }
 
 fn jog_gcode(motion: &Motion, axis: Axis, distance: f64) -> Option<String> {
@@ -250,6 +260,14 @@ mod tests {
         assert_eq!(script(Command::Home { x: true, y: true, z: false }), "G28 X Y");
         assert_eq!(script(Command::Home { x: true, y: true, z: true }), "G28");
         assert_eq!(script(Command::Home { x: false, y: false, z: true }), "G28 Z");
+    }
+
+    #[test]
+    fn exclude_object_names_the_object() {
+        let exclude = |name: &str| Command::ExcludeObject { name: name.into() };
+        assert_eq!(script(exclude("Benchy_0")), "EXCLUDE_OBJECT NAME=Benchy_0");
+        assert_eq!(exclude("Part 2").to_call(&motion_at([0.0; 4])), None);
+        assert_eq!(exclude("").to_call(&motion_at([0.0; 4])), None);
     }
 
     #[test]

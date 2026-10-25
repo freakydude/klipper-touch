@@ -235,6 +235,13 @@ pub struct FilamentSensor {
     pub detected: bool,
 }
 
+/// An object of the running print that `EXCLUDE_OBJECT` can skip.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PrintObject {
+    pub name: String,
+    pub excluded: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PrinterStatus {
     pub klippy_state: KlippyState,
@@ -253,6 +260,8 @@ pub struct PrinterStatus {
     /// `Some(applied)` if quad gantry level or Z tilt is present.
     pub leveling_applied: Option<bool>,
     pub filament_sensors: Vec<FilamentSensor>,
+    /// Objects of the print with their exclude state; empty without the `exclude_object` module.
+    pub print_objects: Vec<PrintObject>,
 }
 
 impl PrinterStatus {
@@ -276,12 +285,29 @@ impl PrinterStatus {
                 .or_else(|| store.object("z_tilt"))
                 .map(|leveling| flag(leveling, "applied")),
             filament_sensors: read_filament_sensors(store),
+            print_objects: read_print_objects(object("exclude_object")),
         }
     }
 
     pub fn heater(&self, object: &str) -> Option<&Heater> {
         self.heaters.iter().find(|heater| heater.object == object)
     }
+}
+
+/// `objects` lists `{ "name": ... }` entries, `excluded_objects` lists plain names.
+fn read_print_objects(exclude_object: &Value) -> Vec<PrintObject> {
+    let excluded: Vec<&str> = exclude_object
+        .get("excluded_objects")
+        .and_then(Value::as_array)
+        .map(|names| names.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    let objects = exclude_object.get("objects").and_then(Value::as_array);
+    objects
+        .into_iter()
+        .flatten()
+        .filter_map(|object| object.get("name").and_then(Value::as_str))
+        .map(|name| PrintObject { name: name.to_owned(), excluded: excluded.contains(&name) })
+        .collect()
 }
 
 fn read_job(print_stats: &Value, display_status: &Value, virtual_sdcard: &Value) -> PrintJob {
@@ -540,5 +566,21 @@ mod tests {
         assert_eq!(label("heater_bed"), "Bed");
         assert_eq!(label("temperature_fan electronics_fan"), "Electronics Fan");
         assert_eq!(label("extruder1"), "Extruder1");
+    }
+
+    #[test]
+    fn marks_excluded_print_objects() {
+        let exclude_object = json!({
+            "objects": [{ "name": "Benchy_0" }, { "name": "Benchy_1" }],
+            "excluded_objects": ["Benchy_1"],
+        });
+        assert_eq!(
+            read_print_objects(&exclude_object),
+            vec![
+                PrintObject { name: "Benchy_0".into(), excluded: false },
+                PrintObject { name: "Benchy_1".into(), excluded: true },
+            ]
+        );
+        assert!(read_print_objects(&Value::Null).is_empty());
     }
 }

@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" pages="2">
     <diagram id="3kG-mj87o_OeIKDsOcfZ" name="Seite-1">
-        <mxGraphModel dx="3979" dy="1716" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="2386" dy="2943" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1107,7 +1107,7 @@
                 <mxCell id="Ejoou3_C42TybJkFvFcB-53" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#F7F7F7;shadow=0;fontSize=14;rotation=-90;" value="Temperature" vertex="1">
                     <mxGeometry height="25" width="110" x="436.5" y="444.71" as="geometry"/>
                 </mxCell>
-                <mxCell id="Ejoou3_C42TybJkFvFcB-54" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#F7F7F7;shadow=0;fontSize=14;rotation=-90;" value="v 0.1.0&lt;br&gt;experimental" vertex="1">
+                <mxCell id="Ejoou3_C42TybJkFvFcB-54" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#F7F7F7;shadow=0;fontSize=14;rotation=-90;" value="Stand 10/2026" vertex="1">
                     <mxGeometry height="22.16" width="83.42" x="-747.5" y="434.97" as="geometry"/>
                 </mxCell>
                 <mxCell id="Ejoou3_C42TybJkFvFcB-55" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;" value="M117 Message Log" vertex="1">
@@ -1156,7 +1156,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="wf-workflows-page" name="Workflows">
-        <mxGraphModel dx="10080" dy="8509" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3158" pageHeight="4162" math="0" shadow="0">
+        <mxGraphModel dx="3516" dy="8499" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3158" pageHeight="4162" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1421,7 +1421,7 @@
                 <mxCell id="wf-87" edge="1" parent="wf-73" source="wf-78" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#666666;" target="wf-83">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="wf-88" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;" value="Einzelnes Objekt ausschließen" vertex="1">
+                <mxCell id="wf-88" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=20;fillColor=#d5e8d4;strokeColor=#82b366;dashed=0;" value="Einzelnes Objekt ausschließen (umgesetzt)" vertex="1">
                     <mxGeometry height="44" width="250" x="16" y="308" as="geometry"/>
                 </mxCell>
                 <mxCell id="wf-89" parent="wf-73" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="exclude_object ?" vertex="1">
@@ -2399,7 +2399,7 @@
                 <mxCell id="wf-413" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Pausengrund, geparkte Position, Temperaturen, Fortschritt" vertex="1">
                     <mxGeometry height="64" width="560" x="260" y="3606" as="geometry"/>
                 </mxCell>
-                <mxCell id="wf-414" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Fortsetzen, Abbrechen, Filament wechseln, eingeschränkt Bewegen, Live-Tuning" vertex="1">
+                <mxCell id="wf-414" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Fortsetzen, Abbrechen, Bewegen und Filament wechseln, Live-Tuning" vertex="1">
                     <mxGeometry height="64" width="620" x="820" y="3606" as="geometry"/>
                 </mxCell>
                 <mxCell id="wf-415" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Neue Datei starten, Kalibrieren" vertex="1">
@@ -2441,8 +2441,8 @@
                 <mxCell id="wf-427" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fontStyle=0;align=left;spacingLeft=8;fillColor=#ffffff;strokeColor=#666666;" value="Alles, was Klipper ready voraussetzt" vertex="1">
                     <mxGeometry height="64" width="1678" x="1440" y="3798" as="geometry"/>
                 </mxCell>
-                <mxCell id="wf-428" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=13;" value="Offene Fragen zum Abstimmen&lt;br&gt;1. Welche Workflows gehören auf den Touchscreen am Drucker, welche nur an den Desktop (z. B. Mainsail)?&lt;br&gt;2. Kalibrieren: geführte Assistenten (Schritt für Schritt) oder nur Makros auslösen?&lt;br&gt;3. Material-Presets: in der UI pflegen, aus dem Slicer/der Datei lesen oder beides?&lt;br&gt;4. Datei laden ohne direkt zu starten – gewollter Zwischenschritt?&lt;br&gt;5. Wie tief wird Happy Hare in den Standard-Druckfluss integriert (Tool-Wechsel im Druck-Screen)?&lt;br&gt;6. Ein starres Layout für alle Displays (4,3&quot;, 5&quot;, 7&quot;) – oder eigene Layouts pro Profil?" vertex="1">
-                    <mxGeometry height="190" width="1100" x="40" y="3922" as="geometry"/>
+                <mxCell id="wf-428" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=13;" value="Offene Fragen zum Abstimmen&lt;br&gt;1. Welche Workflows gehören auf den Touchscreen am Drucker, welche nur an den Desktop (z. B. Mainsail)?&lt;br&gt;2. Kalibrieren: geführte Assistenten (Schritt für Schritt) oder nur Makros auslösen?&lt;br&gt;3. Material-Presets: in der UI pflegen, aus dem Slicer/der Datei lesen oder beides?&lt;br&gt;4. Datei laden ohne direkt zu starten – gewollter Zwischenschritt?&lt;br&gt;5. Wie tief wird Happy Hare in den Standard-Druckfluss integriert (Tool-Wechsel im Druck-Screen)?&lt;br&gt;6. Ein starres Layout für alle Displays (4,3&quot;, 5&quot;, 7&quot;) – oder eigene Layouts pro Profil?&lt;br&gt;7. Pausengrund und Fehler: eigener Bereich im Druck-Screen oder im Flyout?&lt;br&gt;8. Im Abschluss-Screen (complete) Live-Werte ausblenden?" vertex="1">
+                    <mxGeometry height="240" width="1100" x="40" y="3922" as="geometry"/>
                 </mxCell>
                 <mxCell id="wf-429" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=26;fontStyle=1;" value="Workflows – was ein Mensch am Drucker tut (Entwurf zum Abstimmen)" vertex="1">
                     <mxGeometry height="40" width="1400" x="40" y="20" as="geometry"/>

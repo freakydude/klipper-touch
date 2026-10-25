@@ -493,3 +493,76 @@ export component MacroFormDialog inherits Scrim {
         accepted(text) => { Actions.set-macro-param(root.edit-index, text); }
     }
 }
+
+// Objects of the running print. Tapping one asks first; an excluded object cannot be printed again.
+export component ExcludeObjectsDialog inherits Scrim {
+    in-out property <bool> open;
+    visible: root.open;
+
+    Rectangle {
+        x: 8px;
+        y: 8px;
+        width: parent.width - 16px;
+        height: parent.height - 16px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 8px;
+            Text {
+                height: 48px;
+                text: @tr("Exclude objects");
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+                vertical-alignment: center;
+            }
+            objects-list := ScrollList {
+                vertical-stretch: 1;
+                content-height: Printer.print-objects.length * (Theme.touch + Theme.spacing);
+                for item[index] in Printer.print-objects: Rectangle {
+                    x: 8px;
+                    y: index * (Theme.touch + Theme.spacing);
+                    width: objects-list.row-width - 16px;
+                    height: Theme.touch;
+                    background: item.excluded ? Theme.background : Theme.surface-raised;
+                    border-radius: Theme.radius;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 12px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: item.name;
+                            color: item.excluded ? Theme.disabled-foreground : Theme.foreground;
+                            font-size: Theme.font-normal;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: item.excluded ? @tr("Excluded") : "";
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        enabled: !item.excluded;
+                        clicked => {
+                            Confirm.ask(@tr("Exclude object"), item.name, "exclude-object", item.name, false);
+                            root.open = false;
+                        }
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                IconButton {
+                    text: @tr("Close");
+                    clicked => { root.open = false; }
+                }
+            }
+        }
+    }
+}

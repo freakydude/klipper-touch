@@ -1,0 +1,21 @@
+// Preview: print page after a finished job, with duration, filament and layers. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component PrintCompletePreview inherits AppWindow {
+    init => {
+        Sample.ready-printer();
+        Printer.print-state = "complete";
+        Printer.filename = "benchy.gcode";
+        Printer.job-name = "benchy";
+        Printer.progress = 1;
+        Printer.elapsed = "1:52:03";
+        Printer.remaining = "";
+        Printer.eta = "";
+        Printer.layers = "200 / 200";
+        Printer.filament = "5.20 m";
+        Navigation.page = Page.print;
+    }
+}
