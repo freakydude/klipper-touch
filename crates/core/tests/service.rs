@@ -3,6 +3,7 @@
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use klipper_touch_core::printer::{KlippyState, PrintState};
+use klipper_touch_core::system::ConsoleKind;
 use klipper_touch_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -155,6 +156,31 @@ async fn queries_host_functions() {
         unreachable!()
     };
     assert!(lines.iter().any(|line| line.message == "M104 S10"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn multi_line_responses_arrive_as_one_message_with_line_breaks() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::RunGcode { script: "HELP".into() });
+    let Event::ConsoleLine(line) =
+        next_event(&mut channels, |event| matches!(event, Event::ConsoleLine(line) if line.message.contains('\n')))
+            .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(line.kind, ConsoleKind::Response);
+    assert!(line.message.lines().count() > 1);
+
+    service.query(Query::ConsoleHistory);
+    let Event::ConsoleHistory(lines) =
+        next_event(&mut channels, |event| matches!(event, Event::ConsoleHistory(_))).await
+    else {
+        unreachable!()
+    };
+    assert!(lines.iter().any(|stored| stored.message == line.message));
 }
 
 #[tokio::test(flavor = "multi_thread")]

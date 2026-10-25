@@ -10,7 +10,7 @@ export component StatusBar inherits Rectangle {
 
     HorizontalLayout {
         padding-left: 10px;
-        padding-right: 4px;
+        padding-right: 2px;
         spacing: 12px;
 
         HorizontalLayout {
@@ -68,22 +68,26 @@ export component StatusBar inherits Rectangle {
             font-size: Theme.font-normal;
             vertical-alignment: center;
         }
-        Rectangle {
-            width: 64px;
-            border-radius: Theme.radius;
-            background: stop-touch.pressed ? Theme.danger-pressed : Theme.danger;
-            accessible-role: button;
-            accessible-label: @tr("Emergency stop");
-            stop-touch := TouchArea {
-                clicked => {
-                    Confirm.ask(@tr("Emergency stop"), @tr("Stops all motors and heaters immediately. Klipper must be restarted afterwards."), "emergency-stop", "", true);
+        VerticalLayout {
+            padding-top: Theme.spacing-tight;
+            padding-bottom: Theme.spacing-tight;
+            Rectangle {
+                width: 64px;
+                border-radius: Theme.radius;
+                background: stop-touch.pressed ? Theme.danger-pressed : Theme.danger;
+                accessible-role: button;
+                accessible-label: @tr("Emergency stop");
+                stop-touch := TouchArea {
+                    clicked => {
+                        Confirm.ask(@tr("Emergency stop"), @tr("Stops all motors and heaters immediately. Klipper must be restarted afterwards."), "emergency-stop", "", true);
+                    }
                 }
-            }
-            Image {
-                source: Icons.system-emergency-stop;
-                colorize: Theme.foreground;
-                width: 28px;
-                height: 28px;
+                Image {
+                    source: Icons.system-emergency-stop;
+                    colorize: Theme.foreground;
+                    width: 28px;
+                    height: 28px;
+                }
             }
         }
     }

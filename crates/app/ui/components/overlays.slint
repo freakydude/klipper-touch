@@ -223,6 +223,43 @@ export component TextEntryDialog inherits Scrim {
     property <bool> reveal;
     visible: root.open;
 
+    changed open => {
+        if (root.open) { keys.focus(); }
+    }
+
+    // Modifier keys report a control character of their own; it must not end up in the text.
+    pure function is-modifier(key: string) -> bool {
+        key == Key.Shift || key == Key.ShiftR || key == Key.Control || key == Key.ControlR
+            || key == Key.Alt || key == Key.AltGr || key == Key.CapsLock || key == Key.Meta || key == Key.MetaR
+            || key == Key.Tab || key == Key.Backtab
+    }
+
+    // Physical keyboard (desktop, development): edits the same text as the on-screen keys.
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.reveal = false;
+                root.open = false;
+                return accept;
+            }
+            if (event.text == Key.Return) {
+                root.reveal = false;
+                root.open = false;
+                root.accepted(root.text);
+                return accept;
+            }
+            if (event.text == Key.Backspace) {
+                root.text = TextTools.remove-last(root.text);
+                return accept;
+            }
+            if (event.text.character-count == 1 && !root.is-modifier(event.text) && !event.modifiers.control && !event.modifiers.meta) {
+                root.text += event.text;
+                return accept;
+            }
+            reject
+        }
+    }
+
     Rectangle {
         x: 8px;
         y: 8px;

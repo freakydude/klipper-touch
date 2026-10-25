@@ -242,7 +242,7 @@ impl Printer {
             Command::SaveConfig => self.config_pending = false,
             Command::QuadGantryLevel => self.level_gantry()?,
             Command::Mmu(command) => self.apply_mmu(command)?,
-            Command::Ignored => {}
+            Command::Help | Command::Ignored => {}
         }
         Ok(())
     }

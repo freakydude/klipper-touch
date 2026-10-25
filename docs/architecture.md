@@ -102,12 +102,14 @@ flowchart LR
 
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` (includes end-to-end tests of the
   service against the fake and the icon set check).
-- `powershell -File scripts\ui-preview.ps1 [-Name temperature]` renders the previews in `crates/app/ui/preview`
+- `scripts/ui-preview.sh [-n temperature]` (WSL2/Arch) or `powershell -File scripts\ui-preview.ps1 [-Name temperature]`
+  (Windows) renders the previews in `crates/app/ui/preview`
   with `slint-viewer` in under a second each, without building Rust code. A preview is a small component that
   inherits `AppWindow` and fills the globals with sample data (`preview/sample.slint`); the same files open in the
   Slint live preview of VS Code. The app never imports this folder. Fastest way to check layouts; keep the sample
   data in line when globals change (the script fails on compile errors).
-- `powershell -File scripts\ui-snapshot.ps1` (or `cargo run -p ui-snapshot` against a running fake) renders the pages
+- `scripts/ui-snapshot.sh` (WSL2/Arch) or `powershell -File scripts\ui-snapshot.ps1` (Windows), or `cargo run -p ui-snapshot`
+  against a running fake, renders the pages
   as PNG without a window. Scenes: `pages`, `network`, `printing`, `shutdown`, `idle` (slow, only with `-Scenes idle|all`).
 
 ## Development mode

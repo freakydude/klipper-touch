@@ -30,13 +30,31 @@
       "problemMatcher": ["$rustc"]
     },
     {
-      "label": "ui-preview",
+      "label": "ui-preview (WSL2, bash)",
+      "type": "shell",
+      "command": "scripts/ui-preview.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "ui-snapshot (WSL2, bash)",
+      "type": "shell",
+      "command": "scripts/ui-snapshot.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "setup check (WSL2, bash)",
+      "type": "shell",
+      "command": "scripts/setup-wsl.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "ui-preview (Windows, PowerShell)",
       "type": "shell",
       "command": "powershell -File scripts\\ui-preview.ps1",
       "problemMatcher": []
     },
     {
-      "label": "ui-snapshot",
+      "label": "ui-snapshot (Windows, PowerShell)",
       "type": "shell",
       "command": "powershell -File scripts\\ui-snapshot.ps1",
       "problemMatcher": []
