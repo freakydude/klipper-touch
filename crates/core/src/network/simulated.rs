@@ -1,6 +1,9 @@
 //! In-memory networks for development without NetworkManager (Windows, screenshots, tests).
 
-use super::{wifi_networks, wifi_profile, AccessPoint, Availability, NetworkError, NetworkState, Security, WiredLink};
+use super::{
+    wifi_networks, wifi_profile, AccessPoint, Availability, NetworkCommand, NetworkError, NetworkState, Security,
+    WiredLink,
+};
 use std::time::Duration;
 
 /// Simulated time a connection attempt takes.
@@ -42,6 +45,25 @@ impl Default for Simulated {
 }
 
 impl Simulated {
+    pub async fn apply(&mut self, command: &NetworkCommand) -> Result<(), NetworkError> {
+        match command {
+            NetworkCommand::Refresh | NetworkCommand::Scan => Ok(()),
+            NetworkCommand::Connect { ssid, password, hidden } => {
+                self.connect(ssid, password.as_deref(), *hidden).await
+            }
+            NetworkCommand::Disconnect => {
+                self.disconnect();
+                Ok(())
+            }
+            NetworkCommand::Forget { ssid } => self.forget(ssid),
+            NetworkCommand::SetWifiEnabled(enabled) => {
+                self.set_wifi_enabled(*enabled);
+                Ok(())
+            }
+            NetworkCommand::SetWired { interface, connected } => self.set_wired(interface, *connected),
+        }
+    }
+
     pub fn read(&self) -> NetworkState {
         let active = self.active.as_deref().filter(|_| self.wifi_enabled);
         NetworkState {

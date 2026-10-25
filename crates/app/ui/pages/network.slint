@@ -11,7 +11,9 @@ component WifiRow inherits Rectangle {
     in property <WifiItem> network;
     callback selected;
     property <bool> can-connect: root.network.in-range && root.network.supported && !root.network.active;
-    height: Theme.touch;
+    // Room around the buttons, so they stay inside the highlighted border.
+    property <length> inset: 4px;
+    height: Theme.touch + 2 * self.inset;
     border-radius: Theme.radius;
     background: row-touch.pressed ? Theme.surface-active : root.network.active ? Theme.surface-active : Theme.surface-raised;
     border-width: root.network.active ? 2px : 0px;
@@ -25,6 +27,7 @@ component WifiRow inherits Rectangle {
     }
     HorizontalLayout {
         padding-left: 10px;
+        padding: root.inset;
         spacing: 8px;
         VerticalLayout {
             alignment: center;
@@ -138,7 +141,7 @@ component WifiCard inherits Card {
         overflow: elide;
     }
     wifi-list := ScrollList {
-        property <length> row-pitch: Theme.touch + 6px;
+        property <length> row-pitch: Theme.touch + 14px;
         vertical-stretch: 1;
         content-height: Network.networks.length * self.row-pitch;
         for network[index] in Network.networks: WifiRow {
