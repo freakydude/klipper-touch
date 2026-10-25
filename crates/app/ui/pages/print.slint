@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Printer, StateIcons } from "../state.slint";
 import { IconButton, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
+import { ExcludeObjectsDialog } from "../components/overlays.slint";
 
 component Thumbnail inherits Rectangle {
     in property <image> source;
@@ -249,6 +250,12 @@ export component PrintPage inherits Rectangle {
                 kind: "accent";
                 clicked => { Actions.resume-print(); }
             }
+            if Printer.is-printing && Printer.print-objects.length > 0: IconButton {
+                height: 96px;
+                icon: Icons.print-exclude-object;
+                text: @tr("Objects");
+                clicked => { objects-dialog.open = true; }
+            }
             if Printer.is-printing: IconButton {
                 height: 96px;
                 icon: Icons.print-cancel;
@@ -261,4 +268,6 @@ export component PrintPage inherits Rectangle {
     }
 
     FileBrowser { }
+
+    objects-dialog := ExcludeObjectsDialog { }
 }

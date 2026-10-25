@@ -176,10 +176,10 @@ export component NavRail inherits Rectangle {
         padding: 3px;
         spacing: 1px;
         NavItem { icon: Icons.nav-printer; label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
-        NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.is-printing; }
+        NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.motion-locked; }
         NavItem { icon: Icons.nav-temperature; label: @tr("Heat"); page: Page.temperature; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
-        NavItem { icon: Icons.filament-extrude; label: @tr("Extrude"); page: Page.extrude; enabled: Printer.ready && !Printer.is-printing; }
+        NavItem { icon: Icons.filament-extrude; label: @tr("Extrude"); page: Page.extrude; enabled: Printer.ready && !Printer.motion-locked; }
         NavItem { icon: Icons.nav-console; label: @tr("Console"); page: Page.console; enabled: Printer.connection == "connected"; }
         NavItem { icon: Icons.nav-system; label: @tr("System"); page: Page.system; }
     }

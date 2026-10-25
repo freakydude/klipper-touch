@@ -4,7 +4,7 @@ use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    MessageItem, Network, PowerItem, Printer, SensorItem, UpdateItem,
+    MessageItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
@@ -81,6 +81,7 @@ pub struct Presenter {
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
+    print_objects: Rc<VecModel<PrintObjectItem>>,
     macros: Rc<VecModel<SharedString>>,
     macro_items: Rc<VecModel<MacroItem>>,
     all_macros: RefCell<Vec<String>>,
@@ -108,6 +109,7 @@ impl Presenter {
             heaters: Rc::default(),
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
+            print_objects: Rc::default(),
             macros: Rc::default(),
             macro_items: Rc::default(),
             all_macros: RefCell::default(),
@@ -128,6 +130,7 @@ impl Presenter {
         printer.set_heaters(ModelRc::from(presenter.heaters.clone()));
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
+        printer.set_print_objects(ModelRc::from(presenter.print_objects.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
         printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
         printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
@@ -259,6 +262,14 @@ impl Presenter {
                     enabled: sensor.enabled,
                     detected: sensor.detected,
                 })
+                .collect(),
+        );
+        replace_rows(
+            &self.print_objects,
+            status
+                .print_objects
+                .iter()
+                .map(|object| PrintObjectItem { name: object.name.as_str().into(), excluded: object.excluded })
                 .collect(),
         );
 
