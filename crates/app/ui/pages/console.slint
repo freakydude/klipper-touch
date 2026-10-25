@@ -4,7 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Printer } from "../state.slint";
 import { IconButton, ScrollList } from "../components/controls.slint";
-import { TextEntryDialog } from "../components/overlays.slint";
+import { MacroFormDialog, TextEntryDialog } from "../components/overlays.slint";
 
 export component ConsolePage inherits Rectangle {
     property <length> line-height: 22px;
@@ -78,7 +78,17 @@ export component ConsolePage inherits Rectangle {
                     icon-size: 20px;
                     horizontal: true;
                     enabled: !Printer.is-printing || macro != "PRINT_START";
-                    clicked => { Confirm.ask(@tr("Run macro"), macro, "run-macro", macro, false); }
+                    // Without parameters a macro runs at once, unless a print is running. With parameters the form comes first.
+                    clicked => {
+                        if (Actions.macro-has-params(macro)) {
+                            Actions.open-macro-form(macro);
+                            form.open = true;
+                        } else if (Printer.print-state == "printing") {
+                            Confirm.ask(@tr("Run macro"), macro, "run-macro", macro, false);
+                        } else {
+                            Actions.run-macro(macro);
+                        }
+                    }
                 }
             }
             if Printer.macros.length == 0: Text {
@@ -109,7 +119,7 @@ export component ConsolePage inherits Rectangle {
                 Text {
                     x: 12px;
                     width: parent.width - 24px;
-                    text: root.draft == "" ? @tr("G-code eingeben") : root.draft;
+                    text: root.draft == "" ? @tr("Enter G-code") : root.draft;
                     color: root.draft == "" ? Theme.disabled-foreground : Theme.foreground;
                     font-size: Theme.font-normal;
                     font-family: "monospace";
@@ -127,6 +137,8 @@ export component ConsolePage inherits Rectangle {
             }
         }
     }
+
+    form := MacroFormDialog { }
 
     entry := TextEntryDialog {
         title: @tr("G-code");

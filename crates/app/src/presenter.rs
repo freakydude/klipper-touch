@@ -2,16 +2,17 @@
 
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, Network, PowerItem,
-    Printer, SensorItem, UpdateItem,
+    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
+    Network, PowerItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::files::{FileEntry, FileMetadata};
-use klipper_touch_core::printer::{Capabilities, Heater};
+use klipper_touch_core::printer::{macro_script, Capabilities, Heater, MacroDetails};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -44,6 +45,9 @@ pub struct Presenter {
     all_macros: RefCell<Vec<String>>,
     hidden_macros: RefCell<Vec<String>>,
     macros_loaded: RefCell<Option<MacrosLoaded>>,
+    macro_details: RefCell<BTreeMap<String, MacroDetails>>,
+    macro_form: Rc<VecModel<MacroParamItem>>,
+    macro_form_name: RefCell<String>,
     files: Rc<VecModel<FileItem>>,
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
@@ -67,6 +71,9 @@ impl Presenter {
             all_macros: RefCell::default(),
             hidden_macros: RefCell::default(),
             macros_loaded: RefCell::default(),
+            macro_details: RefCell::default(),
+            macro_form: Rc::default(),
+            macro_form_name: RefCell::default(),
             files: Rc::default(),
             console: Rc::default(),
             power_devices: Rc::default(),
@@ -80,6 +87,7 @@ impl Presenter {
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
         printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
+        printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
         printer.set_files(ModelRc::from(presenter.files.clone()));
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
@@ -218,6 +226,7 @@ impl Presenter {
         printer.set_has_unload_macro(capabilities.has_macro("UNLOAD_FILAMENT"));
         printer.set_has_power(capabilities.server.power);
         printer.set_has_update_manager(capabilities.server.update_manager);
+        self.set_macro_details(snapshot.status.macro_details.clone());
         self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
 
         let previous_job =
@@ -298,16 +307,81 @@ impl Presenter {
     }
 
     fn refresh_macro_views(&self) {
+        let details = self.macro_details.borrow();
+        let renamed = |name: &String| details.get(&name.to_ascii_uppercase()).is_some_and(|details| details.renamed);
         let all = self.all_macros.borrow();
         let hidden = self.hidden_macros.borrow();
-        let visible: Vec<SharedString> =
-            all.iter().filter(|name| !hidden.contains(name)).map(|name| SharedString::from(name.as_str())).collect();
+        let offered: Vec<&String> = all.iter().filter(|name| !renamed(name)).collect();
+        let visible: Vec<SharedString> = offered
+            .iter()
+            .filter(|name| !hidden.contains(name))
+            .map(|name| SharedString::from(name.as_str()))
+            .collect();
         replace_rows(&self.macros, visible);
-        let items: Vec<MacroItem> = all
+        let items: Vec<MacroItem> = offered
             .iter()
             .map(|name| MacroItem { name: SharedString::from(name.as_str()), visible: !hidden.contains(name) })
             .collect();
         replace_rows(&self.macro_items, items);
+    }
+
+    fn set_macro_details(&self, details: BTreeMap<String, MacroDetails>) {
+        if *self.macro_details.borrow() == details {
+            return;
+        }
+        *self.macro_details.borrow_mut() = details;
+        self.refresh_macro_views();
+    }
+
+    /// Whether the macro takes parameters, so the form has to come before it runs.
+    pub fn macro_has_params(&self, name: &str) -> bool {
+        self.macro_details.borrow().get(&name.to_ascii_uppercase()).is_some_and(|details| !details.params.is_empty())
+    }
+
+    /// Fills the form with the parameters of a macro; empty values are left to Klipper's defaults.
+    pub fn open_macro_form(&self, name: &str) {
+        let params = self.macro_details.borrow().get(&name.to_ascii_uppercase()).map(|details| details.params.clone());
+        let rows: Vec<MacroParamItem> = params
+            .unwrap_or_default()
+            .iter()
+            .map(|param| MacroParamItem {
+                name: SharedString::from(param.name.as_str()),
+                placeholder: SharedString::from(param.default.as_deref().unwrap_or_default()),
+                value: SharedString::default(),
+            })
+            .collect();
+        *self.macro_form_name.borrow_mut() = name.to_owned();
+        self.macro_form.set_vec(rows);
+        self.show_macro_form_name();
+    }
+
+    /// Sets one parameter of the open form; values with spaces would split into several Klipper parameters.
+    pub fn set_macro_param(&self, index: usize, value: &str) {
+        if value.chars().any(char::is_whitespace) {
+            self.show_notice("Macro parameter values cannot contain spaces", true);
+            return;
+        }
+        if let Some(mut row) = self.macro_form.row_data(index) {
+            row.value = SharedString::from(value);
+            self.macro_form.set_row_data(index, row);
+        }
+    }
+
+    /// The command for the open form, e.g. `PARK Z=20`; parameters without a value are left out.
+    pub fn macro_form_script(&self) -> String {
+        let values: Vec<(String, String)> = self
+            .macro_form
+            .iter()
+            .filter(|row| !row.value.is_empty())
+            .map(|row| (row.name.to_string(), row.value.to_string()))
+            .collect();
+        let arguments: Vec<(&str, &str)> = values.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
+        macro_script(self.macro_form_name.borrow().as_str(), &arguments)
+    }
+
+    fn show_macro_form_name(&self) {
+        let Some(window) = self.window.upgrade() else { return };
+        window.global::<Printer>().set_macro_form_name(SharedString::from(self.macro_form_name.borrow().as_str()));
     }
 
     /// Empties the shown log only; the history on the printer stays and returns on the next load.

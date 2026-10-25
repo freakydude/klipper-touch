@@ -45,6 +45,13 @@ export struct MacroItem {
     visible: bool,
 }
 
+// One parameter of a macro in the run form; `placeholder` is the Klipper default, used when `value` stays empty.
+export struct MacroParamItem {
+    name: string,
+    placeholder: string,
+    value: string,
+}
+
 export struct PowerItem {
     name: string,
     on: bool,
@@ -156,6 +163,9 @@ export global Printer {
     in property <[string]> macros;
     // Every macro of the printer with its visibility, for the settings.
     in property <[MacroItem]> macro-items;
+    // Parameter form of the macro chosen in the console.
+    in property <string> macro-form-name;
+    in property <[MacroParamItem]> macro-form;
     in property <[FileItem]> files;
     in property <bool> files-loading;
     in property <[ConsoleItem]> console;
@@ -232,6 +242,10 @@ export global Actions {
     callback load-console();
     callback clear-console();
     callback set-macro-visible(string, bool);
+    callback macro-has-params(string) -> bool;
+    callback open-macro-form(string);
+    callback set-macro-param(int, string);
+    callback macro-form-script() -> string;
 }
 
 // Text editing for the on-screen keyboard (Slint has no substring function).

@@ -138,6 +138,18 @@ pub fn bind(
     actions.on_clear_console(move || console_presenter.clear_console());
     let macro_settings = settings.clone();
     actions.on_set_macro_visible(move |name, visible| macro_settings.set_macro_visible(name.as_str(), visible));
+    let has_params_presenter = presenter.clone();
+    actions.on_macro_has_params(move |name| has_params_presenter.macro_has_params(&name));
+    let open_presenter = presenter.clone();
+    actions.on_open_macro_form(move |name| open_presenter.open_macro_form(&name));
+    let param_presenter = presenter.clone();
+    actions.on_set_macro_param(move |index, value| {
+        if let Ok(index) = usize::try_from(index) {
+            param_presenter.set_macro_param(index, &value);
+        }
+    });
+    let script_presenter = presenter.clone();
+    actions.on_macro_form_script(move || script_presenter.macro_form_script().into());
 
     window.global::<TextTools>().on_remove_last(|text| {
         let mut text = text.to_string();

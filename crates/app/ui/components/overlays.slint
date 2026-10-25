@@ -2,8 +2,8 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Confirm, Printer, TextTools } from "../state.slint";
-import { IconButton } from "controls.slint";
+import { Actions, Confirm, Printer, TextTools } from "../state.slint";
+import { IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
 component Scrim inherits Rectangle {
@@ -327,5 +327,115 @@ export component TextEntryDialog inherits Scrim {
                 }
             }
         }
+    }
+}
+
+// Parameters of a macro: one field per parameter, Klipper defaults as placeholders. Running asks for confirmation.
+export component MacroFormDialog inherits Scrim {
+    in-out property <bool> open;
+    property <int> edit-index: -1;
+    visible: root.open;
+
+    Rectangle {
+        x: 8px;
+        y: 8px;
+        width: parent.width - 16px;
+        height: parent.height - 16px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 8px;
+                height: 48px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: Printer.macro-form-name;
+                    color: Theme.foreground;
+                    font-size: Theme.font-large;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+
+            // Each parameter is an input field: its name on the left, the value (or the Klipper default in grey) on the right.
+            params-list := ScrollList {
+                vertical-stretch: 1;
+                content-height: Printer.macro-form.length * (Theme.touch + Theme.spacing);
+                for param[index] in Printer.macro-form: Rectangle {
+                    x: 8px;
+                    y: index * (Theme.touch + Theme.spacing);
+                    width: params-list.row-width - 16px;
+                    height: Theme.touch;
+                    background: Theme.surface-raised;
+                    border-radius: Theme.radius;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 8px;
+                        spacing: 12px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: param.name;
+                            color: Theme.foreground;
+                            font-size: Theme.font-normal;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 2;
+                            background: Theme.background;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.border;
+                            Text {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                text: param.value != "" ? param.value : param.placeholder;
+                                color: param.value != "" ? Theme.foreground : Theme.disabled-foreground;
+                                font-size: Theme.font-normal;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+                    }
+                    TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+                        clicked => {
+                            root.edit-index = index;
+                            edit.title = param.name;
+                            edit.text = param.value;
+                            edit.open = true;
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                IconButton {
+                    text: @tr("Cancel");
+                    clicked => { root.open = false; }
+                }
+                IconButton {
+                    text: @tr("Run");
+                    icon: Icons.ui-check;
+                    kind: "accent";
+                    // Running is the confirmation: the user has just seen every parameter.
+                    clicked => {
+                        Actions.run-macro(Actions.macro-form-script());
+                        root.open = false;
+                    }
+                }
+            }
+        }
+    }
+
+    edit := TextEntryDialog {
+        accepted(text) => { Actions.set-macro-param(root.edit-index, text); }
     }
 }
