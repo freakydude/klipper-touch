@@ -57,7 +57,9 @@ Functions only appear when the printer has them (capabilities from `printer.obje
      `moonraker.asvc`) and restarts Moonraker.
 
    Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c beta` for preview builds of every change on `main`.
-   Remove everything with `~/klipper-touch/uninstall.sh`; settings stay in `~/.config/klipper-touch`.
+   Settings go to `printer_data/config/klipper-touch.json`, next to the Klipper configs, as KlipperScreen does with its
+   `KlipperScreen.conf`. An existing `~/.config/klipper-touch/settings.json` is copied there once.
+   Remove everything with `~/klipper-touch/uninstall.sh`; the settings file stays.
 
 ### Alternative: Debian package
 
@@ -93,6 +95,11 @@ managed_services: klipper-touch
 system_dependencies: system-dependencies.json
 ```
 
+To get the preview builds of every change on `main`, set `channel: beta` in that section and restart Moonraker
+(`sudo systemctl restart moonraker`). Then the update list offers the newest prerelease. Switch back to `stable` the
+same way. The installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing
+`channel` line, so edit it by hand. Your edits survive later updates, because Moonraker only replaces the program folder.
+
 ### Command line
 
 ```text
@@ -103,7 +110,7 @@ klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate
 | -------------------- | ------------------------------------------------------------------------------------------------ |
 | `-m, --moonraker`    | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
 | `-f, --fullscreen`   | Fullscreen/kiosk mode                                                                            |
-| `--settings`         | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`)            |
+| `--settings`         | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/klipper-touch.json` |
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Removes the service, the program folder and the Moonraker update manager entry.
-# System packages and settings (~/.config/klipper-touch) are kept.
+# System packages and settings (printer_data/config/klipper-touch.json) are kept.
 # Usage: ./uninstall.sh [-d <printer_data>]
 set -euo pipefail
 
@@ -33,4 +33,4 @@ if [ -f "$ALLOWED_SERVICES" ]; then
 fi
 
 rm -rf "$INSTALL_DIR"
-echo "Removed. Settings remain in ~/.config/$NAME/."
+echo "Removed. Settings remain in $DATA_DIR/config/$NAME.json."
