@@ -12,6 +12,9 @@ export component IconButton inherits Rectangle {
     in property <length> icon-size: Theme.icon;
     // Icon left of the text instead of above it.
     in property <bool> horizontal;
+    // With `horizontal`: the content starts at the left edge instead of the middle, so the icons of buttons
+    // stacked in a column start at the same position.
+    in property <bool> align-start;
     callback clicked;
 
     property <bool> has-icon: root.icon.width > 0;
@@ -59,10 +62,10 @@ export component IconButton inherits Rectangle {
     }
 
     if root.horizontal: HorizontalLayout {
-        padding-left: 10px;
+        padding-left: root.align-start ? 12px : 10px;
         padding-right: 10px;
         spacing: 8px;
-        alignment: center;
+        alignment: root.align-start ? LayoutAlignment.start : LayoutAlignment.center;
         if root.has-icon: VerticalLayout {
             alignment: center;
             Image {

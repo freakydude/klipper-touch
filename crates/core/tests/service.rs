@@ -93,9 +93,8 @@ async fn follows_happy_hare_gates_sensors_and_loading() {
 
     service.send(Command::MmuHome);
     wait_for(&mut channels, |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed)).await;
+    // Commands reach the printer in the order they were sent, so no waiting between the two.
     service.send(Command::MmuSelectGate { gate: 1 });
-    // Every command is its own request, so the order of two sent at once is not fixed.
-    wait_for(&mut channels, |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 1)).await;
     service.send(Command::MmuLoad);
     let snapshot = wait_for(&mut channels, |snapshot| {
         snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.filament == LoadedFilament::Loaded)
@@ -120,6 +119,25 @@ async fn follows_happy_hare_gates_sensors_and_loading() {
     })
     .await;
     assert_eq!(snapshot.status.mmu.unwrap().gate, 1);
+}
+
+/// Commands sent one after another must reach the printer in that order; a heater target is absolute, so a
+/// swapped pair would leave the printer on the older value.
+#[tokio::test(flavor = "multi_thread")]
+async fn commands_reach_the_printer_in_the_order_they_were_sent() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    for target in 100..200 {
+        service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: f64::from(target) });
+    }
+    wait_for(&mut channels, |snapshot| snapshot.status.heater("extruder").is_some_and(|heater| heater.target == 199.0))
+        .await;
+    // A swapped command would arrive later and move the target away from the last one.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let snapshot = channels.snapshots.borrow().clone();
+    assert_eq!(snapshot.status.heater("extruder").map(|heater| heater.target), Some(199.0));
 }
 
 #[tokio::test(flavor = "multi_thread")]

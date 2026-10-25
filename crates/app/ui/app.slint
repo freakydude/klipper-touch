@@ -1,7 +1,7 @@
 // Main window: status bar, navigation, current page and overlays.
 
 import { Theme } from "theme.slint";
-import { Actions, Confirm, Navigation, Network, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
+import { Actions, Confirm, Display, Navigation, Network, Page, Printer, StateIcons, TextTools, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
 import { ConfirmDialog, MessagesFlyout } from "components/overlays.slint";
 import { PrintPage } from "pages/print.slint";
@@ -27,6 +27,14 @@ export component AppWindow inherits Window {
     default-font-size: Theme.font-normal;
 
     // Pages that are useful even without a ready printer.
+    // Pages choose their compact layout from these (see `Display`).
+    init => {
+        Display.window-width = root.width;
+        Display.window-height = root.height;
+    }
+    changed width => { Display.window-width = root.width; }
+    changed height => { Display.window-height = root.height; }
+
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
         || (Navigation.page == Page.console && Printer.connection == "connected");
     property <bool> network-visible: Navigation.page == Page.settings && Navigation.settings-tab == 1;

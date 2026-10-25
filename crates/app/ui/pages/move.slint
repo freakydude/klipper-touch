@@ -87,13 +87,15 @@ export component MovePage inherits Rectangle {
                     icon: Icons.motion-home;
                     text: @tr("Home all");
                     horizontal: true;
+                    align-start: true;
                     kind: "accent";
                     clicked => { Actions.home(true, true, true); }
                 }
                 if Printer.can-quad-gantry-level || Printer.can-z-tilt: IconButton {
                     icon: Icons.calibration-gantry-level;
-                    text: Printer.can-quad-gantry-level ? @tr("Gantry level") : @tr("Z tilt");
+                    text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
                     horizontal: true;
+                    align-start: true;
                     checked: Printer.leveling-state == "applied";
                     clicked => { Actions.level(); }
                 }
@@ -101,6 +103,7 @@ export component MovePage inherits Rectangle {
                     icon: Icons.motion-steppers-off;
                     text: @tr("Motors off");
                     horizontal: true;
+                    align-start: true;
                     clicked => { Confirm.ask(@tr("Motors off"), @tr("The axes lose their reference and must be homed again."), "disable-motors", "", false); }
                 }
                 Rectangle { vertical-stretch: 1; }
