@@ -93,6 +93,9 @@ pub fn bind(
     actions.on_run_macro(with(service, |service, name: slint::SharedString| {
         service.send(Command::RunMacro { name: name.into() })
     }));
+    actions.on_exclude_object(with(service, |service, name: slint::SharedString| {
+        service.send(Command::ExcludeObject { name: name.into() })
+    }));
     actions.on_run_gcode(with(service, |service, script: slint::SharedString| {
         let script = script.trim().to_owned();
         if !script.is_empty() {

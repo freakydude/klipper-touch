@@ -25,6 +25,11 @@ export struct FilamentSensorItem {
     detected: bool,
 }
 
+export struct PrintObjectItem {
+    name: string,
+    excluded: bool,
+}
+
 export struct FileItem {
     path: string,
     name: string,
@@ -155,6 +160,8 @@ export global Printer {
     in property <float> part-fan;
     in property <bool> can-extrude;
     in property <[FilamentSensorItem]> filament-sensors;
+    // Objects of the running print; excluded ones cannot be printed again.
+    in property <[PrintObjectItem]> print-objects;
 
     // Capabilities
     in property <bool> can-quad-gantry-level;
@@ -189,6 +196,8 @@ export global Printer {
     in property <length> messages-height;
 
     out property <bool> is-printing: print-state == "printing" || print-state == "paused";
+    // Moving and extruding are allowed while paused, e.g. to change the filament; a running print locks them.
+    out property <bool> motion-locked: print-state == "printing";
     // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
     out property <bool> host-actions-locked: is-printing || activity == "busy";
     out property <bool> homed-xy: homed-x && homed-y;
@@ -235,6 +244,7 @@ export global Actions {
     callback load-filament();
     callback unload-filament();
     callback run-macro(string);
+    callback exclude-object(string);
     callback run-gcode(string);
     callback refresh-files();
     callback start-print(string);
@@ -338,6 +348,7 @@ export global Confirm {
         if (self.action == "cancel-print") { Actions.cancel-print(); }
         if (self.action == "emergency-stop") { Actions.emergency-stop(); }
         if (self.action == "run-macro") { Actions.run-macro(self.argument); }
+        if (self.action == "exclude-object") { Actions.exclude-object(self.argument); }
         if (self.action == "save-config") { Actions.save-config(); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }

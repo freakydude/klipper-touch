@@ -1,0 +1,23 @@
+// Preview: objects of a running print in the exclude dialog, one of them already excluded. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { ExcludeObjectsDialog } from "../components/overlays.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component PrintObjectsPreview inherits AppWindow {
+    ExcludeObjectsDialog {
+        open: true;
+    }
+
+    init => {
+        Sample.printing();
+        Navigation.page = Page.print;
+        Printer.print-objects = [
+            { name: "benchy_0", excluded: false },
+            { name: "benchy_1", excluded: true },
+            { name: "calibration_cube", excluded: false },
+            { name: "support_tower", excluded: false },
+        ];
+    }
+}
