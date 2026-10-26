@@ -17,9 +17,9 @@
       }
     },
     {
-      "label": "run: klipper-touch (fake Moonraker)",
+      "label": "run: freakymate (fake Moonraker)",
       "type": "shell",
-      "command": "cargo run -p klipper-touch -- --moonraker http://127.0.0.1:7125",
+      "command": "cargo run -p freakymate -- --moonraker http://127.0.0.1:7125",
       "dependsOn": "run: fake-moonraker",
       "problemMatcher": ["$rustc"]
     },
@@ -39,16 +39,16 @@
       }
     },
     {
-      "label": "run: klipper-touch (fake Moonraker, Happy Hare)",
+      "label": "run: freakymate (fake Moonraker, Happy Hare)",
       "type": "shell",
-      "command": "cargo run -p klipper-touch -- --moonraker http://127.0.0.1:7125",
+      "command": "cargo run -p freakymate -- --moonraker http://127.0.0.1:7125",
       "dependsOn": "run: fake-moonraker (Happy Hare)",
       "problemMatcher": ["$rustc"]
     },
     {
-      "label": "run: klipper-touch (saved settings)",
+      "label": "run: freakymate (saved settings)",
       "type": "shell",
-      "command": "cargo run -p klipper-touch",
+      "command": "cargo run -p freakymate",
       "problemMatcher": ["$rustc"]
     },
     {
@@ -90,7 +90,7 @@
     {
       "label": "check",
       "type": "shell",
-      "command": "cargo clippy --workspace --all-targets; cargo clippy -p klipper-touch --no-default-features; cargo test --workspace",
+      "command": "cargo clippy --workspace --all-targets; cargo clippy -p freakymate --no-default-features; cargo test --workspace",
       "group": { "kind": "test", "isDefault": true },
       "problemMatcher": ["$rustc"]
     }

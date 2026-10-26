@@ -8,14 +8,14 @@ use crate::{
     UpdateItem,
 };
 use chrono::Local;
-use klipper_touch_core::estimates;
-use klipper_touch_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint};
-use klipper_touch_core::printer::{
+use freakymate_core::estimates;
+use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint};
+use freakymate_core::printer::{
     is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, Heater, MacroDetails, MacroForm, MmuStatus,
 };
-use klipper_touch_core::spoolman::{self, Lane, Spool, SpoolmanState};
-use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
-use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
+use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
+use freakymate_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
+use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -160,8 +160,8 @@ impl Presenter {
     }
 
     /// Connects the service's snapshots and events to the UI (asynchronously in the Slint event loop).
-    pub fn follow(self: &Rc<Self>, channels: klipper_touch_core::ServiceChannels) -> Result<(), slint::EventLoopError> {
-        let klipper_touch_core::ServiceChannels { mut snapshots, mut events } = channels;
+    pub fn follow(self: &Rc<Self>, channels: freakymate_core::ServiceChannels) -> Result<(), slint::EventLoopError> {
+        let freakymate_core::ServiceChannels { mut snapshots, mut events } = channels;
         let presenter = Rc::clone(self);
         slint::spawn_local(async move {
             loop {
@@ -194,7 +194,7 @@ impl Presenter {
         let printer = window.global::<Printer>();
         let status = &snapshot.status;
         let connected = snapshot.connection == ConnectionState::Connected;
-        let ready = connected && status.klippy_state == klipper_touch_core::printer::KlippyState::Ready;
+        let ready = connected && status.klippy_state == freakymate_core::printer::KlippyState::Ready;
 
         printer.set_connection(connection_name(snapshot.connection).into());
         printer.set_klippy_state(status.klippy_state.as_str().into());

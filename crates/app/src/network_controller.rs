@@ -2,10 +2,10 @@
 
 use crate::presenter::{replace_rows, Presenter};
 use crate::{AppWindow, Network, WifiItem, WiredItem};
-use klipper_touch_core::network::{
+use freakymate_core::network::{
     signal_bars, Availability, NetworkChannels, NetworkCommand, NetworkNotice, NetworkService, NetworkState, Security,
 };
-use klipper_touch_core::{Endpoint, PrinterService, Query};
+use freakymate_core::{Endpoint, PrinterService, Query};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -149,7 +149,7 @@ impl NetworkController {
     }
 }
 
-fn wifi_item(network: &klipper_touch_core::network::WifiNetwork) -> WifiItem {
+fn wifi_item(network: &freakymate_core::network::WifiNetwork) -> WifiItem {
     WifiItem {
         ssid: network.ssid.as_str().into(),
         bars: i32::from(signal_bars(network.signal)),
@@ -161,7 +161,7 @@ fn wifi_item(network: &klipper_touch_core::network::WifiNetwork) -> WifiItem {
     }
 }
 
-fn wired_item(link: &klipper_touch_core::network::WiredLink) -> WiredItem {
+fn wired_item(link: &freakymate_core::network::WiredLink) -> WiredItem {
     WiredItem {
         interface: link.interface.as_str().into(),
         cable: link.cable,
@@ -173,7 +173,7 @@ fn wired_item(link: &klipper_touch_core::network::WiredLink) -> WiredItem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klipper_touch_core::network::WifiNetwork;
+    use freakymate_core::network::WifiNetwork;
 
     #[test]
     fn maps_networks_for_the_ui() {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds a Debian package klipper-touch_<version>_<arch>.deb from a Linux build artifact.
+# Builds a Debian package freakymate_<version>_<arch>.deb from a Linux build artifact.
 # Usage: build-deb.sh <artifact-folder> <tag>  (tag like v0.2.5 or v0.2.5-pr.147.3; in the artifacts folder, repo one level up)
 set -euo pipefail
 
@@ -21,15 +21,15 @@ depends=$(python3 -c 'import json, sys; print(", ".join(["libc6 (>= 2.36)", "lib
   "$repo/scripts/system-dependencies.json")
 
 root=$(mktemp -d)
-install -D -m 0755 "$artifact/klipper-touch" "$root/usr/bin/klipper-touch"
-install -D -m 0644 "$repo/scripts/debian/klipper-touch@.service" "$root/lib/systemd/system/klipper-touch@.service"
-install -D -m 0644 "$repo/scripts/polkit/50-klipper-touch.rules" "$root/usr/share/polkit-1/rules.d/50-klipper-touch.rules"
-install -D -m 0644 "$repo/LICENSE" "$root/usr/share/doc/klipper-touch/copyright"
+install -D -m 0755 "$artifact/freakymate" "$root/usr/bin/freakymate"
+install -D -m 0644 "$repo/scripts/debian/freakymate@.service" "$root/lib/systemd/system/freakymate@.service"
+install -D -m 0644 "$repo/scripts/polkit/50-freakymate.rules" "$root/usr/share/polkit-1/rules.d/50-freakymate.rules"
+install -D -m 0644 "$repo/LICENSE" "$root/usr/share/doc/freakymate/copyright"
 install -d "$root/DEBIAN"
 install -m 0755 "$repo/scripts/debian/postinst" "$repo/scripts/debian/prerm" "$repo/scripts/debian/postrm" "$root/DEBIAN/"
 
 cat > "$root/DEBIAN/control" << EOF
-Package: klipper-touch
+Package: freakymate
 Version: $version
 Architecture: $arch
 Maintainer: Frank Roth <developer@freakydu.de>
@@ -37,12 +37,12 @@ Depends: $depends
 Suggests: network-manager
 Section: misc
 Priority: optional
-Homepage: https://github.com/freakydude/klipper-touch
+Homepage: https://github.com/freakydude/freakymate
 Description: Touch screen UI for Klipper printers via Moonraker (experimental)
  Native Rust + Slint UI for small displays on the printer host.
  UNTESTED EXPERIMENT: use at your own risk, no warranty, no liability.
- Start in kiosk mode on tty1 with: systemctl enable --now klipper-touch@<user>
+ Start in kiosk mode on tty1 with: systemctl enable --now freakymate@<user>
 EOF
 
-dpkg-deb --root-owner-group --build "$root" "klipper-touch_${version}_${arch}.deb"
+dpkg-deb --root-owner-group --build "$root" "freakymate_${version}_${arch}.deb"
 rm -rf "$root"

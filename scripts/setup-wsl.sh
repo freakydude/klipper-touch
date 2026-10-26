@@ -55,7 +55,7 @@ case ":$PATH:" in
 esac
 
 if [[ $missing -eq 0 ]]; then
-    echo "Done. Next: scripts/ui-preview.sh, scripts/ui-snapshot.sh, cargo run -p klipper-touch"
+    echo "Done. Next: scripts/ui-preview.sh, scripts/ui-snapshot.sh, cargo run -p freakymate"
 else
     echo "$missing item(s) missing, see above." >&2
     exit 1

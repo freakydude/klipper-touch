@@ -1,10 +1,10 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use klipper_touch::{Confirm, Navigation, Page, Printer, SpoolPicker};
-use klipper_touch_core::network::{Availability, NetworkCommand, NetworkState};
-use klipper_touch_core::printer::{Activity, KlippyState, PrintState};
-use klipper_touch_core::{Command, ConnectionState, Query};
+use freakymate::{Confirm, Navigation, Page, Printer, SpoolPicker};
+use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
+use freakymate_core::printer::{Activity, KlippyState, PrintState};
+use freakymate_core::{Command, ConnectionState, Query};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
 
@@ -222,7 +222,7 @@ fn tangle_boost(session: &mut Session) -> Result<(), String> {
     if !has_buffer {
         return Ok(());
     }
-    let boosting = |snapshot: &klipper_touch_core::Snapshot| {
+    let boosting = |snapshot: &freakymate_core::Snapshot| {
         snapshot.status.mmu.as_ref().and_then(|mmu| mmu.flowguard.as_ref()).is_some_and(|flowguard| flowguard.boosting)
     };
     session.service.send(Command::RunGcode { script: "FAKE_MMU_TANGLE BOOST=1".into() });

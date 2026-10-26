@@ -1,4 +1,6 @@
-# Klipper-Touch
+# FreakyMate
+
+**A touch screen for Klipper, with Happy Hare and Spoolman built in.**
 
 A touch screen interface for 3D printers running [Klipper](https://www.klipper3d.org/): a small native app that runs
 on the printer's own host (Raspberry Pi, BTT CB1/CB2 and similar), fills the display attached to it and talks to
@@ -77,10 +79,10 @@ Appears when Moonraker has the `spoolman` component, with or without an MMU:
 
 [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen) is the established touch screen UI for Klipper, with a
 large community, many panels and a much wider hardware support. **If you want something proven, use KlipperScreen.**
-klipper-touch is a younger, smaller alternative with a different technical approach and with Happy Hare and Spoolman
+FreakyMate is a younger, smaller alternative with a different technical approach and with Happy Hare and Spoolman
 built in. This is what I found in the KlipperScreen documentation (read in October 2026) and in my own project:
 
-|                      | KlipperScreen                                                                                                    | klipper-touch                                                                                          |
+|                      | KlipperScreen                                                                                                    | FreakyMate                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Maturity             | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI                                 | Early development, one person, English only                                                           |
 | Technology           | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston                                    | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window            |
@@ -97,44 +99,44 @@ the depth of either.
 
 ## Install on the printer host
 
-This is the main use case: klipper-touch runs on the host of the printer (Raspberry Pi OS, Armbian or another
+This is the main use case: FreakyMate runs on the host of the printer (Raspberry Pi OS, Armbian or another
 Debian-based system with the display attached), starts fullscreen on the display at boot and updates itself through
 Moonraker's update manager, like Mainsail or Fluidd.
 
-1. Download the zip for your system from the [releases](https://github.com/freakydude/klipper-touch/releases):
+1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases):
    `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
    Builds target Debian Bookworm and run on Bookworm and Trixie.
 2. Unpack and run the installer as your normal user (the one running Klipper and Moonraker):
 
    ```bash
-   unzip klipper-touch-aarch64-unknown-linux-gnu.zip -d klipper-touch-setup
-   cd klipper-touch-setup && ./install.sh -m http://127.0.0.1:7125
+   unzip freakymate-aarch64-unknown-linux-gnu.zip -d freakymate-setup
+   cd freakymate-setup && ./install.sh -m http://127.0.0.1:7125
    ```
 
    The installer
    - installs the packages from `system-dependencies.json` (among them `cage`, a minimal Wayland kiosk compositor),
-   - copies the program to `~/klipper-touch` and creates the systemd service `klipper-touch` (fullscreen on `tty1`),
-   - registers it with Moonraker's update manager (`[update_manager klipper-touch]` in `moonraker.conf`, service in
+   - copies the program to `~/freakymate` and creates the systemd service `freakymate` (fullscreen on `tty1`),
+   - registers it with Moonraker's update manager (`[update_manager freakymate]` in `moonraker.conf`, service in
      `moonraker.asvc`) and restarts Moonraker.
 
    Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c stable|beta` (update channel, see below).
-   Settings go to `printer_data/config/klipper-touch.json`, next to the Klipper configs, as KlipperScreen does with its
-   `KlipperScreen.conf`. An existing `~/.config/klipper-touch/settings.json` is copied there once.
-   Remove everything with `~/klipper-touch/uninstall.sh`; the settings file stays.
+   Settings go to `printer_data/config/freakymate.json`, next to the Klipper configs, as KlipperScreen does with its
+   `KlipperScreen.conf`. An existing `~/.config/freakymate/settings.json` is copied there once.
+   Remove everything with `~/freakymate/uninstall.sh`; the settings file stays.
 
 ### Updates and channels
 
-After the installation klipper-touch shows up in the update list of Mainsail, Fluidd and its own System page.
-Moonraker downloads the matching zip from the GitHub releases, replaces `~/klipper-touch` and restarts the service.
+After the installation FreakyMate shows up in the update list of Mainsail, Fluidd and its own System page.
+Moonraker downloads the matching zip from the GitHub releases, replaces `~/freakymate` and restarts the service.
 The section written by the installer (add it yourself if `moonraker.conf` lives elsewhere):
 
 ```ini
-[update_manager klipper-touch]
+[update_manager freakymate]
 type: zip
 channel: stable          # beta = also preview builds of main
-repo: freakydude/klipper-touch
-path: ~/klipper-touch
-managed_services: klipper-touch
+repo: freakydude/freakymate
+path: ~/freakymate
+managed_services: freakymate
 system_dependencies: system-dependencies.json
 ```
 
@@ -151,22 +153,22 @@ line, so edit it by hand. Your edits survive later updates, because Moonraker on
 
 Besides the Moonraker route there are plain packages, for example to try it on a desktop or any other device:
 
-- **Debian package**: each release contains `klipper-touch_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs
+- **Debian package**: each release contains `freakymate_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs
   the dependencies and removes the package cleanly, but Moonraker does **not** update it, install newer `.deb` files
   yourself. Use either the zip installer or the package, not both (they would compete for `tty1`).
 
   ```bash
-  sudo apt install ./klipper-touch_0.2.0_arm64.deb
+  sudo apt install ./freakymate_0.2.0_arm64.deb
   sudo systemctl disable getty@tty1                # free tty1 for the kiosk
-  sudo systemctl enable --now klipper-touch@$USER  # fullscreen on tty1 as this user
-  # remove again (stops and disables all klipper-touch@ instances)
-  sudo apt remove klipper-touch && sudo systemctl enable getty@tty1
+  sudo systemctl enable --now freakymate@$USER  # fullscreen on tty1 as this user
+  # remove again (stops and disables all freakymate@ instances)
+  sudo apt remove freakymate && sudo systemctl enable getty@tty1
   ```
 
 - **Windowed mode on a desktop** (Linux PC, Raspberry Pi OS with desktop, Windows): the program opens as a normal window
-  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `klipper-touch` from a
+  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `freakymate` from a
   terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
-  `klipper-touch-x86_64-pc-windows-msvc.zip` and run `klipper-touch.exe`. There is no Windows installer yet. Set the
+  `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
   Moonraker address on the Settings page or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
 
 ## Configuration
@@ -174,14 +176,14 @@ Besides the Moonraker route there are plain packages, for example to try it on a
 ### Command line
 
 ```text
-klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-network]
+freakymate [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-network]
 ```
 
 | Option               | Meaning                                                                                          |
 | -------------------- | ------------------------------------------------------------------------------------------------ |
 | `-m, --moonraker`    | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
 | `-f, --fullscreen`   | Fullscreen/kiosk mode                                                                            |
-| `--settings`         | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/klipper-touch.json` |
+| `--settings`         | Settings file, default `~/.config/freakymate/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/freakymate.json` |
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
@@ -197,14 +199,14 @@ the SPI bus may not work with the kiosk compositor at all. Layouts of their own 
 
 ### Network settings
 
-Moonraker can only report the host's network (`machine.system_info`), it cannot change it. klipper-touch therefore talks
+Moonraker can only report the host's network (`machine.system_info`), it cannot change it. FreakyMate therefore talks
 to NetworkManager over D-Bus, like KlipperScreen. Managing Wi-Fi (open, WPA/WPA2, WPA3, hidden, remove saved networks,
 on/off) and Ethernet (status, connect/disconnect) is offered when
 
-- klipper-touch runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and
+- FreakyMate runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and
 - Moonraker runs on the same host (`localhost`/`127.0.0.1`), so the changed network is the printer's network.
 
-The user needs the polkit rule `50-klipper-touch.rules` (allows the NetworkManager actions for the group `netdev`).
+The user needs the polkit rule `50-freakymate.rules` (allows the NetworkManager actions for the group `netdev`).
 `install.sh` installs it to `/etc/polkit-1/rules.d` and adds the user to `netdev`; the Debian package ships it in
 `/usr/share/polkit-1/rules.d`, add the user yourself: `sudo usermod -aG netdev $USER` (takes effect after re-login or a
 service restart). Changing the network while printing asks for confirmation, because the connection may drop.
@@ -226,7 +228,7 @@ that progresses). It listens on `127.0.0.1` only.
 
 ```bash
 cargo run -p fake-moonraker -- --profile voron --port 7125 --time-scale 10   # the simulated printer
-cargo run -p klipper-touch -- -m http://127.0.0.1:7125                       # the app, in a window
+cargo run -p freakymate -- -m http://127.0.0.1:7125                       # the app, in a window
 ```
 
 | Fake option    | Meaning                                                                          |
@@ -243,7 +245,7 @@ cargo run -p klipper-touch -- -m http://127.0.0.1:7125                       # t
 | `happy-hare` | adds a Happy Hare MMU with a proportional sync-feedback buffer and FlowGuard, spools in the gates, and Spoolman            |
 
 `FAKE_MMU_TANGLE BOOST=1` (G-code, simulator only) lets tangle prevention boost the gear current during a print. In VS Code
-the tasks and debug configurations "run: fake-moonraker", "run: klipper-touch (fake Moonraker)" and their Happy Hare
+the tasks and debug configurations "run: fake-moonraker", "run: freakymate (fake Moonraker)" and their Happy Hare
 variants start both. The app also takes `--simulate-network` in development builds to try the Wi-Fi settings without
 NetworkManager.
 
@@ -282,7 +284,7 @@ To use your own `slint-viewer`, put it on `PATH`; it should have the same versio
 
 ### Development builds and releases
 
-Local builds of `klipper-touch` include the cargo feature `dev-mode` (default): the option `--simulate-network`
+Local builds of `freakymate` include the cargo feature `dev-mode` (default): the option `--simulate-network`
 and the simulated networks in the core. Releases are built with `--no-default-features` and contain none of it.
 The development tools are separate programs and never shipped: `fake-moonraker` (simulated printer) and
 `ui-snapshot` (screenshots of the UI).
@@ -306,18 +308,18 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
   builds and publishes the release with generated notes; Moonraker offers it on the `stable` channel. The patch number
   then starts again at 0.
 - Assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
-  `scripts/debian`). Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
-  `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `klipper-touch.exe`.
+  `scripts/debian`). Linux zips contain `freakymate`, `install.sh`, `uninstall.sh`,
+  `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `freakymate.exe`.
 
 ## Contact and support
 
 Want to get in touch, report a bug, discuss a feature or show what you built? Meet me and the others who try
-klipper-touch on Discord. Bugs and feature requests are also welcome as GitHub issues, and pull requests too (see
+FreakyMate on Discord. Bugs and feature requests are also welcome as GitHub issues, and pull requests too (see
 [Contributing](#contributing)).
 
 <a href="https://discord.gg/Ja2cxCcmJQ"><img src="https://img.shields.io/badge/Discord-join%20the%20chat-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord" height="40"></a>
 
-klipper-touch is a private project that I work on in my spare time, for my own printer. It comes without support
+FreakyMate is a private project that I work on in my spare time, for my own printer. It comes without support
 promises, so answers may take a while. If you like it and want to say thanks, you can support me here:
 
 <a href="https://ko-fi.com/freakydude"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="40"></a>

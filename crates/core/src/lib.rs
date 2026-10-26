@@ -1,4 +1,4 @@
-//! UI-independent core of klipper-touch: Moonraker connection, printer state, commands and settings.
+//! UI-independent core of freakymate: Moonraker connection, printer state, commands and settings.
 //!
 //! The entry point is [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
 
@@ -21,7 +21,7 @@ pub use settings::{Settings, SettingsStore};
 pub use sourced::{Provenance, Sourced};
 
 /// Version of this build: set by CI from git tags, otherwise the crate version marked as a local build.
-pub const VERSION: &str = match option_env!("KLIPPER_TOUCH_VERSION") {
+pub const VERSION: &str = match option_env!("FREAKYMATE_VERSION") {
     Some(version) => version,
     None => concat!(env!("CARGO_PKG_VERSION"), "-dev"),
 };

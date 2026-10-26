@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installs klipper-touch from an unpacked release zip as a kiosk service (cage on tty1) and
-# registers it with the Moonraker update manager (type: zip), so Mainsail, Fluidd and klipper-touch
+# Installs freakymate from an unpacked release zip as a kiosk service (cage on tty1) and
+# registers it with the Moonraker update manager (type: zip), so Mainsail, Fluidd and freakymate
 # itself can install later releases.
 #
 # Run inside the unpacked folder: ./install.sh [-m <moonraker-url>] [-d <printer_data>] [-c stable|beta]
@@ -8,11 +8,11 @@
 
 set -euo pipefail
 
-NAME="klipper-touch"
+NAME="freakymate"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="$HOME/$NAME"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
-POLKIT_RULE="50-klipper-touch.rules"
+POLKIT_RULE="50-freakymate.rules"
 MOONRAKER="http://127.0.0.1:7125"
 DATA_DIR="$HOME/printer_data"
 CHANNEL="stable"
@@ -52,7 +52,7 @@ if [ -f "$SOURCE_DIR/$POLKIT_RULE" ] && [ -d /etc/polkit-1/rules.d ]; then
   sudo groupadd -f netdev
   sudo usermod -aG netdev "$USER" || true
 else
-  echo "polkit rules directory not found; Wi-Fi settings in klipper-touch will be read-only."
+  echo "polkit rules directory not found; Wi-Fi settings in freakymate will be read-only."
 fi
 
 report "Installing to $INSTALL_DIR"
@@ -64,7 +64,7 @@ chmod 0755 "$INSTALL_DIR/$NAME" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/uninstal
 
 report "Creating $SERVICE_FILE"
 # Settings live next to the Klipper configs, like KlipperScreen.conf, so backups of printer_data include them.
-SETTINGS_FILE="$DATA_DIR/config/klipper-touch.json"
+SETTINGS_FILE="$DATA_DIR/config/freakymate.json"
 OLD_SETTINGS_FILE="$HOME/.config/$NAME/settings.json"
 if [ -f "$OLD_SETTINGS_FILE" ] && [ ! -f "$SETTINGS_FILE" ]; then
   mkdir -p "$(dirname "$SETTINGS_FILE")"
@@ -74,7 +74,7 @@ fi
 USER_ID=$(id -u)
 sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
-Description=klipper-touch touch UI for Klipper
+Description=freakymate touch UI for Klipper
 After=systemd-user-sessions.service network-online.target moonraker.service
 Wants=network-online.target
 Conflicts=getty@tty1.service
@@ -118,7 +118,7 @@ else
 [update_manager $NAME]
 type: zip
 channel: $CHANNEL
-repo: freakydude/klipper-touch
+repo: freakydude/freakymate
 path: $INSTALL_DIR
 managed_services: $NAME
 system_dependencies: system-dependencies.json

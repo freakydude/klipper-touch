@@ -1,8 +1,8 @@
 //! Recorded Happy Hare objects of real printers (`scripts/capture-printer-dump.sh`) against the rules of the core:
 //! when a Happy Hare version changes a field, the matching dump shows it here.
 
-use klipper_touch_core::printer::{ObjectStore, PrinterStatus};
-use klipper_touch_core::Provenance;
+use freakymate_core::printer::{ObjectStore, PrinterStatus};
+use freakymate_core::Provenance;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::PathBuf;

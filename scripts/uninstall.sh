@@ -1,10 +1,10 @@
 #!/bin/bash
 # Removes the service, the program folder and the Moonraker update manager entry.
-# System packages and settings (printer_data/config/klipper-touch.json) are kept.
+# System packages and settings (printer_data/config/freakymate.json) are kept.
 # Usage: ./uninstall.sh [-d <printer_data>]
 set -euo pipefail
 
-NAME="klipper-touch"
+NAME="freakymate"
 INSTALL_DIR="$HOME/$NAME"
 DATA_DIR="$HOME/printer_data"
 

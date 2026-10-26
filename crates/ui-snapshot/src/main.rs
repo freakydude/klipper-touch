@@ -1,4 +1,4 @@
-//! Development tool: renders the klipper-touch UI headless (software renderer, no window, no GPU)
+//! Development tool: renders the freakymate UI headless (software renderer, no window, no GPU)
 //! against a running (fake) Moonraker and writes one PNG per view.
 //!
 //! `cargo run -p ui-snapshot -- [--moonraker <url>] [--out <folder>] [--size 800x480] [--no-fit] [--scenes pages,network|all]`

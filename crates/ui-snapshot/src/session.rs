@@ -1,13 +1,13 @@
 //! Headless application session: the real UI bindings on a software-rendered window, driven step by step.
 
 use crate::Options;
-use klipper_touch::network_controller::NetworkController;
-use klipper_touch::presenter::Presenter;
-use klipper_touch::settings_controller::SettingsController;
-use klipper_touch::{actions, AppWindow, Navigation, Page};
-use klipper_touch_core::network::{NetworkBackend, NetworkChannels, NetworkService};
-use klipper_touch_core::settings::{Settings, SettingsStore};
-use klipper_touch_core::{Endpoint, PrinterService, ServiceChannels, Snapshot};
+use freakymate::network_controller::NetworkController;
+use freakymate::presenter::Presenter;
+use freakymate::settings_controller::SettingsController;
+use freakymate::{actions, AppWindow, Navigation, Page};
+use freakymate_core::network::{NetworkBackend, NetworkChannels, NetworkService};
+use freakymate_core::settings::{Settings, SettingsStore};
+use freakymate_core::{Endpoint, PrinterService, ServiceChannels, Snapshot};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
 use slint::platform::{Platform, WindowAdapter};
 use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};
@@ -68,7 +68,7 @@ impl Session {
         window.window().set_size(PhysicalSize::new(options.width, options.height));
         window.show().map_err(|error| error.to_string())?;
         if options.fit {
-            klipper_touch::display::apply_fit(window.window());
+            freakymate::display::apply_fit(window.window());
         }
 
         let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());

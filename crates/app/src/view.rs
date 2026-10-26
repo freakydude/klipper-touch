@@ -2,13 +2,13 @@
 
 use crate::format;
 use chrono::{DateTime, Local};
-use klipper_touch_core::estimates;
-use klipper_touch_core::files::{FileInfo, FileMetadata, LastPrint};
-use klipper_touch_core::printer::{
+use freakymate_core::estimates;
+use freakymate_core::files::{FileInfo, FileMetadata, LastPrint};
+use freakymate_core::printer::{
     FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
-use klipper_touch_core::spoolman::{PrintHint, Spool};
-use klipper_touch_core::{Provenance, Sourced};
+use freakymate_core::spoolman::{PrintHint, Spool};
+use freakymate_core::{Provenance, Sourced};
 
 const NO_VALUE: &str = "-";
 const ORIGIN_PACE_ONLY: &str = "measured pace only";
@@ -251,7 +251,7 @@ pub fn mmu_flowguard_state(state: FlowGuardState) -> &'static str {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use klipper_touch_core::files::FileEntry;
+    use freakymate_core::files::FileEntry;
 
     fn now() -> DateTime<Local> {
         Local.with_ymd_and_hms(2026, 10, 21, 12, 0, 0).unwrap()

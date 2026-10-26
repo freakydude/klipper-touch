@@ -6,9 +6,9 @@ use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::AppWindow;
-use klipper_touch_core::network::{NetworkBackend, NetworkService};
-use klipper_touch_core::settings::{SettingsError, SettingsStore};
-use klipper_touch_core::{Endpoint, PrinterService};
+use freakymate_core::network::{NetworkBackend, NetworkService};
+use freakymate_core::settings::{SettingsError, SettingsStore};
+use freakymate_core::{Endpoint, PrinterService};
 use slint::winit_030::winit::event::WindowEvent;
 use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -32,7 +32,7 @@ pub enum AppError {
     #[error(transparent)]
     Settings(#[from] SettingsError),
     #[error(transparent)]
-    Endpoint(#[from] klipper_touch_core::moonraker::InvalidEndpoint),
+    Endpoint(#[from] freakymate_core::moonraker::InvalidEndpoint),
     #[error("cannot start background runtime: {0}")]
     Runtime(#[from] std::io::Error),
     #[error(transparent)]
@@ -60,7 +60,7 @@ impl Application {
         };
         let settings = store.load().unwrap_or_else(|error| {
             log::warn!("{error}; using defaults");
-            klipper_touch_core::Settings::default()
+            freakymate_core::Settings::default()
         });
         let endpoint = Endpoint::parse(options.moonraker.as_deref().unwrap_or(&settings.moonraker))?;
         log::info!("Moonraker at {}", endpoint.display());

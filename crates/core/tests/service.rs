@@ -2,10 +2,10 @@
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
-use klipper_touch_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
-use klipper_touch_core::spoolman;
-use klipper_touch_core::system::ConsoleKind;
-use klipper_touch_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
+use freakymate_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
+use freakymate_core::spoolman;
+use freakymate_core::system::ConsoleKind;
+use freakymate_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
@@ -75,7 +75,7 @@ async fn connects_detects_capabilities_and_follows_state() {
     .await;
     assert_eq!(snapshot.status.motion.position[0], 0.0);
 
-    service.send(Command::Jog { axis: klipper_touch_core::printer::Axis::X, distance: 25.0 });
+    service.send(Command::Jog { axis: freakymate_core::printer::Axis::X, distance: 25.0 });
     wait_for(&mut channels, |snapshot| snapshot.status.motion.position[0] == 25.0).await;
 }
 

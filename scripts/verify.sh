@@ -6,7 +6,7 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
-log_dir=$(mktemp -d "${TMPDIR:-/tmp}/klipper-touch-verify.XXXXXX")
+log_dir=$(mktemp -d "${TMPDIR:-/tmp}/freakymate-verify.XXXXXX")
 with_snapshot=false
 [ "${1:-}" = "--snapshot" ] && with_snapshot=true
 failed=()
@@ -27,7 +27,7 @@ run_step() {
 run_step "cargo fmt --check" cargo fmt --all -- --check
 run_step "cargo clippy" cargo clippy --workspace --all-targets -- -D warnings
 run_step "cargo test" cargo test --workspace
-run_step "cargo build" cargo build -p klipper-touch
+run_step "cargo build" cargo build -p freakymate
 run_step "ui previews" scripts/ui-preview.sh
 run_step "skill check" .claude/skills/session-handover/scripts/check-skills.sh
 if [ "$with_snapshot" = true ]; then
