@@ -264,7 +264,7 @@ cargo run -p icon-index                                  # after changing icons 
 
 `ui-snapshot` runs the real UI headless against the fake and writes one PNG per screen (`-p` picks the fake profile,
 `-s` the window size, `-F` switches the fitting to the display off, `-S` chooses scenes: `pages`, `spools`, `network`,
-`printing`, `shutdown`, `idle`). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
+`taps`, `typing`, `printing`, `shutdown`, `idle`). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
 
 Scripts exist in two variants with the same behaviour:
 

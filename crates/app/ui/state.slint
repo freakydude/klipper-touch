@@ -373,6 +373,9 @@ export global Actions {
     callback clear-console();
     callback messages-seen();
     callback messages-clear();
+    // A key of the on-screen keyboard (the text it types, or a special key such as Key.Backspace); the focused field
+    // handles it like a key of a physical keyboard.
+    callback press-key(string);
     callback set-macro-visible(string, bool);
     callback macro-has-params(string) -> bool;
     // Spoolman. `gate` is -1 for a printer without MMU.
@@ -387,13 +390,6 @@ export global Actions {
     callback open-macro-form(string);
     callback set-macro-param(int, string);
     callback macro-form-script() -> string;
-}
-
-// Text editing for the on-screen keyboard (Slint has no substring function).
-export global TextTools {
-    pure callback remove-last(string) -> string;
-    // Replaces every character with a dot, e.g. for passwords.
-    pure callback mask(string) -> string;
 }
 
 // Networks of the host freakymate runs on. Rust writes the state, the UI calls the callbacks.

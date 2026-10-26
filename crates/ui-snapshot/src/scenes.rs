@@ -20,6 +20,10 @@ pub enum Scene {
     Spools,
     /// Settings > Network: list, connecting, confirmation, read-only fallback.
     Network,
+    /// Taps that last longer than a status update still count while the temperatures change.
+    Taps,
+    /// Editing keys in the text entry of the console, physical and on-screen.
+    Typing,
     /// Print running, system page locked, cancel.
     Printing,
     /// Emergency stop and firmware restart.
@@ -29,8 +33,18 @@ pub enum Scene {
 }
 
 impl Scene {
-    pub const ALL: [Self; 6] = [Self::Pages, Self::Spools, Self::Network, Self::Printing, Self::Shutdown, Self::Idle];
-    pub const DEFAULT: [Self; 5] = [Self::Pages, Self::Spools, Self::Network, Self::Printing, Self::Shutdown];
+    pub const ALL: [Self; 8] = [
+        Self::Pages,
+        Self::Spools,
+        Self::Network,
+        Self::Taps,
+        Self::Typing,
+        Self::Printing,
+        Self::Shutdown,
+        Self::Idle,
+    ];
+    pub const DEFAULT: [Self; 7] =
+        [Self::Pages, Self::Spools, Self::Network, Self::Taps, Self::Typing, Self::Printing, Self::Shutdown];
 
     /// Parses `pages,network` or `all`.
     pub fn parse_list(text: &str) -> Result<Vec<Self>, String> {
@@ -41,10 +55,9 @@ impl Scene {
     }
 
     fn parse(name: &str) -> Result<Self, String> {
-        Self::ALL
-            .into_iter()
-            .find(|scene| scene.name() == name)
-            .ok_or_else(|| format!("unknown scene '{name}' (pages, spools, network, printing, shutdown, idle, all)"))
+        Self::ALL.into_iter().find(|scene| scene.name() == name).ok_or_else(|| {
+            format!("unknown scene '{name}' (pages, spools, network, taps, typing, printing, shutdown, idle, all)")
+        })
     }
 
     fn name(self) -> &'static str {
@@ -52,6 +65,8 @@ impl Scene {
             Self::Pages => "pages",
             Self::Spools => "spools",
             Self::Network => "network",
+            Self::Taps => "taps",
+            Self::Typing => "typing",
             Self::Printing => "printing",
             Self::Shutdown => "shutdown",
             Self::Idle => "idle",
@@ -63,6 +78,8 @@ impl Scene {
             Self::Pages => pages(session),
             Self::Spools => spools(session),
             Self::Network => network(session),
+            Self::Taps => taps(session),
+            Self::Typing => typing(session),
             Self::Printing => printing(session),
             Self::Shutdown => shutdown(session),
             Self::Idle => idle(session),
@@ -187,6 +204,105 @@ fn network(session: &mut Session) -> Result<(), String> {
     session.window.global::<Navigation>().set_settings_tab(0);
     session.network_service.send(NetworkCommand::Refresh);
     Ok(())
+}
+
+/// The "Cool down" button of the nozzle row on the Heat page (800x480, no fitting).
+const COOL_DOWN_BUTTON: (f32, f32) = (628.0, 84.0);
+const TAP_ROUNDS: usize = 10;
+/// A finger rests this long: several status updates arrive meanwhile, as the temperatures change all the time.
+const TAP_DURATION: Duration = Duration::from_millis(500);
+
+/// A tap that spans status updates must still count: the heater rows may not be rebuilt under the finger.
+fn taps(session: &mut Session) -> Result<(), String> {
+    session.window.global::<Navigation>().set_page(Page::Temperature);
+    let heating = |target| Command::SetHeaterTarget { heater: "extruder".into(), target };
+    let target = |snapshot: &freakymate_core::Snapshot| snapshot.status.heater("extruder").map(|heater| heater.target);
+    let mut missed = 0;
+    for _ in 0..TAP_ROUNDS {
+        session.service.send(heating(200.0));
+        session.wait_until("nozzle target", |snapshot| target(snapshot) == Some(200.0))?;
+        session.pump(Duration::from_millis(300));
+        let (x, y) = COOL_DOWN_BUTTON;
+        session.press(x, y);
+        session.pump(TAP_DURATION);
+        session.release(x, y);
+        session.pump(Duration::from_millis(100));
+        if target(&session.presenter.snapshot()) != Some(0.0) {
+            missed += 1;
+        }
+    }
+    if missed > 0 {
+        return Err(format!("{missed} of {TAP_ROUNDS} taps on Cool down were lost while the temperatures changed"));
+    }
+    Ok(())
+}
+
+/// The command field of the console (800x480, no fitting).
+const COMMAND_FIELD: (f32, f32) = (480.0, 444.0);
+
+/// Keys of the on-screen keyboard (800x480, no fitting).
+const ON_SCREEN_Q: (f32, f32) = (126.0, 183.0);
+const ON_SCREEN_S: (f32, f32) = (196.0, 226.0);
+const ON_SCREEN_BACKSPACE: (f32, f32) = (629.0, 314.0);
+const ON_SCREEN_ENTER: (f32, f32) = (732.0, 314.0);
+
+/// The text entry edits like any text field: Backspace, Delete, Home, End, Shift and Ctrl are the keyboard's own
+/// business. The result is read from the command that the entry sends.
+fn typing(session: &mut Session) -> Result<(), String> {
+    use slint::platform::Key;
+    session.window.global::<Navigation>().set_page(Page::Console);
+    session.pump(Duration::from_millis(300));
+    let (x, y) = COMMAND_FIELD;
+    session.press(x, y);
+    session.release(x, y);
+    session.pump(Duration::from_millis(300));
+    session.capture("text-entry")?;
+
+    // Physical keyboard: "XSTATUZ" -> Backspace -> "S" -> Home -> Delete (removes the X) -> End -> Enter.
+    for character in "XSTATUZ".chars() {
+        session.key(character.to_string());
+    }
+    session.key(Key::Backspace);
+    session.key("S");
+    session.key(Key::Home);
+    session.key(Key::Delete);
+    session.key(Key::End);
+    session.capture("text-entry-typed")?;
+    session.key(Key::Return);
+    expect_console_command(session, "STATUS")?;
+
+    // On-screen keys: the field must keep the focus while they are tapped. Q, backspace, S, enter.
+    session.tap(x, y);
+    session.pump(Duration::from_millis(300));
+    for (key_x, key_y) in [ON_SCREEN_Q, ON_SCREEN_BACKSPACE, ON_SCREEN_S, ON_SCREEN_ENTER] {
+        session.tap(key_x, key_y);
+    }
+    expect_console_command(session, "S")?;
+
+    // Escape closes without sending.
+    session.tap(x, y);
+    session.pump(Duration::from_millis(300));
+    session.key("H");
+    session.key(Key::Escape);
+    session.pump(Duration::from_millis(300));
+    if session.window.global::<Printer>().get_console().iter().any(|line| line.is_command && line.text == "H") {
+        return Err("Escape sent the command instead of closing the entry".to_owned());
+    }
+    Ok(())
+}
+
+/// The command appears as the newest line of the console.
+fn expect_console_command(session: &mut Session, command: &str) -> Result<(), String> {
+    session.pump(Duration::from_millis(500));
+    let lines = session.window.global::<Printer>().get_console();
+    let last = lines.iter().last();
+    if last.as_ref().is_some_and(|line| line.is_command && line.text == command) {
+        return Ok(());
+    }
+    Err(format!(
+        "expected the console to end with the command {command}, it ends with {:?}",
+        last.map(|line| line.text)
+    ))
 }
 
 fn printing(session: &mut Session) -> Result<(), String> {

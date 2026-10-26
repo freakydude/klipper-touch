@@ -723,7 +723,7 @@ impl Presenter {
             let cache = self.cache.borrow();
             cache.catalog.entries().iter().map(|entry| file_row(&cache, entry)).collect()
         };
-        self.files.set_vec(rows);
+        replace_rows(&self.files, rows);
     }
 
     fn store_last_prints(&self, last_prints: HashMap<String, LastPrint>) {
@@ -787,12 +787,17 @@ fn connection_name(state: ConnectionState) -> &'static str {
     }
 }
 
-/// Replaces the rows only on changes so Slint does not rebuild needlessly.
+/// Brings the rows up to date without rebuilding them: a rebuild (`set_vec`) destroys the buttons in the rows, and a tap
+/// that is still going on when the next status arrives would be lost. Only a different number of rows rebuilds the list.
 pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
-    let unchanged = model.row_count() == rows.len()
-        && rows.iter().enumerate().all(|(index, row)| model.row_data(index).as_ref() == Some(row));
-    if !unchanged {
+    if model.row_count() != rows.len() {
         model.set_vec(rows);
+        return;
+    }
+    for (index, row) in rows.into_iter().enumerate() {
+        if model.row_data(index).as_ref() != Some(&row) {
+            model.set_row_data(index, row);
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker, TextTools } from "../state.slint";
+import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker } from "../state.slint";
 import { ColorBar, IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
@@ -181,11 +181,13 @@ component Key inherits Rectangle {
     }
 }
 
-// On-screen keyboard for devices without a physical keyboard; edits `text` directly.
+// On-screen keyboard for devices without a physical keyboard. It only reports the keys; the text field edits itself.
 export component OnScreenKeyboard inherits VerticalLayout {
-    in-out property <string> text;
     in-out property <bool> upper: true;
     in-out property <bool> symbols;
+    // A character key (the text on it), backspace and enter.
+    callback typed(string);
+    callback backspace;
     callback enter;
 
     property <[[string]]> lower-rows: [
@@ -214,7 +216,7 @@ export component OnScreenKeyboard inherits VerticalLayout {
         height: 40px;
         for key in row: Key {
             label: key;
-            pressed => { root.text += key; }
+            pressed => { root.typed(key); }
         }
     }
     HorizontalLayout {
@@ -237,25 +239,25 @@ export component OnScreenKeyboard inherits VerticalLayout {
 
         Key {
             label: ":";
-            pressed => { root.text += ":"; }
+            pressed => { root.typed(":"); }
         }
 
         Key {
             label: "/";
-            pressed => { root.text += "/"; }
+            pressed => { root.typed("/"); }
         }
 
         Key {
             label: "space";
             horizontal-stretch: 3;
-            pressed => { root.text += " "; }
+            pressed => { root.typed(" "); }
         }
 
         Key {
             label: "backspace";
             icon: Icons.ui-chevron-left;
             horizontal-stretch: 2;
-            pressed => { root.text = TextTools.remove-last(root.text); }
+            pressed => { root.backspace(); }
         }
 
         Key {
@@ -267,7 +269,9 @@ export component OnScreenKeyboard inherits VerticalLayout {
     }
 }
 
-// Full-screen text entry with on-screen keyboard; `secret` hides the input (passwords).
+// Full-screen text entry with on-screen keyboard; `secret` hides the input (passwords). The field is Slint's own
+// `TextInput`: cursor, selection, Home/End, Delete, Backspace, Ctrl+C/V and the like come from it, for the physical
+// keyboard and, as key presses, for the on-screen keys alike.
 export component TextEntryDialog inherits Scrim {
     in property <string> title;
     in property <bool> secret;
@@ -277,107 +281,106 @@ export component TextEntryDialog inherits Scrim {
     property <bool> reveal;
     visible: root.open;
 
+    function close() {
+        root.reveal = false;
+        root.open = false;
+    }
+
     changed open => {
-        if (root.open) { keys.focus(); }
+        if (root.open) {
+            field.focus();
+            field.select-all();
+        }
     }
 
-    // Modifier keys report a control character of their own; it must not end up in the text.
-    pure function is-modifier(key: string) -> bool {
-        key == Key.Shift || key == Key.ShiftR || key == Key.Control || key == Key.ControlR
-            || key == Key.Alt || key == Key.AltGr || key == Key.CapsLock || key == Key.Meta || key == Key.MetaR
-            || key == Key.Tab || key == Key.Backtab
-    }
-
-    // Physical keyboard (desktop, development): edits the same text as the on-screen keys.
-    keys := FocusScope {
-        key-pressed(event) => {
+    FocusScope {
+        width: parent.width;
+        height: parent.height;
+        // Escape closes the dialog; every other key is for the field.
+        capture-key-pressed(event) => {
             if (event.text == Key.Escape) {
-                root.reveal = false;
-                root.open = false;
-                return accept;
-            }
-            if (event.text == Key.Return) {
-                root.reveal = false;
-                root.open = false;
-                root.accepted(root.text);
-                return accept;
-            }
-            if (event.text == Key.Backspace) {
-                root.text = TextTools.remove-last(root.text);
-                return accept;
-            }
-            if (event.text.character-count == 1 && !root.is-modifier(event.text) && !event.modifiers.control && !event.modifiers.meta) {
-                root.text += event.text;
+                root.close();
                 return accept;
             }
             reject
         }
-    }
 
-    Rectangle {
-        x: 8px;
-        y: 8px;
-        width: parent.width - 16px;
-        height: parent.height - 16px;
-        background: Theme.surface;
-        border-radius: Theme.radius;
+        Rectangle {
+            x: 8px;
+            y: 8px;
+            width: parent.width - 16px;
+            height: parent.height - 16px;
+            background: Theme.surface;
+            border-radius: Theme.radius;
 
-        VerticalLayout {
-            padding: 10px;
-            spacing: 8px;
-            HorizontalLayout {
+            VerticalLayout {
+                padding: 10px;
                 spacing: 8px;
-                height: 48px;
-                Text {
-                    text: root.title;
-                    color: Theme.muted;
-                    font-size: Theme.font-normal;
-                    vertical-alignment: center;
-                    max-width: 260px;
-                    overflow: elide;
-                }
-
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: Theme.background;
-                    border-radius: 6px;
-                    border-width: 1px;
-                    border-color: Theme.accent;
+                HorizontalLayout {
+                    spacing: 8px;
+                    height: 48px;
                     Text {
-                        x: 8px;
-                        width: parent.width - 16px;
-                        text: (root.secret && !root.reveal ? TextTools.mask(root.text) : root.text) + "|";
-                        color: Theme.foreground;
-                        font-size: Theme.font-large;
+                        text: root.title;
+                        color: Theme.muted;
+                        font-size: Theme.font-normal;
                         vertical-alignment: center;
+                        max-width: 260px;
                         overflow: elide;
                     }
-                }
 
-                if root.secret: IconButton {
-                    icon: root.reveal ? Icons.ui-unlock : Icons.ui-lock;
-                    width: 56px;
-                    checked: root.reveal;
-                    accessible-label: @tr("Show password");
-                    clicked => { root.reveal = !root.reveal; }
-                }
-                IconButton {
-                    icon: Icons.ui-close;
-                    width: 56px;
-                    clicked => {
-                        root.reveal = false;
-                        root.open = false;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: Theme.background;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Theme.accent;
+                        clip: true;
+                        forward-focus: field;
+                        field := TextInput {
+                            // Keeps the cursor in view when the text is longer than the field.
+                            property <length> computed-x;
+                            x: 8px + min(0px, max(parent.width - 16px - self.width - self.text-cursor-width, self.computed-x));
+                            width: max(parent.width - 16px - self.text-cursor-width, self.preferred-width);
+                            height: 100%;
+                            single-line: true;
+                            vertical-alignment: center;
+                            text <=> root.text;
+                            color: Theme.foreground;
+                            font-size: Theme.font-large;
+                            input-type: root.secret && !root.reveal ? InputType.password : InputType.text;
+                            accepted => {
+                                root.close();
+                                root.accepted(root.text);
+                            }
+                            cursor-position-changed(position) => {
+                                if (position.x + self.computed-x < 0px) {
+                                    self.computed-x = -position.x;
+                                } else if (position.x + self.computed-x > parent.width - 16px - self.text-cursor-width) {
+                                    self.computed-x = parent.width - 16px - position.x - self.text-cursor-width;
+                                }
+                            }
+                        }
+                    }
+
+                    if root.secret: IconButton {
+                        icon: root.reveal ? Icons.ui-unlock : Icons.ui-lock;
+                        width: 56px;
+                        checked: root.reveal;
+                        accessible-label: @tr("Show password");
+                        clicked => { root.reveal = !root.reveal; }
+                    }
+                    IconButton {
+                        icon: Icons.ui-close;
+                        width: 56px;
+                        clicked => { root.close(); }
                     }
                 }
-            }
 
-            OnScreenKeyboard {
-                text <=> root.text;
-                vertical-stretch: 1;
-                enter => {
-                    root.reveal = false;
-                    root.open = false;
-                    root.accepted(root.text);
+                OnScreenKeyboard {
+                    vertical-stretch: 1;
+                    typed(key) => { Actions.press-key(key); }
+                    backspace => { Actions.press-key(Key.Backspace); }
+                    enter => { Actions.press-key(Key.Return); }
                 }
             }
         }
