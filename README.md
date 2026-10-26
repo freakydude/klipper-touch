@@ -13,7 +13,7 @@ Touch screen UI for [Klipper](https://www.klipper3d.org/) printers, talking to [
 Built for small displays attached directly to the printer host (Raspberry Pi 3/4/5, BTT CB1/CB2), first target is the
 BTT HDMI5 (5", 800x480, landscape). Native Rust application with a [Slint](https://slint.dev/) UI — no browser, no WebView.
 
-So far it has only run against the included fake Moonraker and on desktops.
+So far it has run against the included fake Moonraker, on desktops and on the BTT HDMI5.
 
 ![Print screen](docs/screenshots/print.png)
 
@@ -114,8 +114,13 @@ klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate
 | `--settings`         | Settings file, default `~/.config/klipper-touch/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/klipper-touch.json` |
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
+The supported display is the BTT HDMI5 (800x480), where it has been run; the layout is made for it. Other resolutions show the same layout
+scaled up or down to fit, so a 7" 1024x600 display fills its screen and a 4.3" 480x272 display shows everything, only
+smaller. These are not tested yet. A 3.5" 480x320 display is too small to operate comfortably, and displays that hang on
+the SPI bus may not work with the kiosk compositor at all. Layouts of their own for the 7" and 4.3" displays are planned.
+
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
-driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (bigger UI on high resolution displays).
+driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off).
 
 Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
 
@@ -147,7 +152,7 @@ cargo run -p klipper-touch -- -m http://127.0.0.1:7125
 cargo clippy --workspace --all-targets
 cargo test --workspace
 cargo run -p ui-snapshot -- --out shots                  # render the screens to PNG (needs the fake running)
-scripts/ui-snapshot.sh [-s 640x400] [-S pages]           # WSL2/Arch: starts the fake itself, renders all screens
+scripts/ui-snapshot.sh [-s 1024x600] [-F] [-S pages]           # WSL2/Arch: starts the fake itself, renders all screens
 scripts/ui-preview.sh                                    # WSL2/Arch: renders crates/app/ui/preview/*.slint with sample data in seconds
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```

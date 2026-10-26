@@ -1,7 +1,8 @@
 <#
   Renders the pages of the Slint UI headless as PNG against a freshly started fake Moonraker.
   Usage (repo root): powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Profile voron] [-Size 800x480]
-                     [-Scenes pages,network,printing,shutdown,idle|all]
+                     [-NoFit] [-Scenes pages,network,printing,shutdown,idle|all]
+  -NoFit: the window of the given size without scaling the layout to 800x480 (as the app does by default).
   Without -Scenes all scenes except the slow 'idle' run. Exit code 0 on success; the PNG paths are printed.
 #>
 param(
@@ -9,6 +10,7 @@ param(
     [ValidateSet('basic', 'voron', 'happy-hare')][string]$Profile = 'voron',
     [string]$Size = '800x480',
     [string]$Scenes = '',
+    [switch]$NoFit,
     [int]$Port = 7125
 )
 $ErrorActionPreference = 'Stop'
@@ -26,6 +28,7 @@ try {
         Start-Sleep -Milliseconds 800
         $arguments = @('--moonraker', "http://127.0.0.1:$Port", '--out', $OutDir, '--size', $Size)
         if ($Scenes) { $arguments += @('--scenes', $Scenes) }
+        if ($NoFit) { $arguments += '--no-fit' }
         & 'target\debug\ui-snapshot.exe' @arguments
         $code = $LASTEXITCODE
     }

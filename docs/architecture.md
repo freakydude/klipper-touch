@@ -96,6 +96,10 @@ flowchart LR
 - Default is the winit backend: a window on the desktop, fullscreen under `cage` on the printer (kiosk compositor,
   `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
   (`SLINT_BACKEND=winit-software`).
+- The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
+  (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
+  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Responsive layouts for
+  7" and 4.3" displays are planned.
 - Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
 - Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).
 
