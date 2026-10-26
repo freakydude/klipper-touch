@@ -1,6 +1,7 @@
 //! Assembling the application: settings, service, window and bridges.
 
 use crate::actions;
+use crate::display;
 use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
@@ -99,6 +100,7 @@ impl Application {
             window.window().set_fullscreen(true);
         }
         follow_fullscreen_pointer(&window);
+        fit_display(&window);
         Ok(Self {
             window,
             presenter,
@@ -126,6 +128,30 @@ pub fn follow_fullscreen_pointer(window: &AppWindow) {
             set_pointer_visible(window, !window.is_fullscreen());
         }
         EventResult::Propagate
+    });
+}
+
+/// Scales the layout to the real display whenever the window changes its size (see [`display`]). The scale of the
+/// system is not used: a compositor reports 1 for a touch screen, and the layout is made for 800x480. Whoever sets
+/// `SLINT_SCALE_FACTOR` chooses the scale by hand, and nothing is fitted then.
+pub fn fit_display(window: &AppWindow) {
+    if std::env::var_os("SLINT_SCALE_FACTOR").is_some() {
+        return;
+    }
+    let weak = window.as_weak();
+    window.window().on_winit_window_event(move |_, event| match event {
+        // Applied after the event, not inside it: Slint is still handling it.
+        WindowEvent::Resized(_) => {
+            let weak = weak.clone();
+            Timer::single_shot(Duration::ZERO, move || {
+                if let Some(window) = weak.upgrade() {
+                    display::apply_fit(window.window());
+                }
+            });
+            EventResult::Propagate
+        }
+        WindowEvent::ScaleFactorChanged { .. } => EventResult::PreventDefault,
+        _ => EventResult::Propagate,
     });
 }
 

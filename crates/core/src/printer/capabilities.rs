@@ -37,6 +37,8 @@ pub struct ServerComponents {
     pub update_manager: bool,
     pub machine: bool,
     pub history: bool,
+    /// Moonraker's Spoolman component is loaded, which means that Spoolman is configured.
+    pub spoolman: bool,
 }
 
 impl ServerComponents {
@@ -48,6 +50,7 @@ impl ServerComponents {
                 "update_manager" => found.update_manager = true,
                 "machine" => found.machine = true,
                 "history" => found.history = true,
+                "spoolman" => found.spoolman = true,
                 _ => {}
             }
         }
@@ -171,6 +174,10 @@ mod tests {
     fn reads_moonraker_components() {
         let components = ServerComponents::from_names(["file_manager", "power", "update_manager", "machine"]);
 
-        assert_eq!(components, ServerComponents { power: true, update_manager: true, machine: true, history: false });
+        assert_eq!(
+            components,
+            ServerComponents { power: true, update_manager: true, machine: true, history: false, spoolman: false }
+        );
+        assert!(ServerComponents::from_names(["spoolman"]).spoolman);
     }
 }

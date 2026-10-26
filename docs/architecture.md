@@ -60,7 +60,10 @@ flowchart LR
    `Capabilities::filament_handling` decides where Load and Unload come from: Happy Hare, else the macros
    `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
-3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
+3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. Spoolman
+   (`spoolman.rs`) is read through Moonraker's proxy: its state and the spools of the gates every minute and when
+   Moonraker reports a change; the picker list on demand. The `lanes` (a gate each with MMU, otherwise the one active
+   spool) are what the screens and the hints before a print are built from.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
    `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` translates the
    result into G-code or Moonraker methods; moves are clamped to the axis range. Heater targets that were sent but not
@@ -96,6 +99,10 @@ flowchart LR
 - Default is the winit backend: a window on the desktop, fullscreen under `cage` on the printer (kiosk compositor,
   `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
   (`SLINT_BACKEND=winit-software`).
+- The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
+  (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
+  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Responsive layouts for
+  7" and 4.3" displays are planned.
 - Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
 - Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).
 

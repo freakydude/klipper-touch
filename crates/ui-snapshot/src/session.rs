@@ -67,6 +67,9 @@ impl Session {
         let window = AppWindow::new().map_err(|error| error.to_string())?;
         window.window().set_size(PhysicalSize::new(options.width, options.height));
         window.show().map_err(|error| error.to_string())?;
+        if options.fit {
+            klipper_touch::display::apply_fit(window.window());
+        }
 
         let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
         let presenter = Presenter::new(&window, service.clone());

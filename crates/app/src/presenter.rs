@@ -4,7 +4,8 @@ use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
+    MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, SpoolItem,
+    UpdateItem,
 };
 use chrono::Local;
 use klipper_touch_core::estimates;
@@ -12,8 +13,9 @@ use klipper_touch_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint}
 use klipper_touch_core::printer::{
     is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, Heater, MacroDetails, MacroForm, MmuStatus,
 };
+use klipper_touch_core::spoolman::{self, Lane, Spool, SpoolmanState};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
-use klipper_touch_core::{ConnectionState, Event, PrinterService, Query, Snapshot};
+use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -70,6 +72,11 @@ struct Cache {
     snapshot: Snapshot,
     catalog: FileCatalog,
     thumbnails: HashMap<String, Image>,
+    spoolman: SpoolmanState,
+    /// Spoolman has answered at least once; before that it is not known to be offline.
+    spoolman_known: bool,
+    /// The spools of the picker, most recently used first.
+    spool_list: Vec<Spool>,
 }
 
 pub struct Presenter {
@@ -93,6 +100,7 @@ pub struct Presenter {
     macro_form: Rc<VecModel<MacroParamItem>>,
     macro_form_state: RefCell<MacroForm>,
     files: Rc<VecModel<FileItem>>,
+    spools: Rc<VecModel<SpoolItem>>,
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
@@ -123,6 +131,7 @@ impl Presenter {
             macro_form: Rc::default(),
             macro_form_state: RefCell::default(),
             files: Rc::default(),
+            spools: Rc::default(),
             console: Rc::default(),
             power_devices: Rc::default(),
             updates: Rc::default(),
@@ -142,6 +151,7 @@ impl Presenter {
         printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
         printer.set_messages(ModelRc::from(presenter.status.messages.clone()));
         printer.set_files(ModelRc::from(presenter.files.clone()));
+        printer.set_spools(ModelRc::from(presenter.spools.clone()));
         printer.set_console(ModelRc::from(presenter.console.clone()));
         printer.set_power_devices(ModelRc::from(presenter.power_devices.clone()));
         printer.set_updates(ModelRc::from(presenter.updates.clone()));
@@ -231,7 +241,12 @@ impl Presenter {
             None => SharedString::new(),
         });
 
-        replace_rows(&self.heaters, status.heaters.iter().map(heater_item).collect());
+        let lanes = self.lanes(snapshot);
+        let active_spool = spoolman::active_spool(&lanes).cloned();
+        replace_rows(
+            &self.heaters,
+            status.heaters.iter().map(|heater| heater_item(heater, active_spool.as_ref())).collect(),
+        );
         replace_rows(
             &self.sensors,
             status
@@ -278,7 +293,8 @@ impl Presenter {
         printer.set_has_update_manager(capabilities.server.update_manager);
         self.set_macro_details(snapshot.status.macro_details.clone());
         self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
-        self.set_mmu(status.mmu.as_ref());
+        self.set_mmu(status.mmu.as_ref(), &lanes);
+        self.set_spool_views(&printer, snapshot, active_spool.as_ref());
 
         let previous_job =
             std::mem::replace(&mut self.cache.borrow_mut().snapshot, snapshot.clone()).status.job.filename;
@@ -341,6 +357,12 @@ impl Presenter {
                     self.show_console_response(&line);
                 }
             }
+            Event::Spoolman(state) => self.store_spoolman(*state),
+            Event::SpoolList(spools) => self.store_spool_list(spools),
+            Event::SpoolmanChanged => {
+                self.service.query(Query::Spoolman);
+                self.service.query(Query::SpoolList);
+            }
             Event::HostNetwork(interfaces) => {
                 replace_rows(&self.host_interfaces, interfaces.iter().map(host_interface_item).collect());
             }
@@ -365,7 +387,7 @@ impl Presenter {
 
     /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
     /// Happy Hare on the Filament page. Only version 4.1 or newer is shown; an older one gets a notice instead.
-    fn set_mmu(&self, mmu: Option<&MmuStatus>) {
+    fn set_mmu(&self, mmu: Option<&MmuStatus>, lanes: &[Lane]) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
         let enabled = mmu.filter(|mmu| mmu.enabled);
@@ -381,17 +403,29 @@ impl Presenter {
         let gates = mmu
             .gates
             .iter()
-            .map(|gate| MmuGateItem {
-                index: gate.index as i32,
-                availability: view::mmu_availability(gate.availability).into(),
-                name: gate.name.as_str().into(),
-                material: gate.material.as_str().into(),
-                color: gate.color.map_or_else(slint::Color::default, |[red, green, blue]| {
-                    slint::Color::from_rgb_u8(red, green, blue)
-                }),
-                has_color: gate.color.is_some(),
-                tool: gate.tool.map_or(-1, |tool| tool as i32),
-                selected: usize::try_from(mmu.gate) == Ok(gate.index),
+            .map(|gate| {
+                let spool =
+                    lanes.iter().find(|lane| lane.gate == Some(gate.index)).and_then(|lane| lane.spool.as_ref());
+                // A multi-colour spool shows all its colours; otherwise the gate has the one colour Happy Hare reports.
+                let gate_color: Vec<[u8; 3]> = gate.color.into_iter().collect();
+                let spool_colors = spool.map(|spool| spool.colors.as_slice()).filter(|colors| colors.len() > 1);
+                let bar = color_bar(spool_colors.unwrap_or(&gate_color));
+                MmuGateItem {
+                    spool_text: spool.map(view::spool_remaining).unwrap_or_default().into(),
+                    spool_low: spool.is_some_and(Spool::is_low),
+                    spool_id: gate.spool_id.map_or(-1, |id| id as i32),
+                    index: gate.index as i32,
+                    availability: view::mmu_availability(gate.availability).into(),
+                    name: gate.name.as_str().into(),
+                    material: gate.material.as_str().into(),
+                    color: bar.0,
+                    color_2: bar.1,
+                    color_3: bar.2,
+                    color_count: bar.3,
+                    has_color: gate.color.is_some(),
+                    tool: gate.tool.map_or(-1, |tool| tool as i32),
+                    selected: usize::try_from(mmu.gate) == Ok(gate.index),
+                }
             })
             .collect();
         replace_rows(&self.mmu_gates, gates);
@@ -558,12 +592,118 @@ impl Presenter {
         self.status.refresh();
     }
 
+    /// The lanes of the printer: a gate each with MMU, else the one active spool.
+    fn lanes(&self, snapshot: &Snapshot) -> Vec<Lane> {
+        let mmu = snapshot.status.mmu.as_ref().filter(|mmu| mmu.is_supported());
+        spoolman::lanes(mmu, &self.cache.borrow().spoolman)
+    }
+
+    /// The spool in use on the page of the print and on the temperature page, and Spoolman's state.
+    fn set_spool_views(&self, printer: &Printer, snapshot: &Snapshot, active: Option<&Spool>) {
+        let configured = snapshot.capabilities.server.spoolman;
+        let (offline, pending) = {
+            let cache = self.cache.borrow();
+            (configured && cache.spoolman_known && !cache.spoolman.connected, cache.spoolman.pending_reports)
+        };
+        printer.set_has_spoolman(configured);
+        printer.set_spoolman_offline(offline);
+        printer.set_spoolman_pending(pending as i32);
+        printer.set_has_spool(active.is_some());
+        printer.set_spool_title(active.map(Spool::title).unwrap_or_default().into());
+        printer.set_spool_detail(active.map(view::spool_detail).unwrap_or_default().into());
+        printer.set_spool_weight(active.map(view::spool_remaining).unwrap_or_default().into());
+        let bar = color_bar(active.map(|spool| spool.colors.as_slice()).unwrap_or_default());
+        printer.set_spool_color(bar.0);
+        printer.set_spool_color_2(bar.1);
+        printer.set_spool_color_3(bar.2);
+        printer.set_spool_color_count(bar.3);
+        printer.set_spool_low(active.is_some_and(Spool::is_low));
+        let preset = active.and_then(view::spool_preset_text);
+        printer.set_has_spool_preset(preset.is_some());
+        printer.set_spool_preset_text(preset.unwrap_or_default().into());
+    }
+
+    fn store_spoolman(&self, state: SpoolmanState) {
+        {
+            let mut cache = self.cache.borrow_mut();
+            cache.catalog.store_spools(state.spools.values().cloned());
+            cache.spoolman = state;
+            cache.spoolman_known = true;
+        }
+        let snapshot = self.cache.borrow().snapshot.clone();
+        self.apply_snapshot(&snapshot);
+        self.show_spool_rows();
+        self.show_file_rows();
+    }
+
+    fn store_spool_list(&self, spools: Vec<Spool>) {
+        {
+            let mut cache = self.cache.borrow_mut();
+            cache.catalog.store_spools(spools.iter().cloned());
+            cache.spool_list = spools;
+        }
+        self.show_spool_rows();
+        self.show_file_rows();
+    }
+
+    fn show_spool_rows(&self) {
+        let snapshot = self.cache.borrow().snapshot.clone();
+        let lanes = self.lanes(&snapshot);
+        let rows = spool_rows(&self.cache.borrow().spool_list, &lanes);
+        replace_rows(&self.spools, rows);
+        if let Some(window) = self.window.upgrade() {
+            window.global::<Printer>().set_spools_loading(false);
+        }
+    }
+
+    /// Asks for the spools of the picker, and for the state, which the picker shows the places from.
+    pub fn load_spools(&self) {
+        if self.spools.row_count() == 0 {
+            if let Some(window) = self.window.upgrade() {
+                window.global::<Printer>().set_spools_loading(true);
+            }
+        }
+        self.service.query(Query::Spoolman);
+        self.service.query(Query::SpoolList);
+    }
+
+    /// Heats to what the spool in use recommends; the bed keeps its target if Spoolman has no temperature for it.
+    pub fn apply_spool_preset(&self) {
+        let snapshot = self.snapshot();
+        let lanes = self.lanes(&snapshot);
+        let Some(spool) = spoolman::active_spool(&lanes) else { return };
+        let Some(extruder) = spool.extruder_temp else { return };
+        let bed =
+            spool.bed_temp.or_else(|| snapshot.status.heater("heater_bed").map(|heater| heater.target)).unwrap_or(0.0);
+        self.service.send(Command::ApplyPreset { extruder, bed });
+    }
+
+    /// What differs between the file and the spools, as lines for the confirmation to start it; empty if nothing.
+    pub fn print_hints_text(&self, path: &str) -> String {
+        let snapshot = self.snapshot();
+        let lanes = self.lanes(&snapshot);
+        let cache = self.cache.borrow();
+        let Some(metadata) = cache.catalog.metadata(path) else { return String::new() };
+        let tool_to_gate = snapshot.status.mmu.as_ref().map(|mmu| mmu.tool_to_gate.clone()).unwrap_or_default();
+        let show_tool = lanes.iter().any(|lane| lane.gate.is_some());
+        let lines: Vec<String> = spoolman::print_hints(metadata, &lanes, &tool_to_gate)
+            .iter()
+            .map(|hint| format!("• {}", view::print_hint_text(hint, show_tool)))
+            .collect();
+        if lines.is_empty() {
+            String::new()
+        } else {
+            format!("\n\n{}", lines.join("\n"))
+        }
+    }
+
     pub fn request_files(&self) {
         if let Some(window) = self.window.upgrade() {
             window.global::<Printer>().set_files_loading(true);
         }
         self.service.query(Query::Files);
         self.service.query(Query::PrintHistory);
+        self.service.query(Query::SpoolList);
     }
 
     fn show_files(&self, files: Vec<FileEntry>) {
@@ -656,8 +796,54 @@ pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, 
     }
 }
 
-fn heater_item(heater: &Heater) -> HeaterItem {
+/// The picker rows: spools in a lane first, then the most recently used, each with its place.
+fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
+    let inserted: Vec<u32> = lanes.iter().filter_map(|lane| lane.spool_id).collect();
+    spoolman::picker_order(spools.to_vec(), &inserted)
+        .iter()
+        .map(|spool| {
+            let lane = lanes.iter().find(|lane| lane.spool_id == Some(spool.id));
+            let place = match lane {
+                Some(lane) => lane.gate.map_or_else(|| "In use".to_owned(), |gate| format!("Gate {gate}")),
+                None => String::new(),
+            };
+            let bar = color_bar(&spool.colors);
+            SpoolItem {
+                id: spool.id as i32,
+                title: spool.title().into(),
+                detail: view::spool_detail(spool).into(),
+                color: bar.0,
+                color_2: bar.1,
+                color_3: bar.2,
+                color_count: bar.3,
+                place: place.into(),
+                low: spool.is_low(),
+            }
+        })
+        .collect()
+}
+
+fn color_of([red, green, blue]: [u8; 3]) -> slint::Color {
+    slint::Color::from_rgb_u8(red, green, blue)
+}
+
+/// The colours of a bar: up to three, and how many there are.
+fn color_bar(colors: &[[u8; 3]]) -> (slint::Color, slint::Color, slint::Color, i32) {
+    let color = |index: usize| colors.get(index).copied().map_or_else(slint::Color::default, color_of);
+    (color(0), color(1), color(2), colors.len().min(3) as i32)
+}
+
+/// The row of a heater; the hint says that the target is off from what the spool in use recommends.
+fn heater_item(heater: &Heater, spool: Option<&Spool>) -> HeaterItem {
+    let recommended = spool.and_then(|spool| match heater.object.as_str() {
+        "extruder" => spool.extruder_temp,
+        "heater_bed" => spool.bed_temp,
+        _ => None,
+    });
+    let spool_hint = spoolman::temperature_hint(heater.target, recommended)
+        .map_or_else(SharedString::new, |degrees| format!("Spool {degrees:.0}°").into());
     HeaterItem {
+        spool_hint,
         object: heater.object.as_str().into(),
         label: heater.label.as_str().into(),
         temperature: heater.temperature as f32,
@@ -744,6 +930,16 @@ mod tests {
 
     fn line(kind: ConsoleKind, message: &str) -> ConsoleLine {
         ConsoleLine { kind, message: message.to_owned(), time: 0.0 }
+    }
+
+    #[test]
+    fn a_colour_bar_has_up_to_three_colours() {
+        let red = [255, 0, 0];
+        assert_eq!(color_bar(&[]).3, 0);
+        assert_eq!(color_bar(&[red]).3, 1);
+        assert_eq!(color_bar(&[red, [0, 255, 0]]).3, 2);
+        assert_eq!(color_bar(&[red; 5]).3, 3);
+        assert_eq!(color_bar(&[red, [0, 255, 0]]).1, slint::Color::from_rgb_u8(0, 255, 0));
     }
 
     #[test]

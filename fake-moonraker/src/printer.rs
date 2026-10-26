@@ -166,6 +166,15 @@ impl Printer {
         Self::with_profile(time_scale, MachineProfile::default())
     }
 
+    /// The Spoolman spool of the selected gate; `None` without Happy Hare or a gate.
+    pub fn selected_gate_spool(&self) -> Option<u32> {
+        self.mmu.as_ref().and_then(HappyHare::selected_spool)
+    }
+
+    pub fn has_mmu(&self) -> bool {
+        self.mmu.is_some()
+    }
+
     pub fn with_profile(time_scale: f64, profile: MachineProfile) -> Self {
         Self {
             time_scale,

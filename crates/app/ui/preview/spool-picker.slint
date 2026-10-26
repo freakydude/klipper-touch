@@ -1,0 +1,24 @@
+// Preview: the picker of Spoolman for gate 1 of an MMU: spools in a gate first, one nearly empty, then the others.
+// Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer, SpoolPicker } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component SpoolPickerPreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Navigation.page = Page.print;
+        Printer.has-spoolman = true;
+        Printer.spools = [
+            { id: 18, title: "Geeetech Red", detail: "ABS+ · 613 g", color: #e31f2b, color-count: 1, place: "Gate 0", low: false },
+            { id: 21, title: "Sunlu HS Matte PETG", detail: "PETG · 38 g", color: #2e7d32, color-count: 1, place: "Gate 1", low: true },
+            { id: 19, title: "Silk Red+Gold+Black", detail: "PLA · 802 g", color: #ff0004, color-2: #ffa424, color-3: #000000, color-count: 3, place: "", low: false },
+            { id: 20, title: "Red+Green", detail: "PLA · 540 g", color: #e31f2b, color-2: #2e7d32, color-count: 2, place: "", low: false },
+            { id: 7, title: "Sunlu ASA", detail: "ASA · 266 g", color: #1a1a1a, color-count: 1, place: "", low: false },
+            { id: 3, title: "Unknown", detail: "PLA", color: #000000, color-count: 0, place: "", low: false },
+        ];
+        SpoolPicker.gate = 1;
+        SpoolPicker.open = true;
+    }
+}

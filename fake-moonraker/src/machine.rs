@@ -7,6 +7,8 @@ pub struct MachineProfile {
     pub mmu_gates: Option<usize>,
     /// Klipper `exclude_object` module with the objects of the print.
     pub exclude_object: bool,
+    /// Moonraker's `spoolman` component with a few spools.
+    pub spoolman: bool,
     /// Number of filament sensors, taken from the front of the list of the profile (`FILAMENT_SENSORS` or `MMU_FILAMENT_SENSORS`).
     pub filament_sensors: usize,
 }
@@ -18,11 +20,12 @@ pub const FILAMENT_SENSORS: [&str; 2] =
 /// Happy Hare sensors as Klipper objects, as listed by a real single-lane type-B machine with a sync-feedback buffer
 /// (Happy Hare 4.1.0, `objects.list`, 2026-10-25). Names come from `mmu_constants.py`; the gate suffix is kept.
 /// The machine has no shared exit sensor and no encoder.
-pub const MMU_FILAMENT_SENSORS: [&str; 5] = [
+pub const MMU_FILAMENT_SENSORS: [&str; 6] = [
     "filament_switch_sensor mmu_entry_0",
     "filament_switch_sensor mmu_exit_0",
     "filament_switch_sensor toolhead",
     "filament_switch_sensor extruder",
+    "filament_switch_sensor filament_compression",
     "filament_switch_sensor filament_tension",
 ];
 
@@ -35,6 +38,7 @@ impl MachineProfile {
             chamber_heater: false,
             mmu_gates: None,
             exclude_object: false,
+            spoolman: false,
             filament_sensors: 0,
         }
     }
@@ -45,6 +49,7 @@ impl MachineProfile {
             chamber_heater: true,
             mmu_gates: None,
             exclude_object: true,
+            spoolman: true,
             filament_sensors: 2,
         }
     }
@@ -55,6 +60,7 @@ impl MachineProfile {
             chamber_heater: true,
             mmu_gates: Some(gates),
             exclude_object: true,
+            spoolman: true,
             filament_sensors: 5,
         }
     }

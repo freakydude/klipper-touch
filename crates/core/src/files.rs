@@ -1,5 +1,6 @@
 //! G-code files, their metadata and thumbnails.
 
+use crate::spoolman::Spool;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -47,6 +48,13 @@ pub struct FileMetadata {
     pub first_layer_extr_temp: Option<f64>,
     pub first_layer_bed_temp: Option<f64>,
     pub chamber_temp: Option<f64>,
+    /// Per filament of the slicer, in grams; the index is the tool.
+    pub filament_weights: Vec<f64>,
+    pub filament_temps: Vec<f64>,
+    /// `#RRGGBB` per filament.
+    pub filament_colors: Vec<String>,
+    /// Tools the print really uses.
+    pub referenced_tools: Vec<usize>,
     pub thumbnails: Vec<Thumbnail>,
 }
 
@@ -80,6 +88,8 @@ pub struct FileInfo<'a> {
     pub entry: &'a FileEntry,
     pub metadata: Option<&'a FileMetadata>,
     pub last_print: Option<&'a LastPrint>,
+    /// The one spool the last print used, if Spoolman is known to have it.
+    pub spool: Option<&'a Spool>,
 }
 
 impl FileInfo<'_> {
@@ -96,6 +106,7 @@ pub struct FileCatalog {
     entries: Vec<FileEntry>,
     metadata: HashMap<String, FileMetadata>,
     last_prints: HashMap<String, LastPrint>,
+    spools: HashMap<u32, Spool>,
 }
 
 impl FileCatalog {
@@ -126,6 +137,11 @@ impl FileCatalog {
         self.last_prints = last_prints;
     }
 
+    /// Spools of Spoolman that last prints may have used; a spool that is known stays until it is replaced.
+    pub fn store_spools(&mut self, spools: impl IntoIterator<Item = Spool>) {
+        self.spools.extend(spools.into_iter().map(|spool| (spool.id, spool)));
+    }
+
     pub fn metadata(&self, path: &str) -> Option<&FileMetadata> {
         self.metadata.get(path)
     }
@@ -139,17 +155,31 @@ impl FileCatalog {
     }
 
     pub fn info<'a>(&'a self, entry: &'a FileEntry) -> FileInfo<'a> {
-        FileInfo { entry, metadata: self.metadata(&entry.path), last_print: self.last_print(&entry.path) }
+        let last_print = self.last_print(&entry.path);
+        let spool = last_print
+            .filter(|last_print| last_print.spool_ids.len() == 1)
+            .and_then(|last_print| self.spools.get(&last_print.spool_ids[0]));
+        FileInfo { entry, metadata: self.metadata(&entry.path), last_print, spool }
     }
 }
 
 /// What the last completed print of a file measured, from the Moonraker job history.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct LastPrint {
     /// Seconds spent printing, without paused and idle time.
     pub print_duration: f64,
     /// Filament length in millimeters.
     pub filament_used: f64,
+    /// Spoolman spools the job used (`auxiliary_data`); empty without Spoolman.
+    pub spool_ids: Vec<u32>,
+}
+
+#[derive(Deserialize)]
+struct AuxiliaryEntry {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    value: Value,
 }
 
 #[derive(Deserialize)]
@@ -162,6 +192,20 @@ struct HistoryJob {
     print_duration: f64,
     #[serde(default)]
     filament_used: f64,
+    #[serde(default)]
+    auxiliary_data: Vec<AuxiliaryEntry>,
+}
+
+impl HistoryJob {
+    fn spool_ids(&self) -> Vec<u32> {
+        self.auxiliary_data
+            .iter()
+            .filter(|entry| entry.name == "spool_ids")
+            .filter_map(|entry| entry.value.as_array())
+            .flatten()
+            .filter_map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()))
+            .collect()
+    }
 }
 
 /// The newest completed job per file; `server.history.list` returns the newest job first. Cancelled and failed
@@ -170,10 +214,12 @@ pub fn parse_last_completed_prints(result: &Value) -> HashMap<String, LastPrint>
     let jobs: Vec<HistoryJob> =
         result.get("jobs").and_then(|jobs| serde_json::from_value(jobs.clone()).ok()).unwrap_or_default();
     let mut last_prints = HashMap::new();
-    for job in jobs.into_iter().filter(|job| job.status == "completed" && job.print_duration > 0.0) {
-        last_prints
-            .entry(job.filename)
-            .or_insert(LastPrint { print_duration: job.print_duration, filament_used: job.filament_used });
+    for job in jobs.iter().filter(|job| job.status == "completed" && job.print_duration > 0.0) {
+        last_prints.entry(job.filename.clone()).or_insert(LastPrint {
+            print_duration: job.print_duration,
+            filament_used: job.filament_used,
+            spool_ids: job.spool_ids(),
+        });
     }
     last_prints
 }
@@ -257,7 +303,23 @@ mod tests {
         }));
 
         assert_eq!(last_prints.len(), 1);
-        assert_eq!(last_prints["a.gcode"], LastPrint { print_duration: 900.0, filament_used: 2000.0 });
+        assert_eq!(
+            last_prints["a.gcode"],
+            LastPrint { print_duration: 900.0, filament_used: 2000.0, ..LastPrint::default() }
+        );
+    }
+
+    #[test]
+    fn the_spools_of_a_job_come_from_the_auxiliary_data() {
+        let last_prints = parse_last_completed_prints(&json!({ "jobs": [{
+            "filename": "a.gcode", "status": "completed", "print_duration": 900.0, "filament_used": 2000.0,
+            "auxiliary_data": [
+                { "provider": "other", "name": "other", "value": [9] },
+                { "provider": "spoolman", "name": "spool_ids", "value": [18, 21], "units": null }
+            ]
+        }] }));
+
+        assert_eq!(last_prints["a.gcode"].spool_ids, [18, 21]);
     }
 
     #[test]
@@ -287,7 +349,7 @@ mod tests {
         catalog.store_metadata(metadata("a.gcode"));
         catalog.store_last_prints(HashMap::from([(
             "a.gcode".to_owned(),
-            LastPrint { print_duration: 5.0, filament_used: 1.0 },
+            LastPrint { print_duration: 5.0, filament_used: 1.0, ..LastPrint::default() },
         )]));
 
         let a = catalog.info(&catalog.entries()[0]);
@@ -311,6 +373,20 @@ mod tests {
         assert_eq!(needing.len(), DETAILS_LIMIT - 1);
         assert!(!needing.contains(&"f0.gcode".to_owned()));
         assert!(!needing.contains(&format!("f{DETAILS_LIMIT}.gcode")));
+    }
+
+    #[test]
+    fn the_spool_of_the_last_print_is_known_only_for_a_print_with_one_spool() {
+        let mut catalog = FileCatalog::default();
+        catalog.set_entries(vec![entry("a.gcode"), entry("b.gcode")]);
+        catalog.store_last_prints(HashMap::from([
+            ("a.gcode".to_owned(), LastPrint { print_duration: 5.0, filament_used: 1.0, spool_ids: vec![18] }),
+            ("b.gcode".to_owned(), LastPrint { print_duration: 5.0, filament_used: 1.0, spool_ids: vec![18, 21] }),
+        ]));
+        catalog.store_spools([Spool { id: 18, ..Spool::default() }]);
+
+        assert_eq!(catalog.info(&catalog.entries()[0]).spool.map(|spool| spool.id), Some(18));
+        assert_eq!(catalog.info(&catalog.entries()[1]).spool, None);
     }
 
     #[test]

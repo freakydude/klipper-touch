@@ -14,16 +14,19 @@ const FILAMENT_POSITION_UNLOADED: i32 = 0;
 const FILAMENT_POSITION_LOADED: i32 = 10;
 const UNIT_NAME: &str = "unit0";
 
-struct Spool {
-    name: &'static str,
-    material: &'static str,
-    vendor: &'static str,
-    color: &'static str,
-    rgb: [f64; 3],
-    temperature: i32,
+pub(crate) struct Spool {
+    pub(crate) name: &'static str,
+    pub(crate) material: &'static str,
+    pub(crate) vendor: &'static str,
+    pub(crate) color: &'static str,
+    pub(crate) rgb: [f64; 3],
+    pub(crate) temperature: i32,
 }
 
-const SPOOLS: [Spool; 4] = [
+/// The demo filaments the gates cycle through; the two after them belong to the multi-colour spools of Spoolman.
+pub(crate) const BASIC_FILAMENTS: usize = 4;
+
+pub(crate) const SPOOLS: [Spool; 6] = [
     Spool { name: "Red PLA", material: "PLA", vendor: "Fake", color: "red", rgb: [1.0, 0.0, 0.0], temperature: 210 },
     Spool {
         name: "Green PETG",
@@ -42,7 +45,39 @@ const SPOOLS: [Spool; 4] = [
         rgb: [0.1, 0.1, 0.1],
         temperature: 250,
     },
+    // The first colour of the multi-colour filaments, which is what Happy Hare reports for a gate.
+    Spool {
+        name: "Silk Red+Green",
+        material: "PLA",
+        vendor: "Fake",
+        color: "red",
+        rgb: [0.89, 0.12, 0.17],
+        temperature: 215,
+    },
+    Spool {
+        name: "Silk Red+Gold+Black",
+        material: "PLA",
+        vendor: "Fake",
+        color: "red",
+        rgb: [1.0, 0.0, 0.02],
+        temperature: 220,
+    },
 ];
+
+/// Spools of the gates, in the order the gates take them: the first is one colour, then two, then three colours.
+const GATE_SPOOLS: [u32; 7] = [1, 7, 8, 4, 5, 6, 2];
+
+/// Tension from which tangle prevention raises the gear current, and below which it lets go (Happy Hare defaults).
+const TANGLE_THRESHOLD: f64 = 0.3;
+const TANGLE_RELEASE: f64 = 0.2;
+
+/// What the proportional buffer reports for one situation.
+struct Buffer {
+    state: &'static str,
+    bias: f64,
+    flow_rate: f64,
+    flowguard_level: f64,
+}
 
 #[derive(Debug, Clone)]
 pub struct HappyHare {
@@ -54,6 +89,10 @@ pub struct HappyHare {
     toolchanges: u32,
     tool_to_gate: Vec<usize>,
     gate_status: Vec<i32>,
+    /// Spoolman spool of each gate.
+    gate_spool: Vec<Option<u32>>,
+    /// The filament pulls hard on the buffer: tension at the stop and tangle prevention raises the gear current.
+    boosting: bool,
 }
 
 impl HappyHare {
@@ -63,6 +102,9 @@ impl HappyHare {
         if gates > 2 {
             gate_status[gates - 1] = GATE_EMPTY;
         }
+        let mut spools = GATE_SPOOLS.into_iter();
+        let gate_spool =
+            gate_status.iter().map(|status| if *status == GATE_AVAILABLE { spools.next() } else { None }).collect();
         Self {
             gates,
             homed: false,
@@ -72,6 +114,8 @@ impl HappyHare {
             toolchanges: 0,
             tool_to_gate: (0..gates).collect(),
             gate_status,
+            gate_spool,
+            boosting: false,
         }
     }
 
@@ -86,6 +130,11 @@ impl HappyHare {
             MmuCommand::Load => self.load(),
             MmuCommand::Unload => self.unload(),
             MmuCommand::Eject { gate, force } => self.eject(gate, force),
+            MmuCommand::GateMap { gate, spool_id } => self.gate_map(gate, spool_id),
+            MmuCommand::FakeTangle { boosting } => {
+                self.boosting = boosting;
+                Ok(())
+            }
         }
     }
 
@@ -93,7 +142,6 @@ impl HappyHare {
         let mut objects = Map::new();
         objects.insert("mmu".to_owned(), self.mmu_json(print_state));
         objects.insert("mmu_machine".to_owned(), self.machine_json());
-        objects.insert(format!("mmu_encoder {UNIT_NAME}"), self.encoder_json());
         objects.insert("mmu_extruder extruder".to_owned(), json!({}));
         objects.insert(format!("mmu_stepper {UNIT_NAME}_gear"), json!({}));
         objects
@@ -103,7 +151,6 @@ impl HappyHare {
         vec![
             ("mmu_machine".to_owned(), json!({ "num_units": 1 })),
             ("mmu".to_owned(), json!({ "enabled": true })),
-            (format!("mmu_encoder {UNIT_NAME}"), json!({})),
             ("mmu_extruder extruder".to_owned(), json!({})),
             (format!("mmu_stepper {UNIT_NAME}_gear"), json!({})),
         ]
@@ -199,8 +246,24 @@ impl HappyHare {
         }
     }
 
+    /// The filament of a gate: that of its Spoolman spool, which Happy Hare takes over, else a demo filament.
     fn spool(&self, gate: usize) -> &'static Spool {
-        &SPOOLS[gate % SPOOLS.len()]
+        match self.gate_spool.get(gate).copied().flatten() {
+            Some(id) => &SPOOLS[crate::spoolman::filament_index(id)],
+            None => &SPOOLS[gate % BASIC_FILAMENTS],
+        }
+    }
+
+    /// The Spoolman spool of the selected gate, which Happy Hare makes the active one.
+    pub fn selected_spool(&self) -> Option<u32> {
+        usize::try_from(self.gate).ok().and_then(|gate| self.gate_spool.get(gate).copied().flatten())
+    }
+
+    /// `MMU_GATE_MAP GATE= SPOOLID=`; a negative id takes the spool out.
+    fn gate_map(&mut self, gate: usize, spool_id: Option<i64>) -> Result<(), CommandError> {
+        self.check_gate(gate)?;
+        self.gate_spool[gate] = spool_id.and_then(|id| u32::try_from(id).ok()).filter(|id| *id > 0);
+        Ok(())
     }
 
     fn per_gate<T>(&self, value: impl Fn(&'static Spool) -> T) -> Vec<T> {
@@ -216,7 +279,7 @@ impl HappyHare {
                     "material": spool.material,
                     "vendor": spool.vendor,
                     "color": spool.color,
-                    "spool_id": -1,
+                    "spool_id": self.gate_spool.get(gate).copied().flatten().map_or(-1, i64::from),
                     "temperature": spool.temperature,
                     "td": null,
                 })
@@ -226,7 +289,8 @@ impl HappyHare {
     }
 
     fn mmu_json(&self, print_state: &str) -> Value {
-        json!({
+        let printing = print_state == "printing";
+        let mut mmu = json!({
             "enabled": true,
             "num_gates": self.gates,
             "is_homed": self.homed,
@@ -243,7 +307,7 @@ impl HappyHare {
             "reason_for_pause": "",
             "is_paused": false,
             "is_locked": false,
-            "sensors": self.sensors_json(),
+            "sensors": self.sensors_json(printing),
             "sync_drive": false,
             "spoolman_support": "off",
             "ttg_map": self.tool_to_gate,
@@ -255,12 +319,58 @@ impl HappyHare {
             "gate_color": self.per_gate(|spool| spool.color),
             "gate_color_rgb": self.per_gate(|spool| spool.rgb),
             "gate_temperature": self.per_gate(|spool| spool.temperature),
-            "encoder": self.encoder_json(),
+            "gate_spool_id": self.gate_spool.iter().map(|id| id.map_or(-1, i64::from)).collect::<Vec<_>>(),
+            "spoolman_support": "push",
+            "pending_spool_id": -1,
+            "encoder": null,
+        });
+        let (Some(fields), Value::Object(buffer)) = (mmu.as_object_mut(), self.buffer_fields(printing)) else {
+            unreachable!("both are JSON objects")
+        };
+        fields.extend(buffer);
+        mmu
+    }
+
+    /// The fields of a proportional buffer, as on the real device (no encoder), made up from the print state.
+    fn buffer_fields(&self, printing: bool) -> Value {
+        let buffer = self.buffer(printing);
+        json!({
+            "sync_feedback_enabled": 1,
+            "sync_feedback_state": buffer.state,
+            "sync_feedback_bias_raw": buffer.bias,
+            "sync_feedback_bias_modelled": buffer.bias,
+            "sync_feedback_flow_rate": buffer.flow_rate,
+            "flowguard": {
+                "enabled": true,
+                "active": printing,
+                "trigger": "",
+                "reason": "",
+                "level": buffer.flowguard_level,
+                "max_clog": 0.0,
+                "max_tangle": buffer.flowguard_level.min(0.0),
+            },
+            "tangle_prevention": {
+                "enabled": true,
+                "active": printing,
+                "boosted": printing && self.boosting,
+                "threshold": TANGLE_THRESHOLD,
+                "release": TANGLE_RELEASE,
+            },
         })
     }
 
+    /// The proportional buffer in the three situations the UI tells apart: idle, printing in the middle, and
+    /// printing with the filament pulling at the stop. Values are made up and simplified.
+    fn buffer(&self, printing: bool) -> Buffer {
+        match (printing, self.boosting) {
+            (false, _) => Buffer { state: "inactive", bias: 0.0, flow_rate: 100.0, flowguard_level: 0.0 },
+            (true, false) => Buffer { state: "neutral", bias: 0.05, flow_rate: 98.47, flowguard_level: 0.0 },
+            (true, true) => Buffer { state: "tension", bias: -0.93, flow_rate: 98.47, flowguard_level: -0.4 },
+        }
+    }
+
     /// `mmu.sensors` with generic names; the Happy Hare 3 aliases are included as Happy Hare 4.1 does for older UIs.
-    fn sensors_json(&self) -> Value {
+    fn sensors_json(&self, printing: bool) -> Value {
         let at_entry = usize::try_from(self.gate)
             .ok()
             .and_then(|gate| self.gate_status.get(gate))
@@ -272,6 +382,9 @@ impl HappyHare {
             "toolhead": self.loaded,
             "mmu_pre_gate": at_entry,
             "mmu_gear": self.loaded,
+            "filament_compression": false,
+            "filament_tension": printing && self.boosting,
+            "filament_proportional": false,
         })
     }
 
@@ -295,10 +408,6 @@ impl HappyHare {
                 "filament_buffer": false,
             },
         })
-    }
-
-    fn encoder_json(&self) -> Value {
-        json!({ "encoder_pos": 0.0, "enabled": true, "flow_rate": 100 })
     }
 }
 
@@ -354,7 +463,9 @@ mod tests {
         assert_eq!(status["gate"], 2);
         assert_eq!(status["tool"], 2);
         assert_eq!(status["unit"], 0);
-        assert_eq!(status["active_filament"]["filament_name"], "Blue PLA");
+        // Gate 2 holds the spool with three colours (spool 8), whose first colour Happy Hare reports.
+        assert_eq!(status["active_filament"]["filament_name"], "Silk Red+Gold+Black");
+        assert_eq!(status["active_filament"]["spool_id"], 8);
     }
 
     #[test]
@@ -432,6 +543,32 @@ mod tests {
     }
 
     #[test]
+    fn a_gate_map_sets_the_spool_and_the_gate_takes_its_filament() {
+        let mut hare = homed(4);
+        assert_eq!(mmu(&hare)["gate_spool_id"], json!([1, 7, 8, -1]));
+
+        hare.apply(MmuCommand::GateMap { gate: 1, spool_id: Some(4) }).unwrap();
+        hare.apply(MmuCommand::GateMap { gate: 0, spool_id: Some(-1) }).unwrap();
+
+        let status = mmu(&hare);
+        assert_eq!(status["gate_spool_id"], json!([-1, 4, 8, -1]));
+        // Spool 4 is the black ABS: Happy Hare takes material and temperature from Spoolman.
+        assert_eq!(status["gate_material"][1], "ABS");
+        assert_eq!(status["spoolman_support"], "push");
+        assert!(hare.apply(MmuCommand::GateMap { gate: 9, spool_id: Some(1) }).is_err());
+    }
+
+    #[test]
+    fn the_selected_gate_makes_its_spool_the_active_one() {
+        let mut hare = homed(4);
+        assert_eq!(hare.selected_spool(), None);
+
+        hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
+
+        assert_eq!(hare.selected_spool(), Some(7));
+    }
+
+    #[test]
     fn load_needs_a_selected_gate() {
         let mut hare = homed(4);
 
@@ -447,10 +584,31 @@ mod tests {
         let objects = HappyHare::new(4).status("standby");
 
         let names: Vec<&str> = objects.keys().map(String::as_str).collect();
-        assert_eq!(
-            names,
-            ["mmu", "mmu_encoder unit0", "mmu_extruder extruder", "mmu_machine", "mmu_stepper unit0_gear"]
-        );
+        assert_eq!(names, ["mmu", "mmu_extruder extruder", "mmu_machine", "mmu_stepper unit0_gear"]);
         assert_eq!(objects["mmu_machine"]["unit_0"]["num_gates"], 4);
+    }
+
+    #[test]
+    fn the_buffer_is_idle_until_a_print_runs() {
+        let hare = homed(4);
+
+        assert_eq!(hare.status("standby")["mmu"]["sync_feedback_state"], "inactive");
+        assert_eq!(hare.status("standby")["mmu"]["flowguard"]["active"], false);
+        assert_eq!(hare.status("printing")["mmu"]["sync_feedback_state"], "neutral");
+        assert_eq!(hare.status("printing")["mmu"]["flowguard"]["active"], true);
+        assert_eq!(hare.status("printing")["mmu"]["sync_feedback_flow_rate"], 98.47);
+        assert!(hare.status("printing")["mmu"]["encoder"].is_null());
+    }
+
+    #[test]
+    fn the_boost_shows_only_while_printing() {
+        let mut hare = homed(4);
+        hare.apply(MmuCommand::FakeTangle { boosting: true }).unwrap();
+
+        let printing = hare.status("printing")["mmu"].clone();
+        assert_eq!(printing["tangle_prevention"]["boosted"], true);
+        assert_eq!(printing["sync_feedback_state"], "tension");
+        assert_eq!(printing["sensors"]["filament_tension"], true);
+        assert_eq!(hare.status("standby")["mmu"]["tangle_prevention"]["boosted"], false);
     }
 }

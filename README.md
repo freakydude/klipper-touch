@@ -1,21 +1,23 @@
 # Klipper-Touch
 
+A touch screen interface for 3D printers running [Klipper](https://www.klipper3d.org/): a small native app that runs
+on the printer's own host (Raspberry Pi, BTT CB1/CB2 and similar), fills the display attached to it and talks to
+[Moonraker](https://moonraker.readthedocs.io/). It has built-in support for **[Happy Hare](https://github.com/moggieuk/Happy-Hare)
+(MMU)** and **[Spoolman](https://github.com/Donkie/Spoolman)**.
+
+Written in Rust with a [Slint](https://slint.dev/) UI: no browser, no WebView, no X11 desktop needed. The first target
+is the BTT HDMI5 (5", 800x480, landscape).
+
 > [!CAUTION]
-> **Untested experiment. Not intended for productive use.**
-> This software has not been tested on real printers. It sends commands that move motors, heat up
-> nozzles and beds and restart services; a bug can damage your printer, your print or start a fire.
-> Use it only if you know what you are doing, never leave the printer unattended, and keep an
-> emergency stop within reach.
+> **Early development, tried by one person only. Not intended for productive use.**
+> So far I have run it against the included fake Moonraker, on desktops and on a BTT HDMI5, and read the data of one
+> real printer; most functions have not been tried on a real machine. It sends commands that move motors, heat up nozzles and beds and restart
+> services; a bug can damage your printer, your print or start a fire. Use it only if you know what you are doing, never
+> leave the printer unattended, and keep an emergency stop within reach.
 > The software is provided "as is", **without any warranty and without any liability** of the author
 > for damage of any kind, to the extent permitted by law (see sections 15 and 16 of the [GPL](LICENSE)).
 
-Touch screen UI for [Klipper](https://www.klipper3d.org/) printers, talking to [Moonraker](https://moonraker.readthedocs.io/).
-Built for small displays attached directly to the printer host (Raspberry Pi 3/4/5, BTT CB1/CB2), first target is the
-BTT HDMI5 (5", 800x480, landscape). Native Rust application with a [Slint](https://slint.dev/) UI — no browser, no WebView.
-
-So far it has only run against the included fake Moonraker and on desktops.
-
-![Print screen](docs/screenshots/print.png)
+![Print screen with Happy Hare and Spoolman](docs/screenshots/print.png)
 
 |                                      |                                        |                                                            |
 | ------------------------------------ | -------------------------------------- | ---------------------------------------------------------- |
@@ -25,21 +27,79 @@ So far it has only run against the included fake Moonraker and on desktops.
 
 ## Features
 
-- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel; file browser with thumbnails.
+- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects;
+  file browser with thumbnails, filament, nozzle and print time of each file.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
 - **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
   - and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
 - **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
-- **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors. With Happy Hare 4.1 or newer an MMU tab shows the gates (four at a time: status, material, colour, mapped tool), the MMU sensors, the sync-feedback buffer and FlowGuard, and loads, unloads and homes the selected gate.
-- **Console**: G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an expandable list of macros. Macros starting with `_` and macros that rename a built-in command (`rename_existing`) are hidden; macros can be hidden in the settings. Macros with parameters open a form first: each parameter is read from the macro's template, Klipper defaults show as placeholders in brackets.
+- **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
+- **Console**: G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an
+  expandable list of macros. Macros starting with `_` and macros that rename a built-in command (`rename_existing`) are
+  hidden; macros can be hidden in the settings. Macros with parameters open a form first: each parameter is read from the
+  macro's template, Klipper defaults show as placeholders in brackets.
 - **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
-- **Settings**: Moonraker address, fullscreen, temperature presets — stored as JSON.
-- **Network** (Settings → Network): search and join Wi-Fi (open, WPA/WPA2, WPA3, hidden), remove saved networks,
-  Wi-Fi on/off, Ethernet status and connect/disconnect. See [Network settings](#network-settings).
+- **Settings**: Moonraker address, fullscreen, temperature presets, Wi-Fi and Ethernet (see [Network settings](#network-settings)).
 
 Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
 
+### Happy Hare (MMU)
+
+Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip on the print page show:
+
+- the gates (four at a time): status, material, colour and mapped tool; load, unload, eject and home the selected gate,
+  recover and unlock after a pause;
+- the MMU sensors, the sync-feedback buffer (tension, neutral, compression) and the FlowGuard state: ready, monitoring,
+  tangle prevention at work, or triggered with its reason;
+- the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
+
+| ![MMU tab](docs/screenshots/mmu.png) | ![FlowGuard line while tangle prevention raises the gear current](docs/screenshots/print-tangle-boost.png) |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| The MMU tab: gates, sensors, buffer  | The print page while tangle prevention raises the gear current (the FlowGuard line turns yellow)       |
+
+### Spoolman
+
+Appears when Moonraker has the `spoolman` component, with or without an MMU:
+
+- the spool in use and what is left of it on the print page and at each gate, with a colour bar of one, two or three parts
+  for multi-colour filaments;
+- a picker lists the spools (the ones in a gate first, then the most recently used): assign a spool to a gate or, without
+  an MMU, choose the active spool, and correct the remaining weight by weighing;
+- the temperature page offers a preset for the spool in use and notes quietly when the target is off from it;
+- before a print the confirmation names what differs between the file and the spools (material, weight, colour), only as
+  a hint.
+
+| ![Spool picker](docs/screenshots/spool-picker.png) | ![Start print with hints](docs/screenshots/spool-hints.png) | ![Spool preset on the temperature page](docs/screenshots/temperature-spool.png) |
+| -------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Spools with colour, material and weight left       | Before a print: what differs between file and spools        | The first preset on the temperature page belongs to the spool in use            |
+
+## How it compares to KlipperScreen
+
+[KlipperScreen](https://github.com/KlipperScreen/KlipperScreen) is the established touch screen UI for Klipper, with a
+large community, many panels and a much wider hardware support. **If you want something proven, use KlipperScreen.**
+klipper-touch is a younger, smaller alternative with a different technical approach and with Happy Hare and Spoolman
+built in. This is what I found in the KlipperScreen documentation (read in October 2026) and in my own project:
+
+|                      | KlipperScreen                                                                                                    | klipper-touch                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Maturity             | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI                                 | Early development, one person, English only                                                           |
+| Technology           | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston                                    | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window            |
+| Scope                | Many panels, among them bed mesh, bed level screws, input shaper, Z calibrate, limits, retraction, power         | The everyday ones: print, move, heat, tune, filament, console, macros, system, settings, network       |
+| Printers and hosts   | Several printers from one screen; can run on another device than the printer host                                | One Moonraker; can connect to a remote one, Wi-Fi settings need the printer host                       |
+| Displays             | Many, including GPIO/SPI displays                                                                                | BTT HDMI5 (800x480) first, other sizes are scaled, no SPI displays                                     |
+| Spoolman             | Has a Spoolman panel                                                                                             | Woven into the print page, the temperature page and the MMU gates, with hints before a print           |
+| Happy Hare           | Separate fork, [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition), installed in place of KlipperScreen | Built in, needs Happy Hare 4.1 or newer; buffer, FlowGuard and flow rate included |
+| Updates              | Moonraker update manager or KIAUH                                                                                | Moonraker update manager with `stable` and `beta` channels                                              |
+| License              | AGPL-3.0                                                                                                         | GPL-3.0-or-later                                                                                       |
+
+I did not look into what the KlipperScreen Spoolman panel can do beyond its existence, so this row says nothing about
+the depth of either.
+
 ## Install on the printer host
+
+This is the main use case: klipper-touch runs on the host of the printer (Raspberry Pi OS, Armbian or another
+Debian-based system with the display attached), starts fullscreen on the display at boot and updates itself through
+Moonraker's update manager, like Mainsail or Fluidd.
 
 1. Download the zip for your system from the [releases](https://github.com/freakydude/klipper-touch/releases):
    `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
@@ -57,30 +117,12 @@ Functions only appear when the printer has them (capabilities from `printer.obje
    - registers it with Moonraker's update manager (`[update_manager klipper-touch]` in `moonraker.conf`, service in
      `moonraker.asvc`) and restarts Moonraker.
 
-   Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c beta` for preview builds of every change on `main`.
+   Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c stable|beta` (update channel, see below).
    Settings go to `printer_data/config/klipper-touch.json`, next to the Klipper configs, as KlipperScreen does with its
    `KlipperScreen.conf`. An existing `~/.config/klipper-touch/settings.json` is copied there once.
    Remove everything with `~/klipper-touch/uninstall.sh`; the settings file stays.
 
-### Alternative: Debian package
-
-Each release also contains `klipper-touch_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs the
-dependencies, removes the package cleanly, but Moonraker does **not** update it — install newer `.deb` files yourself.
-Use either the zip installer or the package, not both (they would compete for `tty1`).
-
-```bash
-sudo apt install ./klipper-touch_0.2.0_arm64.deb
-sudo systemctl disable getty@tty1                # free tty1 for the kiosk
-sudo systemctl enable --now klipper-touch@$USER  # fullscreen on tty1 as this user
-# remove again (stops and disables all klipper-touch@ instances)
-sudo apt remove klipper-touch && sudo systemctl enable getty@tty1
-```
-
-The Moonraker address is taken from the settings (default `http://127.0.0.1:7125`, changeable on the Settings page).
-
-On a desktop (e.g. Raspberry Pi OS with desktop, Windows, Linux PC) simply start the binary; it opens as a normal window.
-
-### Updates
+### Updates and channels
 
 After the installation klipper-touch shows up in the update list of Mainsail, Fluidd and its own System page.
 Moonraker downloads the matching zip from the GitHub releases, replaces `~/klipper-touch` and restarts the service.
@@ -96,10 +138,38 @@ managed_services: klipper-touch
 system_dependencies: system-dependencies.json
 ```
 
-To get the preview builds of every change on `main`, set `channel: beta` in that section and restart Moonraker
-(`sudo systemctl restart moonraker`). Then the update list offers the newest prerelease. Switch back to `stable` the
-same way. The installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing
-`channel` line, so edit it by hand. Your edits survive later updates, because Moonraker only replaces the program folder.
+| Channel  | What you get                                                                                                                        |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `stable` | Releases `vX.Y.0` that I publish by hand when a set of changes feels finished. Few updates, the safer choice.                       |
+| `beta`   | In addition a preview build of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New things first, may be broken.    |
+
+To change the channel set `channel:` in that section and restart Moonraker (`sudo systemctl restart moonraker`). The
+installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing `channel`
+line, so edit it by hand. Your edits survive later updates, because Moonraker only replaces the program folder.
+
+## Packages and desktop use
+
+Besides the Moonraker route there are plain packages, for example to try it on a desktop or any other device:
+
+- **Debian package**: each release contains `klipper-touch_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs
+  the dependencies and removes the package cleanly, but Moonraker does **not** update it, install newer `.deb` files
+  yourself. Use either the zip installer or the package, not both (they would compete for `tty1`).
+
+  ```bash
+  sudo apt install ./klipper-touch_0.2.0_arm64.deb
+  sudo systemctl disable getty@tty1                # free tty1 for the kiosk
+  sudo systemctl enable --now klipper-touch@$USER  # fullscreen on tty1 as this user
+  # remove again (stops and disables all klipper-touch@ instances)
+  sudo apt remove klipper-touch && sudo systemctl enable getty@tty1
+  ```
+
+- **Windowed mode on a desktop** (Linux PC, Raspberry Pi OS with desktop, Windows): the program opens as a normal window
+  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `klipper-touch` from a
+  terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
+  `klipper-touch-x86_64-pc-windows-msvc.zip` and run `klipper-touch.exe`. There is no Windows installer yet. Set the
+  Moonraker address on the Settings page or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
+
+## Configuration
 
 ### Command line
 
@@ -115,14 +185,21 @@ klipper-touch [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
-driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (bigger UI on high resolution displays).
-
+driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off).
 Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
+
+### Displays
+
+The supported display is the BTT HDMI5 (800x480), where it has been run; the layout is made for it. Other resolutions show the same layout
+scaled up or down to fit, so a 7" 1024x600 display fills its screen and a 4.3" 480x272 display shows everything, only
+smaller. These are not tested yet. A 3.5" 480x320 display is too small to operate comfortably, and displays that hang on
+the SPI bus may not work with the kiosk compositor at all. Layouts of their own for the 7" and 4.3" displays are planned.
 
 ### Network settings
 
 Moonraker can only report the host's network (`machine.system_info`), it cannot change it. klipper-touch therefore talks
-to NetworkManager over D-Bus, like KlipperScreen. Managing Wi-Fi and Ethernet is offered when
+to NetworkManager over D-Bus, like KlipperScreen. Managing Wi-Fi (open, WPA/WPA2, WPA3, hidden, remove saved networks,
+on/off) and Ethernet (status, connect/disconnect) is offered when
 
 - klipper-touch runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and
 - Moonraker runs on the same host (`localhost`/`127.0.0.1`), so the changed network is the printer's network.
@@ -139,26 +216,58 @@ interfaces and addresses read from Moonraker.
 
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
 For Windows without admin rights (setup, faster linking with `rust-lld`, build times) see
-[docs/windows-without-admin.md](docs/windows-without-admin.md).
+[docs/windows-without-admin.md](docs/windows-without-admin.md). Structure, data flow and conventions:
+[docs/architecture.md](docs/architecture.md); workflows and use cases: `docs/UseCases and Dependencies.drawio`.
+
+### Try it without a printer
+
+The `fake-moonraker` crate is a simulated Moonraker/Klipper (WebSocket JSON-RPC, files, thumbnails, heaters, a print job
+that progresses). It listens on `127.0.0.1` only.
 
 ```bash
-cargo run -p fake-moonraker -- --profile voron          # simulated printer on port 7125
-cargo run -p klipper-touch -- -m http://127.0.0.1:7125
-cargo clippy --workspace --all-targets
+cargo run -p fake-moonraker -- --profile voron --port 7125 --time-scale 10   # the simulated printer
+cargo run -p klipper-touch -- -m http://127.0.0.1:7125                       # the app, in a window
+```
+
+| Fake option    | Meaning                                                                          |
+| -------------- | -------------------------------------------------------------------------------- |
+| `--profile`    | `basic`, `voron` (default) or `happy-hare`, see below                            |
+| `--gates`      | number of MMU gates, 1 to 16 (default 4; only with `happy-hare`)                 |
+| `--port`       | port to listen on (default 7125; only one fake can run per port)                 |
+| `--time-scale` | simulation speed (default 10): heating and printing run that many times faster   |
+
+| Profile      | Simulates                                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `basic`      | a plain printer: nozzle, bed, fans, no optional modules                                                                    |
+| `voron`      | adds Quad Gantry Level, a chamber heater, filament sensors, `exclude_object` and Spoolman                                  |
+| `happy-hare` | adds a Happy Hare MMU with a proportional sync-feedback buffer and FlowGuard, spools in the gates, and Spoolman            |
+
+`FAKE_MMU_TANGLE BOOST=1` (G-code, simulator only) lets tangle prevention boost the gear current during a print. In VS Code
+the tasks and debug configurations "run: fake-moonraker", "run: klipper-touch (fake Moonraker)" and their Happy Hare
+variants start both. The app also takes `--simulate-network` in development builds to try the Wi-Fi settings without
+NetworkManager.
+
+### Checks, screenshots and previews
+
+```bash
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p ui-snapshot -- --out shots                  # render the screens to PNG (needs the fake running)
-scripts/ui-snapshot.sh [-s 640x400] [-S pages]           # WSL2/Arch: starts the fake itself, renders all screens
-scripts/ui-preview.sh                                    # WSL2/Arch: renders crates/app/ui/preview/*.slint with sample data in seconds
+scripts/verify.sh [--snapshot]                           # WSL2/Arch: all of the above plus previews and the skill check in one go
+scripts/ui-preview.sh                                    # renders crates/app/ui/preview/*.slint with sample data in seconds
+scripts/ui-snapshot.sh [-p happy-hare] [-s 1024x600] [-F] [-S pages,printing]   # starts the fake itself, renders the screens to PNG
+cargo run -p ui-snapshot -- --out shots --scenes all     # the same by hand (needs the fake running)
 cargo run -p icon-index                                  # after changing icons in assets/icons
 ```
+
+`ui-snapshot` runs the real UI headless against the fake and writes one PNG per screen (`-p` picks the fake profile,
+`-s` the window size, `-F` switches the fitting to the display off, `-S` chooses scenes: `pages`, `spools`, `network`,
+`printing`, `shutdown`, `idle`). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
 
 Scripts exist in two variants with the same behaviour:
 
 - `scripts/*.sh` (bash) for WSL2 with Arch Linux, the main development environment. `scripts/setup-wsl.sh` checks the environment.
 - `scripts/*.ps1` (PowerShell) for Windows without admin rights. `scripts\setup.ps1` prepares the GNU toolchain there, see [docs/windows-without-admin.md](docs/windows-without-admin.md).
-
-Structure, data flow and conventions: [docs/architecture.md](docs/architecture.md).
-Workflows and use cases: `docs/UseCases and Dependencies.drawio`.
 
 ### Tools
 
@@ -181,7 +290,7 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
 ### Contributing
 
 `main` is protected: changes go through a pull request, all CI checks must be green and the code owner
-(`.github/CODEOWNERS`) has to approve it.
+(`.github/CODEOWNERS`) has to approve it. This is a hobby project, so replies may take a while.
 
 ### CI, versions and releases
 
@@ -199,6 +308,21 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
 - Assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
   `scripts/debian`). Linux zips contain `klipper-touch`, `install.sh`, `uninstall.sh`,
   `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `klipper-touch.exe`.
+
+## Contact and support
+
+Want to get in touch, report a bug, discuss a feature or show what you built? Meet me and the others who try
+klipper-touch on Discord. Bugs and feature requests are also welcome as GitHub issues, and pull requests too (see
+[Contributing](#contributing)).
+
+<a href="https://discord.gg/Ja2cxCcmJQ"><img src="https://img.shields.io/badge/Discord-join%20the%20chat-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord" height="40"></a>
+
+klipper-touch is a private project that I work on in my spare time, for my own printer. It comes without support
+promises, so answers may take a while. If you like it and want to say thanks, you can support me here:
+
+<a href="https://ko-fi.com/freakydude"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="40"></a>
+<a href="https://www.patreon.com/freakydude"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Become a patron" height="40"></a>
+<a href="https://www.buymeacoffee.com/freakydude"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40"></a>
 
 ## License
 

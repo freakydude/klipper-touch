@@ -34,6 +34,32 @@ impl GcodeFile {
         self
     }
 
+    /// Weight per filament; the long job is printed in two materials.
+    fn filament_weights(&self) -> Vec<f64> {
+        let total = self.filament_total() * 0.003;
+        if self.path == "long_job.gcode" {
+            vec![total * 0.4, 55.0]
+        } else {
+            vec![total]
+        }
+    }
+
+    fn filament_temps(&self) -> Vec<u32> {
+        if self.path == "long_job.gcode" {
+            vec![210, 235]
+        } else {
+            vec![210]
+        }
+    }
+
+    fn filament_colors(&self) -> Vec<&'static str> {
+        if self.path == "long_job.gcode" {
+            vec!["#E6261F", "#2E7D32"]
+        } else {
+            vec!["#E6261F"]
+        }
+    }
+
     pub fn filament_total(&self) -> f64 {
         self.estimated_time * 2.5
     }
@@ -86,9 +112,13 @@ impl GcodeFile {
             "object_height": f64::from(self.layer_count) * 0.2,
             "nozzle_diameter": 0.4,
             "filament_name": "Fake PLA",
-            "filament_type": "PLA",
+            "filament_type": if self.path == "long_job.gcode" { "PLA;PETG" } else { "PLA" },
             "filament_total": self.filament_total(),
-            "filament_weight_total": self.filament_total() * 0.003,
+            "filament_weight_total": self.filament_weights().iter().sum::<f64>(),
+            "filament_weights": self.filament_weights(),
+            "filament_temps": self.filament_temps(),
+            "filament_colors": self.filament_colors(),
+            "referenced_tools": (0..self.filament_weights().len()).collect::<Vec<_>>(),
             "first_layer_extr_temp": self.first_layer_extruder_temperature,
             "first_layer_bed_temp": self.first_layer_bed_temperature,
             "gcode_start_byte": 0,
@@ -144,6 +174,7 @@ impl Catalog {
                 "total_duration": duration + 240.0,
                 "filament_used": file.filament_total() * 0.97,
                 "exists": true,
+                "auxiliary_data": [{ "provider": "spoolman", "name": "spool_ids", "value": [1], "description": "Spool IDs used", "units": null }],
             }))
         });
         let cancelled = json!({

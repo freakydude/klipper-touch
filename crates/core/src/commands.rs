@@ -105,6 +105,21 @@ pub enum Command {
     MmuHome,
     MmuRecover,
     MmuUnlock,
+    /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record.
+    AssignGateSpool {
+        gate: usize,
+        spool_id: Option<u32>,
+    },
+    // Spoolman
+    /// The spool Moonraker tracks the filament use of; `None` for none.
+    SetActiveSpool {
+        spool_id: Option<u32>,
+    },
+    /// Sets the weight of a spool from a measurement; `weight` is the gross weight of the spool in grams.
+    MeasureSpool {
+        spool_id: u32,
+        weight: f64,
+    },
     // Klipper and host
     EmergencyStop,
     RestartKlipper,
@@ -241,6 +256,21 @@ impl Command {
             Self::MmuHome => Call::gcode("MMU_HOME"),
             Self::MmuRecover => Call::gcode("MMU_RECOVER"),
             Self::MmuUnlock => Call::gcode("MMU_UNLOCK"),
+            Self::AssignGateSpool { gate, spool_id } => {
+                Call::gcode(format!("MMU_GATE_MAP GATE={gate} SPOOLID={}", spool_id.map_or(-1, i64::from)))
+            }
+            Self::SetActiveSpool { spool_id } => {
+                Call::with("server.spoolman.post_spool_id", json!({ "spool_id": spool_id }))
+            }
+            Self::MeasureSpool { spool_id, weight } => Call::with(
+                "server.spoolman.proxy",
+                json!({
+                    "request_method": "PUT",
+                    "path": format!("/v1/spool/{spool_id}/measure"),
+                    "body": { "weight": weight },
+                    "use_v2_response": true
+                }),
+            ),
             Self::EmergencyStop => Call::new("printer.emergency_stop"),
             Self::RestartKlipper => Call::new("printer.restart"),
             Self::FirmwareRestart => Call::new("printer.firmware_restart"),
@@ -263,6 +293,11 @@ impl Command {
             | Self::UnloadFilament => return None,
         };
         Some(call)
+    }
+
+    /// The command changes what Spoolman knows, so the spools have to be read again when it succeeded.
+    pub fn changes_spools(&self) -> bool {
+        matches!(self, Self::SetActiveSpool { .. } | Self::MeasureSpool { .. } | Self::AssignGateSpool { .. })
     }
 
     /// Short name for feedback in the UI.
@@ -538,6 +573,25 @@ mod tests {
     fn intents_are_no_calls_of_their_own() {
         assert_eq!(Command::Level.to_call(&Motion::default()), None);
         assert_eq!(Command::CoolDown.to_call(&Motion::default()), None);
+    }
+
+    #[test]
+    fn spool_commands_reach_moonraker_and_happy_hare() {
+        assert_eq!(script(Command::AssignGateSpool { gate: 2, spool_id: Some(18) }), "MMU_GATE_MAP GATE=2 SPOOLID=18");
+        assert_eq!(script(Command::AssignGateSpool { gate: 2, spool_id: None }), "MMU_GATE_MAP GATE=2 SPOOLID=-1");
+        let motion = Motion::default();
+        let active = Command::SetActiveSpool { spool_id: Some(18) }.to_call(&motion).unwrap();
+        assert_eq!(active, Call::with("server.spoolman.post_spool_id", json!({ "spool_id": 18 })));
+        let none = Command::SetActiveSpool { spool_id: None }.to_call(&motion).unwrap();
+        assert_eq!(none.params.unwrap(), json!({ "spool_id": null }));
+        let measure = Command::MeasureSpool { spool_id: 18, weight: 793.5 }.to_call(&motion).unwrap();
+        assert_eq!(measure.method, "server.spoolman.proxy");
+        assert_eq!(
+            measure.params.unwrap(),
+            json!({ "request_method": "PUT", "path": "/v1/spool/18/measure", "body": { "weight": 793.5 }, "use_v2_response": true })
+        );
+        assert!(Command::MeasureSpool { spool_id: 1, weight: 1.0 }.changes_spools());
+        assert!(!Command::PausePrint.changes_spools());
     }
 
     #[test]

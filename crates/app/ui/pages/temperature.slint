@@ -31,11 +31,21 @@ component HeaterRow inherits Rectangle {
         VerticalLayout {
             alignment: center;
             horizontal-stretch: 1;
-            Text {
-                text: root.heater.label;
-                color: Theme.muted;
-                font-size: Theme.font-small;
-                overflow: elide;
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: root.heater.label;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    overflow: elide;
+                }
+                // The spool in use recommends another temperature than the target: a quiet note, nothing is changed.
+                if root.heater.spool-hint != "": Text {
+                    text: root.heater.spool-hint;
+                    color: Theme.warning;
+                    font-size: Theme.font-small;
+                    overflow: elide;
+                }
             }
             Text {
                 text: root.heater.temperature.to-fixed(1) + " °C";
@@ -155,7 +165,16 @@ export component TemperaturePage inherits Rectangle {
 
             VerticalLayout {
                 width: 120px;
-                spacing: Theme.spacing;
+                // With the spool preset there are six buttons, which only fit above the step selector with narrow gaps.
+                spacing: Printer.has-spool-preset ? 4px : Theme.spacing;
+                // The spool in use, if Spoolman knows its temperatures: heats to them.
+                if Printer.has-spool-preset: IconButton {
+                    icon: Icons.filament-spool;
+                    icon-size: root.compact ? 18px : Theme.icon;
+                    min-height: root.compact ? 44px : Theme.touch;
+                    text: Printer.spool-preset-text;
+                    clicked => { Actions.apply-spool-preset(); }
+                }
                 for preset[index] in UiSettings.presets: IconButton {
                     icon: Icons.thermal-preset;
                     // Compact: a smaller icon keeps the five buttons within the height of a 400 px display.

@@ -4,6 +4,7 @@
 use crate::files::{FileMetadata, LastPrint};
 use crate::printer::PrintJob;
 use crate::sourced::{prefer_measured, Sourced};
+use crate::spoolman::Spool;
 
 /// How much the expected print time counts against what has been observed so far, as a fraction of the expected
 /// time. The smaller it is, the sooner the remaining time follows the measured pace.
@@ -20,6 +21,7 @@ pub const ORIGIN_ASSUMED_DIAMETER: &str = "assumed filament diameter of 1.75 mm"
 pub const ORIGIN_LAST_PRINT: &str = "last completed print";
 pub const ORIGIN_SLICER_ESTIMATE: &str = "slicer estimate";
 pub const ORIGIN_LAST_PRINT_LENGTH: &str = "length of the last print, scaled by the slicer weight";
+pub const ORIGIN_SPOOL_DENSITY: &str = "length of the last print, diameter and density of the spool";
 
 /// Total print time of a file: what the last completed print took, else the slicer estimate.
 pub fn expected_print_seconds(metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> Option<Sourced<f64>> {
@@ -37,16 +39,25 @@ fn is_positive(seconds: &Sourced<f64>) -> bool {
     seconds.value > 0.0
 }
 
-/// Weight of the filament of a file in grams. Moonraker records only the length a print used, so the weight of the
-/// last print is the slicer's weight scaled by the used length (same density and diameter assumed).
-pub fn filament_weight_grams(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<Sourced<f64>> {
+/// Weight of the filament of a file in grams. Moonraker records only the length a print used. With the one spool of
+/// that print the weight follows from its diameter and density; otherwise it is the slicer's weight scaled by the used
+/// length (same density and diameter assumed). Without a print there is the slicer's weight, as a prediction.
+pub fn filament_weight_grams(
+    metadata: &FileMetadata,
+    last_print: Option<&LastPrint>,
+    spool: Option<&Spool>,
+) -> Option<Sourced<f64>> {
     let slicer_weight = metadata.filament_weight_total;
-    let measured = last_print.and_then(|last_print| {
+    let from_spool = last_print.zip(spool).and_then(|(last_print, spool)| {
+        let weight = spool.weight_of_length(last_print.filament_used)?;
+        Some(Sourced::measured(weight, ORIGIN_SPOOL_DENSITY))
+    });
+    let scaled = last_print.and_then(|last_print| {
         let planned_length = metadata.filament_total.filter(|length| *length > 0.0)?;
         Some(Sourced::measured(slicer_weight? * last_print.filament_used / planned_length, ORIGIN_LAST_PRINT_LENGTH))
     });
     let estimated = slicer_weight.map(|grams| Sourced::estimated(grams, ORIGIN_SLICER_ESTIMATE));
-    prefer_measured(measured, estimated)
+    prefer_measured(from_spool, prefer_measured(scaled, estimated))
 }
 
 /// Number of layers of a job: what Klipper reports (`SET_PRINT_STATS_INFO`), else the object height of the file
@@ -114,7 +125,7 @@ mod tests {
 
     #[test]
     fn last_completed_print_is_the_expectation_before_the_slicer_estimate() {
-        let last_print = LastPrint { print_duration: 4200.0, filament_used: 9_000.0 };
+        let last_print = LastPrint { print_duration: 4200.0, filament_used: 9_000.0, ..LastPrint::default() };
 
         let expected = expected_print_seconds(Some(&metadata()), Some(&last_print)).unwrap();
 
@@ -141,16 +152,38 @@ mod tests {
 
     #[test]
     fn weight_of_the_last_print_scales_the_slicer_weight_by_the_used_length() {
-        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0, ..LastPrint::default() };
 
-        let weight = filament_weight_grams(&metadata(), Some(&last_print)).unwrap();
+        let weight = filament_weight_grams(&metadata(), Some(&last_print), None).unwrap();
 
         assert_eq!(weight, Sourced::measured(27.0, ORIGIN_LAST_PRINT_LENGTH));
     }
 
     #[test]
+    fn the_weight_of_the_last_print_follows_the_spool_it_used() {
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 10_000.0, spool_ids: vec![18] };
+        let spool = Spool { id: 18, diameter: Some(1.75), density: Some(1.04), ..Spool::default() };
+
+        let weight = filament_weight_grams(&metadata(), Some(&last_print), Some(&spool)).unwrap();
+
+        // 10 m of 1.75 mm filament at 1.04 g/cm³; the slicer's 30 g for the same length is not used.
+        assert!((weight.value - 25.02).abs() < 0.01);
+        assert_eq!((weight.provenance, weight.origin), (Provenance::Measured, ORIGIN_SPOOL_DENSITY));
+    }
+
+    #[test]
+    fn a_spool_without_density_leaves_the_scaled_slicer_weight() {
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0, spool_ids: vec![18] };
+        let bare = Spool { id: 18, ..Spool::default() };
+
+        let weight = filament_weight_grams(&metadata(), Some(&last_print), Some(&bare)).unwrap();
+
+        assert_eq!(weight.origin, ORIGIN_LAST_PRINT_LENGTH);
+    }
+
+    #[test]
     fn weight_falls_back_to_the_slicer_weight() {
-        let weight = filament_weight_grams(&metadata(), None).unwrap();
+        let weight = filament_weight_grams(&metadata(), None, None).unwrap();
 
         assert_eq!(weight, Sourced::estimated(30.0, ORIGIN_SLICER_ESTIMATE));
     }
@@ -158,9 +191,9 @@ mod tests {
     #[test]
     fn weight_without_a_planned_length_stays_the_slicer_weight() {
         let without_length = FileMetadata { filament_total: None, ..metadata() };
-        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0, ..LastPrint::default() };
 
-        let weight = filament_weight_grams(&without_length, Some(&last_print)).unwrap();
+        let weight = filament_weight_grams(&without_length, Some(&last_print), None).unwrap();
 
         assert_eq!(weight.provenance, Provenance::Estimated);
     }

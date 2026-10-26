@@ -90,6 +90,16 @@ pub enum MmuCommand {
         gate: Option<usize>,
         force: bool,
     },
+    /// `MMU_GATE_MAP GATE= SPOOLID=`: the Spoolman spool of a gate, a negative id for none.
+    GateMap {
+        gate: usize,
+        spool_id: Option<i64>,
+    },
+    /// Not a Happy Hare command: lets a test or the snapshot tool raise the tension that makes tangle prevention
+    /// boost the gear current (`FAKE_MMU_TANGLE BOOST=0|1`).
+    FakeTangle {
+        boosting: bool,
+    },
 }
 
 impl MmuCommand {
@@ -101,6 +111,8 @@ impl MmuCommand {
             MmuCommand::Load => "MMU_LOAD",
             MmuCommand::Unload => "MMU_UNLOAD",
             MmuCommand::Eject { .. } => "MMU_EJECT",
+            MmuCommand::GateMap { .. } => "MMU_GATE_MAP",
+            MmuCommand::FakeTangle { .. } => "FAKE_MMU_TANGLE",
         }
     }
 }
@@ -177,6 +189,13 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
         "MMU_LOAD" => Ok(Command::Mmu(MmuCommand::Load)),
         "MMU_UNLOAD" => Ok(Command::Mmu(MmuCommand::Unload)),
+        "MMU_GATE_MAP" => Ok(Command::Mmu(MmuCommand::GateMap {
+            gate: required_index(&args, "GATE")?,
+            spool_id: named_value(&args, "SPOOLID")?.map(|id| id as i64),
+        })),
+        "FAKE_MMU_TANGLE" => {
+            Ok(Command::Mmu(MmuCommand::FakeTangle { boosting: required_index(&args, "BOOST")? != 0 }))
+        }
         "MMU_EJECT" => Ok(Command::Mmu(MmuCommand::Eject {
             gate: named_index(&args, "GATE")?,
             force: named_index(&args, "FORCE")?.is_some_and(|value| value != 0),
@@ -323,12 +342,15 @@ mod tests {
     #[test]
     fn parses_happy_hare_commands() {
         let commands =
-            parse_script("MMU_HOME\nMMU_SELECT GATE=2\nMMU_CHANGE_TOOL TOOL=1\nT3\nMMU_LOAD\nMMU_UNLOAD").unwrap();
+            parse_script("MMU_HOME\nMMU_GATE_MAP GATE=1 SPOOLID=8\nMMU_GATE_MAP GATE=2 SPOOLID=-1\nMMU_SELECT GATE=2\nMMU_CHANGE_TOOL TOOL=1\nT3\nMMU_LOAD\nMMU_UNLOAD")
+                .unwrap();
 
         assert_eq!(
             commands,
             vec![
                 Command::Mmu(MmuCommand::Home),
+                Command::Mmu(MmuCommand::GateMap { gate: 1, spool_id: Some(8) }),
+                Command::Mmu(MmuCommand::GateMap { gate: 2, spool_id: Some(-1) }),
                 Command::Mmu(MmuCommand::Select { gate: 2 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 1 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 3 }),

@@ -100,18 +100,20 @@ impl ConsoleLine {
     }
 
     /// The text as shown. A response loses its marker (`!!` error, `//` information; the colour tells them apart)
-    /// and the HTML of plugins; a command is shown as typed.
+    /// and the HTML of plugins; a command is shown as typed. Klipper puts the marker before every line of a message.
     pub fn text(&self) -> String {
         match self.kind {
             ConsoleKind::Command => self.message.clone(),
-            ConsoleKind::Response => strip_markup(
-                self.message
-                    .strip_prefix("!!")
-                    .or_else(|| self.message.strip_prefix("//"))
-                    .map_or(self.message.as_str(), str::trim_start),
-            ),
+            ConsoleKind::Response => {
+                let lines: Vec<&str> = self.message.split('\n').map(strip_response_marker).collect();
+                strip_markup(&lines.join("\n"))
+            }
         }
     }
+}
+
+fn strip_response_marker(line: &str) -> &str {
+    line.strip_prefix("!!").or_else(|| line.strip_prefix("//")).map_or(line, str::trim_start)
 }
 
 /// Happy Hare and other plugins put HTML into their responses for Mainsail (`<span style=...>`, `&nbsp;`); the
@@ -294,6 +296,35 @@ mod tests {
         assert_eq!(response("!! Lost connection").text(), "Lost connection");
         assert_eq!(response("// Klipper state: Ready").text(), "Klipper state: Ready");
         assert_eq!(response(r#"// <b><span style="color:#87CEEB">EMPTY</span></b>&nbsp;gate"#).text(), "EMPTY gate");
+    }
+
+    #[test]
+    fn every_line_of_a_message_loses_its_marker() {
+        let shutdown = response(
+            "// Shutdown due to webhooks request\n// Once the underlying issue is corrected, use the\n\
+             // \"FIRMWARE_RESTART\" command to reset the firmware, reload the\n// config, and restart the host software.\n\
+             // Printer is shutdown",
+        );
+
+        assert_eq!(
+            shutdown.text(),
+            "Shutdown due to webhooks request\nOnce the underlying issue is corrected, use the\n\
+             \"FIRMWARE_RESTART\" command to reset the firmware, reload the\nconfig, and restart the host software.\n\
+             Printer is shutdown"
+        );
+    }
+
+    #[test]
+    fn plugin_markup_over_several_lines_loses_marker_and_tags() {
+        let art = response("// <span style=\"color:#C0C0C0\">(\\_/)</span>\n// <span style=\"color:#C0C0C0\">(\")_(\")</span> <b>Happy Hare</b>");
+
+        assert_eq!(art.text(), "(\\_/)\n(\")_(\") Happy Hare");
+    }
+
+    #[test]
+    fn lines_without_a_marker_stay_as_they_are() {
+        assert_eq!(response("// first\nplain line\n!! last").text(), "first\nplain line\nlast");
+        assert_eq!(response("!! Lost connection\n!! see log").text(), "Lost connection\nsee log");
     }
 
     #[test]

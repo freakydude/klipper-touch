@@ -164,14 +164,23 @@ export component ValueTile inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <image> icon;
+    // A narrow display gives the room of the icon to the text.
+    in property <bool> show-icon: true;
+    // Share of the width among tiles side by side (4 and 5: four to five).
+    in property <float> weight: 1;
     background: Theme.surface;
     border-radius: Theme.radius;
     min-height: 52px;
+    // The width of tiles side by side follows their `weight` only (default: equal), never their text:
+    // a changing value must not move the columns.
+    horizontal-stretch: root.weight;
+    preferred-width: 0px;
+    min-width: 0px;
 
     HorizontalLayout {
         padding: 6px;
         spacing: 8px;
-        if root.icon.width > 0: VerticalLayout {
+        if root.icon.width > 0 && root.show-icon: VerticalLayout {
             alignment: center;
             Image {
                 source: root.icon;
@@ -380,5 +389,63 @@ export component IconLabel inherits HorizontalLayout {
         font-size: root.font-size;
         vertical-alignment: center;
         overflow: elide;
+    }
+}
+
+// The colour or colours of a filament as one bar, in one, two or three equal parts (Spoolman has up to three colours).
+// `vertical` stacks the parts, otherwise they sit side by side. Without colour (`count` 0) the bar is neutral. The ends
+// of the bar are rounded by the first and the last part, so the bar keeps its shape whatever the number of parts.
+export component ColorBar inherits Rectangle {
+    in property <color> first;
+    in property <color> second;
+    in property <color> third;
+    in property <int> count: 1;
+    in property <bool> vertical;
+    // The ends are as round as the outline minus its width.
+    property <length> end: max(0px, root.border-radius - 1px);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Theme.border;
+    background: Theme.border;
+
+    if root.count > 0 && !root.vertical: HorizontalLayout {
+        padding: 1px;
+        Rectangle {
+            background: root.first;
+            border-top-left-radius: root.end;
+            border-bottom-left-radius: root.end;
+            border-top-right-radius: root.count == 1 ? root.end : 0px;
+            border-bottom-right-radius: root.count == 1 ? root.end : 0px;
+        }
+        if root.count > 1: Rectangle {
+            background: root.second;
+            border-top-right-radius: root.count == 2 ? root.end : 0px;
+            border-bottom-right-radius: root.count == 2 ? root.end : 0px;
+        }
+        if root.count > 2: Rectangle {
+            background: root.third;
+            border-top-right-radius: root.end;
+            border-bottom-right-radius: root.end;
+        }
+    }
+    if root.count > 0 && root.vertical: VerticalLayout {
+        padding: 1px;
+        Rectangle {
+            background: root.first;
+            border-top-left-radius: root.end;
+            border-top-right-radius: root.end;
+            border-bottom-left-radius: root.count == 1 ? root.end : 0px;
+            border-bottom-right-radius: root.count == 1 ? root.end : 0px;
+        }
+        if root.count > 1: Rectangle {
+            background: root.second;
+            border-bottom-left-radius: root.count == 2 ? root.end : 0px;
+            border-bottom-right-radius: root.count == 2 ? root.end : 0px;
+        }
+        if root.count > 2: Rectangle {
+            background: root.third;
+            border-bottom-left-radius: root.end;
+            border-bottom-right-radius: root.end;
+        }
     }
 }

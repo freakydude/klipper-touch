@@ -1,0 +1,27 @@
+// Preview: print page with a very long file name without spaces and wide figures, with Happy Hare. The name must
+// stay inside its column and the columns of the figures must not move. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component PrintLongNamePreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Sample.printing();
+        Navigation.page = Page.print;
+        Printer.filename = "Voron_Stealthburner_Toolhead_Assembly_Part_Number_0042_PETG_0.2mm_Final_v3.gcode";
+        Printer.job-name = "Voron_Stealthburner_Toolhead_Assembly_Part_Number_0042_PETG_0.2mm_Final_v3";
+        Printer.mmu-gate = 2;
+        Printer.mmu-tool = 2;
+        Printer.mmu-filament = "loaded";
+        Printer.mmu-buffer-state = "neutral";
+        Printer.mmu-buffer-bias = 0.08;
+        Printer.mmu-flowguard-state = "monitoring";
+        Printer.mmu-flow-rate = 99;
+        Printer.remaining = "12h 34m";
+        Printer.eta = "30.10. 03:58";
+        Printer.live-velocity = 182;
+        Printer.live-flow = 11.4;
+    }
+}

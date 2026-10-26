@@ -1,7 +1,7 @@
 //! Development tool: renders the klipper-touch UI headless (software renderer, no window, no GPU)
 //! against a running (fake) Moonraker and writes one PNG per view.
 //!
-//! `cargo run -p ui-snapshot -- [--moonraker <url>] [--out <folder>] [--size 800x480] [--scenes pages,network|all]`
+//! `cargo run -p ui-snapshot -- [--moonraker <url>] [--out <folder>] [--size 800x480] [--no-fit] [--scenes pages,network|all]`
 
 mod scenes;
 mod session;
@@ -16,6 +16,8 @@ struct Options {
     out: PathBuf,
     width: u32,
     height: u32,
+    /// Scales the layout to the size like the app does; off shows the plain window of that size.
+    fit: bool,
     scenes: Vec<Scene>,
 }
 
@@ -25,10 +27,15 @@ fn parse_options() -> Result<Options, String> {
         out: std::env::temp_dir().join("kt-ui-snapshots"),
         width: 800,
         height: 480,
+        fit: true,
         scenes: Scene::DEFAULT.to_vec(),
     };
     let mut args = std::env::args().skip(1);
     while let Some(flag) = args.next() {
+        if flag == "--no-fit" {
+            options.fit = false;
+            continue;
+        }
         let value = args.next().ok_or_else(|| format!("missing value for {flag}"))?;
         match flag.as_str() {
             "--moonraker" => options.moonraker = value,

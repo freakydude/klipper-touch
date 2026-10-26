@@ -1,0 +1,23 @@
+// Preview: print page of a printer without MMU whose spool is nearly empty, with Spoolman offline in the picker header.
+// Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component PrintSpoolOfflinePreview inherits AppWindow {
+    init => {
+        Sample.printing();
+        Navigation.page = Page.print;
+        Printer.has-spoolman = true;
+        Printer.has-spool = true;
+        Printer.spool-title = "Sunlu HS Matte PETG";
+        Printer.spool-detail = "PETG · 38 g";
+        Printer.spool-weight = "38 g";
+        Printer.spool-color = #2e7d32;
+        Printer.spool-color-count = 1;
+        Printer.spool-low = true;
+        Printer.spoolman-offline = true;
+        Printer.spoolman-pending = 3;
+    }
+}

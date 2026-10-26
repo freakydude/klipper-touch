@@ -7,6 +7,7 @@ use klipper_touch_core::files::{FileInfo, FileMetadata, LastPrint};
 use klipper_touch_core::printer::{
     FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
+use klipper_touch_core::spoolman::{PrintHint, Spool};
 use klipper_touch_core::{Provenance, Sourced};
 
 const NO_VALUE: &str = "-";
@@ -66,10 +67,50 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
     match (job.state, total) {
         (PrintState::Standby, Some(total)) => format::filament_length(total),
         (_, Some(total)) if job.filament_used > 0.0 => {
-            format!("{} / {}", format::filament_length(job.filament_used), format::filament_length(total))
+            format!("{} / {}", format::filament_meters(job.filament_used), format::filament_length(total))
         }
         _ if job.filament_used > 0.0 => format::filament_length(job.filament_used),
         _ => NO_VALUE.to_owned(),
+    }
+}
+
+/// What is left of a spool, for example `613 g`; empty without a weight.
+pub fn spool_remaining(spool: &Spool) -> String {
+    spool.remaining_weight.map(format::filament_weight).unwrap_or_default()
+}
+
+/// Material and what is left, for example `ABS+ · 613 g`.
+pub fn spool_detail(spool: &Spool) -> String {
+    [spool.material.clone(), spool_remaining(spool)]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+/// The spool as a preset on the temperature page, for example `ABS+  240/120`.
+pub fn spool_preset_text(spool: &Spool) -> Option<String> {
+    let nozzle = spool.extruder_temp?;
+    let bed = spool.bed_temp.map_or_else(String::new, |bed| format!("/{bed:.0}"));
+    Some(format!("{}  {nozzle:.0}{bed}", spool.material))
+}
+
+/// A hint before the print as a line of text. `show_tool` names the tool when there are several lanes.
+pub fn print_hint_text(hint: &PrintHint, show_tool: bool) -> String {
+    let tool = |tool: usize| if show_tool { format!("T{tool}: ") } else { String::new() };
+    match hint {
+        PrintHint::Material { tool: number, expected, loaded } => {
+            format!("{}the file is for {expected}, the spool is {loaded}", tool(*number))
+        }
+        PrintHint::Weight { tool: number, needed, left } => {
+            format!(
+                "{}needs ~{}, the spool has {} left",
+                tool(*number),
+                format::filament_weight(*needed),
+                format::filament_weight(*left)
+            )
+        }
+        PrintHint::Color { tool: number } => format!("{}the colour differs from the file", tool(*number)),
     }
 }
 
@@ -90,7 +131,7 @@ pub struct FileFacts {
 pub fn file_facts(info: &FileInfo) -> FileFacts {
     let mut facts = FileFacts { modified: format::unix_date(info.entry.modified), ..FileFacts::default() };
     if let Some(metadata) = info.metadata {
-        facts.material = file_filament(metadata, info.last_print).unwrap_or_default();
+        facts.material = file_filament(metadata, info.last_print, info.spool).unwrap_or_default();
         facts.nozzle =
             metadata.nozzle_diameter.filter(|diameter| *diameter > 0.0).map_or_else(String::new, |d| d.to_string());
         facts.time = file_print_time(metadata, info.last_print).unwrap_or_default();
@@ -106,9 +147,9 @@ fn degrees(temperature: Option<f64>) -> String {
     temperature.filter(|degrees| *degrees > 0.0).map_or_else(String::new, |degrees| format!("{degrees:.0}°"))
 }
 
-fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
+fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>, spool: Option<&Spool>) -> Option<String> {
     let weight =
-        estimates::filament_weight_grams(metadata, last_print).map(|grams| show(grams, format::filament_weight));
+        estimates::filament_weight_grams(metadata, last_print, spool).map(|grams| show(grams, format::filament_weight));
     let parts: Vec<String> =
         [metadata.filament_type.clone().filter(|kind| !kind.is_empty()), weight].into_iter().flatten().collect();
     (!parts.is_empty()).then(|| parts.join(" "))
@@ -200,6 +241,7 @@ pub fn mmu_flowguard_state(state: FlowGuardState) -> &'static str {
     match state {
         FlowGuardState::Off => "off",
         FlowGuardState::Triggered => "triggered",
+        FlowGuardState::Boosting => "boosting",
         FlowGuardState::Monitoring => "monitoring",
         FlowGuardState::Ready => "ready",
     }
@@ -245,7 +287,7 @@ mod tests {
         assert_eq!(texts.remaining, "54m 00s");
         assert_eq!(texts.eta, "12:54");
         assert_eq!(texts.layers, "3 / 100");
-        assert_eq!(texts.filament, "1.00 m / 5.00 m");
+        assert_eq!(texts.filament, "1.00 / 5.00 m");
     }
 
     #[test]
@@ -257,7 +299,7 @@ mod tests {
             print_duration: 420.0,
             ..PrintJob::default()
         };
-        let last_print = LastPrint { print_duration: 4200.0, filament_used: 4800.0 };
+        let last_print = LastPrint { print_duration: 4200.0, filament_used: 4800.0, ..LastPrint::default() };
 
         let texts = job_texts(&job, Some(&metadata("a.gcode")), Some(&last_print), now());
 
@@ -316,7 +358,7 @@ mod tests {
 
     fn facts_of(metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> FileFacts {
         let entry = FileEntry { path: "a.gcode".into(), modified: 1_700_000_000.0, size: 100 };
-        file_facts(&FileInfo { entry: &entry, metadata, last_print })
+        file_facts(&FileInfo { entry: &entry, metadata, last_print, spool: None })
     }
 
     fn slicer_settings() -> FileMetadata {
@@ -348,7 +390,7 @@ mod tests {
 
     #[test]
     fn printed_file_shows_measured_time_and_scaled_weight() {
-        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0, ..LastPrint::default() };
 
         let facts = facts_of(Some(&file_metadata()), Some(&last_print));
 
@@ -407,9 +449,15 @@ mod tests {
     fn mmu_states_become_words_for_the_ui() {
         assert_eq!([None, Some(false), Some(true)].map(mmu_sensor_state), ["disabled", "open", "triggered"]);
         assert_eq!(
-            [FlowGuardState::Off, FlowGuardState::Triggered, FlowGuardState::Monitoring, FlowGuardState::Ready]
-                .map(mmu_flowguard_state),
-            ["off", "triggered", "monitoring", "ready"]
+            [
+                FlowGuardState::Off,
+                FlowGuardState::Triggered,
+                FlowGuardState::Boosting,
+                FlowGuardState::Monitoring,
+                FlowGuardState::Ready
+            ]
+            .map(mmu_flowguard_state),
+            ["off", "triggered", "boosting", "monitoring", "ready"]
         );
     }
 }
