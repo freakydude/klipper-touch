@@ -406,6 +406,10 @@ impl Presenter {
             .map(|gate| {
                 let spool =
                     lanes.iter().find(|lane| lane.gate == Some(gate.index)).and_then(|lane| lane.spool.as_ref());
+                // A multi-colour spool shows all its colours; otherwise the gate has the one colour Happy Hare reports.
+                let gate_color: Vec<[u8; 3]> = gate.color.into_iter().collect();
+                let spool_colors = spool.map(|spool| spool.colors.as_slice()).filter(|colors| colors.len() > 1);
+                let bar = color_bar(spool_colors.unwrap_or(&gate_color));
                 MmuGateItem {
                     spool_text: spool.map(view::spool_remaining).unwrap_or_default().into(),
                     spool_low: spool.is_some_and(Spool::is_low),
@@ -414,9 +418,10 @@ impl Presenter {
                     availability: view::mmu_availability(gate.availability).into(),
                     name: gate.name.as_str().into(),
                     material: gate.material.as_str().into(),
-                    color: gate.color.map_or_else(slint::Color::default, |[red, green, blue]| {
-                        slint::Color::from_rgb_u8(red, green, blue)
-                    }),
+                    color: bar.0,
+                    color_2: bar.1,
+                    color_3: bar.2,
+                    color_count: bar.3,
                     has_color: gate.color.is_some(),
                     tool: gate.tool.map_or(-1, |tool| tool as i32),
                     selected: usize::try_from(mmu.gate) == Ok(gate.index),
@@ -607,8 +612,11 @@ impl Presenter {
         printer.set_spool_title(active.map(Spool::title).unwrap_or_default().into());
         printer.set_spool_detail(active.map(view::spool_detail).unwrap_or_default().into());
         printer.set_spool_weight(active.map(view::spool_remaining).unwrap_or_default().into());
-        printer.set_spool_has_color(active.is_some_and(|spool| spool.color.is_some()));
-        printer.set_spool_color(active.and_then(|spool| spool.color).map_or_else(slint::Color::default, color_of));
+        let bar = color_bar(active.map(|spool| spool.colors.as_slice()).unwrap_or_default());
+        printer.set_spool_color(bar.0);
+        printer.set_spool_color_2(bar.1);
+        printer.set_spool_color_3(bar.2);
+        printer.set_spool_color_count(bar.3);
         printer.set_spool_low(active.is_some_and(Spool::is_low));
         let preset = active.and_then(view::spool_preset_text);
         printer.set_has_spool_preset(preset.is_some());
@@ -799,12 +807,15 @@ fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
                 Some(lane) => lane.gate.map_or_else(|| "In use".to_owned(), |gate| format!("Gate {gate}")),
                 None => String::new(),
             };
+            let bar = color_bar(&spool.colors);
             SpoolItem {
                 id: spool.id as i32,
                 title: spool.title().into(),
                 detail: view::spool_detail(spool).into(),
-                color: spool.color.map_or_else(slint::Color::default, color_of),
-                has_color: spool.color.is_some(),
+                color: bar.0,
+                color_2: bar.1,
+                color_3: bar.2,
+                color_count: bar.3,
                 place: place.into(),
                 low: spool.is_low(),
             }
@@ -814,6 +825,12 @@ fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
 
 fn color_of([red, green, blue]: [u8; 3]) -> slint::Color {
     slint::Color::from_rgb_u8(red, green, blue)
+}
+
+/// The colours of a bar: up to three, and how many there are.
+fn color_bar(colors: &[[u8; 3]]) -> (slint::Color, slint::Color, slint::Color, i32) {
+    let color = |index: usize| colors.get(index).copied().map_or_else(slint::Color::default, color_of);
+    (color(0), color(1), color(2), colors.len().min(3) as i32)
 }
 
 /// The row of a heater; the hint says that the target is off from what the spool in use recommends.
@@ -913,6 +930,16 @@ mod tests {
 
     fn line(kind: ConsoleKind, message: &str) -> ConsoleLine {
         ConsoleLine { kind, message: message.to_owned(), time: 0.0 }
+    }
+
+    #[test]
+    fn a_colour_bar_has_up_to_three_colours() {
+        let red = [255, 0, 0];
+        assert_eq!(color_bar(&[]).3, 0);
+        assert_eq!(color_bar(&[red]).3, 1);
+        assert_eq!(color_bar(&[red, [0, 255, 0]]).3, 2);
+        assert_eq!(color_bar(&[red; 5]).3, 3);
+        assert_eq!(color_bar(&[red, [0, 255, 0]]).1, slint::Color::from_rgb_u8(0, 255, 0));
     }
 
     #[test]

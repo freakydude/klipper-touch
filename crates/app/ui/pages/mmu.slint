@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Display, MmuGateItem, Navigation, Printer, SpoolPicker } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, ColorBar, IconButton, IconLabel } from "../components/controls.slint";
 
 // Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
 export global MmuTexts {
@@ -67,10 +67,13 @@ component GateTile inherits Rectangle {
                 font-weight: 700;
             }
         }
-        Rectangle {
+        ColorBar {
             height: 12px;
             border-radius: 6px;
-            background: root.gate.has-color ? root.gate.color : Theme.border;
+            first: root.gate.color;
+            second: root.gate.color-2;
+            third: root.gate.color-3;
+            count: root.gate.color-count;
         }
         Text {
             text: root.gate.material == "" ? "-" : root.gate.material;
@@ -297,9 +300,21 @@ export component MmuStrip inherits Card {
                 font-size: Theme.font-normal;
                 font-weight: 700;
             }
-            // The spool of the gate in use: its filament and what is left of it.
+            Rectangle { horizontal-stretch: 1; }
+            // The spool of the gate in use: its colours, its filament and what is left of it.
+            if Printer.has-spool: VerticalLayout {
+                alignment: center;
+                ColorBar {
+                    width: 34px;
+                    height: 12px;
+                    border-radius: 6px;
+                    first: Printer.spool-color;
+                    second: Printer.spool-color-2;
+                    third: Printer.spool-color-3;
+                    count: Printer.spool-color-count;
+                }
+            }
             Text {
-                horizontal-stretch: 1;
                 text: Printer.has-spool ? (Printer.spool-weight != "" ? Printer.spool-title + " · " + Printer.spool-weight : Printer.spool-title) : "";
                 color: Printer.spool-low ? Theme.warning : Theme.muted;
                 font-size: Theme.font-small;

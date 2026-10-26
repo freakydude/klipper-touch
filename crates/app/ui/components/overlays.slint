@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker, TextTools } from "../state.slint";
-import { IconButton, ScrollList } from "controls.slint";
+import { ColorBar, IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
 component Scrim inherits Rectangle {
@@ -624,11 +624,14 @@ export component SpoolDialog inherits Scrim {
                         spacing: 10px;
                         VerticalLayout {
                             alignment: center;
-                            Rectangle {
+                            ColorBar {
                                 width: 14px;
                                 height: 34px;
-                                border-radius: 4px;
-                                background: spool.has-color ? spool.color : Theme.border;
+                                vertical: true;
+                                first: spool.color;
+                                second: spool.color-2;
+                                third: spool.color-3;
+                                count: spool.color-count;
                             }
                         }
                         VerticalLayout {

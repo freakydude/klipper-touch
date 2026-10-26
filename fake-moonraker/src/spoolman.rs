@@ -3,16 +3,18 @@
 //! The spools take their material, colour and temperature from the demo filaments of the simulated Happy Hare, so a
 //! gate and its spool describe the same filament. Field names are those of Spoolman 0.2x as a real one returned them.
 
-use crate::happy_hare::SPOOLS;
+use crate::happy_hare::{BASIC_FILAMENTS, SPOOLS};
 use serde_json::{json, Value};
 
 const SPOOL_COUNT: u32 = 8;
 const START_WEIGHT: f64 = 1000.0;
 /// Weight of the empty spool in grams.
 const SPOOL_WEIGHT: f64 = 180.0;
-/// Grams left per spool; spool 2 is nearly empty, spool 5 was never used.
-const REMAINING: [f64; SPOOL_COUNT as usize] = [812.0, 40.0, 905.0, 613.1, 1000.0, 720.0, 530.0, 260.0];
+/// Grams left per spool; the spools 2 and 7 are nearly empty, spool 5 was never used.
+const REMAINING: [f64; SPOOL_COUNT as usize] = [812.0, 40.0, 905.0, 613.1, 1000.0, 720.0, 38.0, 802.0];
 const NEVER_USED: u32 = 5;
+/// Spools of a filament with two and with three colours.
+const MULTI_COLORS: [(u32, &str); 2] = [(7, "E31F2B,2E7D32"), (8, "FF0004,FFA424,000000")];
 
 #[derive(Debug, Clone)]
 pub struct Spoolman {
@@ -73,7 +75,7 @@ impl Spoolman {
 
     fn spool(&self, id: u32) -> Result<Value, (u16, String)> {
         self.check(id).map_err(|message| (404, message))?;
-        let filament = &SPOOLS[(id as usize - 1) % SPOOLS.len()];
+        let filament = &SPOOLS[filament_index(id)];
         let (bed_temp, density) = match filament.material {
             "PETG" => (80, 1.27),
             "ABS" => (105, 1.04),
@@ -104,6 +106,12 @@ impl Spoolman {
             "archived": false,
             "extra": {},
         });
+        // Two multi-colour filaments, as Spoolman has them: no `color_hex`, the colours separated by commas.
+        if let Some(hexes) = MULTI_COLORS.iter().find(|(spool_id, _)| *spool_id == id).map(|(_, hexes)| hexes) {
+            spool["filament"]["color_hex"] = Value::Null;
+            spool["filament"]["multi_color_hexes"] = json!(hexes);
+            spool["filament"]["multi_color_direction"] = json!("coaxial");
+        }
         if id != NEVER_USED {
             spool["first_used"] = json!("2026-02-02T22:17:26Z");
             spool["last_used"] = json!(format!("2026-10-{:02}T12:00:00Z", 10 + id));
@@ -116,6 +124,15 @@ impl Spoolman {
         let mut ids: Vec<u32> = (1..=SPOOL_COUNT).collect();
         ids.sort_by_key(|id| std::cmp::Reverse(if *id == NEVER_USED { 0 } else { *id }));
         Value::Array(ids.into_iter().filter_map(|id| self.spool(id).ok()).collect())
+    }
+}
+
+/// The demo filament of a spool: the multi-colour spools 7 and 8 have their own, the others cycle through the basic ones.
+pub(crate) fn filament_index(id: u32) -> usize {
+    match id {
+        7 => BASIC_FILAMENTS,
+        8 => BASIC_FILAMENTS + 1,
+        _ => (id as usize - 1) % BASIC_FILAMENTS,
     }
 }
 
@@ -140,6 +157,17 @@ mod tests {
         assert_eq!(spool["filament"]["settings_bed_temp"], 80);
         assert_eq!(spool["remaining_weight"], 40.0);
         assert!(spool["filament"]["color_hex"].as_str().unwrap().len() == 6);
+    }
+
+    #[test]
+    fn multi_colour_filaments_list_their_colours_instead_of_one() {
+        let mut spoolman = Spoolman::default();
+        let two = spoolman.proxy("GET", "/v1/spool/7", &Value::Null).unwrap();
+        let three = spoolman.proxy("GET", "/v1/spool/8", &Value::Null).unwrap();
+
+        assert_eq!(two["filament"]["multi_color_hexes"], "E31F2B,2E7D32");
+        assert_eq!(three["filament"]["multi_color_hexes"].as_str().unwrap().split(',').count(), 3);
+        assert!(three["filament"]["color_hex"].is_null());
     }
 
     #[test]

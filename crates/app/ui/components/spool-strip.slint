@@ -3,6 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Printer, SpoolPicker } from "../state.slint";
+import { ColorBar } from "controls.slint";
 
 export component SpoolStrip inherits Rectangle {
     height: 52px;
@@ -17,11 +18,14 @@ export component SpoolStrip inherits Rectangle {
         spacing: 10px;
         VerticalLayout {
             alignment: center;
-            Rectangle {
+            ColorBar {
                 width: 14px;
                 height: 34px;
-                border-radius: 4px;
-                background: Printer.spool-has-color ? Printer.spool-color : Theme.border;
+                vertical: true;
+                first: Printer.spool-color;
+                second: Printer.spool-color-2;
+                third: Printer.spool-color-3;
+                count: Printer.spool-color-count;
             }
         }
         VerticalLayout {

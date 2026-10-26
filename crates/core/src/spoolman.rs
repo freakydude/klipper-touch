@@ -12,6 +12,8 @@ const LOW_SHARE: f64 = 0.15;
 const TEMPERATURE_TOLERANCE: f64 = 5.0;
 /// Colours further apart than this (distance in RGB, at most 441) count as different.
 const COLOR_DISTANCE: f64 = 120.0;
+/// Spoolman has up to three colours per filament.
+const MAX_COLORS: usize = 3;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Spool {
@@ -19,7 +21,8 @@ pub struct Spool {
     pub vendor: String,
     pub filament_name: String,
     pub material: String,
-    pub color: Option<[u8; 3]>,
+    /// One to three colours: Spoolman's multi-colour filaments (`multi_color_hexes`) have up to three; empty if unknown.
+    pub colors: Vec<[u8; 3]>,
     /// Grams of filament left.
     pub remaining_weight: Option<f64>,
     /// Grams of filament at the start.
@@ -52,7 +55,7 @@ impl Spool {
             vendor: filament.pointer("/vendor/name").and_then(Value::as_str).unwrap_or_default().to_owned(),
             filament_name: text(filament, "name"),
             material: text(filament, "material"),
-            color: filament.get("color_hex").and_then(Value::as_str).and_then(parse_color),
+            colors: filament_colors(filament),
             remaining_weight: number(value, "remaining_weight"),
             initial_weight: number(value, "initial_weight").or_else(|| number(filament, "weight")),
             spool_weight: number(value, "spool_weight").or_else(|| number(filament, "spool_weight")),
@@ -63,6 +66,11 @@ impl Spool {
             location: text(value, "location"),
             last_used: text(value, "last_used"),
         })
+    }
+
+    /// The first colour, for places that show one.
+    pub fn color(&self) -> Option<[u8; 3]> {
+        self.colors.first().copied()
     }
 
     /// Vendor and filament name, e.g. `Geeetech Red`.
@@ -92,7 +100,14 @@ impl Spool {
     }
 }
 
-/// `E31F2B` or `#E31F2B`.
+/// The colours of a filament: `multi_color_hexes` (comma separated) for a multi-colour filament, else `color_hex`.
+fn filament_colors(filament: &Value) -> Vec<[u8; 3]> {
+    let text = |field: &str| filament.get(field).and_then(Value::as_str).filter(|text| !text.trim().is_empty());
+    let hexes = text("multi_color_hexes").or_else(|| text("color_hex")).unwrap_or_default();
+    hexes.split(',').filter_map(parse_color).take(MAX_COLORS).collect()
+}
+
+/// `E31F2B` or `#E31F2B`; an alpha channel at the end is ignored.
 pub fn parse_color(text: &str) -> Option<[u8; 3]> {
     let hex = text.trim().trim_start_matches('#');
     if hex.len() < 6 || !hex.is_char_boundary(6) {
@@ -243,10 +258,14 @@ pub fn print_hints(metadata: &FileMetadata, lanes: &[Lane], tool_to_gate: &[usiz
             }
         }
         let wanted = metadata.filament_colors.get(tool).and_then(|color| parse_color(color));
-        if let (Some(wanted), Some(loaded)) = (wanted, spool.color) {
-            if color_distance(wanted, loaded) > COLOR_DISTANCE {
-                hints.push(PrintHint::Color { tool });
-            }
+        // A multi-colour spool fits when one of its colours is close.
+        let nearest = spool
+            .colors
+            .iter()
+            .map(|loaded| wanted.map(|wanted| color_distance(wanted, *loaded)))
+            .min_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
+        if nearest.flatten().is_some_and(|distance| distance > COLOR_DISTANCE) {
+            hints.push(PrintHint::Color { tool });
         }
     }
     hints
@@ -311,7 +330,7 @@ mod tests {
             material: material.into(),
             remaining_weight: Some(left),
             initial_weight: Some(1000.0),
-            color: Some(color),
+            colors: vec![color],
             ..Spool::default()
         }
     }
@@ -350,7 +369,8 @@ mod tests {
         let spool = Spool::from_json(&spool_18()).unwrap();
 
         assert_eq!((spool.id, spool.title().as_str(), spool.material.as_str()), (18, "Geeetech Red", "ABS+"));
-        assert_eq!(spool.color, Some([0xE3, 0x1F, 0x2B]));
+        assert_eq!(spool.colors, [[0xE3, 0x1F, 0x2B]]);
+        assert_eq!(spool.color(), Some([0xE3, 0x1F, 0x2B]));
         assert_eq!((spool.extruder_temp, spool.bed_temp), (Some(240.0), Some(120.0)));
         assert_eq!((spool.density, spool.diameter, spool.spool_weight), (Some(1.04), Some(1.75), Some(180.0)));
         assert_eq!(spool.location, "voron @ MMU Gate:0");
@@ -377,6 +397,31 @@ mod tests {
     fn entries_without_an_id_are_skipped() {
         assert_eq!(parse_spool_list(&json!([{ "filament": {} }, spool_18()])).len(), 1);
         assert!(parse_spool_list(&json!({ "not": "a list" })).is_empty());
+    }
+
+    #[test]
+    fn a_multi_colour_filament_has_up_to_three_colours() {
+        let mut value = spool_18();
+        value["filament"]["color_hex"] = Value::Null;
+        value["filament"]["multi_color_hexes"] = json!("FF0004,FFA424,000000");
+        value["filament"]["multi_color_direction"] = json!("coaxial");
+
+        assert_eq!(Spool::from_json(&value).unwrap().colors, [[0xFF, 0x00, 0x04], [0xFF, 0xA4, 0x24], [0, 0, 0]]);
+        value["filament"]["multi_color_hexes"] = json!("111111,222222,333333,444444");
+        assert_eq!(Spool::from_json(&value).unwrap().colors.len(), 3);
+        value["filament"]["multi_color_hexes"] = json!("");
+        value["filament"]["color_hex"] = json!("E31F2B80");
+        assert_eq!(Spool::from_json(&value).unwrap().colors, [[0xE3, 0x1F, 0x2B]]);
+    }
+
+    #[test]
+    fn a_multi_colour_spool_fits_a_file_when_one_of_its_colours_is_close() {
+        let mut spool = spool(5, "PLA", 800.0, [0xFF, 0x00, 0x04]);
+        spool.colors.push([0x26, 0xA6, 0x9A]);
+        let lanes = lanes(None, &state_with(&[spool], Some(5)));
+
+        assert!(print_hints(&file(&[10.0], "PLA", &["#26A69A"]), &lanes, &[]).is_empty());
+        assert_eq!(print_hints(&file(&[10.0], "PLA", &["#0000FF"]), &lanes, &[]), [PrintHint::Color { tool: 0 }]);
     }
 
     #[test]

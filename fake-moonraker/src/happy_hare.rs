@@ -23,7 +23,10 @@ pub(crate) struct Spool {
     pub(crate) temperature: i32,
 }
 
-pub(crate) const SPOOLS: [Spool; 4] = [
+/// The demo filaments the gates cycle through; the two after them belong to the multi-colour spools of Spoolman.
+pub(crate) const BASIC_FILAMENTS: usize = 4;
+
+pub(crate) const SPOOLS: [Spool; 6] = [
     Spool { name: "Red PLA", material: "PLA", vendor: "Fake", color: "red", rgb: [1.0, 0.0, 0.0], temperature: 210 },
     Spool {
         name: "Green PETG",
@@ -42,7 +45,27 @@ pub(crate) const SPOOLS: [Spool; 4] = [
         rgb: [0.1, 0.1, 0.1],
         temperature: 250,
     },
+    // The first colour of the multi-colour filaments, which is what Happy Hare reports for a gate.
+    Spool {
+        name: "Silk Red+Green",
+        material: "PLA",
+        vendor: "Fake",
+        color: "red",
+        rgb: [0.89, 0.12, 0.17],
+        temperature: 215,
+    },
+    Spool {
+        name: "Silk Red+Gold+Black",
+        material: "PLA",
+        vendor: "Fake",
+        color: "red",
+        rgb: [1.0, 0.0, 0.02],
+        temperature: 220,
+    },
 ];
+
+/// Spools of the gates, in the order the gates take them: the first is one colour, then two, then three colours.
+const GATE_SPOOLS: [u32; 7] = [1, 7, 8, 4, 5, 6, 2];
 
 #[derive(Debug, Clone)]
 pub struct HappyHare {
@@ -65,11 +88,9 @@ impl HappyHare {
         if gates > 2 {
             gate_status[gates - 1] = GATE_EMPTY;
         }
-        let gate_spool = gate_status
-            .iter()
-            .enumerate()
-            .map(|(gate, status)| (*status == GATE_AVAILABLE).then(|| gate as u32 + 1))
-            .collect();
+        let mut spools = GATE_SPOOLS.into_iter();
+        let gate_spool =
+            gate_status.iter().map(|status| if *status == GATE_AVAILABLE { spools.next() } else { None }).collect();
         Self {
             gates,
             homed: false,
@@ -211,8 +232,8 @@ impl HappyHare {
     /// The filament of a gate: that of its Spoolman spool, which Happy Hare takes over, else a demo filament.
     fn spool(&self, gate: usize) -> &'static Spool {
         match self.gate_spool.get(gate).copied().flatten() {
-            Some(id) => &SPOOLS[(id as usize - 1) % SPOOLS.len()],
-            None => &SPOOLS[gate % SPOOLS.len()],
+            Some(id) => &SPOOLS[crate::spoolman::filament_index(id)],
+            None => &SPOOLS[gate % BASIC_FILAMENTS],
         }
     }
 
@@ -382,7 +403,9 @@ mod tests {
         assert_eq!(status["gate"], 2);
         assert_eq!(status["tool"], 2);
         assert_eq!(status["unit"], 0);
-        assert_eq!(status["active_filament"]["filament_name"], "Blue PLA");
+        // Gate 2 holds the spool with three colours (spool 8), whose first colour Happy Hare reports.
+        assert_eq!(status["active_filament"]["filament_name"], "Silk Red+Gold+Black");
+        assert_eq!(status["active_filament"]["spool_id"], 8);
     }
 
     #[test]
@@ -462,13 +485,13 @@ mod tests {
     #[test]
     fn a_gate_map_sets_the_spool_and_the_gate_takes_its_filament() {
         let mut hare = homed(4);
-        assert_eq!(mmu(&hare)["gate_spool_id"], json!([1, 2, 3, -1]));
+        assert_eq!(mmu(&hare)["gate_spool_id"], json!([1, 7, 8, -1]));
 
         hare.apply(MmuCommand::GateMap { gate: 1, spool_id: Some(4) }).unwrap();
         hare.apply(MmuCommand::GateMap { gate: 0, spool_id: Some(-1) }).unwrap();
 
         let status = mmu(&hare);
-        assert_eq!(status["gate_spool_id"], json!([-1, 4, 3, -1]));
+        assert_eq!(status["gate_spool_id"], json!([-1, 4, 8, -1]));
         // Spool 4 is the black ABS: Happy Hare takes material and temperature from Spoolman.
         assert_eq!(status["gate_material"][1], "ABS");
         assert_eq!(status["spoolman_support"], "push");
@@ -482,7 +505,7 @@ mod tests {
 
         hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
 
-        assert_eq!(hare.selected_spool(), Some(2));
+        assert_eq!(hare.selected_spool(), Some(7));
     }
 
     #[test]

@@ -197,17 +197,19 @@ async fn reads_the_spools_of_the_gates_from_spoolman() {
     };
 
     assert!(state.connected);
-    // Gate 3 stays empty; the gates 0 to 2 have the spools 1 to 3, and Moonraker starts with spool 4 active.
+    // Gate 3 stays empty; the gates 0 to 2 have the spools 1, 7 (two colours) and 8 (three colours), and Moonraker
+    // starts with spool 4 active.
     let mut ids: Vec<u32> = state.spools.keys().copied().collect();
     ids.sort_unstable();
-    assert_eq!(ids, [1, 2, 3, 4]);
+    assert_eq!(ids, [1, 4, 7, 8]);
     assert_eq!(state.active_spool_id, Some(4));
-    let spool = &state.spools[&2];
+    let spool = &state.spools[&7];
     assert_eq!(
         (spool.material.as_str(), spool.remaining_weight, spool.extruder_temp),
-        ("PETG", Some(40.0), Some(235.0))
+        ("PLA", Some(38.0), Some(215.0))
     );
     assert!(spool.is_low());
+    assert_eq!((state.spools[&1].colors.len(), spool.colors.len(), state.spools[&8].colors.len()), (1, 2, 3));
 }
 
 #[tokio::test(flavor = "multi_thread")]

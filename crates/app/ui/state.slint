@@ -35,6 +35,10 @@ export struct MmuGateItem {
     material: string,
     color: color,
     has-color: bool,
+    // Spoolman's multi-colour filaments: the second and third colour, and how many colours there are (0 to 3).
+    color-2: color,
+    color-3: color,
+    color-count: int,
     // Tool mapped to this gate, -1 without one.
     tool: int,
     selected: bool,
@@ -51,7 +55,10 @@ export struct SpoolItem {
     title: string,
     detail: string,
     color: color,
-    has-color: bool,
+    color-2: color,
+    color-3: color,
+    // 0 to 3 colours
+    color-count: int,
     place: string,
     low: bool,
 }
@@ -265,7 +272,10 @@ export global Printer {
     // What is left of the spool, for example "613 g".
     in property <string> spool-weight;
     in property <color> spool-color;
-    in property <bool> spool-has-color;
+    in property <color> spool-color-2;
+    in property <color> spool-color-3;
+    // 0 to 3 colours
+    in property <int> spool-color-count;
     in property <bool> spool-low;
     // Heating to what the spool in use recommends.
     in property <bool> has-spool-preset;
