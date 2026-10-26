@@ -4,10 +4,15 @@
 //! checked against a real single-gate machine with a proportional sync-feedback buffer and no encoder.
 
 use super::objects::ObjectStore;
+use crate::sourced::{prefer_measured, Sourced};
 use serde_json::Value;
 
 /// Oldest Happy Hare the project supports; older versions report different fields.
 const MIN_VERSION: (u32, u32) = (4, 1);
+
+const PROPORTIONAL_SENSOR: &str = "filament_proportional";
+pub const ORIGIN_ENCODER: &str = "encoder";
+pub const ORIGIN_SYNC_FEEDBACK: &str = "sync feedback with proportional sensor";
 
 /// Happy Hare 4.1 still lists the Happy Hare 3 names of the gate sensors in `mmu.sensors` as aliases.
 const LEGACY_SENSOR_NAMES: [&str; 3] = ["mmu_pre_gate", "mmu_gear", "mmu_gate"];
@@ -134,8 +139,9 @@ pub struct MmuStatus {
     pub sensors: Vec<MmuSensor>,
     pub sync_feedback: Option<SyncFeedback>,
     pub flowguard: Option<FlowGuard>,
-    /// Flow rate in percent from the encoder; `None` without an encoder.
-    pub encoder_flow_rate: Option<f64>,
+    /// Flow rate in percent: measured by the encoder, else estimated by the sync-feedback controller with a
+    /// proportional sensor. `None` if neither exists.
+    pub flow_rate: Option<Sourced<f64>>,
 }
 
 impl MmuStatus {
@@ -154,6 +160,7 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
     let mmu = store.object("mmu")?;
     let machine = store.object("mmu_machine").unwrap_or(&Value::Null);
     let num_gates = count(mmu, "num_gates").max(count(machine, "num_gates"));
+    let sensors = read_sensors(mmu);
     Some(MmuStatus {
         version: text(machine, "happy_hare_version"),
         enabled: flag(mmu, "enabled"),
@@ -170,11 +177,29 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
         paused: flag(mmu, "is_paused"),
         locked: flag(mmu, "is_locked"),
         gates: read_gates(mmu, num_gates),
-        sensors: read_sensors(mmu),
+        flow_rate: read_flow_rate(mmu, &sensors),
+        sensors,
         sync_feedback: read_sync_feedback(mmu),
         flowguard: read_flowguard(mmu),
-        encoder_flow_rate: mmu.get("encoder").and_then(|encoder| encoder.get("flow_rate")).and_then(Value::as_f64),
     })
+}
+
+/// Happy Hare keeps `sync_feedback_flow_rate` at 100 for every buffer and only estimates it when an enabled
+/// proportional sensor exists (`mmu_sync_feedback.py`), so the field alone says nothing without that sensor.
+fn read_flow_rate(mmu: &Value, sensors: &[MmuSensor]) -> Option<Sourced<f64>> {
+    let measured = mmu
+        .get("encoder")
+        .and_then(|encoder| encoder.get("flow_rate"))
+        .and_then(Value::as_f64)
+        .map(|rate| Sourced::measured(rate, ORIGIN_ENCODER));
+    let has_proportional_sensor =
+        sensors.iter().any(|sensor| sensor.name == PROPORTIONAL_SENSOR && sensor.triggered.is_some());
+    let estimated = mmu
+        .get("sync_feedback_flow_rate")
+        .and_then(Value::as_f64)
+        .filter(|_| has_proportional_sensor)
+        .map(|rate| Sourced::estimated(rate, ORIGIN_SYNC_FEEDBACK));
+    prefer_measured(measured, estimated)
 }
 
 /// `major.minor` of a version such as `4.1.0` or `v4.10`.
@@ -321,7 +346,7 @@ mod tests {
         assert!(mmu.enabled && mmu.homed && !mmu.paused);
         assert_eq!((mmu.num_gates, mmu.num_units, mmu.gate, mmu.tool), (1, 1, 0, 0));
         assert_eq!(mmu.filament, LoadedFilament::Unloaded);
-        assert_eq!(mmu.encoder_flow_rate, None);
+        assert_eq!(mmu.flow_rate, None);
         assert_eq!(
             mmu.gates,
             vec![MmuGate { index: 0, availability: GateAvailability::Empty, tool: Some(0), ..MmuGate::default() }]
@@ -408,8 +433,50 @@ mod tests {
     }
 
     #[test]
-    fn encoder_flow_rate_comes_from_the_encoder_dictionary() {
+    fn flow_rate_comes_from_the_encoder_dictionary() {
         let store = store(json!({ "mmu": { "encoder": { "flow_rate": 97.5, "encoder_pos": 12.0 } } }));
-        assert_eq!(read_mmu(&store).unwrap().encoder_flow_rate, Some(97.5));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, Some(Sourced::measured(97.5, ORIGIN_ENCODER)));
+    }
+
+    #[test]
+    fn flow_rate_without_encoder_is_estimated_by_the_proportional_sensor() {
+        let store = store(json!({ "mmu": {
+            "encoder": null, "sensors": { "filament_proportional": false }, "sync_feedback_flow_rate": 93.4
+        } }));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, Some(Sourced::estimated(93.4, ORIGIN_SYNC_FEEDBACK)));
+    }
+
+    #[test]
+    fn encoder_flow_rate_wins_over_the_estimate() {
+        let store = store(json!({ "mmu": {
+            "encoder": { "flow_rate": 97.5 }, "sensors": { "filament_proportional": true },
+            "sync_feedback_flow_rate": 93.4
+        } }));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, Some(Sourced::measured(97.5, ORIGIN_ENCODER)));
+    }
+
+    #[test]
+    fn buffer_without_proportional_sensor_has_no_flow_rate() {
+        // Happy Hare reports the initial 100 for tension/compression buffers, which is no estimate.
+        let store = store(json!({ "mmu": {
+            "sensors": { "filament_tension": true }, "sync_feedback_flow_rate": 100.0
+        } }));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, None);
+    }
+
+    #[test]
+    fn disabled_proportional_sensor_has_no_flow_rate() {
+        let store = store(json!({ "mmu": {
+            "sensors": { "filament_proportional": null }, "sync_feedback_flow_rate": 100.0
+        } }));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, None);
+    }
+
+    #[test]
+    fn flow_rate_is_missing_without_buffer() {
+        let store = store(json!({ "mmu": {
+            "sensors": { "filament_proportional": false }, "sync_feedback_flow_rate": null
+        } }));
+        assert_eq!(read_mmu(&store).unwrap().flow_rate, None);
     }
 }

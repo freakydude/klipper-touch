@@ -23,6 +23,7 @@ flowchart LR
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
         SET[settings.rs<br/>JSON file]
         FS[files.rs / system.rs]
+        EST[estimates.rs / sourced.rs<br/>derived values with their source]
         NET[network/*<br/>NetworkService]
     end
     M[(Moonraker / Klipper)]
@@ -36,6 +37,7 @@ flowchart LR
     SVC --> CMD
     SVC --> PR
     SVC --> FS
+    P --> EST
     SVC --> MR --> M
     F -. replaces in tests .-> M
     N --> NET --> NM
@@ -101,6 +103,9 @@ flowchart LR
   wiring in `actions.rs`, control on the page.
 - **New capability**: detection in `Capabilities::add_object` (or `ServerComponents`), subscription in `subscription.rs`,
   field in `PrinterStatus`, property in `Printer` and assignment in `presenter.rs`.
+- **New derived value** (from several sources, e.g. a measurement and a slicer estimate): the rule goes into the core
+  (`estimates.rs`, or next to the status reader), returns a `Sourced` value that names its source, and gets a test per
+  source. `view.rs` only formats it (a prediction gets a `~`).
 - **New page**: `pages/<name>.slint`, entry in `Page`, `NavRail` and `app.slint`; check with `ui-snapshot`.
 - **Extend the fake**: method in `fake-moonraker/src/session.rs`, G-code in `gcode.rs`/`printer.rs`, plus a test.
 

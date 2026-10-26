@@ -79,6 +79,8 @@ pub struct Presenter {
     service: PrinterService,
     cache: RefCell<Cache>,
     pending_targets: RefCell<view::PendingTargets>,
+    /// Last logged source of each derived value, so that a change is logged once.
+    origins: RefCell<HashMap<&'static str, &'static str>>,
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
@@ -109,6 +111,7 @@ impl Presenter {
             service,
             cache: RefCell::default(),
             pending_targets: RefCell::default(),
+            origins: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
             filament_sensors: Rc::default(),
@@ -304,6 +307,14 @@ impl Presenter {
         self.refresh_job_texts();
     }
 
+    /// Logs which source a derived value comes from when it changes; `None` means no source has a value.
+    fn note_origin(&self, value: &'static str, origin: Option<&'static str>) {
+        let origin = origin.unwrap_or("none");
+        if self.origins.borrow_mut().insert(value, origin) != Some(origin) {
+            log::debug!("{value}: {origin}");
+        }
+    }
+
     /// Time-related texts; also called every second by the clock timer.
     pub fn refresh_job_texts(&self) {
         let Some(window) = self.window.upgrade() else { return };
@@ -319,6 +330,9 @@ impl Presenter {
         printer.set_eta(texts.eta.into());
         printer.set_layers(texts.layers.into());
         printer.set_filament(texts.filament.into());
+        if let Some(origin) = texts.expectation_origin {
+            self.note_origin("print time expectation", Some(origin));
+        }
     }
 
     pub fn handle_event(&self, event: Event) {
@@ -428,7 +442,8 @@ impl Presenter {
             .filter(|part| !part.is_empty())
             .collect();
         printer.set_mmu_flowguard_detail(detail.join(": ").into());
-        printer.set_mmu_flow_rate(mmu.encoder_flow_rate.map_or(-1.0, |rate| rate as f32));
+        self.note_origin("MMU flow rate", mmu.flow_rate.map(|rate| rate.origin));
+        printer.set_mmu_flow_rate(mmu.flow_rate.map_or(-1.0, |rate| rate.value as f32));
     }
 
     fn set_macros(&self, macros: &[String], connected: bool) {
