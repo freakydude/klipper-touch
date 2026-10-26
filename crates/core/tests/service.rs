@@ -2,6 +2,7 @@
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
+use freakymate_core::files::ThumbnailImage;
 use freakymate_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
 use freakymate_core::spoolman;
 use freakymate_core::system::ConsoleKind;
@@ -63,6 +64,8 @@ async fn connects_detects_capabilities_and_follows_state() {
     assert!(snapshot.capabilities.quad_gantry_level);
     assert!(snapshot.capabilities.has_macro("LOAD_FILAMENT"));
     assert!(!snapshot.capabilities.has_macro("_PURGE_HELPER"));
+    let park = snapshot.capabilities.macro_details.get("PARK").expect("macro details are read when subscribing");
+    assert!(park.params.iter().any(|param| param.name == "Z"));
     assert!(snapshot.capabilities.server.power);
     assert!(snapshot.status.heater("heater_generic chamber").is_some());
 
@@ -313,7 +316,9 @@ async fn runs_print_job_and_loads_file_details() {
     .await;
     let thumbnail = next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
     assert!(matches!(metadata, Event::FileMetadata(meta) if meta.estimated_time == Some(7200.0)));
-    assert!(matches!(thumbnail, Event::Thumbnail { data, .. } if data.starts_with(b"<svg")));
+    assert!(
+        matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Svg(data), .. } if data.starts_with(b"<svg"))
+    );
 
     service.send(Command::RestartService { service: "klipper".into() });
     let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
@@ -423,4 +428,60 @@ async fn reports_disconnected_when_server_is_missing() {
     let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
 
     wait_for(&mut channels, |snapshot| snapshot.connection == ConnectionState::Disconnected).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
+    use freakymate_core::printer::FanKind;
+    use freakymate_core::tuning::TuningKey;
+
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, ready).await;
+
+    let capabilities = &snapshot.capabilities;
+    assert!(capabilities.fans.iter().any(|fan| fan == "fan_generic nevermore"));
+    assert_eq!(capabilities.main_light(), Some("neopixel chamber"));
+    assert_eq!(capabilities.white_channel("neopixel chamber"), freakymate_core::printer::WhiteChannel::All);
+    assert_eq!(capabilities.white_channel("neopixel status"), freakymate_core::printer::WhiteChannel::None);
+    assert!(capabilities.led_effects.iter().any(|effect| effect == "led_effect rainbow"));
+    assert_eq!(capabilities.tuning.get(TuningKey::MaxAccel), Some(3000.0));
+    assert!(snapshot
+        .status
+        .sensors
+        .iter()
+        .any(|sensor| sensor.object == "tmc2240 stepper_x" && sensor.temperature.is_none()));
+    assert_eq!(snapshot.status.fans[0].kind, FanKind::Part);
+
+    service.send(Command::ToggleLight);
+    service.send(Command::SetFanSpeed { fan: "fan_generic exhaust".into(), speed: 0.5 });
+    service.send(Command::SetLedEffect { effect: "rainbow".into(), on: true });
+    service.send(Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 });
+    let changed = wait_for(&mut channels, |snapshot| {
+        let light_off = snapshot.status.leds.iter().any(|led| led.object == "neopixel chamber" && led.level == 0.0);
+        let exhaust =
+            snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.rpm == Some(1400.0));
+        let effect = snapshot.status.led_effects.iter().any(|effect| effect.name == "rainbow" && effect.enabled);
+        light_off && exhaust && effect && snapshot.status.motion.max_accel == 3500.0
+    })
+    .await;
+    assert_eq!(changed.status.motion.max_accel, 3500.0);
+
+    // The fake samples once per simulated second; ask until the first samples are there.
+    timeout(WAIT_LIMIT, async {
+        loop {
+            service.query(Query::TemperatureHistory);
+            let event = next_event(&mut channels, |event| matches!(event, Event::TemperatureHistory(_))).await;
+            let Event::TemperatureHistory(history) = event else { unreachable!() };
+            if history
+                .get("extruder")
+                .is_some_and(|series| !series.temperatures.is_empty() && !series.targets.is_empty())
+            {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("temperature history not filled in time");
 }

@@ -1,6 +1,7 @@
 //! Operator commands for the printer and their translation into Moonraker calls.
 
-use crate::printer::{Axis, Capabilities, FilamentHandling, Motion, PrinterStatus};
+use crate::printer::{instance, Axis, Capabilities, FanKind, FilamentHandling, Motion, PrinterStatus, WhiteChannel};
+use crate::tuning::TuningKey;
 use serde_json::{json, Value};
 
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
@@ -50,8 +51,30 @@ pub enum Command {
     },
     /// Switches every heater off.
     CoolDown,
-    SetPartFanSpeed {
-        fraction: f64,
+    /// `speed` from 0 to 1; only part and generic fans can be set, Klipper drives the others.
+    SetFanSpeed {
+        fan: String,
+        speed: f64,
+    },
+    /// White light at `level` (0 to 1, 0 is off): the white channel if the LED has one, else all colours.
+    SetLight {
+        led: String,
+        level: f64,
+    },
+    /// Switches the main light (see [`Capabilities::main_light`]) on or off.
+    ToggleLight,
+    /// Colour channels from 0 to 1 (`SET_LED`).
+    SetLed {
+        led: String,
+        red: f64,
+        green: f64,
+        blue: f64,
+        white: f64,
+    },
+    /// Starts or stops an effect of the led_effect plugin.
+    SetLedEffect {
+        effect: String,
+        on: bool,
     },
     // Tuning
     AdjustZOffset {
@@ -65,11 +88,19 @@ pub enum Command {
     SetSpeedFactor {
         percent: f64,
     },
-    SetExtrudeFactor {
-        percent: f64,
-    },
-    SetPressureAdvance {
+    /// Sets a motion or extrusion value until the next restart.
+    SetTuning {
+        key: TuningKey,
         value: f64,
+    },
+    /// One step up (`direction` 1) or down (-1) from the current value.
+    StepTuning {
+        key: TuningKey,
+        direction: f64,
+    },
+    /// Back to the configured value.
+    ResetTuning {
+        key: TuningKey,
     },
     SaveConfig,
     // Extruder
@@ -168,6 +199,28 @@ const JOG_SPEED_Z: f64 = 10.0;
 const NO_LEVELING: &str = "this printer has neither quad gantry level nor Z tilt";
 const NO_LOAD_WAY: &str = "no way to load filament: no Happy Hare and no LOAD_FILAMENT macro";
 const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNLOAD_FILAMENT macro";
+const NO_LIGHT: &str = "this printer has no LED";
+
+/// White light: the white channel where every chip has one, the same level on every colour where none has, and both
+/// for a mixed chain, so its RGB chips light up too.
+fn light(capabilities: &Capabilities, led: &str, level: f64) -> Command {
+    let level = level.clamp(0.0, 1.0);
+    let (colour, white) = match capabilities.white_channel(led) {
+        WhiteChannel::All => (0.0, level),
+        WhiteChannel::Some => (level, level),
+        WhiteChannel::None => (level, 0.0),
+    };
+    Command::SetLed { led: led.to_owned(), red: colour, green: colour, blue: colour, white }
+}
+
+/// `M106` for the part fan, `SET_FAN_SPEED` for a generic fan; the others cannot be set.
+fn fan_gcode(fan: &str, speed: f64) -> Option<String> {
+    match FanKind::of(fan)? {
+        FanKind::Part => Some(format!("M106 S{}", (speed * 255.0).round())),
+        FanKind::Generic => Some(format!("SET_FAN_SPEED FAN={} SPEED={:.2}", instance(fan), speed)),
+        FanKind::Heater | FanKind::Controller => None,
+    }
+}
 
 impl Command {
     /// Turns an intent into the commands this printer needs; every other command stays as it is. `status` shows the
@@ -188,6 +241,21 @@ impl Command {
                 commands
             }
             Self::CoolDown => status.heaters.iter().map(|heater| heater_target(&heater.object, 0.0)).collect(),
+            Self::SetLight { led, level } => vec![light(capabilities, &led, level)],
+            Self::ToggleLight => {
+                let led = capabilities.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
+                let lit = status.leds.iter().any(|candidate| candidate.object == led && candidate.level > 0.0);
+                vec![light(capabilities, led, if lit { 0.0 } else { 1.0 })]
+            }
+            Self::StepTuning { key, direction } => {
+                let current = key.current(status).ok_or_else(|| format!("this printer has no {}", key.id()))?;
+                vec![Self::SetTuning { key, value: key.stepped(current, direction) }]
+            }
+            Self::ResetTuning { key } => {
+                let value =
+                    capabilities.tuning.get(key).ok_or_else(|| format!("{} is not in the configuration", key.id()))?;
+                vec![Self::SetTuning { key, value }]
+            }
             Self::StepHeater { heater, step } => {
                 let current = status.heater(&heater).ok_or_else(|| format!("unknown heater {heater}"))?;
                 vec![heater_target(&heater, current.stepped_target(step))]
@@ -227,9 +295,21 @@ impl Command {
             Self::QuadGantryLevel => Call::gcode("QUAD_GANTRY_LEVEL"),
             Self::ZTiltAdjust => Call::gcode("Z_TILT_ADJUST"),
             Self::SetHeaterTarget { heater, target } => Call::gcode(heater_gcode(heater, target.max(0.0))),
-            Self::SetPartFanSpeed { fraction } => {
-                Call::gcode(format!("M106 S{}", (fraction.clamp(0.0, 1.0) * 255.0).round()))
+            Self::SetFanSpeed { fan, speed } => Call::gcode(fan_gcode(fan, speed.clamp(0.0, 1.0))?),
+            Self::SetLed { led, red, green, blue, white } => {
+                let channel = |value: &f64| format!("{:.2}", value.clamp(0.0, 1.0));
+                Call::gcode(format!(
+                    "SET_LED LED={} RED={} GREEN={} BLUE={} WHITE={} SYNC=0",
+                    instance(led),
+                    channel(red),
+                    channel(green),
+                    channel(blue),
+                    channel(white)
+                ))
             }
+            Self::SetLedEffect { effect, on: true } => Call::gcode(format!("SET_LED_EFFECT EFFECT={effect}")),
+            Self::SetLedEffect { effect, on: false } => Call::gcode(format!("SET_LED_EFFECT EFFECT={effect} STOP=1")),
+            Self::SetTuning { key, value } => Call::gcode(key.gcode(*value)),
             Self::AdjustZOffset { delta } => {
                 Call::gcode(format!("SET_GCODE_OFFSET Z_ADJUST={} MOVE=1", number(*delta)))
             }
@@ -237,10 +317,6 @@ impl Command {
             Self::ApplyZOffsetToProbe => Call::gcode("Z_OFFSET_APPLY_PROBE"),
             Self::ApplyZOffsetToEndstop => Call::gcode("Z_OFFSET_APPLY_ENDSTOP"),
             Self::SetSpeedFactor { percent } => Call::gcode(format!("M220 S{}", percent.max(1.0).round())),
-            Self::SetExtrudeFactor { percent } => Call::gcode(format!("M221 S{}", percent.max(1.0).round())),
-            Self::SetPressureAdvance { value } => {
-                Call::gcode(format!("SET_PRESSURE_ADVANCE ADVANCE={}", number(value.max(0.0))))
-            }
             Self::SaveConfig => Call::gcode("SAVE_CONFIG"),
             Self::Extrude { length, speed } => {
                 Call::gcode(format!("M83\nG1 E{} F{}", number(*length), number(speed.abs() * 60.0)))
@@ -288,6 +364,10 @@ impl Command {
             | Self::StepHeater { .. }
             | Self::ApplyPreset { .. }
             | Self::CoolDown
+            | Self::SetLight { .. }
+            | Self::ToggleLight
+            | Self::StepTuning { .. }
+            | Self::ResetTuning { .. }
             | Self::ApplyZOffset
             | Self::LoadFilament
             | Self::UnloadFilament => return None,
@@ -445,9 +525,16 @@ mod tests {
     #[test]
     fn tuning_and_extrusion_commands() {
         assert_eq!(script(Command::AdjustZOffset { delta: -0.005 }), "SET_GCODE_OFFSET Z_ADJUST=-0.005 MOVE=1");
-        assert_eq!(script(Command::SetPartFanSpeed { fraction: 0.5 }), "M106 S128");
+        assert_eq!(script(Command::SetFanSpeed { fan: "fan".into(), speed: 0.5 }), "M106 S128");
+        assert_eq!(
+            script(Command::SetFanSpeed { fan: "fan_generic nevermore".into(), speed: 0.4 }),
+            "SET_FAN_SPEED FAN=nevermore SPEED=0.40"
+        );
+        assert_eq!(
+            Command::SetFanSpeed { fan: "heater_fan hotend".into(), speed: 1.0 }.to_call(&Motion::default()),
+            None
+        );
         assert_eq!(script(Command::SetSpeedFactor { percent: 110.0 }), "M220 S110");
-        assert_eq!(script(Command::SetPressureAdvance { value: 0.0425 }), "SET_PRESSURE_ADVANCE ADVANCE=0.0425");
         assert_eq!(script(Command::Extrude { length: -10.0, speed: 5.0 }), "M83\nG1 E-10 F300");
     }
 
@@ -599,5 +686,59 @@ mod tests {
         assert_eq!(Command::PausePrint.describe(), "PausePrint");
         assert_eq!(Command::Jog { axis: Axis::X, distance: 1.0 }.describe(), "Jog");
         assert_eq!(Command::RunMacro { name: "PARK".into() }.describe(), "PARK");
+    }
+
+    #[test]
+    fn light_uses_white_where_there_is_one_and_toggles_the_main_light() {
+        let mut capabilities = printer(&["neopixel sb", "neopixel chamber"]);
+        capabilities.led_white =
+            vec![("neopixel chamber".into(), WhiteChannel::All), ("neopixel sb".into(), WhiteChannel::Some)];
+        let mut status = PrinterStatus {
+            leds: vec![crate::printer::Led { object: "neopixel chamber".into(), label: "Chamber".into(), level: 0.0 }],
+            ..PrinterStatus::default()
+        };
+
+        let on = Command::ToggleLight.resolve(&capabilities, &status).unwrap();
+        assert_eq!(script(on[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=1.00 SYNC=0");
+        status.leds[0].level = 0.5;
+        let off = Command::ToggleLight.resolve(&capabilities, &status).unwrap();
+        assert_eq!(script(off[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=0.00 SYNC=0");
+        let mixed =
+            Command::SetLight { led: "neopixel sb".into(), level: 0.5 }.resolve(&capabilities, &status).unwrap();
+        assert_eq!(script(mixed[0].clone()), "SET_LED LED=sb RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.50 SYNC=0");
+        let rgb =
+            Command::SetLight { led: "neopixel status".into(), level: 0.5 }.resolve(&capabilities, &status).unwrap();
+        assert_eq!(script(rgb[0].clone()), "SET_LED LED=status RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.00 SYNC=0");
+        assert!(Command::ToggleLight.resolve(&printer(&[]), &status).is_err());
+    }
+
+    #[test]
+    fn led_effects_start_and_stop() {
+        assert_eq!(
+            script(Command::SetLedEffect { effect: "rainbow".into(), on: true }),
+            "SET_LED_EFFECT EFFECT=rainbow"
+        );
+        assert_eq!(
+            script(Command::SetLedEffect { effect: "rainbow".into(), on: false }),
+            "SET_LED_EFFECT EFFECT=rainbow STOP=1"
+        );
+    }
+
+    #[test]
+    fn tuning_steps_from_the_current_value_and_resets_to_the_configuration() {
+        let mut capabilities = printer(&[]);
+        capabilities.apply_settings(Some(&json!({ "printer": { "max_accel": 5000.0 } })));
+        let mut status = PrinterStatus::default();
+        status.motion.max_accel = 3000.0;
+
+        let step =
+            Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 }.resolve(&capabilities, &status).unwrap();
+        assert_eq!(step, [Command::SetTuning { key: TuningKey::MaxAccel, value: 3500.0 }]);
+        let reset = Command::ResetTuning { key: TuningKey::MaxAccel }.resolve(&capabilities, &status).unwrap();
+        assert_eq!(script(reset[0].clone()), "SET_VELOCITY_LIMIT ACCEL=5000");
+        assert!(Command::ResetTuning { key: TuningKey::SmoothTime }.resolve(&capabilities, &status).is_err());
+        assert!(Command::StepTuning { key: TuningKey::RetractLength, direction: 1.0 }
+            .resolve(&capabilities, &status)
+            .is_err());
     }
 }

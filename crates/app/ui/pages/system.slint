@@ -78,11 +78,21 @@ export component SystemPage inherits Rectangle {
                     font-size: Theme.font-small;
                 }
             }
-            IconButton {
-                icon: Icons.nav-settings;
-                text: @tr("Settings");
-                horizontal: true;
-                clicked => { Navigation.page = Page.settings; }
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: 64px;
+                IconButton {
+                    icon: Icons.nav-settings;
+                    text: @tr("Settings");
+                    clicked => { Navigation.page = Page.settings; }
+                }
+                // The console is rarely needed on the touch screen; it is here and in the message flyout.
+                IconButton {
+                    icon: Icons.nav-console;
+                    text: @tr("Console");
+                    enabled: Printer.connection == "connected";
+                    clicked => { Navigation.page = Page.console; }
+                }
             }
             Rectangle { vertical-stretch: 1; }
         }

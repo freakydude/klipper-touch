@@ -2,7 +2,14 @@
 //!
 //! The UI only offers functions when the matching capability was detected.
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+use super::devices::{self, FanKind, WhiteChannel};
+use super::macros::{self, MacroDetails};
+use crate::tuning::TuningConfig;
+use serde_json::Value;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Capabilities {
     pub heater_bed: bool,
     pub part_fan: bool,
@@ -15,10 +22,26 @@ pub struct Capabilities {
     pub mmu: bool,
     /// Additional heaters with a target temperature (`heater_generic`, `temperature_fan`, additional extruders).
     pub extra_heaters: Vec<String>,
+    /// Temperatures without a target: `temperature_sensor`, `temperature_host`, `temperature_combined` and the
+    /// drivers that measure their own (`tmc2240`).
     pub temperature_sensors: Vec<String>,
     pub filament_sensors: Vec<String>,
+    /// `fan`, `fan_generic`, `heater_fan` and `controller_fan` objects.
+    pub fans: Vec<String>,
+    /// LED objects (`led`, `neopixel`, `dotstar`, `pca9533`, `pca9632`), each its own config section; one object
+    /// can be a chain of several chips.
+    pub leds: Vec<String>,
+    /// Which chips of each LED have a white channel, from the configuration.
+    pub led_white: Vec<(String, WhiteChannel)>,
+    /// Effects of the optional led_effect plugin, by object name (`led_effect <name>`).
+    pub led_effects: Vec<String>,
+    /// The configured motion and extrusion values, for the expert tab.
+    pub tuning: TuningConfig,
     /// Callable macros (excluding helper macros starting with `_`), in upper case.
     pub macros: Vec<String>,
+    /// Parameters of each macro by upper-case name, read once from the configuration when subscribing (it only
+    /// changes with a restart). Shared, because every snapshot carries the capabilities.
+    pub macro_details: Arc<BTreeMap<String, MacroDetails>>,
     pub server: ServerComponents,
 }
 
@@ -68,6 +91,24 @@ impl Capabilities {
         capabilities
     }
 
+    /// What only the configuration tells: macro parameters, LEDs with white, the configured tuning values. Read once
+    /// when subscribing; the configuration changes only with a restart.
+    pub fn apply_settings(&mut self, settings: Option<&Value>) {
+        self.macro_details = Arc::new(macros::details_from_settings(settings));
+        let section = |object: &str| settings.and_then(|settings| settings.get(object));
+        self.led_white = self.leds.iter().map(|led| (led.clone(), devices::white_channel(section(led)))).collect();
+        self.tuning = TuningConfig::from_settings(settings);
+    }
+
+    pub fn white_channel(&self, led: &str) -> WhiteChannel {
+        self.led_white.iter().find(|(candidate, _)| candidate == led).map(|(_, white)| *white).unwrap_or_default()
+    }
+
+    /// The LED the light switch of the status bar turns on and off.
+    pub fn main_light(&self) -> Option<&str> {
+        devices::main_light(&self.leds)
+    }
+
     pub fn has_macro(&self, name: &str) -> bool {
         self.macros.iter().any(|candidate| candidate.eq_ignore_ascii_case(name))
     }
@@ -87,16 +128,14 @@ impl Capabilities {
         }
     }
 
-    /// At least one way to level the bed or gantry.
-    pub fn can_level(&self) -> bool {
-        self.quad_gantry_level || self.z_tilt
-    }
-
     fn add_object(&mut self, name: &str) {
         let (kind, instance) = name.split_once(' ').map_or((name, None), |(kind, instance)| (kind, Some(instance)));
         match (kind, instance) {
             ("heater_bed", None) => self.heater_bed = true,
-            ("fan", None) => self.part_fan = true,
+            ("fan", None) => {
+                self.part_fan = true;
+                self.fans.push(name.to_owned());
+            }
             ("quad_gantry_level", None) => self.quad_gantry_level = true,
             ("z_tilt", None) => self.z_tilt = true,
             ("bed_mesh", None) => self.bed_mesh = true,
@@ -105,7 +144,12 @@ impl Capabilities {
             ("exclude_object", None) => self.exclude_object = true,
             ("mmu", None) => self.mmu = true,
             ("heater_generic" | "temperature_fan", Some(_)) => self.extra_heaters.push(name.to_owned()),
-            ("temperature_sensor", Some(_)) => self.temperature_sensors.push(name.to_owned()),
+            ("temperature_sensor" | "temperature_host" | "temperature_combined" | "tmc2240", Some(_)) => {
+                self.temperature_sensors.push(name.to_owned())
+            }
+            ("led_effect", Some(_)) => self.led_effects.push(name.to_owned()),
+            _ if FanKind::of(name).is_some() => self.fans.push(name.to_owned()),
+            _ if devices::is_led(name) => self.leds.push(name.to_owned()),
             ("filament_switch_sensor" | "filament_motion_sensor", Some(_)) => {
                 self.filament_sensors.push(name.to_owned())
             }

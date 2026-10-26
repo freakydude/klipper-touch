@@ -29,7 +29,11 @@ run_step "cargo clippy" cargo clippy --workspace --all-targets -- -D warnings
 run_step "cargo test" cargo test --workspace
 run_step "cargo build" cargo build -p freakymate
 run_step "ui previews" scripts/ui-preview.sh
-run_step "skill check" .claude/skills/session-handover/scripts/check-skills.sh
+# The AI skills are local (.claude/ is not in the repository); check them only where they exist.
+skill_check=.claude/skills/session-handover/scripts/check-skills.sh
+if [ -x "$skill_check" ]; then
+    run_step "skill check" "$skill_check"
+fi
 if [ "$with_snapshot" = true ]; then
     run_step "ui snapshot" scripts/ui-snapshot.sh
 fi

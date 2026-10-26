@@ -4,10 +4,12 @@ use crate::format;
 use chrono::{DateTime, Local};
 use freakymate_core::estimates;
 use freakymate_core::files::{FileInfo, FileMetadata, LastPrint};
+use freakymate_core::printer::FanKind;
 use freakymate_core::printer::{
     FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
 use freakymate_core::spoolman::{PrintHint, Spool};
+use freakymate_core::tuning::TuningRange;
 use freakymate_core::{Provenance, Sourced};
 
 const NO_VALUE: &str = "-";
@@ -247,6 +249,25 @@ pub fn mmu_flowguard_state(state: FlowGuardState) -> &'static str {
     }
 }
 
+pub fn fan_kind(kind: FanKind) -> &'static str {
+    match kind {
+        FanKind::Part => "part",
+        FanKind::Generic => "generic",
+        FanKind::Heater => "heater",
+        FanKind::Controller => "controller",
+    }
+}
+
+/// Measured fan speed, empty without a tachometer.
+pub fn fan_rpm(rpm: Option<f64>) -> String {
+    rpm.map(|rpm| format!("{rpm:.0} rpm")).unwrap_or_default()
+}
+
+/// A value of the expert tab with its unit, e.g. `5000 mm/s²` or `0.040`.
+pub fn tuning_value(value: f64, range: &TuningRange) -> String {
+    format!("{value:.*}{}", range.decimals, range.unit)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,5 +480,16 @@ mod tests {
             .map(mmu_flowguard_state),
             ["off", "triggered", "boosting", "monitoring", "ready"]
         );
+    }
+
+    #[test]
+    fn fan_and_tuning_texts() {
+        assert_eq!(fan_rpm(Some(2799.6)), "2800 rpm");
+        assert_eq!(fan_rpm(None), "");
+        assert_eq!(fan_kind(FanKind::Generic), "generic");
+        let accel = freakymate_core::tuning::TuningKey::MaxAccel.range();
+        assert_eq!(tuning_value(5000.0, &accel), "5000 mm/s²");
+        let advance = freakymate_core::tuning::TuningKey::PressureAdvance.range();
+        assert_eq!(tuning_value(0.04, &advance), "0.040");
     }
 }

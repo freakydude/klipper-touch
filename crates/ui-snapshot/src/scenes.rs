@@ -4,6 +4,7 @@ use crate::session::Session;
 use freakymate::{Confirm, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::printer::{Activity, KlippyState, PrintState};
+use freakymate_core::tuning::TuningKey;
 use freakymate_core::{Command, ConnectionState, Query};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
@@ -124,12 +125,60 @@ fn pages(session: &mut Session) -> Result<(), String> {
         (Page::Settings, "settings"),
     ] {
         session.show_page(page, name)?;
+        if page == Page::Temperature {
+            heat_tabs(session)?;
+        }
+        if page == Page::Tune && session.presenter.snapshot().capabilities.tuning.get(TuningKey::MaxAccel).is_some() {
+            session.window.global::<Navigation>().set_tune_tab(1);
+            session.show_page(Page::Tune, "tune-expert")?;
+            session.window.global::<Navigation>().set_tune_tab(0);
+        }
         if page == Page::Filament && session.presenter.snapshot().status.mmu.is_some() {
             session.window.global::<Navigation>().set_filament_tab(1);
             session.show_page(Page::Filament, "filament-mmu")?;
             session.window.global::<Navigation>().set_filament_tab(0);
         }
     }
+    messages(session)
+}
+
+/// The message flyout with an error from a command the printer refuses.
+fn messages(session: &mut Session) -> Result<(), String> {
+    session.service.send(Command::RunGcode { script: "SET_FAN_SPEED FAN=missing SPEED=1".into() });
+    session.pump(Duration::from_secs(1));
+    session.window.global::<Navigation>().set_messages_open(true);
+    session.capture("messages")?;
+    session.window.global::<Navigation>().set_messages_open(false);
+    Ok(())
+}
+
+/// The Fans and Sensors tabs of the Thermal page and the light panel, where the printer has them.
+fn heat_tabs(session: &mut Session) -> Result<(), String> {
+    let status = session.presenter.snapshot().status;
+    let navigation = session.window.global::<Navigation>();
+    if !status.fans.is_empty() || !status.leds.is_empty() {
+        navigation.set_heat_tab(1);
+        session.show_page(Page::Temperature, "temperature-fans")?;
+    }
+    if !status.sensors.is_empty() {
+        session.window.global::<Navigation>().set_heat_tab(2);
+        session.show_page(Page::Temperature, "temperature-sensors")?;
+    }
+    session.window.global::<Navigation>().set_heat_tab(0);
+    if !status.leds.is_empty() {
+        session.window.global::<Navigation>().set_light_open(true);
+        session.capture("light-panel")?;
+        session.window.global::<Navigation>().set_light_open(false);
+    }
+    Ok(())
+}
+
+/// The temperature history of the nozzle, once it has heated: Moonraker's stored minutes plus the live value.
+fn nozzle_history(session: &mut Session) -> Result<(), String> {
+    session.presenter.open_history("extruder");
+    session.pump(Duration::from_secs(1));
+    session.capture("history-nozzle")?;
+    session.presenter.close_history();
     Ok(())
 }
 
@@ -206,8 +255,8 @@ fn network(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
-/// The "Cool down" button of the nozzle row on the Heat page (800x480, no fitting).
-const COOL_DOWN_BUTTON: (f32, f32) = (628.0, 84.0);
+/// The "Cool down" button of the nozzle row on the Heat page, below the tabs (800x480, no fitting).
+const COOL_DOWN_BUTTON: (f32, f32) = (628.0, 148.0);
 const TAP_ROUNDS: usize = 10;
 /// A finger rests this long: several status updates arrive meanwhile, as the temperatures change all the time.
 const TAP_DURATION: Duration = Duration::from_millis(500);
@@ -312,6 +361,7 @@ fn printing(session: &mut Session) -> Result<(), String> {
     })?;
     session.pump(Duration::from_secs(1));
     session.show_page(Page::Print, "print-printing")?;
+    nozzle_history(session)?;
     tangle_boost(session)?;
     session.show_page(Page::Temperature, "temperature-printing")?;
     session.show_page(Page::System, "system-printing")?;

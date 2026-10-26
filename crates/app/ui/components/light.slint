@@ -1,0 +1,131 @@
+// The light panel at the light symbol of the status bar: the main light with one tap, every LED with a dimmer, and
+// the effects of the led_effect plugin when it is installed.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, LedItem, Navigation, Printer } from "../state.slint";
+import { IconButton, ScrollList, TouchSlider } from "controls.slint";
+
+// On and off, and the brightness of white light.
+component LedRow inherits Rectangle {
+    in property <LedItem> led;
+    height: 60px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+
+    HorizontalLayout {
+        padding: 4px;
+        padding-left: 10px;
+        spacing: Theme.spacing;
+        Image {
+            source: Icons.accessory-light;
+            colorize: root.led.level > 0 ? Theme.warning : Theme.muted;
+            width: 28px;
+            height: 28px;
+            y: (parent.height - self.height) / 2;
+        }
+        VerticalLayout {
+            alignment: center;
+            width: 170px;
+            Text { text: root.led.label; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
+            Text {
+                text: root.led.level > 0 ? round(light-slider.shown) + " %" : @tr("off");
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+            }
+        }
+        IconButton {
+            width: 64px;
+            text: @tr("Off");
+            checked: root.led.level <= 0;
+            clicked => { Actions.set-light(root.led.object, 0); }
+        }
+        light-slider := TouchSlider {
+            horizontal-stretch: 1;
+            value: root.led.level;
+            changed(level) => { Actions.set-light(root.led.object, level); }
+        }
+        IconButton {
+            width: 64px;
+            text: "100%";
+            checked: root.led.level > 99;
+            clicked => { Actions.set-light(root.led.object, 100); }
+        }
+    }
+}
+
+export component LightPanel inherits Rectangle {
+    property <length> row-step: 64px;
+
+    // A tap beside the panel closes it.
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        clicked => { Navigation.light-open = false; }
+    }
+
+    Rectangle {
+        x: root.width - self.width - 8px;
+        y: 52px;
+        width: min(620px, root.width - 16px);
+        height: min(root.height - 60px, 64px + 2 * Theme.padding + Theme.spacing
+            + (Printer.leds.length + (Printer.led-effects.length > 0 ? 1 : 0)) * root.row-step);
+        // Slightly see-through, so it is clear that the panel lies over the page.
+        background: Theme.surface.with-alpha(Theme.flyout-opacity);
+        border-radius: Theme.radius;
+        // Taps inside stay inside.
+        TouchArea { }
+
+        VerticalLayout {
+            padding: Theme.padding;
+            spacing: Theme.spacing;
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                // The main light as a switch: highlighted while it is on.
+                if Printer.has-light: IconButton {
+                    horizontal: true;
+                    icon: Icons.accessory-light;
+                    text: Printer.light-name + ": " + (Printer.light-on ? @tr("on") : @tr("off"));
+                    checked: Printer.light-on;
+                    clicked => { Actions.toggle-light(); }
+                }
+                IconButton {
+                    width: Theme.touch;
+                    icon: Icons.ui-close;
+                    accessible-label: @tr("Close");
+                    clicked => { Navigation.light-open = false; }
+                }
+            }
+            list := ScrollList {
+                vertical-stretch: 1;
+                content-height: (Printer.leds.length + (Printer.led-effects.length > 0 ? 1 : 0)) * root.row-step;
+                for led[index] in Printer.leds: LedRow {
+                    y: index * root.row-step;
+                    width: list.row-width;
+                    led: led;
+                }
+                // Effects side by side; a tap starts or stops one.
+                if Printer.led-effects.length > 0: HorizontalLayout {
+                    y: Printer.leds.length * root.row-step;
+                    width: list.row-width;
+                    height: root.row-step - Theme.spacing;
+                    spacing: Theme.spacing;
+                    Image {
+                        source: Icons.accessory-led-strip;
+                        colorize: Theme.muted;
+                        width: 28px;
+                        height: 28px;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    for effect in Printer.led-effects: IconButton {
+                        text: effect.label;
+                        checked: effect.enabled;
+                        clicked => { Actions.set-led-effect(effect.name, !effect.enabled); }
+                    }
+                }
+            }
+        }
+    }
+}

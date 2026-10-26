@@ -54,13 +54,19 @@ flowchart LR
 ## Data flow
 
 1. `PrinterService::start` runs a loop on the Tokio runtime: connect, `server.connection.identify`, `server.info`, and
-   once `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`.
+   once `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`. The parameters of the macros
+   are read once from `configfile.settings` at that point (`Capabilities::macro_details`); the configuration only
+   changes with a restart, which subscribes again.
 2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view
-   (heaters, motion, job, macros, objects to exclude, and Happy Hare in `printer/mmu.rs`: gates, sensors, buffer, FlowGuard).
+   (heaters, motion, job, objects to exclude, and Happy Hare in `printer/mmu.rs`: gates, sensors, buffer, FlowGuard).
    `Capabilities::filament_handling` decides where Load and Unload come from: Happy Hare, else the macros
    `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
-3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. Spoolman
+3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
+   details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
+   copies pixels. The temperature history comes from Moonraker's `server.temperature_store` when a chart opens
+   (`history.rs`, drawn by `app/src/chart.rs` and `history_view.rs`); fans, LEDs and effects are read in
+   `printer/devices.rs`, the expert values in `tuning.rs`. Spoolman
    (`spoolman.rs`) is read through Moonraker's proxy: its state and the spools of the gates every minute and when
    Moonraker reports a change; the picker list on demand. The `lanes` (a gate each with MMU, otherwise the one active
    spool) are what the screens and the hints before a print are built from.
@@ -71,6 +77,8 @@ flowchart LR
    sent (`Connection::start_call`); only the replies are awaited concurrently. A task per command would let two taps
    overtake each other, and a heater target is absolute.
 5. `presenter.rs` runs in the Slint event loop (`slint::spawn_local`) and writes the globals `Printer` and `UiSettings`.
+   The rows of the Slint models come from `items.rs`; lists are updated with `items::replace_rows`, which changes
+   rows in place, so a tap on a button in a row survives the next status update.
 6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
    `server.info` polling.
 7. Network: `NetworkService` (own task, `NetworkCommand` in, `NetworkState`/`NetworkNotice` out) uses the backend
@@ -101,7 +109,9 @@ flowchart LR
   (`SLINT_BACKEND=winit-software`).
 - The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
   (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
-  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Responsive layouts for
+  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Fitting and the
+  hidden pointer in fullscreen share one winit event filter (`app::watch_window_events`): Slint keeps only one per
+  window. Responsive layouts for
   7" and 4.3" displays are planned.
 - Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
 - Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).

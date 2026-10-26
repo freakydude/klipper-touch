@@ -32,11 +32,23 @@ is the BTT HDMI5 (5", 800x480, landscape).
 - **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects;
   file browser with thumbnails, filament, nozzle and print time of each file.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
-- **Heat**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), sensors, presets, part fan.
-  - and − respect `min_temp`/`max_temp` from the Klipper configuration (from off, + jumps straight to `min_temp`).
-- **Tune**: Z offset (babysteps), apply to probe/endstop, save config, speed and flow factor, pressure advance.
+- **Thermal**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), presets; − and +
+  respect `min_temp`/`max_temp` from the Klipper configuration. Tapping a heater or sensor shows its temperature
+  history (the last 20 minutes from Moonraker, growing live). Further tabs when the printer has them:
+  - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
+    bar, speed in rpm where there is a tachometer.
+  - **Sensors**: every temperature without a target (`temperature_sensor`, `temperature_host`,
+    `temperature_combined`, TMC2240 drivers).
+- **Light**: the light symbol in the status bar opens a panel with the main (chamber) light as a switch, every LED
+  (`neopixel`, `led`, `dotstar`, …) on, off and dimmed as white light, and the effects of the
+  [led_effect](https://github.com/julianschill/klipper-led_effect) plugin when it is installed.
+- **Tune**: what one corrects while watching a print: Z offset (babysteps, apply to probe/endstop, save config) and
+  the speed factor, with a quiet note that layer times then differ from the slicer's plan. The **Expert** tab holds
+  the calibration values until the next restart: flow factor, pressure advance and smooth time, velocity and
+  acceleration limits, square corner velocity, minimum cruise ratio and firmware retraction; it shows where a value
+  differs from the configuration and resets it.
 - **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
-- **Console**: G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an
+- **Console** (from the System page and the message flyout): G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an
   expandable list of macros. Macros starting with `_` and macros that rename a built-in command (`rename_existing`) are
   hidden; macros can be hidden in the settings. Macros with parameters open a form first: each parameter is read from the
   macro's template, Klipper defaults show as placeholders in brackets.

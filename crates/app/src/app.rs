@@ -93,14 +93,13 @@ impl Application {
 
         let clock = Timer::default();
         let clock_presenter = presenter.clone();
-        clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.refresh_job_texts());
+        clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.tick());
         presenter.refresh_job_texts();
 
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);
         }
-        follow_fullscreen_pointer(&window);
-        fit_display(&window);
+        watch_window_events(&window);
         Ok(Self {
             window,
             presenter,
@@ -118,40 +117,36 @@ impl Application {
     }
 }
 
-/// Fullscreen is the touch-only kiosk mode: a pointer there would only be the cursor of a touch screen.
-/// The winit window exists once the event loop runs, so the call waits for the first timer tick.
-/// The pointer belongs to windowed use only. winit may show it again on focus, resize or pointer entry, and the
-/// window is not yet created when the app starts, so the state is re-applied on those events instead of once.
-pub fn follow_fullscreen_pointer(window: &AppWindow) {
-    window.window().on_winit_window_event(|window, event| {
-        if matches!(event, WindowEvent::Focused(_) | WindowEvent::Resized(_) | WindowEvent::CursorEntered { .. }) {
-            set_pointer_visible(window, !window.is_fullscreen());
-        }
-        EventResult::Propagate
-    });
-}
-
-/// Scales the layout to the real display whenever the window changes its size (see [`display`]). The scale of the
-/// system is not used: a compositor reports 1 for a touch screen, and the layout is made for 800x480. Whoever sets
-/// `SLINT_SCALE_FACTOR` chooses the scale by hand, and nothing is fitted then.
-pub fn fit_display(window: &AppWindow) {
-    if std::env::var_os("SLINT_SCALE_FACTOR").is_some() {
-        return;
-    }
+/// The one filter for winit's window events; Slint keeps only one per window, so a second registration would
+/// silently replace the first.
+///
+/// - Pointer: fullscreen is the touch-only kiosk mode, where a pointer would only be the cursor of a touch screen.
+///   winit may show it again on focus, resize or pointer entry, and the window does not exist yet when the app
+///   starts, so the state is re-applied on those events instead of once.
+/// - Scale: the layout is fitted to the real display whenever the window changes its size (see [`display`]). The
+///   scale of the system is not used: a compositor reports 1 for a touch screen, and the layout is made for 800x480.
+///   Whoever sets `SLINT_SCALE_FACTOR` chooses the scale by hand, and nothing is fitted then.
+pub fn watch_window_events(window: &AppWindow) {
+    let fit = std::env::var_os("SLINT_SCALE_FACTOR").is_none();
     let weak = window.as_weak();
-    window.window().on_winit_window_event(move |_, event| match event {
-        // Applied after the event, not inside it: Slint is still handling it.
-        WindowEvent::Resized(_) => {
-            let weak = weak.clone();
-            Timer::single_shot(Duration::ZERO, move || {
-                if let Some(window) = weak.upgrade() {
-                    display::apply_fit(window.window());
-                }
-            });
-            EventResult::Propagate
+    window.window().on_winit_window_event(move |slint_window, event| {
+        if matches!(event, WindowEvent::Focused(_) | WindowEvent::Resized(_) | WindowEvent::CursorEntered { .. }) {
+            set_pointer_visible(slint_window, !slint_window.is_fullscreen());
         }
-        WindowEvent::ScaleFactorChanged { .. } => EventResult::PreventDefault,
-        _ => EventResult::Propagate,
+        match event {
+            WindowEvent::Resized(_) if fit => {
+                // Applied after the event, not inside it: Slint is still handling it.
+                let weak = weak.clone();
+                Timer::single_shot(Duration::ZERO, move || {
+                    if let Some(window) = weak.upgrade() {
+                        display::apply_fit(window.window());
+                    }
+                });
+                EventResult::Propagate
+            }
+            WindowEvent::ScaleFactorChanged { .. } if fit => EventResult::PreventDefault,
+            _ => EventResult::Propagate,
+        }
     });
 }
 

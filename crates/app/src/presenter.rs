@@ -1,26 +1,33 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::history_view::HistoryView;
+use crate::items::{
+    color_bar, connection_name, console_items, fan_item, heater_item, host_interface_item, led_effect_item, led_item,
+    power_item, replace_rows, sensor_item, spool_rows, tuning_item, update_item,
+};
 use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, SpoolItem,
-    UpdateItem,
+    AppWindow, ConsoleItem, FanItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, LedEffectItem,
+    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem,
+    Printer, SensorItem, SpoolItem, TuningItem, UpdateItem,
 };
 use chrono::Local;
 use freakymate_core::estimates;
-use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint};
+use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
 use freakymate_core::printer::{
-    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, Heater, MacroDetails, MacroForm, MmuStatus,
+    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails, MacroForm, MmuStatus,
 };
 use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
-use freakymate_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
+use freakymate_core::system::{ConsoleKind, ConsoleLine};
+use freakymate_core::tuning;
 use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 const CONSOLE_LIMIT: usize = 300;
 /// Status bar and its flyout. Shared with the timer that hides informations, hence the `Rc`.
@@ -87,6 +94,11 @@ pub struct Presenter {
     origins: RefCell<HashMap<&'static str, &'static str>>,
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
+    fans: Rc<VecModel<FanItem>>,
+    leds: Rc<VecModel<LedItem>>,
+    led_effects: Rc<VecModel<LedEffectItem>>,
+    tuning: Rc<VecModel<TuningItem>>,
+    history: HistoryView,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: Rc<VecModel<PrintObjectItem>>,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
@@ -96,7 +108,7 @@ pub struct Presenter {
     all_macros: RefCell<Vec<String>>,
     hidden_macros: RefCell<Vec<String>>,
     macros_loaded: RefCell<Option<MacrosLoaded>>,
-    macro_details: RefCell<BTreeMap<String, MacroDetails>>,
+    macro_details: RefCell<Arc<BTreeMap<String, MacroDetails>>>,
     macro_form: Rc<VecModel<MacroParamItem>>,
     macro_form_state: RefCell<MacroForm>,
     files: Rc<VecModel<FileItem>>,
@@ -118,6 +130,11 @@ impl Presenter {
             origins: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
+            fans: Rc::default(),
+            leds: Rc::default(),
+            led_effects: Rc::default(),
+            tuning: Rc::default(),
+            history: HistoryView::new(window),
             filament_sensors: Rc::default(),
             print_objects: Rc::default(),
             mmu_gates: Rc::default(),
@@ -142,6 +159,10 @@ impl Presenter {
         let printer = window.global::<Printer>();
         printer.set_heaters(ModelRc::from(presenter.heaters.clone()));
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
+        printer.set_fans(ModelRc::from(presenter.fans.clone()));
+        printer.set_leds(ModelRc::from(presenter.leds.clone()));
+        printer.set_led_effects(ModelRc::from(presenter.led_effects.clone()));
+        printer.set_tuning(ModelRc::from(presenter.tuning.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_print_objects(ModelRc::from(presenter.print_objects.clone()));
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
@@ -217,12 +238,10 @@ impl Presenter {
         printer.set_homed_z(motion.homed.z);
         printer.set_z_offset(motion.homing_origin[2] as f32);
         printer.set_speed_factor((motion.speed_factor * 100.0) as f32);
-        printer.set_extrude_factor((motion.extrude_factor * 100.0) as f32);
         printer.set_live_velocity(motion.live_velocity as f32);
         let flow = estimates::volumetric_flow(motion.live_extruder_velocity, status.extruder.filament_diameter);
         self.note_origin("volumetric flow", Some(flow.origin));
         printer.set_live_flow(flow.value as f32);
-        printer.set_pressure_advance(status.extruder.pressure_advance as f32);
         printer.set_can_extrude(status.extruder.can_extrude);
 
         let nozzle = status.heater("extruder");
@@ -232,8 +251,18 @@ impl Presenter {
         printer.set_has_bed(bed.is_some());
         printer.set_bed_temperature(bed.map_or(0.0, |heater| heater.temperature) as f32);
         printer.set_bed_target(bed.map_or(0.0, |heater| heater.target) as f32);
-        printer.set_has_part_fan(status.part_fan_speed.is_some());
-        printer.set_part_fan((status.part_fan_speed.unwrap_or_default() * 100.0) as f32);
+        let main_light = snapshot.capabilities.main_light();
+        let main_led = status.leds.iter().find(|led| Some(led.object.as_str()) == main_light);
+        printer.set_has_light(main_led.is_some());
+        printer.set_light_name(main_led.map(|led| led.label.as_str()).unwrap_or_default().into());
+        printer.set_light_on(main_led.is_some_and(|led| led.level > 0.0));
+        replace_rows(&self.fans, status.fans.iter().map(fan_item).collect());
+        replace_rows(&self.leds, status.leds.iter().map(led_item).collect());
+        replace_rows(&self.led_effects, status.led_effects.iter().map(led_effect_item).collect());
+        replace_rows(
+            &self.tuning,
+            tuning::values(status, &snapshot.capabilities.tuning).iter().map(tuning_item).collect(),
+        );
         printer.set_save_config_pending(status.save_config_pending);
         printer.set_leveling_state(match status.leveling_applied {
             Some(true) => "applied".into(),
@@ -247,17 +276,7 @@ impl Presenter {
             &self.heaters,
             status.heaters.iter().map(|heater| heater_item(heater, active_spool.as_ref())).collect(),
         );
-        replace_rows(
-            &self.sensors,
-            status
-                .sensors
-                .iter()
-                .map(|sensor| SensorItem {
-                    label: sensor.label.as_str().into(),
-                    temperature: sensor.temperature as f32,
-                })
-                .collect(),
-        );
+        replace_rows(&self.sensors, status.sensors.iter().map(sensor_item).collect());
         let has_mmu = status.mmu.as_ref().is_some_and(|mmu| mmu.enabled && mmu.is_supported());
         replace_rows(
             &self.filament_sensors,
@@ -291,7 +310,7 @@ impl Presenter {
         printer.set_has_unload_macro(matches!(handling, FilamentHandling::Macros { unload: true, .. }));
         printer.set_has_power(capabilities.server.power);
         printer.set_has_update_manager(capabilities.server.update_manager);
-        self.set_macro_details(snapshot.status.macro_details.clone());
+        self.set_macro_details(&capabilities.macro_details);
         self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
         self.set_mmu(status.mmu.as_ref(), &lanes);
         self.set_spool_views(&printer, snapshot, active_spool.as_ref());
@@ -310,6 +329,22 @@ impl Presenter {
         if self.origins.borrow_mut().insert(value, origin) != Some(origin) {
             log::debug!("{value}: {origin}");
         }
+    }
+
+    /// Once a second: the clock and job times, and the live value of an open history.
+    pub fn tick(&self) {
+        self.refresh_job_texts();
+        self.history.sample(&self.cache.borrow().snapshot.status);
+    }
+
+    /// Opens the temperature history of a heater or sensor and asks Moonraker for the stored minutes.
+    pub fn open_history(&self, object: &str) {
+        self.history.open(object, &self.cache.borrow().snapshot.status);
+        self.service.query(Query::TemperatureHistory);
+    }
+
+    pub fn close_history(&self) {
+        self.history.close();
     }
 
     /// Time-related texts; also called every second by the clock timer.
@@ -338,7 +373,8 @@ impl Presenter {
             Event::Files(files) => self.show_files(files),
             Event::FileMetadata(metadata) => self.store_metadata(*metadata),
             Event::PrintHistory(last_prints) => self.store_last_prints(last_prints),
-            Event::Thumbnail { filename, data } => self.store_thumbnail(&filename, &data),
+            Event::Thumbnail { filename, image } => self.store_thumbnail(&filename, &image),
+            Event::TemperatureHistory(store) => self.history.store(store, &self.cache.borrow().snapshot.status),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
             Event::Updates(updates) => replace_rows(&self.updates, updates.iter().map(update_item).collect()),
             Event::ConsoleHistory(lines) => {
@@ -488,11 +524,11 @@ impl Presenter {
         replace_rows(&self.macro_items, items);
     }
 
-    fn set_macro_details(&self, details: BTreeMap<String, MacroDetails>) {
-        if *self.macro_details.borrow() == details {
+    fn set_macro_details(&self, details: &Arc<BTreeMap<String, MacroDetails>>) {
+        if Arc::ptr_eq(&self.macro_details.borrow(), details) {
             return;
         }
-        *self.macro_details.borrow_mut() = details;
+        *self.macro_details.borrow_mut() = Arc::clone(details);
         self.refresh_macro_views();
     }
 
@@ -745,9 +781,9 @@ impl Presenter {
         }
     }
 
-    fn store_thumbnail(&self, filename: &str, data: &[u8]) {
-        let Some(image) = thumbnail::decode(data) else {
-            log::info!("thumbnail of {filename} cannot be decoded");
+    fn store_thumbnail(&self, filename: &str, thumbnail: &ThumbnailImage) {
+        let Some(image) = thumbnail::to_image(thumbnail) else {
+            log::info!("thumbnail of {filename} cannot be shown");
             return;
         };
         self.cache.borrow_mut().thumbnails.insert(filename.to_owned(), image);
@@ -779,85 +815,6 @@ impl Presenter {
     }
 }
 
-fn connection_name(state: ConnectionState) -> &'static str {
-    match state {
-        ConnectionState::Connecting => "connecting",
-        ConnectionState::Connected => "connected",
-        ConnectionState::Disconnected => "disconnected",
-    }
-}
-
-/// Brings the rows up to date without rebuilding them: a rebuild (`set_vec`) destroys the buttons in the rows, and a tap
-/// that is still going on when the next status arrives would be lost. Only a different number of rows rebuilds the list.
-pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, rows: Vec<T>) {
-    if model.row_count() != rows.len() {
-        model.set_vec(rows);
-        return;
-    }
-    for (index, row) in rows.into_iter().enumerate() {
-        if model.row_data(index).as_ref() != Some(&row) {
-            model.set_row_data(index, row);
-        }
-    }
-}
-
-/// The picker rows: spools in a lane first, then the most recently used, each with its place.
-fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
-    let inserted: Vec<u32> = lanes.iter().filter_map(|lane| lane.spool_id).collect();
-    spoolman::picker_order(spools.to_vec(), &inserted)
-        .iter()
-        .map(|spool| {
-            let lane = lanes.iter().find(|lane| lane.spool_id == Some(spool.id));
-            let place = match lane {
-                Some(lane) => lane.gate.map_or_else(|| "In use".to_owned(), |gate| format!("Gate {gate}")),
-                None => String::new(),
-            };
-            let bar = color_bar(&spool.colors);
-            SpoolItem {
-                id: spool.id as i32,
-                title: spool.title().into(),
-                detail: view::spool_detail(spool).into(),
-                color: bar.0,
-                color_2: bar.1,
-                color_3: bar.2,
-                color_count: bar.3,
-                place: place.into(),
-                low: spool.is_low(),
-            }
-        })
-        .collect()
-}
-
-fn color_of([red, green, blue]: [u8; 3]) -> slint::Color {
-    slint::Color::from_rgb_u8(red, green, blue)
-}
-
-/// The colours of a bar: up to three, and how many there are.
-fn color_bar(colors: &[[u8; 3]]) -> (slint::Color, slint::Color, slint::Color, i32) {
-    let color = |index: usize| colors.get(index).copied().map_or_else(slint::Color::default, color_of);
-    (color(0), color(1), color(2), colors.len().min(3) as i32)
-}
-
-/// The row of a heater; the hint says that the target is off from what the spool in use recommends.
-fn heater_item(heater: &Heater, spool: Option<&Spool>) -> HeaterItem {
-    let recommended = spool.and_then(|spool| match heater.object.as_str() {
-        "extruder" => spool.extruder_temp,
-        "heater_bed" => spool.bed_temp,
-        _ => None,
-    });
-    let spool_hint = spoolman::temperature_hint(heater.target, recommended)
-        .map_or_else(SharedString::new, |degrees| format!("Spool {degrees:.0}°").into());
-    HeaterItem {
-        spool_hint,
-        object: heater.object.as_str().into(),
-        label: heater.label.as_str().into(),
-        temperature: heater.temperature as f32,
-        target: heater.target as f32,
-        power: heater.power as f32,
-        can_raise: heater.can_raise(),
-    }
-}
-
 fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
     let info = cache.catalog.info(file);
     let facts = view::file_facts(&info);
@@ -875,107 +832,5 @@ fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
         thumbnail: thumbnail.cloned().unwrap_or_default(),
         has_thumbnail: thumbnail.is_some(),
         show_thumbnail: thumbnail.is_some() || info.thumbnail_expected(),
-    }
-}
-
-/// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
-/// Only the first row of a message shows the time.
-fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
-    let time = format::unix_clock(line.time);
-    let is_command = line.kind == ConsoleKind::Command;
-    let is_error = line.is_error();
-    let text = line.text();
-    let mut rows: Vec<&str> = text.lines().collect();
-    if rows.is_empty() {
-        rows.push("");
-    }
-    rows.into_iter()
-        .enumerate()
-        .map(|(index, text)| ConsoleItem {
-            text: text.into(),
-            time: if index == 0 { time.as_str().into() } else { "".into() },
-            is_command,
-            is_error,
-        })
-        .collect()
-}
-
-fn power_item(device: &PowerDevice) -> PowerItem {
-    PowerItem { name: device.device.as_str().into(), on: device.is_on(), locked: device.locked_while_printing }
-}
-
-fn host_interface_item(interface: &HostInterface) -> HostInterfaceItem {
-    HostInterfaceItem {
-        name: interface.name.as_str().into(),
-        wireless: interface.is_wireless(),
-        addresses: interface.addresses.join(", ").into(),
-        mac: interface.mac_address.as_str().into(),
-    }
-}
-
-fn update_item(update: &UpdateInfo) -> UpdateItem {
-    let detail = if update.name == "system" {
-        format!("{} packages", update.pending)
-    } else if update.has_update() {
-        format!("{} → {}", update.version, update.remote_version)
-    } else {
-        update.version.clone()
-    };
-    UpdateItem {
-        name: update.name.as_str().into(),
-        version: update.version.as_str().into(),
-        detail: detail.into(),
-        has_update: update.has_update(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn line(kind: ConsoleKind, message: &str) -> ConsoleLine {
-        ConsoleLine { kind, message: message.to_owned(), time: 0.0 }
-    }
-
-    #[test]
-    fn a_colour_bar_has_up_to_three_colours() {
-        let red = [255, 0, 0];
-        assert_eq!(color_bar(&[]).3, 0);
-        assert_eq!(color_bar(&[red]).3, 1);
-        assert_eq!(color_bar(&[red, [0, 255, 0]]).3, 2);
-        assert_eq!(color_bar(&[red; 5]).3, 3);
-        assert_eq!(color_bar(&[red, [0, 255, 0]]).1, slint::Color::from_rgb_u8(0, 255, 0));
-    }
-
-    #[test]
-    fn multi_line_message_becomes_one_row_per_line() {
-        let rows = console_items(&line(ConsoleKind::Response, "first\nsecond\r\nthird"));
-        let texts: Vec<&str> = rows.iter().map(|row| row.text.as_str()).collect();
-        assert_eq!(texts, ["first", "second", "third"]);
-        assert!(rows[1].time.is_empty() && rows[2].time.is_empty());
-    }
-
-    #[test]
-    fn empty_message_keeps_one_row() {
-        let rows = console_items(&line(ConsoleKind::Response, ""));
-        assert_eq!(rows.len(), 1);
-        assert!(rows[0].text.is_empty());
-    }
-
-    #[test]
-    fn plugin_markup_does_not_reach_the_console() {
-        let rows = console_items(&line(
-            ConsoleKind::Response,
-            r#"// <b><span style="color:#87CEEB">EMPTY</span></b>&nbsp;gate"#,
-        ));
-        assert_eq!(rows[0].text, "EMPTY gate");
-    }
-
-    #[test]
-    fn error_flag_applies_to_every_row() {
-        let rows = console_items(&line(ConsoleKind::Response, "!! Lost connection\nsee log"));
-        assert_eq!(rows[0].text, "Lost connection");
-        assert!(rows.iter().all(|row| row.is_error));
-        assert!(!rows.iter().any(|row| row.is_command));
     }
 }

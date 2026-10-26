@@ -21,6 +21,31 @@ impl FileEntry {
     }
 }
 
+/// A file's preview ready to show. PNG and JPEG are decoded here, in a worker thread, so the UI only copies pixels;
+/// SVG (from the fake Moonraker) stays as text for the UI toolkit.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ThumbnailImage {
+    Rgba { width: u32, height: u32, pixels: Vec<u8> },
+    Svg(Vec<u8>),
+}
+
+impl ThumbnailImage {
+    pub fn decode(data: &[u8]) -> Option<Self> {
+        if looks_like_svg(data) {
+            return Some(Self::Svg(data.to_vec()));
+        }
+        let rgba = image::load_from_memory(data).ok()?.into_rgba8();
+        Some(Self::Rgba { width: rgba.width(), height: rgba.height(), pixels: rgba.into_raw() })
+    }
+}
+
+fn looks_like_svg(data: &[u8]) -> bool {
+    let start = &data[..data.len().min(256)];
+    let text = String::from_utf8_lossy(start);
+    let trimmed = text.trim_start();
+    trimmed.starts_with("<svg") || (trimmed.starts_with("<?xml") && text.contains("<svg"))
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 pub struct Thumbnail {
     #[serde(default)]
@@ -256,6 +281,22 @@ fn encode_segment(segment: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thumbnails_are_decoded_to_pixels_and_svg_stays_text() {
+        let mut png = Vec::new();
+        image::RgbaImage::from_pixel(2, 3, image::Rgba([255, 0, 0, 255]))
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+
+        assert!(matches!(
+            ThumbnailImage::decode(&png),
+            Some(ThumbnailImage::Rgba { width: 2, height: 3, ref pixels }) if pixels.len() == 2 * 3 * 4
+        ));
+        assert!(matches!(ThumbnailImage::decode(b"  <svg xmlns='x'/>"), Some(ThumbnailImage::Svg(_))));
+        assert!(matches!(ThumbnailImage::decode(b"<?xml version='1.0'?><svg/>"), Some(ThumbnailImage::Svg(_))));
+        assert_eq!(ThumbnailImage::decode(b"\x89PNG broken"), None);
+    }
     use serde_json::json;
 
     #[test]

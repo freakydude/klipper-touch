@@ -1,10 +1,9 @@
 //! Typed view of the printer state, read from the [`ObjectStore`].
 
-use super::macros::{self, MacroDetails};
+use super::devices::{self, Fan, Led, LedEffect};
 use super::mmu::{self, MmuStatus};
 use super::objects::ObjectStore;
 use serde_json::Value;
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum KlippyState {
@@ -176,6 +175,8 @@ pub struct Motion {
     pub axis_maximum: [f64; 4],
     pub max_velocity: f64,
     pub max_accel: f64,
+    pub square_corner_velocity: f64,
+    pub minimum_cruise_ratio: f64,
     pub live_velocity: f64,
     pub live_extruder_velocity: f64,
     pub homing_origin: [f64; 4],
@@ -227,7 +228,17 @@ impl Heater {
 pub struct TemperatureSensor {
     pub object: String,
     pub label: String,
-    pub temperature: f64,
+    /// `None` if the sensor has no value right now, e.g. a stepper driver that is switched off.
+    pub temperature: Option<f64>,
+}
+
+/// Firmware retraction (`[firmware_retraction]`), as `G10`/`G11` use it.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Retraction {
+    pub retract_length: f64,
+    pub retract_speed: f64,
+    pub unretract_extra_length: f64,
+    pub unretract_speed: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -250,7 +261,6 @@ pub struct PrinterStatus {
     pub klippy_state: KlippyState,
     pub klippy_message: String,
     /// Macros from the configuration, keyed by upper-case name.
-    pub macro_details: BTreeMap<String, MacroDetails>,
     pub activity: Activity,
     pub job: PrintJob,
     pub motion: Motion,
@@ -258,7 +268,13 @@ pub struct PrinterStatus {
     /// Extruder first, then bed, then additional heaters in object order.
     pub heaters: Vec<Heater>,
     pub sensors: Vec<TemperatureSensor>,
-    pub part_fan_speed: Option<f64>,
+    /// Part fan first, then the other fans; see [`Fan`].
+    pub fans: Vec<Fan>,
+    pub leds: Vec<Led>,
+    /// Effects of the optional led_effect plugin.
+    pub led_effects: Vec<LedEffect>,
+    /// `None` without `[firmware_retraction]`.
+    pub retraction: Option<Retraction>,
     pub save_config_pending: bool,
     /// `Some(applied)` if quad gantry level or Z tilt is present.
     pub leveling_applied: Option<bool>,
@@ -282,9 +298,11 @@ impl PrinterStatus {
             extruder: read_extruder(object("extruder"), object("configfile").pointer("/settings/extruder")),
             heaters: read_heaters(store),
             sensors: read_sensors(store),
-            part_fan_speed: store.object("fan").map(|fan| number(fan, "speed")),
+            fans: devices::read_fans(store),
+            leds: devices::read_leds(store),
+            led_effects: devices::read_led_effects(store),
+            retraction: store.object("firmware_retraction").map(read_retraction),
             save_config_pending: flag(object("configfile"), "save_config_pending"),
-            macro_details: macros::details_from_settings(object("configfile").get("settings")),
             leveling_applied: store
                 .object("quad_gantry_level")
                 .or_else(|| store.object("z_tilt"))
@@ -345,6 +363,8 @@ fn read_motion(toolhead: &Value, motion_report: &Value, gcode_move: &Value) -> M
         axis_maximum: vector(toolhead, "axis_maximum"),
         max_velocity: number(toolhead, "max_velocity"),
         max_accel: number(toolhead, "max_accel"),
+        square_corner_velocity: number(toolhead, "square_corner_velocity"),
+        minimum_cruise_ratio: number(toolhead, "minimum_cruise_ratio"),
         live_velocity: number(motion_report, "live_velocity"),
         live_extruder_velocity: number(motion_report, "live_extruder_velocity"),
         homing_origin: vector(gcode_move, "homing_origin"),
@@ -397,18 +417,33 @@ fn heater(object: &str, value: &Value, settings: Option<&Value>) -> Heater {
     }
 }
 
+/// Object kinds that are only a temperature; `tmc2240` reports the temperature of the driver.
+const SENSOR_KINDS: [&str; 4] = ["temperature_sensor", "temperature_host", "temperature_combined", "tmc2240"];
+
+/// In the order of [`SENSOR_KINDS`], each kind in name order.
 fn read_sensors(store: &ObjectStore) -> Vec<TemperatureSensor> {
-    store
-        .names()
-        .filter(|name| name.starts_with("temperature_sensor "))
+    SENSOR_KINDS
+        .iter()
+        .flat_map(|kind| {
+            store.names().filter(move |name| name.split_once(' ').is_some_and(|(prefix, _)| prefix == *kind))
+        })
         .filter_map(|name| {
             store.object(name).map(|value| TemperatureSensor {
                 object: name.to_owned(),
                 label: label(name),
-                temperature: number(value, "temperature"),
+                temperature: value.get("temperature").and_then(Value::as_f64),
             })
         })
         .collect()
+}
+
+fn read_retraction(value: &Value) -> Retraction {
+    Retraction {
+        retract_length: number(value, "retract_length"),
+        retract_speed: number(value, "retract_speed"),
+        unretract_extra_length: number(value, "unretract_extra_length"),
+        unretract_speed: number(value, "unretract_speed"),
+    }
 }
 
 fn read_filament_sensors(store: &ObjectStore) -> Vec<FilamentSensor> {
@@ -501,6 +536,8 @@ mod tests {
             "heater_bed": { "temperature": 60.0, "target": 60.0 },
             "heater_generic chamber": { "temperature": 35.0, "target": 0.0 },
             "temperature_sensor mcu_temp": { "temperature": 41.0 },
+            "tmc2240 stepper_x": { "temperature": null },
+            "temperature_host pi": { "temperature": 48.5 },
             "fan": { "speed": 0.5 },
             "quad_gantry_level": { "applied": true }
         })));
@@ -517,8 +554,10 @@ mod tests {
         assert!(status.extruder.can_extrude);
         let heaters: Vec<&str> = status.heaters.iter().map(|heater| heater.label.as_str()).collect();
         assert_eq!(heaters, ["Nozzle", "Bed", "Chamber"]);
-        assert_eq!(status.sensors[0].label, "Mcu Temp");
-        assert_eq!(status.part_fan_speed, Some(0.5));
+        let sensors: Vec<(&str, Option<f64>)> =
+            status.sensors.iter().map(|sensor| (sensor.label.as_str(), sensor.temperature)).collect();
+        assert_eq!(sensors, [("Mcu Temp", Some(41.0)), ("Pi", Some(48.5)), ("Stepper X", None)]);
+        assert_eq!(status.fans[0].speed, 0.5);
         assert_eq!(status.leveling_applied, Some(true));
     }
 
@@ -531,7 +570,7 @@ mod tests {
         assert_eq!(Activity::parse("Idle"), Activity::Idle);
         assert_eq!(status.job.state, PrintState::Standby);
         assert!(status.heaters.is_empty());
-        assert_eq!(status.part_fan_speed, None);
+        assert!(status.fans.is_empty() && status.leds.is_empty() && status.retraction.is_none());
         assert_eq!(status.leveling_applied, None);
     }
 

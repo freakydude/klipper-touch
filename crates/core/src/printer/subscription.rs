@@ -19,23 +19,43 @@ pub fn subscription(available: &[String], capabilities: &Capabilities) -> Value 
     add("display_status", Some(&["progress", "message"]));
     add("virtual_sdcard", Some(&["progress", "is_active"]));
     add("idle_timeout", Some(&["state"]));
-    add("toolhead", Some(&["position", "homed_axes", "axis_minimum", "axis_maximum", "max_velocity", "max_accel"]));
+    add(
+        "toolhead",
+        Some(&[
+            "position",
+            "homed_axes",
+            "axis_minimum",
+            "axis_maximum",
+            "max_velocity",
+            "max_accel",
+            "square_corner_velocity",
+            "minimum_cruise_ratio",
+        ]),
+    );
     add("motion_report", Some(&["live_position", "live_velocity", "live_extruder_velocity"]));
-    add("gcode_move", Some(&["homing_origin", "speed_factor", "extrude_factor", "absolute_coordinates"]));
+    add("gcode_move", Some(&["homing_origin", "speed_factor", "extrude_factor"]));
     add("extruder", Some(&["temperature", "target", "power", "pressure_advance", "smooth_time", "can_extrude"]));
     // `settings` holds the heater limits (min_temp/max_temp); sent once, it does not change at runtime.
     add("configfile", Some(&["save_config_pending", "settings"]));
     add("heater_bed", Some(HEATER_FIELDS));
-    add("fan", Some(&["speed"]));
     add("quad_gantry_level", Some(&["applied"]));
     add("z_tilt", Some(&["applied"]));
-    add("firmware_retraction", None);
-    add("exclude_object", Some(&["objects", "excluded_objects", "current_object"]));
+    add("firmware_retraction", Some(&["retract_length", "retract_speed", "unretract_extra_length", "unretract_speed"]));
+    add("exclude_object", Some(&["objects", "excluded_objects"]));
     for heater in &capabilities.extra_heaters {
         add(heater, None);
     }
     for sensor in &capabilities.temperature_sensors {
         add(sensor, Some(&["temperature"]));
+    }
+    for fan in &capabilities.fans {
+        add(fan, Some(&["speed", "rpm"]));
+    }
+    for led in &capabilities.leds {
+        add(led, Some(&["color_data"]));
+    }
+    for effect in &capabilities.led_effects {
+        add(effect, Some(&["enabled"]));
     }
     for sensor in &capabilities.filament_sensors {
         add(sensor, Some(&["enabled", "filament_detected"]));

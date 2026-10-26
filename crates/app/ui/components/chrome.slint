@@ -98,6 +98,23 @@ export component StatusBar inherits Rectangle {
                 }
             }
         }
+        // Opens the light panel; lit while the main light (chamber or case light) is on.
+        if Printer.leds.length > 0 && Printer.ready: Rectangle {
+            width: 44px;
+            border-radius: Theme.radius;
+            background: light-touch.pressed ? Theme.surface-raised : transparent;
+            accessible-role: button;
+            accessible-label: @tr("Light");
+            light-touch := TouchArea {
+                clicked => { Navigation.light-open = !Navigation.light-open; }
+            }
+            Image {
+                source: Icons.accessory-light;
+                colorize: Printer.light-on ? Theme.warning : Theme.muted;
+                width: 24px;
+                height: 24px;
+            }
+        }
         Text {
             text: Printer.clock;
             color: Theme.muted;
@@ -144,7 +161,12 @@ component NavItem inherits Rectangle {
 
     nav-touch := TouchArea {
         enabled: root.enabled;
-        clicked => { Navigation.page = root.page; }
+        clicked => {
+            // The Tune page opens with the basics; the expert tab is one tap away.
+            if (root.page == Page.tune) { Navigation.tune-tab = 0; }
+            if (Navigation.history-open) { Actions.close-history(); }
+            Navigation.page = root.page;
+        }
     }
     VerticalLayout {
         alignment: center;
@@ -177,10 +199,9 @@ export component NavRail inherits Rectangle {
         spacing: 1px;
         NavItem { icon: Icons.nav-printer; label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.motion-locked; }
-        NavItem { icon: Icons.nav-temperature; label: @tr("Heat"); page: Page.temperature; enabled: Printer.ready; }
+        NavItem { icon: Icons.nav-thermal; label: @tr("Thermal"); page: Page.temperature; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
         NavItem { icon: Icons.filament-extrude; label: @tr("Filament"); page: Page.filament; enabled: Printer.ready && !Printer.motion-locked; }
-        NavItem { icon: Icons.nav-console; label: @tr("Console"); page: Page.console; enabled: Printer.connection == "connected"; }
         NavItem { icon: Icons.nav-system; label: @tr("System"); page: Page.system; }
     }
 }

@@ -5,6 +5,7 @@
 pub mod commands;
 pub mod estimates;
 pub mod files;
+pub mod history;
 pub mod moonraker;
 pub mod network;
 pub mod printer;
@@ -13,6 +14,7 @@ pub mod settings;
 pub mod sourced;
 pub mod spoolman;
 pub mod system;
+pub mod tuning;
 
 pub use commands::Command;
 pub use moonraker::Endpoint;

@@ -1,9 +1,11 @@
 //! Fake-Moonraker: simulated Klipper/Moonraker for UI development and tests without a printer.
 
 pub mod backend;
+pub mod devices;
 pub mod files;
 pub mod gcode;
 pub mod happy_hare;
+pub mod history;
 pub mod host;
 pub mod machine;
 pub mod printer;

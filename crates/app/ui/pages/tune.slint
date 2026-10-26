@@ -1,13 +1,34 @@
-// Fine tuning during and before the print: Z offset, speed, flow, pressure advance.
+// Fine tuning during the print: Z offset and speed factor; in the expert tab flow, pressure advance and the motion
+// and extrusion values of the configuration, changed until the next restart.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Printer, UiSettings } from "../state.slint";
-import { Card, IconButton, StepSelector } from "../components/controls.slint";
+import { Actions, Confirm, Navigation, Printer, TuningItem, UiSettings } from "../state.slint";
+import { Card, IconButton, ScrollList, StepSelector } from "../components/controls.slint";
+
+// Names of the expert values; the core identifies them by id.
+global TuningTexts {
+    pure public function label(id: string) -> string {
+        if (id == "flow_factor") { return @tr("Flow factor"); }
+        if (id == "max_velocity") { return @tr("Max. velocity"); }
+        if (id == "max_accel") { return @tr("Max. acceleration"); }
+        if (id == "square_corner_velocity") { return @tr("Square corner velocity"); }
+        if (id == "minimum_cruise_ratio") { return @tr("Minimum cruise ratio"); }
+        if (id == "pressure_advance") { return @tr("Pressure advance"); }
+        if (id == "pressure_advance_smooth_time") { return @tr("Pressure advance smooth time"); }
+        if (id == "retract_length") { return @tr("Retract length"); }
+        if (id == "retract_speed") { return @tr("Retract speed"); }
+        if (id == "unretract_extra_length") { return @tr("Unretract extra length"); }
+        if (id == "unretract_speed") { return @tr("Unretract speed"); }
+        return id;
+    }
+}
 
 // Value with minus/plus and optional reset.
 component Adjuster inherits Card {
     in property <string> value;
+    // The value differs from the normal one: shown in the warning colour.
+    in property <bool> highlight;
     in property <bool> can-reset: true;
     in property <bool> resettable: true;
     callback decrease;
@@ -21,7 +42,7 @@ component Adjuster inherits Card {
         Text {
             horizontal-stretch: 1;
             text: root.value;
-            color: Theme.foreground;
+            color: root.highlight ? Theme.warning : Theme.foreground;
             font-size: Theme.font-large;
             font-weight: 600;
             horizontal-alignment: center;
@@ -32,7 +53,70 @@ component Adjuster inherits Card {
     }
 }
 
-export component TunePage inherits Rectangle {
+component TuningRow inherits Rectangle {
+    in property <TuningItem> item;
+    height: 60px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+
+    HorizontalLayout {
+        padding: 4px;
+        padding-left: 12px;
+        spacing: Theme.spacing;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text { text: TuningTexts.label(root.item.id); color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: root.item.value;
+                    color: root.item.changed ? Theme.warning : Theme.foreground;
+                    font-size: Theme.font-large;
+                    font-weight: 600;
+                }
+                // The configuration's value, as a reminder that a change lasts only until the next restart.
+                if root.item.changed: Text {
+                    text: @tr("config {}", root.item.configured);
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        IconButton { width: 64px; icon: Icons.ui-minus; clicked => { Actions.step-tuning(root.item.id, -1); } }
+        IconButton { width: 64px; icon: Icons.ui-plus; clicked => { Actions.step-tuning(root.item.id, 1); } }
+        IconButton {
+            width: 64px;
+            icon: Icons.ui-refresh;
+            enabled: root.item.can-reset;
+            accessible-label: @tr("Back to the configuration");
+            clicked => { Actions.reset-tuning(root.item.id); }
+        }
+    }
+}
+
+// The values of the configuration that Klipper can change at runtime; they are back after a restart.
+component ExpertTab inherits Rectangle {
+    property <length> row-step: 64px;
+
+    list := ScrollList {
+        x: Theme.padding;
+        y: Theme.padding;
+        width: parent.width - 2 * Theme.padding;
+        height: parent.height - 2 * Theme.padding;
+        content-height: Printer.tuning.length * root.row-step;
+        for item[index] in Printer.tuning: TuningRow {
+            y: index * root.row-step;
+            width: list.row-width;
+            item: item;
+        }
+    }
+}
+
+// What one corrects while watching a print: the Z offset of the first layer, and the speed of a print that has to
+// go slower. Calibration values (pressure advance, flow) are in the expert tab.
+component BasicsTab inherits Rectangle {
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
@@ -59,38 +143,6 @@ export component TunePage inherits Rectangle {
                     selected <=> UiSettings.z-offset-step;
                     changed => { UiSettings.steps-changed(); }
                 }
-                Adjuster {
-                    title: @tr("Pressure advance");
-                    icon: Icons.filament-pressure-advance;
-                    value: Printer.pressure-advance.to-fixed(3);
-                    resettable: false;
-                    decrease => { Actions.set-pressure-advance(max(0, Printer.pressure-advance - 0.005)); }
-                    increase => { Actions.set-pressure-advance(Printer.pressure-advance + 0.005); }
-                }
-                Rectangle { vertical-stretch: 1; }
-            }
-
-            VerticalLayout {
-                horizontal-stretch: 1;
-                spacing: Theme.spacing;
-                Adjuster {
-                    title: @tr("Speed factor");
-                    icon: Icons.motion-speed;
-                    value: round(Printer.speed-factor) + " %";
-                    can-reset: round(Printer.speed-factor) != 100;
-                    decrease => { Actions.set-speed-factor(max(10, Printer.speed-factor - 5)); }
-                    increase => { Actions.set-speed-factor(Printer.speed-factor + 5); }
-                    reset => { Actions.set-speed-factor(100); }
-                }
-                Adjuster {
-                    title: @tr("Flow factor");
-                    icon: Icons.filament-flow;
-                    value: round(Printer.extrude-factor) + " %";
-                    can-reset: round(Printer.extrude-factor) != 100;
-                    decrease => { Actions.set-extrude-factor(max(50, Printer.extrude-factor - 1)); }
-                    increase => { Actions.set-extrude-factor(Printer.extrude-factor + 1); }
-                    reset => { Actions.set-extrude-factor(100); }
-                }
                 HorizontalLayout {
                     spacing: Theme.spacing;
                     height: 64px;
@@ -110,6 +162,61 @@ export component TunePage inherits Rectangle {
                 }
                 Rectangle { vertical-stretch: 1; }
             }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.spacing;
+                Adjuster {
+                    title: @tr("Speed factor");
+                    icon: Icons.motion-speed;
+                    value: round(Printer.speed-factor) + " %";
+                    highlight: round(Printer.speed-factor) != 100;
+                    can-reset: round(Printer.speed-factor) != 100;
+                    decrease => { Actions.set-speed-factor(max(10, Printer.speed-factor - 5)); }
+                    increase => { Actions.set-speed-factor(Printer.speed-factor + 5); }
+                    reset => { Actions.set-speed-factor(100); }
+                }
+                // A quiet note: the slicer planned layer times and cooling for 100 %.
+                if round(Printer.speed-factor) != 100: Text {
+                    text: @tr("Layer times and cooling differ from what the slicer planned.");
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    wrap: word-wrap;
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
         }
+    }
+}
+
+export component TunePage inherits Rectangle {
+    VerticalLayout {
+        HorizontalLayout {
+            padding: Theme.padding;
+            padding-bottom: 0px;
+            spacing: Theme.spacing;
+            height: Theme.touch + Theme.padding;
+            IconButton {
+                max-width: 190px;
+                horizontal-stretch: 1;
+                horizontal: true;
+                icon: Icons.nav-tuning;
+                text: @tr("Basics");
+                checked: Navigation.tune-tab == 0;
+                clicked => { Navigation.tune-tab = 0; }
+            }
+            if Printer.tuning.length > 0: IconButton {
+                max-width: 190px;
+                horizontal-stretch: 1;
+                horizontal: true;
+                icon: Icons.nav-tuning-advanced;
+                text: @tr("Expert");
+                checked: Navigation.tune-tab == 1;
+                clicked => { Navigation.tune-tab = 1; }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        if Navigation.tune-tab == 0 || Printer.tuning.length == 0: BasicsTab { vertical-stretch: 1; }
+        if Navigation.tune-tab == 1 && Printer.tuning.length > 0: ExpertTab { vertical-stretch: 1; }
     }
 }

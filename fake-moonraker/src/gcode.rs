@@ -57,7 +57,14 @@ pub enum Command {
     RelativeExtrusion,
     SetSpeedFactor(f64),
     SetExtrudeFactor(f64),
-    SetPressureAdvance(f64),
+    SetPressureAdvance {
+        advance: Option<f64>,
+        smooth_time: Option<f64>,
+    },
+    SetVelocityLimit(VelocityLimit),
+    SetRetraction(RetractionChange),
+    /// Fans, LEDs and effects (`SET_FAN_SPEED`, `SET_LED`, `SET_LED_EFFECT`, `STOP_LED_EFFECTS`).
+    Device(DeviceCommand),
     SetHeaterTemperature {
         heater: String,
         target: f64,
@@ -71,6 +78,42 @@ pub enum Command {
     Help,
     Mmu(MmuCommand),
     Ignored,
+}
+
+/// `SET_VELOCITY_LIMIT`; every value is optional, as in Klipper.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct VelocityLimit {
+    pub velocity: Option<f64>,
+    pub accel: Option<f64>,
+    pub square_corner_velocity: Option<f64>,
+    pub minimum_cruise_ratio: Option<f64>,
+}
+
+/// `SET_RETRACTION`; every value is optional, as in Klipper.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct RetractionChange {
+    pub retract_length: Option<f64>,
+    pub retract_speed: Option<f64>,
+    pub unretract_extra_length: Option<f64>,
+    pub unretract_speed: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeviceCommand {
+    SetFanSpeed {
+        fan: String,
+        speed: f64,
+    },
+    /// Colours from 0 to 1 in the order red, green, blue, white; a missing one is 0, as in Klipper.
+    SetLed {
+        led: String,
+        color: [f64; 4],
+    },
+    SetLedEffect {
+        effect: String,
+        stop: bool,
+    },
+    StopLedEffects,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -173,9 +216,38 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "M83" => Ok(Command::RelativeExtrusion),
         "M220" => Ok(Command::SetSpeedFactor(letter_value(&args, 'S')?.unwrap_or(100.0) / 100.0)),
         "M221" => Ok(Command::SetExtrudeFactor(letter_value(&args, 'S')?.unwrap_or(100.0) / 100.0)),
-        "SET_PRESSURE_ADVANCE" => Ok(Command::SetPressureAdvance(
-            named_value(&args, "ADVANCE")?.ok_or_else(|| CommandError::new("Missing parameter ADVANCE"))?,
-        )),
+        "SET_PRESSURE_ADVANCE" => Ok(Command::SetPressureAdvance {
+            advance: named_value(&args, "ADVANCE")?,
+            smooth_time: named_value(&args, "SMOOTH_TIME")?,
+        }),
+        "SET_VELOCITY_LIMIT" => Ok(Command::SetVelocityLimit(VelocityLimit {
+            velocity: named_value(&args, "VELOCITY")?,
+            accel: named_value(&args, "ACCEL")?,
+            square_corner_velocity: named_value(&args, "SQUARE_CORNER_VELOCITY")?,
+            minimum_cruise_ratio: named_value(&args, "MINIMUM_CRUISE_RATIO")?,
+        })),
+        "SET_RETRACTION" => Ok(Command::SetRetraction(RetractionChange {
+            retract_length: named_value(&args, "RETRACT_LENGTH")?,
+            retract_speed: named_value(&args, "RETRACT_SPEED")?,
+            unretract_extra_length: named_value(&args, "UNRETRACT_EXTRA_LENGTH")?,
+            unretract_speed: named_value(&args, "UNRETRACT_SPEED")?,
+        })),
+        "SET_FAN_SPEED" => Ok(Command::Device(DeviceCommand::SetFanSpeed {
+            fan: required_text(&args, "FAN")?,
+            speed: named_value(&args, "SPEED")?.ok_or_else(|| CommandError::new("SET_FAN_SPEED must specify SPEED"))?,
+        })),
+        "SET_LED" => {
+            let channel = |name| named_value(&args, name).map(|value| value.unwrap_or(0.0).clamp(0.0, 1.0));
+            Ok(Command::Device(DeviceCommand::SetLed {
+                led: required_text(&args, "LED")?,
+                color: [channel("RED")?, channel("GREEN")?, channel("BLUE")?, channel("WHITE")?],
+            }))
+        }
+        "SET_LED_EFFECT" => Ok(Command::Device(DeviceCommand::SetLedEffect {
+            effect: required_text(&args, "EFFECT")?,
+            stop: named_index(&args, "STOP")?.is_some_and(|stop| stop >= 1),
+        })),
+        "STOP_LED_EFFECTS" => Ok(Command::Device(DeviceCommand::StopLedEffects)),
         "SET_HEATER_TEMPERATURE" => Ok(Command::SetHeaterTemperature {
             heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
             target: named_value(&args, "TARGET")?.unwrap_or(0.0),
@@ -251,6 +323,10 @@ fn named_value(args: &[&str], name: &str) -> Result<Option<f64>, CommandError> {
         .transpose()
 }
 
+fn required_text(args: &[&str], name: &str) -> Result<String, CommandError> {
+    named_text(args, name).ok_or_else(|| CommandError::new(format!("Missing parameter {name}")))
+}
+
 fn named_text(args: &[&str], name: &str) -> Option<String> {
     args.iter()
         .filter_map(|arg| arg.split_once('='))
@@ -306,7 +382,7 @@ mod tests {
             vec![
                 Command::SetSpeedFactor(1.1),
                 Command::SetExtrudeFactor(0.95),
-                Command::SetPressureAdvance(0.05),
+                Command::SetPressureAdvance { advance: Some(0.05), smooth_time: None },
                 Command::RelativeExtrusion,
                 Command::SetHeaterTemperature { heater: "chamber".to_owned(), target: 40.0 },
             ]
@@ -394,5 +470,27 @@ mod tests {
         let error = parse_script("G1 Xabc").unwrap_err();
 
         assert_eq!(error.message(), "Unable to parse number 'abc'");
+    }
+
+    #[test]
+    fn parses_device_and_limit_commands() {
+        let commands = parse_script(
+            "SET_FAN_SPEED FAN=nevermore SPEED=0.4\nSET_LED LED=chamber WHITE=1 SYNC=0\nSET_LED_EFFECT EFFECT=rainbow STOP=1\n\
+             SET_VELOCITY_LIMIT ACCEL=4000\nSET_RETRACTION RETRACT_LENGTH=0.6\nSET_PRESSURE_ADVANCE SMOOTH_TIME=0.03",
+        )
+        .unwrap();
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::Device(DeviceCommand::SetFanSpeed { fan: "nevermore".into(), speed: 0.4 }),
+                Command::Device(DeviceCommand::SetLed { led: "chamber".into(), color: [0.0, 0.0, 0.0, 1.0] }),
+                Command::Device(DeviceCommand::SetLedEffect { effect: "rainbow".into(), stop: true }),
+                Command::SetVelocityLimit(VelocityLimit { accel: Some(4000.0), ..VelocityLimit::default() }),
+                Command::SetRetraction(RetractionChange { retract_length: Some(0.6), ..RetractionChange::default() }),
+                Command::SetPressureAdvance { advance: None, smooth_time: Some(0.03) },
+            ]
+        );
+        assert!(parse_script("SET_FAN_SPEED FAN=nevermore").is_err());
     }
 }

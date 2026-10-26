@@ -1,6 +1,7 @@
 //! Connects the `Network` global with the network service of this host.
 
-use crate::presenter::{replace_rows, Presenter};
+use crate::items::replace_rows;
+use crate::presenter::Presenter;
 use crate::{AppWindow, Network, WifiItem, WiredItem};
 use freakymate_core::network::{
     signal_bars, Availability, NetworkChannels, NetworkCommand, NetworkNotice, NetworkService, NetworkState, Security,

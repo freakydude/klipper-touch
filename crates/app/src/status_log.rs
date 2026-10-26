@@ -15,13 +15,13 @@ const INFO_BASE: Duration = Duration::from_secs(5);
 const INFO_PER_CHARACTER: Duration = Duration::from_millis(70);
 const MAX_INFO_DISPLAY: Duration = Duration::from_secs(15);
 
-/// Layout of a message row in the flyout, in logical pixels.
-pub const ROW_MIN_HEIGHT: f32 = 72.0;
+/// Layout of a message row in the flyout, in logical pixels: the text over the full width, the time small below it.
 pub const ROW_GAP: f32 = 6.0;
 const LINE_HEIGHT: f32 = 22.0;
-const ROW_PADDING: f32 = 24.0;
-/// Roughly what fits into the text column of the flyout at the normal font size.
-const CHARACTERS_PER_LINE: usize = 42;
+const ROW_PADDING: f32 = 20.0;
+const TIME_LINE_HEIGHT: f32 = 16.0;
+/// Roughly what fits into the width of the flyout at the normal font size.
+const CHARACTERS_PER_LINE: usize = 48;
 const MAX_LINES: usize = 10;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,7 +129,7 @@ impl StatusLog {
 /// Height of a message row: one line per wrapped line of the text, but never below the minimum.
 pub fn row_height(text: &str) -> f32 {
     let lines: usize = text.lines().map(|line| line.chars().count().div_ceil(CHARACTERS_PER_LINE).max(1)).sum();
-    (lines.clamp(1, MAX_LINES) as f32 * LINE_HEIGHT + ROW_PADDING).max(ROW_MIN_HEIGHT)
+    lines.clamp(1, MAX_LINES) as f32 * LINE_HEIGHT + ROW_PADDING + TIME_LINE_HEIGHT
 }
 
 /// How long an information stays in the status bar.
@@ -229,10 +229,11 @@ mod tests {
 
     #[test]
     fn row_height_grows_with_wrapped_lines_up_to_a_limit() {
-        assert_eq!(row_height("short"), ROW_MIN_HEIGHT);
-        assert_eq!(row_height("line one\nline two\nline three"), 90.0);
-        assert_eq!(row_height(&"x".repeat(100)), 90.0);
-        assert_eq!(row_height(&"x\n".repeat(30)), 10.0 * 22.0 + 24.0);
+        let frame = ROW_PADDING + TIME_LINE_HEIGHT;
+        assert_eq!(row_height("short"), 22.0 + frame);
+        assert_eq!(row_height("line one\nline two\nline three"), 3.0 * 22.0 + frame);
+        assert_eq!(row_height(&"x".repeat(100)), 3.0 * 22.0 + frame);
+        assert_eq!(row_height(&"x\n".repeat(30)), 10.0 * 22.0 + frame);
     }
 
     #[test]

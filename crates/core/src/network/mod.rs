@@ -38,10 +38,6 @@ pub enum Security {
 }
 
 impl Security {
-    pub fn needs_password(self) -> bool {
-        matches!(self, Self::Wpa | Self::Wpa3)
-    }
-
     /// Derives the security from NetworkManager's access point flags.
     pub fn from_flags(flags: u32, wpa_flags: u32, rsn_flags: u32) -> Self {
         let key_management = wpa_flags | rsn_flags;

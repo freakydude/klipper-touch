@@ -187,10 +187,6 @@ impl MmuStatus {
     pub fn is_supported(&self) -> bool {
         parse_version(&self.version).is_some_and(|version| version >= MIN_VERSION)
     }
-
-    pub fn selected_gate(&self) -> Option<&MmuGate> {
-        usize::try_from(self.gate).ok().and_then(|index| self.gates.get(index))
-    }
 }
 
 /// `None` without Happy Hare (no `mmu` object).
@@ -462,7 +458,7 @@ mod tests {
 
         let mmu = read_mmu(&store).unwrap();
 
-        assert_eq!(mmu.selected_gate().map(|gate| gate.index), Some(1));
+        assert_eq!(mmu.gate, 1);
         assert_eq!(mmu.gates[0].availability, GateAvailability::Available);
         assert_eq!(mmu.gates[0].color, Some([255, 0, 0]));
         assert_eq!(mmu.gates[0].tool, Some(1));
@@ -474,10 +470,9 @@ mod tests {
     }
 
     #[test]
-    fn bypass_and_unknown_gate_select_nothing() {
+    fn bypass_is_reported_as_gate_minus_two() {
         let bypass = read_mmu(&store(json!({ "mmu": { "num_gates": 2, "gate": -2 } }))).unwrap();
         assert_eq!(bypass.gate, -2);
-        assert!(bypass.selected_gate().is_none());
     }
 
     #[test]
