@@ -1,13 +1,19 @@
-//! The temperature chart: lines as SVG path commands in a 1000 x 1000 view box, and the scale around them. Free of
-//! Slint types and therefore testable.
+//! The temperature chart: lines as SVG path commands, and the scale and grid around them. Free of Slint types and
+//! therefore testable. The view box is 1000 high and as wide as the chart's aspect ratio makes it: Slint scales a
+//! path evenly, so a box of another shape would squeeze the chart into the middle.
 
 use freakymate_core::history::HISTORY_LENGTH;
 
-const VIEW_BOX: f64 = 1000.0;
+/// Height of the view box; its width is this times the aspect ratio of the chart.
+pub const VIEW_HEIGHT: f64 = 1000.0;
 /// Points per line at most; more than the chart has pixels would only cost time on the Pi.
 const MAX_POINTS: usize = 400;
-/// The scale spans at least this many degrees and is rounded to it.
+/// The scale is rounded outwards to this many degrees.
 const SCALE_STEP: f64 = 10.0;
+/// At least this span, so the noise of a sensor (a degree or so) does not fill the chart.
+const MIN_SPAN: f64 = 30.0;
+/// Vertical grid lines every this many seconds.
+const TIME_STEP_SECONDS: usize = 300;
 /// Heater power takes the lowest quarter of the chart.
 const POWER_HEIGHT: f64 = 0.25;
 
@@ -25,30 +31,67 @@ pub fn scale(temperatures: &[f64], targets: &[f64]) -> ChartScale {
     if !low.is_finite() {
         return ChartScale { low: 0.0, high: 100.0 };
     }
-    let low = (low / SCALE_STEP).floor() * SCALE_STEP;
-    let high = ((high / SCALE_STEP).ceil() * SCALE_STEP).max(low + SCALE_STEP);
-    ChartScale { low, high }
+    // Short of the minimum span, the values stay in the middle.
+    let missing = (MIN_SPAN - (high - low)).max(0.0) / 2.0;
+    let low = ((low - missing) / SCALE_STEP).floor() * SCALE_STEP;
+    let high = ((high + missing) / SCALE_STEP).ceil() * SCALE_STEP;
+    ChartScale { low: low.max(0.0).min(high - SCALE_STEP), high }
+}
+
+/// Horizontal lines at round temperatures and vertical lines every five minutes, with their labels: the text and
+/// the share of the height from the top or of the width from the left.
+pub struct Grid {
+    pub path: String,
+    pub temperatures: Vec<(String, f32)>,
+    pub times: Vec<(String, f32)>,
+}
+
+pub fn grid(scale: ChartScale, aspect: f64) -> Grid {
+    let span = scale.high - scale.low;
+    let width = VIEW_HEIGHT * aspect;
+    let step = [10.0, 20.0, 25.0, 50.0, 100.0].into_iter().find(|step| span / step <= 6.0).unwrap_or(100.0);
+    let mut commands = Vec::new();
+    let mut temperatures = Vec::new();
+    let mut degrees = (scale.low / step).ceil() * step;
+    while degrees <= scale.high + f64::EPSILON {
+        let share = (scale.high - degrees) / span;
+        let y = share * VIEW_HEIGHT;
+        commands.push(format!("M 0 {y:.1} L {width:.1} {y:.1}"));
+        temperatures.push((format!("{degrees:.0} °C"), share as f32));
+        degrees += step;
+    }
+    let mut times = Vec::new();
+    let mut seconds = TIME_STEP_SECONDS;
+    while seconds < HISTORY_LENGTH {
+        let share = 1.0 - seconds as f64 / (HISTORY_LENGTH - 1) as f64;
+        let x = share * width;
+        commands.push(format!("M {x:.1} 0 L {x:.1} {VIEW_HEIGHT}"));
+        times.push((format!("−{} min", seconds / 60), share as f32));
+        seconds += TIME_STEP_SECONDS;
+    }
+    Grid { path: commands.join(" "), temperatures, times }
 }
 
 /// A line through the values, the newest at the right edge; the time axis is that of the full history, so a short
 /// history fills only the right part.
-pub fn line(values: &[f64], scale: ChartScale) -> String {
+pub fn line(values: &[f64], scale: ChartScale, aspect: f64) -> String {
     let span = (scale.high - scale.low).max(f64::EPSILON);
-    path(values, |value| VIEW_BOX - ((value - scale.low) / span).clamp(0.0, 1.0) * VIEW_BOX)
+    path(values, aspect, |value| VIEW_HEIGHT - ((value - scale.low) / span).clamp(0.0, 1.0) * VIEW_HEIGHT)
 }
 
 /// Heater power from 0 to 1 along the bottom of the chart.
-pub fn power_line(powers: &[f64]) -> String {
-    path(powers, |power| VIEW_BOX - power.clamp(0.0, 1.0) * POWER_HEIGHT * VIEW_BOX)
+pub fn power_line(powers: &[f64], aspect: f64) -> String {
+    path(powers, aspect, |power| VIEW_HEIGHT - power.clamp(0.0, 1.0) * POWER_HEIGHT * VIEW_HEIGHT)
 }
 
-fn path(values: &[f64], to_y: impl Fn(f64) -> f64) -> String {
+fn path(values: &[f64], aspect: f64, to_y: impl Fn(f64) -> f64) -> String {
     if values.len() < 2 {
         return String::new();
     }
     let stride = values.len().div_ceil(MAX_POINTS);
     let last = values.len() - 1;
-    let x_of = |index: usize| VIEW_BOX - (last - index) as f64 / (HISTORY_LENGTH - 1) as f64 * VIEW_BOX;
+    let width = VIEW_HEIGHT * aspect;
+    let x_of = |index: usize| width - (last - index) as f64 / (HISTORY_LENGTH - 1) as f64 * width;
     let mut indices: Vec<usize> = (0..values.len()).step_by(stride).collect();
     if indices.last() != Some(&last) {
         indices.push(last);
@@ -64,11 +107,6 @@ fn path(values: &[f64], to_y: impl Fn(f64) -> f64) -> String {
         .join(" ")
 }
 
-/// How far back the chart reaches, e.g. "−20 min".
-pub fn span_text() -> String {
-    format!("−{} min", HISTORY_LENGTH / 60)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,23 +114,34 @@ mod tests {
     #[test]
     fn the_scale_covers_both_lines_in_steps_of_ten() {
         assert_eq!(scale(&[21.5, 180.2], &[0.0, 200.0]), ChartScale { low: 20.0, high: 200.0 });
-        assert_eq!(scale(&[45.0, 45.0], &[]), ChartScale { low: 40.0, high: 50.0 });
+        assert_eq!(scale(&[36.0, 37.0], &[]), ChartScale { low: 20.0, high: 60.0 }, "noise stays small in the middle");
         assert_eq!(scale(&[], &[]), ChartScale { low: 0.0, high: 100.0 });
     }
 
     #[test]
-    fn a_line_ends_at_the_right_edge_and_scales_its_values() {
-        let path = line(&[20.0, 120.0], ChartScale { low: 20.0, high: 220.0 });
-        let x_before = VIEW_BOX - VIEW_BOX / (HISTORY_LENGTH - 1) as f64;
+    fn the_grid_has_round_temperatures_and_five_minute_marks() {
+        let grid = grid(ChartScale { low: 20.0, high: 220.0 }, 2.0);
+        assert!(grid.path.starts_with("M 0 850.0 L 2000.0 850.0"), "lines span the whole width");
+        let texts: Vec<&str> = grid.temperatures.iter().map(|(text, _)| text.as_str()).collect();
+        assert_eq!(texts, ["50 °C", "100 °C", "150 °C", "200 °C"]);
+        assert_eq!(grid.temperatures[3].1, 0.1, "200 °C is a tenth below the top");
+        let times: Vec<&str> = grid.times.iter().map(|(text, _)| text.as_str()).collect();
+        assert_eq!(times, ["−5 min", "−10 min", "−15 min"]);
+    }
 
-        assert_eq!(path, format!("M {x_before:.1} 1000.0 L 1000.0 500.0"));
-        assert_eq!(line(&[20.0], ChartScale { low: 0.0, high: 100.0 }), "", "one point is no line");
+    #[test]
+    fn a_line_ends_at_the_right_edge_and_scales_its_values() {
+        let path = line(&[20.0, 120.0], ChartScale { low: 20.0, high: 220.0 }, 2.0);
+        let x_before = 2000.0 - 2000.0 / (HISTORY_LENGTH - 1) as f64;
+
+        assert_eq!(path, format!("M {x_before:.1} 1000.0 L 2000.0 500.0"), "the newest point is at the right edge");
+        assert_eq!(line(&[20.0], ChartScale { low: 0.0, high: 100.0 }, 2.0), "", "one point is no line");
     }
 
     #[test]
     fn a_long_history_is_thinned_out_but_keeps_its_newest_point() {
         let values: Vec<f64> = (0..HISTORY_LENGTH).map(|second| second as f64).collect();
-        let path = line(&values, ChartScale { low: 0.0, high: HISTORY_LENGTH as f64 });
+        let path = line(&values, ChartScale { low: 0.0, high: HISTORY_LENGTH as f64 }, 1.0);
 
         assert!(path.split(" ").filter(|word| *word == "L").count() <= MAX_POINTS);
         assert!(path.starts_with("M 0.0 1000.0"));
@@ -101,6 +150,6 @@ mod tests {
 
     #[test]
     fn power_stays_in_the_bottom_quarter() {
-        assert_eq!(power_line(&[0.0, 1.0]).rsplit(' ').next(), Some("750.0"));
+        assert_eq!(power_line(&[0.0, 1.0], 2.0).rsplit(' ').next(), Some("750.0"));
     }
 }

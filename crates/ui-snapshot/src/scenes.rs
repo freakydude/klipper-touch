@@ -122,7 +122,8 @@ fn pages(session: &mut Session) -> Result<(), String> {
         (Page::Filament, "filament"),
         (Page::Console, "console"),
         (Page::System, "system"),
-        (Page::Settings, "settings"),
+        (Page::Updates, "updates"),
+        (Page::Settings, "display"),
     ] {
         session.show_page(page, name)?;
         if page == Page::Temperature {
@@ -142,6 +143,22 @@ fn pages(session: &mut Session) -> Result<(), String> {
     messages(session)
 }
 
+/// The filament path during a load: the fake holds the filament in the bowden, then lets it go back to the gate.
+fn filament_path_midway(session: &mut Session) -> Result<(), String> {
+    let at = |position: i32| {
+        move |snapshot: &freakymate_core::Snapshot| {
+            snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.filament_pos == position)
+        }
+    };
+    session.service.send(Command::RunGcode { script: "FAKE_MMU_FILAMENT POS=3 DIRECTION=1".into() });
+    session.wait_until("filament in the bowden", at(3))?;
+    session.window.global::<Navigation>().set_filament_tab(1);
+    session.show_page(Page::Filament, "filament-mmu-loading")?;
+    session.window.global::<Navigation>().set_filament_tab(0);
+    session.service.send(Command::RunGcode { script: "FAKE_MMU_FILAMENT POS=0 DIRECTION=0".into() });
+    session.wait_until("filament back in the gate", at(0))
+}
+
 /// The message flyout with an error from a command the printer refuses.
 fn messages(session: &mut Session) -> Result<(), String> {
     session.service.send(Command::RunGcode { script: "SET_FAN_SPEED FAN=missing SPEED=1".into() });
@@ -149,6 +166,9 @@ fn messages(session: &mut Session) -> Result<(), String> {
     session.window.global::<Navigation>().set_messages_open(true);
     session.capture("messages")?;
     session.window.global::<Navigation>().set_messages_open(false);
+    // The scenes after it should not show this made-up error in the status bar.
+    session.presenter.clear_messages();
+    session.pump(Duration::from_millis(200));
     Ok(())
 }
 
@@ -194,6 +214,9 @@ fn spools(session: &mut Session) -> Result<(), String> {
         session.service.send(Command::MmuHome);
         session.wait_until("MMU homed", |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed))?;
         session.service.send(Command::MmuSelectGate { gate: 1 });
+        session
+            .wait_until("gate 1 selected", |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 1))?;
+        filament_path_midway(session)?;
     } else {
         session.service.send(Command::SetActiveSpool { spool_id: Some(6) });
     }
@@ -228,19 +251,18 @@ fn spools(session: &mut Session) -> Result<(), String> {
 }
 
 fn network(session: &mut Session) -> Result<(), String> {
-    session.window.global::<Navigation>().set_page(Page::Settings);
-    session.window.global::<Navigation>().set_settings_tab(1);
+    session.window.global::<Navigation>().set_page(Page::Network);
     session.network_service.send(NetworkCommand::Refresh);
     session.pump(Duration::from_millis(500));
-    session.capture("settings-network")?;
+    session.capture("network")?;
 
     session.network_service.send(NetworkCommand::Connect { ssid: "Cafe Guest".into(), password: None, hidden: false });
     session.pump(Duration::from_millis(200));
-    session.capture("settings-network-connecting")?;
+    session.capture("network-connecting")?;
     session.pump(Duration::from_secs(2));
 
     ask(session, "Remove network", "The saved password of \"Garage\" is deleted.", "forget-network", "Garage");
-    session.capture("settings-network-forget")?;
+    session.capture("network-forget")?;
     session.window.global::<Confirm>().set_open(false);
 
     session.network.apply_state(NetworkState {
@@ -249,8 +271,7 @@ fn network(session: &mut Session) -> Result<(), String> {
     });
     session.service.query(Query::HostNetwork);
     session.pump(Duration::from_secs(1));
-    session.capture("settings-network-unavailable")?;
-    session.window.global::<Navigation>().set_settings_tab(0);
+    session.capture("network-unavailable")?;
     session.network_service.send(NetworkCommand::Refresh);
     Ok(())
 }

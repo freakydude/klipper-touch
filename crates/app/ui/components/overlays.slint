@@ -338,7 +338,8 @@ export component TextEntryDialog inherits Scrim {
                 spacing: 8px;
                 HorizontalLayout {
                     spacing: 8px;
-                    height: 48px;
+                    // As high as the buttons in it, so they keep the gap to the keys.
+                    height: Theme.touch;
                     Text {
                         text: root.title;
                         color: Theme.muted;
@@ -655,6 +656,7 @@ export component SpoolDialog inherits Scrim {
                                 second: spool.color-2;
                                 third: spool.color-3;
                                 count: spool.color-count;
+                                longitudinal: spool.longitudinal;
                             }
                         }
                         VerticalLayout {

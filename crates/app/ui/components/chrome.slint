@@ -65,7 +65,8 @@ export component StatusBar inherits Rectangle {
         // Newest message of the status bar; tapping it opens the flyout with all messages.
         if Printer.status-message-visible: Rectangle {
             horizontal-stretch: 1;
-            max-width: 340px;
+            // Leaves the state, the temperatures and the light symbol their room.
+            max-width: 300px;
             border-radius: Theme.radius;
             background: Printer.status-message-error ? Theme.danger : Theme.info;
             accessible-role: button;
@@ -151,7 +152,10 @@ component NavItem inherits Rectangle {
     in property <string> label;
     in property <Page> page;
     in property <bool> enabled: true;
-    property <bool> active: Navigation.page == root.page;
+    // System stays marked on its pages below (console, settings, updates), so a tap leads back.
+    property <bool> active: Navigation.page == root.page || (root.page == Page.system
+        && (Navigation.page == Page.console || Navigation.page == Page.settings || Navigation.page == Page.updates
+            || Navigation.page == Page.network));
     property <color> content: !root.enabled ? Theme.disabled-foreground : root.active ? Theme.accent : Theme.foreground;
 
     border-radius: Theme.radius;
@@ -200,8 +204,8 @@ export component NavRail inherits Rectangle {
         NavItem { icon: Icons.nav-printer; label: @tr("Print"); page: Page.print; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-move; label: @tr("Move"); page: Page.move; enabled: Printer.ready && !Printer.motion-locked; }
         NavItem { icon: Icons.nav-thermal; label: @tr("Thermal"); page: Page.temperature; enabled: Printer.ready; }
-        NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
         NavItem { icon: Icons.filament-extrude; label: @tr("Filament"); page: Page.filament; enabled: Printer.ready && !Printer.motion-locked; }
+        NavItem { icon: Icons.nav-tuning; label: @tr("Tune"); page: Page.tune; enabled: Printer.ready; }
         NavItem { icon: Icons.nav-system; label: @tr("System"); page: Page.system; }
     }
 }

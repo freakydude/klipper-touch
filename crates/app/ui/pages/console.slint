@@ -5,6 +5,7 @@ import { Icons } from "../icons.slint";
 import { Actions, Confirm, Printer } from "../state.slint";
 import { IconButton, ScrollList } from "../components/controls.slint";
 import { MacroFormDialog, TextEntryDialog } from "../components/overlays.slint";
+import { SystemTabs } from "../components/system-tabs.slint";
 
 export component ConsolePage inherits Rectangle {
     property <length> line-height: 22px;
@@ -19,6 +20,7 @@ export component ConsolePage inherits Rectangle {
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
+        SystemTabs { }
 
         Rectangle {
             vertical-stretch: 1;

@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Display, MmuGateItem, Navigation, Printer, SpoolPicker } from "../state.slint";
 import { Card, ColorBar, IconButton, IconLabel } from "../components/controls.slint";
+import { FilamentPath } from "../components/filament-path.slint";
 
 // Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
 export global MmuTexts {
@@ -75,6 +76,7 @@ component GateTile inherits Rectangle {
             second: root.gate.color-2;
             third: root.gate.color-3;
             count: root.gate.color-count;
+            longitudinal: root.gate.longitudinal;
         }
         Text {
             text: root.gate.material == "" ? "-" : root.gate.material;
@@ -191,12 +193,14 @@ export component MmuTab inherits Rectangle {
             }
 
             Card {
-                title: @tr("Sensors");
+                title: @tr("Filament path");
                 icon: Icons.filament-sensor;
                 VerticalLayout {
                     spacing: 8px;
+                    // Gate to nozzle with the sensors on the way; further sensors below as chips.
+                    FilamentPath { path: Printer.mmu-path; compact: root.compact; }
                     // Grid with equal columns, so every name gets the same width.
-                    sensor-grid := Rectangle {
+                    if Printer.mmu-sensors.length > 0: sensor-grid := Rectangle {
                         property <int> columns: max(1, min(Printer.mmu-sensors.length, floor(self.width / (root.compact ? 100px : 150px))));
                         property <length> cell-width: (self.width - (self.columns - 1) * Theme.spacing) / self.columns;
                         property <length> row-height: 26px;
@@ -220,14 +224,16 @@ export component MmuTab inherits Rectangle {
                             color: gauge.marker-color;
                             font-size: Theme.font-small;
                         }
-                        gauge := BufferGauge {
-                            bias: Printer.mmu-buffer-bias;
-                            state: Printer.mmu-buffer-state;
-                        }
-                        if !root.compact: HorizontalLayout {
-                            Text { text: @tr("Tension"); color: Theme.muted; font-size: Theme.font-small; }
-                            Rectangle { horizontal-stretch: 1; }
-                            Text { text: @tr("Compression"); color: Theme.muted; font-size: Theme.font-small; }
+                        // The ends named beside the gauge, so the card keeps its height with the filament path above.
+                        HorizontalLayout {
+                            spacing: 8px;
+                            if !root.compact: Text { text: @tr("Tension"); color: Theme.muted; font-size: Theme.font-small; vertical-alignment: center; }
+                            gauge := BufferGauge {
+                                horizontal-stretch: 1;
+                                bias: Printer.mmu-buffer-bias;
+                                state: Printer.mmu-buffer-state;
+                            }
+                            if !root.compact: Text { text: @tr("Compression"); color: Theme.muted; font-size: Theme.font-small; vertical-alignment: center; }
                         }
                     }
                     if !root.compact: HorizontalLayout {
@@ -313,6 +319,7 @@ export component MmuStrip inherits Card {
                     second: Printer.spool-color-2;
                     third: Printer.spool-color-3;
                     count: Printer.spool-color-count;
+                    longitudinal: Printer.spool-longitudinal;
                 }
             }
             Text {
@@ -330,6 +337,8 @@ export component MmuStrip inherits Card {
                 overflow: elide;
             }
         }
+        // Where the filament is; a small display keeps the room for the buffer.
+        if !Printer.mmu-paused && !Display.compact: FilamentPath { path: Printer.mmu-path; compact: true; }
         // While the MMU holds the print, the reason and the buttons need the room; the reason already names the cause.
         if Printer.mmu-has-buffer && !Printer.mmu-paused: VerticalLayout {
             spacing: 4px;

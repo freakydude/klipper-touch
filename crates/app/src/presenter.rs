@@ -2,8 +2,8 @@
 
 use crate::history_view::HistoryView;
 use crate::items::{
-    color_bar, connection_name, console_items, fan_item, heater_item, host_interface_item, led_effect_item, led_item,
-    power_item, replace_rows, sensor_item, spool_rows, tuning_item, update_item,
+    color_bar, connection_name, console_items, fan_item, filament_path_item, heater_item, host_interface_item,
+    led_effect_item, led_item, power_item, replace_rows, sensor_item, spool_rows, tuning_item, update_item,
 };
 use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
@@ -16,14 +16,14 @@ use chrono::Local;
 use freakymate_core::estimates;
 use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
 use freakymate_core::printer::{
-    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails, MacroForm, MmuStatus,
+    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails, MacroForm, MmuGate, MmuStatus,
 };
 use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
 use freakymate_core::system::{ConsoleKind, ConsoleLine};
 use freakymate_core::tuning;
 use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -99,6 +99,10 @@ pub struct Presenter {
     led_effects: Rc<VecModel<LedEffectItem>>,
     tuning: Rc<VecModel<TuningItem>>,
     history: HistoryView,
+    /// The temperature store was asked for since the printer became ready.
+    history_requested: Cell<bool>,
+    /// Leave Klipper's temperature reports out of the console (setting).
+    hide_temperature_reports: Cell<bool>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: Rc<VecModel<PrintObjectItem>>,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
@@ -135,6 +139,8 @@ impl Presenter {
             led_effects: Rc::default(),
             tuning: Rc::default(),
             history: HistoryView::new(window),
+            history_requested: Cell::default(),
+            hide_temperature_reports: Cell::new(true),
             filament_sensors: Rc::default(),
             print_objects: Rc::default(),
             mmu_gates: Rc::default(),
@@ -274,9 +280,23 @@ impl Presenter {
         let active_spool = spoolman::active_spool(&lanes).cloned();
         replace_rows(
             &self.heaters,
-            status.heaters.iter().map(|heater| heater_item(heater, active_spool.as_ref())).collect(),
+            status
+                .heaters
+                .iter()
+                .map(|heater| heater_item(heater, active_spool.as_ref(), self.history.has_history(&heater.object)))
+                .collect(),
         );
-        replace_rows(&self.sensors, status.sensors.iter().map(sensor_item).collect());
+        replace_rows(
+            &self.sensors,
+            status.sensors.iter().map(|sensor| sensor_item(sensor, self.history.has_history(&sensor.object))).collect(),
+        );
+        // Which objects Moonraker keeps a history of: asked once per connection, so the rows know whether to open one.
+        if ready && !self.history.knows_objects() && !self.history_requested.replace(true) {
+            self.service.query(Query::TemperatureHistory);
+        }
+        if !ready {
+            self.history_requested.set(false);
+        }
         let has_mmu = status.mmu.as_ref().is_some_and(|mmu| mmu.enabled && mmu.is_supported());
         replace_rows(
             &self.filament_sensors,
@@ -331,10 +351,13 @@ impl Presenter {
         }
     }
 
-    /// Once a second: the clock and job times, and the live value of an open history.
+    /// Once a second: the clock and job times; an open history is asked for anew every few seconds, as Moonraker
+    /// does not report changes of its temperature store.
     pub fn tick(&self) {
         self.refresh_job_texts();
-        self.history.sample(&self.cache.borrow().snapshot.status);
+        if self.history.refresh_due() {
+            self.service.query(Query::TemperatureHistory);
+        }
     }
 
     /// Opens the temperature history of a heater or sensor and asks Moonraker for the stored minutes.
@@ -376,14 +399,22 @@ impl Presenter {
             Event::Thumbnail { filename, image } => self.store_thumbnail(&filename, &image),
             Event::TemperatureHistory(store) => self.history.store(store, &self.cache.borrow().snapshot.status),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
-            Event::Updates(updates) => replace_rows(&self.updates, updates.iter().map(update_item).collect()),
+            Event::Updates(updates) => {
+                replace_rows(&self.updates, updates.iter().map(update_item).collect());
+                if let Some(window) = self.window.upgrade() {
+                    let available = updates.iter().filter(|update| update.has_update()).count();
+                    window.global::<Printer>().set_updates_available(available as i32);
+                }
+            }
             Event::ConsoleHistory(lines) => {
-                let items: Vec<ConsoleItem> = lines.iter().flat_map(console_items).collect();
+                let items: Vec<ConsoleItem> =
+                    lines.iter().filter(|line| self.shows_in_console(line)).flat_map(console_items).collect();
                 let skip = items.len().saturating_sub(CONSOLE_LIMIT);
                 self.console.set_vec(items.into_iter().skip(skip).collect::<Vec<_>>());
             }
             Event::ConsoleLine(line) => {
-                for item in console_items(&line) {
+                let shown = if self.shows_in_console(&line) { console_items(&line) } else { Vec::new() };
+                for item in shown {
                     if self.console.row_count() >= CONSOLE_LIMIT {
                         self.console.remove(0);
                     }
@@ -411,6 +442,17 @@ impl Presenter {
     }
 
     /// Applies the hidden macros from the settings.
+    /// Hides or shows the temperature reports in the console; the history is read again so that it follows.
+    pub fn set_hide_temperature_reports(&self, hide: bool) {
+        if self.hide_temperature_reports.replace(hide) != hide {
+            self.service.query(Query::ConsoleHistory);
+        }
+    }
+
+    fn shows_in_console(&self, line: &ConsoleLine) -> bool {
+        !(self.hide_temperature_reports.get() && line.is_temperature_report())
+    }
+
     pub fn set_hidden_macros(&self, hidden: Vec<String>) {
         *self.hidden_macros.borrow_mut() = hidden;
         self.refresh_macro_views();
@@ -440,12 +482,9 @@ impl Presenter {
             .gates
             .iter()
             .map(|gate| {
-                let spool =
-                    lanes.iter().find(|lane| lane.gate == Some(gate.index)).and_then(|lane| lane.spool.as_ref());
-                // A multi-colour spool shows all its colours; otherwise the gate has the one colour Happy Hare reports.
-                let gate_color: Vec<[u8; 3]> = gate.color.into_iter().collect();
-                let spool_colors = spool.map(|spool| spool.colors.as_slice()).filter(|colors| colors.len() > 1);
-                let bar = color_bar(spool_colors.unwrap_or(&gate_color));
+                let spool = gate_spool(lanes, gate.index);
+                let (colors, longitudinal) = gate_colors(gate, spool);
+                let bar = color_bar(&colors);
                 MmuGateItem {
                     spool_text: spool.map(view::spool_remaining).unwrap_or_default().into(),
                     spool_low: spool.is_some_and(Spool::is_low),
@@ -458,6 +497,7 @@ impl Presenter {
                     color_2: bar.1,
                     color_3: bar.2,
                     color_count: bar.3,
+                    longitudinal,
                     has_color: gate.color.is_some(),
                     tool: gate.tool.map_or(-1, |tool| tool as i32),
                     selected: usize::try_from(mmu.gate) == Ok(gate.index),
@@ -465,6 +505,10 @@ impl Presenter {
             })
             .collect();
         replace_rows(&self.mmu_gates, gates);
+        let selected = usize::try_from(mmu.gate).ok().and_then(|index| mmu.gates.get(index));
+        let (colors, longitudinal) =
+            selected.map(|gate| gate_colors(gate, gate_spool(lanes, gate.index))).unwrap_or_default();
+        printer.set_mmu_path(filament_path_item(&mmu.filament_path(), mmu.gate, &colors, longitudinal));
         let has_buffer = mmu.sync_feedback.is_some();
         let sensors = view::mmu_chip_sensors(&mmu.sensors, has_buffer)
             .into_iter()
@@ -653,6 +697,7 @@ impl Presenter {
         printer.set_spool_color_2(bar.1);
         printer.set_spool_color_3(bar.2);
         printer.set_spool_color_count(bar.3);
+        printer.set_spool_longitudinal(active.is_some_and(|spool| spool.longitudinal && spool.colors.len() > 1));
         printer.set_spool_low(active.is_some_and(Spool::is_low));
         let preset = active.and_then(view::spool_preset_text);
         printer.set_has_spool_preset(preset.is_some());
@@ -812,6 +857,20 @@ impl Presenter {
             }
             None => printer.set_has_job_thumbnail(false),
         }
+    }
+}
+
+/// The spool Spoolman knows in a gate.
+fn gate_spool(lanes: &[Lane], gate: usize) -> Option<&Spool> {
+    lanes.iter().find(|lane| lane.gate == Some(gate)).and_then(|lane| lane.spool.as_ref())
+}
+
+/// The colours of a gate and whether they follow each other along the filament: a multi-colour spool of Spoolman
+/// shows all of its colours; otherwise the gate has the one colour Happy Hare reports.
+fn gate_colors(gate: &MmuGate, spool: Option<&Spool>) -> (Vec<[u8; 3]>, bool) {
+    match spool.filter(|spool| spool.colors.len() > 1) {
+        Some(spool) => (spool.colors.clone(), spool.longitudinal),
+        None => (gate.color.into_iter().collect(), false),
     }
 }
 

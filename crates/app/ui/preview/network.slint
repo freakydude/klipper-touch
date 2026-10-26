@@ -1,9 +1,9 @@
-// Preview: Settings > Network with NetworkManager available (one list of visible and saved networks).
+// Preview: System > Network with NetworkManager available (one list of visible and saved networks).
 
 import { AppWindow } from "../app.slint";
 import { Sample } from "sample.slint";
 
-export component SettingsNetworkPreview inherits AppWindow {
+export component NetworkPreview inherits AppWindow {
     init => {
         Sample.ready-printer();
         Sample.managed-network();

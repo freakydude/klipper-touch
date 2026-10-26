@@ -1,16 +1,21 @@
-// Klipper, host, power devices and updates.
+// The machine tab of the system pages: Klipper, host and power devices.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer } from "../state.slint";
-import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
+import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { SystemTabs } from "../components/system-tabs.slint";
 
 export component SystemPage inherits Rectangle {
     init => { Actions.refresh-system(); }
 
+    VerticalLayout {
+    padding: Theme.padding;
+    spacing: Theme.spacing;
+    SystemTabs { }
     HorizontalLayout {
-        padding: Theme.padding;
         spacing: Theme.spacing;
+        vertical-stretch: 1;
 
         VerticalLayout {
             width: 260px;
@@ -78,22 +83,6 @@ export component SystemPage inherits Rectangle {
                     font-size: Theme.font-small;
                 }
             }
-            HorizontalLayout {
-                spacing: Theme.spacing;
-                height: 64px;
-                IconButton {
-                    icon: Icons.nav-settings;
-                    text: @tr("Settings");
-                    clicked => { Navigation.page = Page.settings; }
-                }
-                // The console is rarely needed on the touch screen; it is here and in the message flyout.
-                IconButton {
-                    icon: Icons.nav-console;
-                    text: @tr("Console");
-                    enabled: Printer.connection == "connected";
-                    clicked => { Navigation.page = Page.console; }
-                }
-            }
             Rectangle { vertical-stretch: 1; }
         }
 
@@ -114,6 +103,8 @@ export component SystemPage inherits Rectangle {
                     }
                     IconButton {
                         width: 96px;
+                        // Fits the row, so the buttons of two devices do not touch.
+                        min-height: 44px;
                         text: device.on ? @tr("On") : @tr("Off");
                         checked: device.on;
                         kind: device.on ? "accent" : "normal";
@@ -128,50 +119,8 @@ export component SystemPage inherits Rectangle {
                     }
                 }
             }
-            if Printer.has-update-manager: Card {
-                title: @tr("Updates");
-                icon: Icons.system-update;
-                vertical-stretch: 1;
-                update-list := ScrollList {
-                    property <length> row-pitch: 54px;
-                    vertical-stretch: 1;
-                    content-height: Printer.updates.length * self.row-pitch;
-                    for update[index] in Printer.updates: HorizontalLayout {
-                        y: index * update-list.row-pitch;
-                        width: update-list.row-width;
-                        height: 48px;
-                        spacing: Theme.spacing;
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
-                            Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
-                        }
-                        IconButton {
-                            width: 128px;
-                            icon: Icons.system-update;
-                            icon-size: 20px;
-                            horizontal: true;
-                            text: @tr("Update");
-                            enabled: update.has-update && !Printer.host-actions-locked;
-                            clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
-                        }
-                    }
-                }
-                HorizontalLayout {
-                    alignment: end;
-                    IconButton {
-                        width: 140px;
-                        height: 48px;
-                        icon: Icons.ui-refresh;
-                        icon-size: 20px;
-                        horizontal: true;
-                        text: @tr("Check");
-                        enabled: !Printer.host-actions-locked;
-                        clicked => { Actions.refresh-updates(); }
-                    }
-                }
-            }
+            Rectangle { vertical-stretch: 1; }
         }
+    }
     }
 }

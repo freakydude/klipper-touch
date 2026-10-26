@@ -393,59 +393,56 @@ export component IconLabel inherits HorizontalLayout {
 }
 
 // The colour or colours of a filament as one bar, in one, two or three equal parts (Spoolman has up to three colours).
-// `vertical` stacks the parts, otherwise they sit side by side. Without colour (`count` 0) the bar is neutral. The ends
-// of the bar are rounded by the first and the last part, so the bar keeps its shape whatever the number of parts.
+// The colours of a filament, one to three. The bar stands for a piece of filament along its long side (`vertical`
+// turns it upright): the colours of a coaxial filament run side by side along the whole length, those of a
+// longitudinal one take turns along it (Spoolman's `multi_color_direction`). Without colour (`count` 0) the bar is
+// neutral. Only the outer pieces are rounded, each on its outer corners, so the bar keeps its shape in every renderer.
 export component ColorBar inherits Rectangle {
     in property <color> first;
     in property <color> second;
     in property <color> third;
     in property <int> count: 1;
     in property <bool> vertical;
+    in property <bool> longitudinal;
+    // Length of one colour of a longitudinal filament.
+    in property <length> stripe: 6px;
     // The ends are as round as the outline minus its width.
     property <length> end: max(0px, root.border-radius - 1px);
+    property <length> long: (root.vertical ? root.height : root.width) - 2px;
+    property <length> across: (root.vertical ? root.width : root.height) - 2px;
+    // Pieces: the colours across the bar (coaxial) or the stripes along it (longitudinal).
+    property <int> pieces: root.count < 1 ? 0 : root.longitudinal && root.count > 1 ? max(1, ceil(root.long / root.stripe)) : root.count;
     border-radius: 4px;
     border-width: 1px;
     border-color: Theme.border;
     background: Theme.border;
 
-    if root.count > 0 && !root.vertical: HorizontalLayout {
-        padding: 1px;
-        Rectangle {
-            background: root.first;
-            border-top-left-radius: root.end;
-            border-bottom-left-radius: root.end;
-            border-top-right-radius: root.count == 1 ? root.end : 0px;
-            border-bottom-right-radius: root.count == 1 ? root.end : 0px;
-        }
-        if root.count > 1: Rectangle {
-            background: root.second;
-            border-top-right-radius: root.count == 2 ? root.end : 0px;
-            border-bottom-right-radius: root.count == 2 ? root.end : 0px;
-        }
-        if root.count > 2: Rectangle {
-            background: root.third;
-            border-top-right-radius: root.end;
-            border-bottom-right-radius: root.end;
-        }
+    pure function nth(index: int) -> color {
+        return index == 1 ? root.second : index == 2 ? root.third : root.first;
     }
-    if root.count > 0 && root.vertical: VerticalLayout {
-        padding: 1px;
-        Rectangle {
-            background: root.first;
-            border-top-left-radius: root.end;
-            border-top-right-radius: root.end;
-            border-bottom-left-radius: root.count == 1 ? root.end : 0px;
-            border-bottom-right-radius: root.count == 1 ? root.end : 0px;
-        }
-        if root.count > 1: Rectangle {
-            background: root.second;
-            border-bottom-left-radius: root.count == 2 ? root.end : 0px;
-            border-bottom-right-radius: root.count == 2 ? root.end : 0px;
-        }
-        if root.count > 2: Rectangle {
-            background: root.third;
-            border-bottom-left-radius: root.end;
-            border-bottom-right-radius: root.end;
-        }
+
+    for piece in root.pieces: Rectangle {
+        // Along the long side for stripes, across it for coaxial colours.
+        property <bool> along: root.longitudinal && root.count > 1;
+        property <length> size: self.along ? root.stripe : root.across / root.count;
+        property <length> start: piece * self.size;
+        property <length> length: self.along ? min(root.stripe, root.long - self.start) : self.size;
+        property <bool> head: piece == 0;
+        property <bool> tail: piece == root.pieces - 1;
+        // Which outer corners this piece rounds: the head and tail of a stripe sequence round the ends of the bar;
+        // the outer bands of coaxial colours round their long edge, and every band rounds both ends.
+        property <bool> left-round: self.along ? (root.vertical ? true : self.head) : (root.vertical ? self.head : true);
+        property <bool> right-round: self.along ? (root.vertical ? true : self.tail) : (root.vertical ? self.tail : true);
+        property <bool> top-round: self.along ? (root.vertical ? self.head : true) : (root.vertical ? true : self.head);
+        property <bool> bottom-round: self.along ? (root.vertical ? self.tail : true) : (root.vertical ? true : self.tail);
+        x: 1px + (root.vertical != self.along ? self.start : 0px);
+        y: 1px + (root.vertical == self.along ? self.start : 0px);
+        width: root.vertical != self.along ? self.length : (root.vertical ? root.across : root.long);
+        height: root.vertical == self.along ? self.length : (root.vertical ? root.long : root.across);
+        background: root.nth(mod(piece, root.count));
+        border-top-left-radius: self.top-round && self.left-round ? root.end : 0px;
+        border-top-right-radius: self.top-round && self.right-round ? root.end : 0px;
+        border-bottom-left-radius: self.bottom-round && self.left-round ? root.end : 0px;
+        border-bottom-right-radius: self.bottom-round && self.right-round ? root.end : 0px;
     }
 }

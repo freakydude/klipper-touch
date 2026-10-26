@@ -34,7 +34,8 @@ is the BTT HDMI5 (5", 800x480, landscape).
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
 - **Thermal**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), presets; − and +
   respect `min_temp`/`max_temp` from the Klipper configuration. Tapping a heater or sensor shows its temperature
-  history (the last 20 minutes from Moonraker, growing live). Further tabs when the printer has them:
+  history with a grid: the last 20 minutes of Moonraker's temperature store, asked again every five seconds while it
+  is open. Moonraker keeps heaters and `temperature_sensor` objects there; the others have no history. Further tabs when the printer has them:
   - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
     bar, speed in rpm where there is a tachometer.
   - **Sensors**: every temperature without a target (`temperature_sensor`, `temperature_host`,
@@ -48,12 +49,18 @@ is the BTT HDMI5 (5", 800x480, landscape).
   acceleration limits, square corner velocity, minimum cruise ratio and firmware retraction; it shows where a value
   differs from the configuration and resets it.
 - **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
-- **Console** (from the System page and the message flyout): G-code history and live responses, a command field (on-screen keyboard or physical keyboard), and an
-  expandable list of macros. Macros starting with `_` and macros that rename a built-in command (`rename_existing`) are
-  hidden; macros can be hidden in the settings. Macros with parameters open a form first: each parameter is read from the
-  macro's template, Klipper defaults show as placeholders in brackets.
-- **System**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices, update manager.
-- **Settings**: Moonraker address, fullscreen, temperature presets, Wi-Fi and Ethernet (see [Network settings](#network-settings)).
+- **System**, in five tabs:
+  - **Machine**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices.
+  - **Updates**: Moonraker's update manager; the tab shows how many updates are waiting.
+  - **Network**: Wi-Fi and Ethernet (see [Network settings](#network-settings)).
+  - **Console** (also from the message flyout): G-code history and live responses, a command field (on-screen keyboard
+    or physical keyboard), and an expandable list of macros. Like Mainsail it hides the temperature reports Klipper
+    sends while waiting for a heater (can be turned off). Macros starting with `_` and macros that rename a built-in
+    command (`rename_existing`) are hidden; further macros can be hidden on the Display tab. Macros with parameters
+    open a form first: each parameter is read from the macro's template, Klipper defaults show as placeholders in
+    brackets.
+  - **Display**: Moonraker address, fullscreen, the console filter and which macros the console offers. Temperature
+    presets are set in the [settings file](#settings-file).
 
 Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
 
@@ -63,7 +70,10 @@ Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip 
 
 - the gates (four at a time): status, material, colour and mapped tool; load, unload, eject and home the selected gate,
   recover and unlock after a pause;
-- the MMU sensors, the sync-feedback buffer (tension, neutral, compression) and the FlowGuard state: ready, monitoring,
+- the way of the filament of the selected gate, from the gate through the bowden and the extruder to the nozzle,
+  filled in the colours of the spool as far as Happy Hare reports it (`filament_pos`), with the sensors on the way,
+  the direction and the distance; on the print page as a slim line;
+- the other MMU sensors, the sync-feedback buffer (tension, neutral, compression) and the FlowGuard state: ready, monitoring,
   tangle prevention at work, or triggered with its reason;
 - the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
 
@@ -75,8 +85,8 @@ Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip 
 
 Appears when Moonraker has the `spoolman` component, with or without an MMU:
 
-- the spool in use and what is left of it on the print page and at each gate, with a colour bar of one, two or three parts
-  for multi-colour filaments;
+- the spool in use and what is left of it on the print page and at each gate, with a colour bar for multi-colour
+  filaments: side by side for coaxial ones (silk), taking turns for longitudinal ones (gradient);
 - a picker lists the spools (the ones in a gate first, then the most recently used): assign a spool to a gate or, without
   an MMU, choose the active spool, and correct the remaining weight by weighing;
 - the temperature page offers a preset for the spool in use and notes quietly when the target is off from it;
@@ -181,7 +191,7 @@ Besides the Moonraker route there are plain packages, for example to try it on a
   and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `freakymate` from a
   terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
   `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
-  Moonraker address on the Settings page or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
+  Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
 
 ## Configuration
 
@@ -201,6 +211,26 @@ freakymate [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-ne
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
 driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off).
 Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
+
+### Settings file
+
+FreakyMate keeps its settings in a JSON file: `printer_data/config/freakymate.json` when installed with the installer
+(so it can be edited in Mainsail or Fluidd next to the Klipper configs), otherwise `~/.config/freakymate/settings.json`
+(Windows: `%APPDATA%\freakymate\settings.json`). The file is created with the defaults at the first start. Most entries are
+changed on the screen; the **temperature presets** only here:
+
+```json
+"temperature_presets": [
+  { "name": "PLA", "extruder": 210.0, "bed": 60.0 },
+  { "name": "PETG", "extruder": 240.0, "bed": 80.0 },
+  { "name": "ABS", "extruder": 250.0, "bed": 105.0 },
+  { "name": "TPU", "extruder": 225.0, "bed": 50.0 }
+]
+```
+
+The Thermal page shows the first four. Restart FreakyMate after editing (`sudo systemctl restart freakymate`); it
+writes the file itself when a setting changes on the screen, so edit it while FreakyMate is stopped or restart right
+after saving.
 
 ### Displays
 

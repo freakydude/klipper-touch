@@ -1,108 +1,20 @@
-// Settings of this display: Moonraker address, fullscreen, temperature presets, network and macro visibility.
+// The Display tab of the system pages: settings of this display (Moonraker address, fullscreen, console filter) and
+// which macros the console offers. Temperature presets are edited in the settings file, see the README.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Navigation, Network, PresetItem, Printer, UiSettings } from "../state.slint";
-import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
+import { Actions, Display, Navigation, Printer, UiSettings } from "../state.slint";
+import { Card, IconButton, ScrollList } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
-import { NetworkSection } from "network.slint";
-
-component PresetEditor inherits HorizontalLayout {
-    in property <PresetItem> preset;
-    in property <int> index;
-    spacing: 4px;
-    height: 48px;
-
-    Text {
-        text: root.preset.name;
-        color: Theme.foreground;
-        font-size: Theme.font-normal;
-        font-weight: 600;
-        vertical-alignment: center;
-        width: 52px;
-        overflow: elide;
-    }
-    IconButton { width: 44px; icon: Icons.ui-minus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, max(0, root.preset.extruder - 5), root.preset.bed); } }
-    IconLabel {
-        icon: Icons.thermal-nozzle;
-        text: round(root.preset.extruder) + "°";
-        width: 64px;
-    }
-    IconButton { width: 44px; icon: Icons.ui-plus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder + 5, root.preset.bed); } }
-    Rectangle { width: 4px; }
-    IconButton { width: 44px; icon: Icons.ui-minus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder, max(0, root.preset.bed - 5)); } }
-    IconLabel {
-        icon: Icons.thermal-bed;
-        text: round(root.preset.bed) + "°";
-        width: 64px;
-    }
-    IconButton { width: 44px; icon: Icons.ui-plus; icon-size: 20px; clicked => { UiSettings.preset-changed(root.index, root.preset.extruder, root.preset.bed + 5); } }
-}
+import { SystemTabs } from "../components/system-tabs.slint";
 
 export component SettingsPage inherits Rectangle {
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
+        SystemTabs { }
 
         HorizontalLayout {
-            spacing: Theme.spacing;
-            height: 48px;
-            alignment: start;
-            IconButton {
-                width: 160px;
-                icon: Icons.nav-settings;
-                text: @tr("General");
-                horizontal: true;
-                checked: Navigation.settings-tab == 0;
-                clicked => { Navigation.settings-tab = 0; }
-            }
-            IconButton {
-                width: 160px;
-                icon: Icons.system-network;
-                text: @tr("Network");
-                horizontal: true;
-                checked: Navigation.settings-tab == 1;
-                clicked => {
-                    Navigation.settings-tab = 1;
-                    Network.refresh();
-                    Network.scan();
-                }
-            }
-            IconButton {
-                width: 160px;
-                icon: Icons.nav-macros;
-                text: @tr("Macros");
-                horizontal: true;
-                checked: Navigation.settings-tab == 2;
-                clicked => { Navigation.settings-tab = 2; }
-            }
-        }
-
-        if Navigation.settings-tab == 1: NetworkSection { vertical-stretch: 1; }
-
-        if Navigation.settings-tab == 2: macro-list := ScrollList {
-            vertical-stretch: 1;
-            content-height: Printer.macro-items.length * (Theme.touch + Theme.spacing);
-            for macro[index] in Printer.macro-items: IconButton {
-                x: 8px;
-                y: index * (Theme.touch + Theme.spacing);
-                width: macro-list.row-width - 16px;
-                height: Theme.touch;
-                horizontal: true;
-                icon: macro.visible ? Icons.ui-check : Icons.ui-minus;
-                text: macro.name;
-                checked: macro.visible;
-                clicked => { Actions.set-macro-visible(macro.name, !macro.visible); }
-            }
-        }
-        if Navigation.settings-tab == 2 && Printer.macro-items.length == 0: Text {
-            text: @tr("Connect to the printer to see its macros. New macros appear here automatically.");
-            color: Theme.muted;
-            font-size: Theme.font-normal;
-            wrap: word-wrap;
-        }
-
-        if Navigation.settings-tab == 0: HorizontalLayout {
             vertical-stretch: 1;
             spacing: Theme.spacing;
 
@@ -130,21 +42,38 @@ export component SettingsPage inherits Rectangle {
                     }
                 }
                 Card {
-                    title: @tr("Display");
+                    title: @tr("Display and console");
                     icon: Icons.system-brightness;
-                    IconButton {
-                        height: 52px;
-                        icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
-                        text: @tr("Fullscreen");
-                        horizontal: true;
-                        checked: UiSettings.fullscreen;
-                        clicked => {
-                            UiSettings.fullscreen = !UiSettings.fullscreen;
-                            UiSettings.fullscreen-toggled(UiSettings.fullscreen);
+                    VerticalLayout {
+                        spacing: Theme.spacing;
+                        IconButton {
+                            min-height: 44px;
+                            icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
+                            text: @tr("Fullscreen");
+                            horizontal: true;
+                            align-start: true;
+                            checked: UiSettings.fullscreen;
+                            clicked => {
+                                UiSettings.fullscreen = !UiSettings.fullscreen;
+                                UiSettings.fullscreen-toggled(UiSettings.fullscreen);
+                            }
+                        }
+                        // Like Mainsail: the temperature reports of M109/M190 fill the console while a heater warms up.
+                        IconButton {
+                            min-height: 44px;
+                            icon: UiSettings.hide-temperature-reports ? Icons.ui-check : Icons.ui-minus;
+                            text: @tr("Hide temperatures");
+                            horizontal: true;
+                            align-start: true;
+                            checked: UiSettings.hide-temperature-reports;
+                            clicked => {
+                                UiSettings.hide-temperature-reports = !UiSettings.hide-temperature-reports;
+                                UiSettings.hide-temperature-reports-toggled(UiSettings.hide-temperature-reports);
+                            }
                         }
                     }
                 }
-                Text {
+                if !Display.compact: Text {
                     text: "FreakyMate " + UiSettings.version + "\n" + @tr("Saved in {}", UiSettings.settings-file);
                     color: Theme.disabled-foreground;
                     font-size: Theme.font-small;
@@ -153,15 +82,32 @@ export component SettingsPage inherits Rectangle {
                 Rectangle { vertical-stretch: 1; }
             }
 
+            // Macros of the printer: which of them the console offers; new ones are shown.
             Card {
-                title: @tr("Temperature presets (nozzle / bed)");
-                icon: Icons.thermal-preset;
+                title: @tr("Macros in the console");
+                icon: Icons.nav-macros;
                 horizontal-stretch: 1;
-                for preset[index] in UiSettings.presets: PresetEditor {
-                    preset: preset;
-                    index: index;
+                macro-list := ScrollList {
+                    vertical-stretch: 1;
+                    content-height: Printer.macro-items.length * (Theme.touch + Theme.spacing);
+                    for macro[index] in Printer.macro-items: IconButton {
+                        y: index * (Theme.touch + Theme.spacing);
+                        width: macro-list.row-width;
+                        height: Theme.touch;
+                        horizontal: true;
+                        align-start: true;
+                        icon: macro.visible ? Icons.ui-check : Icons.ui-minus;
+                        text: macro.name;
+                        checked: macro.visible;
+                        clicked => { Actions.set-macro-visible(macro.name, !macro.visible); }
+                    }
                 }
-                Rectangle { vertical-stretch: 1; }
+                if Printer.macro-items.length == 0: Text {
+                    text: @tr("Connect to the printer to see its macros. New macros appear here automatically.");
+                    color: Theme.muted;
+                    font-size: Theme.font-normal;
+                    wrap: word-wrap;
+                }
             }
         }
     }
