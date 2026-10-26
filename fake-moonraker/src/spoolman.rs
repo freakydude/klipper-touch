@@ -106,11 +106,13 @@ impl Spoolman {
             "archived": false,
             "extra": {},
         });
-        // Two multi-colour filaments, as Spoolman has them: no `color_hex`, the colours separated by commas.
+        // Two multi-colour filaments, as Spoolman has them: no `color_hex`, the colours separated by commas. The two
+        // colours follow each other along the filament (a gradient), the three lie side by side (a silk).
         if let Some(hexes) = MULTI_COLORS.iter().find(|(spool_id, _)| *spool_id == id).map(|(_, hexes)| hexes) {
             spool["filament"]["color_hex"] = Value::Null;
             spool["filament"]["multi_color_hexes"] = json!(hexes);
-            spool["filament"]["multi_color_direction"] = json!("coaxial");
+            let direction = if hexes.split(',').count() == 2 { "longitudinal" } else { "coaxial" };
+            spool["filament"]["multi_color_direction"] = json!(direction);
         }
         if id != NEVER_USED {
             spool["first_used"] = json!("2026-02-02T22:17:26Z");
@@ -166,6 +168,8 @@ mod tests {
         let three = spoolman.proxy("GET", "/v1/spool/8", &Value::Null).unwrap();
 
         assert_eq!(two["filament"]["multi_color_hexes"], "E31F2B,2E7D32");
+        assert_eq!(two["filament"]["multi_color_direction"], "longitudinal");
+        assert_eq!(three["filament"]["multi_color_direction"], "coaxial");
         assert_eq!(three["filament"]["multi_color_hexes"].as_str().unwrap().split(',').count(), 3);
         assert!(three["filament"]["color_hex"].is_null());
     }

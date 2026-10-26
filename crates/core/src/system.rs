@@ -99,6 +99,22 @@ impl ConsoleLine {
         self.message.starts_with("//")
     }
 
+    /// A temperature report, such as Klipper sends every second while `M109` or `M190` waits
+    /// (`T:210.3 /210.0 B:60.1 /60.0`) or answers `M105` (`ok B:…`). Same rule as Mainsail's "hide temperatures"
+    /// (`^(?:ok\s+)?(B|C|T\d*):`, `src/store/gui/console/getters.ts`).
+    pub fn is_temperature_report(&self) -> bool {
+        if self.kind != ConsoleKind::Response {
+            return false;
+        }
+        let text = self.message.strip_prefix("ok").map_or(self.message.as_str(), str::trim_start);
+        let mut characters = text.chars();
+        match characters.next() {
+            Some('B' | 'C') => characters.next() == Some(':'),
+            Some('T') => characters.find(|character| !character.is_ascii_digit()) == Some(':'),
+            _ => false,
+        }
+    }
+
     /// The text as shown. A response loses its marker (`!!` error, `//` information; the colour tells them apart)
     /// and the HTML of plugins; a command is shown as typed. Klipper puts the marker before every line of a message.
     pub fn text(&self) -> String {
@@ -358,5 +374,19 @@ mod tests {
 
         assert!(interface("wlan0").is_wireless() && interface("wlp3s0").is_wireless());
         assert!(!interface("eth0").is_wireless() && !interface("enp1s0").is_wireless());
+    }
+
+    #[test]
+    fn temperature_reports_are_recognised_like_mainsail_does() {
+        let response = |message: &str| ConsoleLine { kind: ConsoleKind::Response, message: message.into(), time: 0.0 };
+        assert!(response("T:210.3 /210.0 B:60.1 /60.0").is_temperature_report());
+        assert!(response("ok B:60.0 /60.0 T0:210.0 /210.0").is_temperature_report());
+        assert!(response("T0:205.1 /210.0").is_temperature_report());
+        assert!(response("B:59.8 /60.0").is_temperature_report());
+        assert!(!response("// Toolhead at T0").is_temperature_report());
+        assert!(!response("Tool T0 selected").is_temperature_report());
+        assert!(!response("ok").is_temperature_report());
+        let command = ConsoleLine { kind: ConsoleKind::Command, message: "T:1".into(), time: 0.0 };
+        assert!(!command.is_temperature_report(), "only responses are filtered");
     }
 }

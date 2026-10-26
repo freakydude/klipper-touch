@@ -3,9 +3,9 @@
 use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::{AppWindow, PresetItem, UiSettings};
-use freakymate_core::settings::{Settings, SettingsStore, TemperaturePreset};
+use freakymate_core::settings::{Settings, SettingsStore, TemperaturePreset, MAX_SHOWN_PRESETS};
 use freakymate_core::{Endpoint, PrinterService};
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,6 +40,7 @@ impl SettingsController {
             presets: Rc::default(),
         });
         controller.apply_hidden_macros();
+        controller.presenter.set_hide_temperature_reports(controller.settings.borrow().hide_temperature_reports);
         let weak = Rc::downgrade(&controller);
         controller.presenter.on_macros_loaded(move |macros| {
             if let Some(controller) = weak.upgrade() {
@@ -64,6 +65,7 @@ impl SettingsController {
         let settings = self.settings.borrow();
         ui.set_moonraker(endpoint.display().into());
         ui.set_fullscreen(settings.fullscreen);
+        ui.set_hide_temperature_reports(settings.hide_temperature_reports);
         ui.set_move_step(settings.steps.move_mm as f32);
         ui.set_z_offset_step(settings.steps.z_offset_mm as f32);
         ui.set_temperature_step(settings.steps.temperature as f32);
@@ -71,7 +73,8 @@ impl SettingsController {
         ui.set_extrude_speed(settings.steps.extrude_speed as f32);
         ui.set_settings_file(self.store.path().display().to_string().into());
         ui.set_version(freakymate_core::VERSION.into());
-        self.presets.set_vec(settings.temperature_presets.iter().map(preset_item).collect::<Vec<_>>());
+        let presets = settings.temperature_presets.iter().take(MAX_SHOWN_PRESETS).map(preset_item);
+        self.presets.set_vec(presets.collect::<Vec<_>>());
         ui.set_presets(ModelRc::from(self.presets.clone()));
     }
 
@@ -96,9 +99,10 @@ impl SettingsController {
             }
         });
         let controller = Rc::downgrade(self);
-        ui.on_preset_changed(move |index, extruder, bed| {
+        ui.on_hide_temperature_reports_toggled(move |hide| {
             if let Some(controller) = controller.upgrade() {
-                controller.change_preset(index, f64::from(extruder), f64::from(bed));
+                controller.update(|settings| settings.hide_temperature_reports = hide);
+                controller.presenter.set_hide_temperature_reports(hide);
             }
         });
     }
@@ -137,16 +141,6 @@ impl SettingsController {
             crate::app::set_pointer_visible(window.window(), !fullscreen);
         }
         self.update(|settings| settings.fullscreen = fullscreen);
-    }
-
-    fn change_preset(&self, index: i32, extruder: f64, bed: f64) {
-        let Ok(index) = usize::try_from(index) else { return };
-        self.update(|settings| settings.set_preset(index, extruder, bed));
-        if let Some(preset) = self.preset(index) {
-            if index < self.presets.row_count() {
-                self.presets.set_row_data(index, preset_item(&preset));
-            }
-        }
     }
 
     /// Shows a macro in the console or hides it; the choice is kept in the settings file.

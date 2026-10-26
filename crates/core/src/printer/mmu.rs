@@ -79,6 +79,56 @@ pub struct MmuSensor {
     pub triggered: Option<bool>,
 }
 
+/// Happy Hare's `filament_pos` when it does not know (`FILAMENT_POS_UNKNOWN` in `mmu_constants.py`).
+const FILAMENT_POS_UNKNOWN: i32 = -1;
+/// The sensor where the filament enters the gate from the spool.
+const GATE_ENTRY_SENSOR: &str = "mmu_entry";
+/// Sensors where the filament leaves the gate, in order of preference: the gate's own exit, then a shared exit.
+const GATE_EXIT_SENSORS: [&str; 2] = ["mmu_exit", "mmu_shared_exit"];
+const EXTRUDER_PATH_SENSOR: &str = "extruder";
+const TOOLHEAD_PATH_SENSOR: &str = "toolhead";
+
+/// A sensor drawn on the filament path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathSensor {
+    /// Not fitted or disabled: not drawn.
+    Absent,
+    Free,
+    Triggered,
+}
+
+impl PathSensor {
+    fn of(sensors: &[MmuSensor], name: &str) -> Self {
+        match sensors.iter().find(|sensor| sensor.name == name).and_then(|sensor| sensor.triggered) {
+            Some(true) => Self::Triggered,
+            Some(false) => Self::Free,
+            None => Self::Absent,
+        }
+    }
+}
+
+/// The way of the filament from the gate to the nozzle, as Happy Hare's console draws it (`log_visual`): the
+/// position on the way (`filament_pos`, -1 unknown, 0 parked in the gate up to 10 loaded to the nozzle, see
+/// `FILAMENT_POS_*` in `mmu_constants.py`), the direction and the sensors along it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FilamentPath {
+    pub position: i32,
+    pub direction: i32,
+    pub distance: f64,
+    /// 0 to 1 of the bowden while Happy Hare moves through it (`bowden_progress`), `None` otherwise.
+    pub bowden_progress: Option<f64>,
+    pub gate_entry_sensor: PathSensor,
+    pub gate_exit_sensor: PathSensor,
+    pub extruder_sensor: PathSensor,
+    pub toolhead_sensor: PathSensor,
+}
+
+/// Names of the sensors the path draws, so they are not listed a second time.
+pub fn path_sensor_names(sensors: &[MmuSensor]) -> Vec<&'static str> {
+    let exit = GATE_EXIT_SENSORS.into_iter().find(|name| PathSensor::of(sensors, name) != PathSensor::Absent);
+    [GATE_ENTRY_SENSOR].into_iter().chain(exit).chain([EXTRUDER_PATH_SENSOR, TOOLHEAD_PATH_SENSOR]).collect()
+}
+
 /// Sync-feedback state as Happy Hare reports it (`get_sync_feedback_string`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SyncFeedbackState {
@@ -166,6 +216,14 @@ pub struct MmuStatus {
     pub print_state: String,
     pub reason_for_pause: String,
     pub filament: LoadedFilament,
+    /// Where the filament of the selected gate is, see [`FilamentPath`].
+    pub filament_pos: i32,
+    /// 1 loading, -1 unloading, 0 unknown.
+    pub filament_direction: i32,
+    /// Distance the filament has moved in mm, as Happy Hare counts it.
+    pub filament_position: f64,
+    /// 0 to 1 of the bowden while Happy Hare moves through it; `None` (Happy Hare: -1) otherwise.
+    pub bowden_progress: Option<f64>,
     pub homed: bool,
     pub paused: bool,
     pub locked: bool,
@@ -184,6 +242,24 @@ pub struct MmuStatus {
 
 impl MmuStatus {
     /// Happy Hare 4.1 or newer; the rest of this model relies on its field names.
+    pub fn filament_path(&self) -> FilamentPath {
+        let gate_exit_sensor = GATE_EXIT_SENSORS
+            .into_iter()
+            .map(|name| PathSensor::of(&self.sensors, name))
+            .find(|sensor| *sensor != PathSensor::Absent)
+            .unwrap_or(PathSensor::Absent);
+        FilamentPath {
+            position: self.filament_pos,
+            direction: self.filament_direction.signum(),
+            distance: self.filament_position,
+            bowden_progress: self.bowden_progress,
+            gate_entry_sensor: PathSensor::of(&self.sensors, GATE_ENTRY_SENSOR),
+            gate_exit_sensor,
+            extruder_sensor: PathSensor::of(&self.sensors, EXTRUDER_PATH_SENSOR),
+            toolhead_sensor: PathSensor::of(&self.sensors, TOOLHEAD_PATH_SENSOR),
+        }
+    }
+
     pub fn is_supported(&self) -> bool {
         parse_version(&self.version).is_some_and(|version| version >= MIN_VERSION)
     }
@@ -207,6 +283,14 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
         print_state: text(mmu, "print_state"),
         reason_for_pause: text(mmu, "reason_for_pause"),
         filament: LoadedFilament::parse(&text(mmu, "filament")),
+        filament_pos: integer(mmu, "filament_pos", FILAMENT_POS_UNKNOWN),
+        filament_direction: integer(mmu, "filament_direction", 0),
+        filament_position: mmu.get("filament_position").and_then(Value::as_f64).unwrap_or_default(),
+        bowden_progress: mmu
+            .get("bowden_progress")
+            .and_then(Value::as_f64)
+            .filter(|percent| *percent >= 0.0)
+            .map(|percent| (percent / 100.0).min(1.0)),
         homed: flag(mmu, "is_homed"),
         paused: flag(mmu, "is_paused"),
         locked: flag(mmu, "is_locked"),
@@ -597,5 +681,60 @@ mod tests {
         assert!(boosting(json!({ "filament_proportional": false }), true));
         assert!(!boosting(json!({ "filament_proportional": false }), false));
         assert!(!boosting(json!({ "filament_tension": true }), true));
+    }
+
+    #[test]
+    fn the_path_has_the_gate_entry_and_exit_and_skips_disabled_sensors() {
+        let path = |sensors: Value, progress: f64| {
+            read_mmu(&store(json!({ "mmu": {
+                "filament_pos": 3, "filament_direction": 1, "filament_position": 412.6, "sensors": sensors,
+                "bowden_progress": progress
+            } })))
+            .unwrap()
+            .filament_path()
+        };
+
+        let both = path(json!({ "mmu_entry": true, "mmu_exit": false, "extruder": null, "toolhead": true }), 35.0);
+        assert_eq!((both.position, both.direction, both.distance, both.bowden_progress), (3, 1, 412.6, Some(0.35)));
+        assert_eq!((both.gate_entry_sensor, both.gate_exit_sensor), (PathSensor::Triggered, PathSensor::Free));
+        assert_eq!(both.extruder_sensor, PathSensor::Absent, "disabled");
+        assert_eq!(both.toolhead_sensor, PathSensor::Triggered);
+        let shared = path(json!({ "mmu_shared_exit": true }), -1.0);
+        assert_eq!((shared.gate_exit_sensor, shared.bowden_progress), (PathSensor::Triggered, None));
+        assert_eq!(read_mmu(&store(json!({ "mmu": {} }))).unwrap().filament_path().position, -1);
+    }
+
+    #[test]
+    fn the_sensors_on_the_path_are_named_once() {
+        let sensors = |names: &[(&str, bool)]| -> Vec<MmuSensor> {
+            names.iter().map(|(name, on)| MmuSensor { name: (*name).into(), triggered: Some(*on) }).collect()
+        };
+        assert_eq!(
+            path_sensor_names(&sensors(&[("mmu_entry", true), ("mmu_exit", false)])),
+            ["mmu_entry", "mmu_exit", "extruder", "toolhead"]
+        );
+        assert_eq!(path_sensor_names(&sensors(&[("mmu_entry", true)])), ["mmu_entry", "extruder", "toolhead"]);
+    }
+
+    #[test]
+    fn every_sensor_of_the_path_is_optional() {
+        let path = |sensors: Value| {
+            read_mmu(&store(json!({ "mmu": { "filament_pos": 10, "sensors": sensors } }))).unwrap().filament_path()
+        };
+        let all_absent = |path: FilamentPath| {
+            [path.gate_entry_sensor, path.gate_exit_sensor, path.extruder_sensor, path.toolhead_sensor]
+                .iter()
+                .all(|sensor| *sensor == PathSensor::Absent)
+        };
+
+        assert!(all_absent(path(json!({}))), "no sensors at all: the path is drawn without marks");
+        assert!(all_absent(read_mmu(&store(json!({ "mmu": {} }))).unwrap().filament_path()), "no sensor list");
+        let only_toolhead = path(json!({ "toolhead": true }));
+        assert_eq!(only_toolhead.toolhead_sensor, PathSensor::Triggered);
+        assert_eq!(
+            (only_toolhead.gate_entry_sensor, only_toolhead.gate_exit_sensor, only_toolhead.extruder_sensor),
+            (PathSensor::Absent, PathSensor::Absent, PathSensor::Absent)
+        );
+        assert_eq!(path(json!({})).position, 10, "the position does not depend on sensors");
     }
 }

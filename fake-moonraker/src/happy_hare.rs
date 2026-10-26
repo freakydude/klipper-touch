@@ -12,6 +12,12 @@ const GATE_EMPTY: i32 = 0;
 const GATE_AVAILABLE: i32 = 1;
 const FILAMENT_POSITION_UNLOADED: i32 = 0;
 const FILAMENT_POSITION_LOADED: i32 = 10;
+/// Where Happy Hare's `filament_pos` passes the sensors of the way: gate exit, extruder entry, toolhead.
+const FILAMENT_POSITION_GATE_SENSOR: i32 = 1;
+const FILAMENT_POSITION_EXTRUDER_SENSOR: i32 = 5;
+const FILAMENT_POSITION_TOOLHEAD_SENSOR: i32 = 8;
+/// Millimetres from the gate to the nozzle, for `filament_position`.
+const PATH_LENGTH: f64 = 1712.4;
 const UNIT_NAME: &str = "unit0";
 
 pub(crate) struct Spool {
@@ -47,7 +53,7 @@ pub(crate) const SPOOLS: [Spool; 6] = [
     },
     // The first colour of the multi-colour filaments, which is what Happy Hare reports for a gate.
     Spool {
-        name: "Silk Red+Green",
+        name: "Gradient Red+Green",
         material: "PLA",
         vendor: "Fake",
         color: "red",
@@ -86,6 +92,10 @@ pub struct HappyHare {
     gate: i32,
     tool: i32,
     loaded: bool,
+    /// Last movement of the filament: 1 load, -1 unload, 0 none (`filament_direction`).
+    direction: i32,
+    /// Held by `FAKE_MMU_FILAMENT`; otherwise the position follows `loaded`.
+    held_position: Option<i32>,
     toolchanges: u32,
     tool_to_gate: Vec<usize>,
     gate_status: Vec<i32>,
@@ -111,6 +121,8 @@ impl HappyHare {
             gate: NONE_SELECTED,
             tool: NONE_SELECTED,
             loaded: false,
+            direction: 0,
+            held_position: None,
             toolchanges: 0,
             tool_to_gate: (0..gates).collect(),
             gate_status,
@@ -131,6 +143,11 @@ impl HappyHare {
             MmuCommand::Unload => self.unload(),
             MmuCommand::Eject { gate, force } => self.eject(gate, force),
             MmuCommand::GateMap { gate, spool_id } => self.gate_map(gate, spool_id),
+            MmuCommand::FakeFilament { position, direction } => {
+                self.held_position = Some(position);
+                self.direction = direction;
+                Ok(())
+            }
             MmuCommand::FakeTangle { boosting } => {
                 self.boosting = boosting;
                 Ok(())
@@ -172,7 +189,7 @@ impl HappyHare {
             *self.tool_to_gate.get(tool).ok_or_else(|| CommandError::new(format!("Tool T{tool} does not exist")))?;
         self.require_filament_at(gate)?;
         self.select(gate);
-        self.loaded = true;
+        self.set_loaded(true);
         self.tool = tool as i32;
         self.toolchanges += 1;
         Ok(())
@@ -185,7 +202,7 @@ impl HappyHare {
         }
         let selected = usize::try_from(self.gate).map_err(|_| CommandError::new("No gate selected"))?;
         self.require_filament_at(selected)?;
-        self.loaded = true;
+        self.set_loaded(true);
         Ok(())
     }
 
@@ -202,7 +219,7 @@ impl HappyHare {
         if self.loaded && Some(target) != current {
             return Err(CommandError::new("Cannot eject another gate while filament is loaded"));
         }
-        self.loaded = false;
+        self.set_loaded(false);
         self.gate_status[target] = GATE_EMPTY;
         Ok(())
     }
@@ -212,8 +229,28 @@ impl HappyHare {
         if !self.loaded {
             return Err(CommandError::new("Filament is not loaded"));
         }
-        self.loaded = false;
+        self.set_loaded(false);
         Ok(())
+    }
+
+    /// A load or an unload ends at its end of the way, moving in its direction.
+    fn set_loaded(&mut self, loaded: bool) {
+        self.loaded = loaded;
+        self.direction = if loaded { 1 } else { -1 };
+        self.held_position = None;
+    }
+
+    fn filament_position(&self) -> i32 {
+        self.held_position.unwrap_or(if self.loaded { FILAMENT_POSITION_LOADED } else { FILAMENT_POSITION_UNLOADED })
+    }
+
+    /// Happy Hare's `bowden_progress`: 0 to 100 while the filament moves through the bowden (positions 2 to 4), -1
+    /// otherwise. A held position stands for a third of the way per step.
+    fn bowden_progress(&self) -> f64 {
+        match self.held_position {
+            Some(position @ 2..=4) => f64::from(position - 1) * 100.0 / 3.0,
+            _ => -1.0,
+        }
     }
 
     fn select(&mut self, gate: usize) {
@@ -302,7 +339,11 @@ impl HappyHare {
             "num_toolchanges": self.toolchanges,
             "operation": "",
             "filament": if self.loaded { "Loaded" } else { "Unloaded" },
-            "filament_pos": if self.loaded { FILAMENT_POSITION_LOADED } else { FILAMENT_POSITION_UNLOADED },
+            "filament_pos": self.filament_position(),
+            "filament_direction": self.direction,
+            "bowden_progress": self.bowden_progress(),
+            "filament_position": PATH_LENGTH * f64::from(self.filament_position().max(0)) / f64::from(FILAMENT_POSITION_LOADED)
+                * f64::from(if self.direction < 0 { -1 } else { 1 }),
             "action": "Idle",
             "reason_for_pause": "",
             "is_paused": false,
@@ -375,13 +416,14 @@ impl HappyHare {
             .ok()
             .and_then(|gate| self.gate_status.get(gate))
             .is_some_and(|status| *status == GATE_AVAILABLE);
+        let past = |sensor: i32| self.filament_position() >= sensor;
         json!({
             "mmu_entry": at_entry,
-            "mmu_exit": self.loaded,
-            "extruder": self.loaded,
-            "toolhead": self.loaded,
+            "mmu_exit": past(FILAMENT_POSITION_GATE_SENSOR),
+            "extruder": past(FILAMENT_POSITION_EXTRUDER_SENSOR),
+            "toolhead": past(FILAMENT_POSITION_TOOLHEAD_SENSOR),
             "mmu_pre_gate": at_entry,
-            "mmu_gear": self.loaded,
+            "mmu_gear": past(FILAMENT_POSITION_GATE_SENSOR),
             "filament_compression": false,
             "filament_tension": printing && self.boosting,
             "filament_proportional": false,
@@ -610,5 +652,32 @@ mod tests {
         assert_eq!(printing["sync_feedback_state"], "tension");
         assert_eq!(printing["sensors"]["filament_tension"], true);
         assert_eq!(hare.status("standby")["mmu"]["tangle_prevention"]["boosted"], false);
+    }
+
+    #[test]
+    fn the_way_of_the_filament_follows_loads_and_can_be_held_midway() {
+        let mut hare = homed(4);
+        hare.apply(MmuCommand::Select { gate: 0 }).unwrap();
+        hare.apply(MmuCommand::Load).unwrap();
+        assert_eq!(
+            (mmu(&hare)["filament_pos"].clone(), mmu(&hare)["filament_direction"].clone()),
+            (json!(10), json!(1))
+        );
+        assert_eq!(mmu(&hare)["sensors"]["toolhead"], true);
+
+        hare.apply(MmuCommand::FakeFilament { position: 3, direction: 1 }).unwrap();
+        let midway = mmu(&hare);
+        assert_eq!(midway["filament_pos"], 3);
+        assert!((midway["bowden_progress"].as_f64().unwrap() - 66.67).abs() < 0.1);
+        assert_eq!(
+            (midway["sensors"]["mmu_exit"].clone(), midway["sensors"]["extruder"].clone()),
+            (json!(true), json!(false))
+        );
+
+        hare.apply(MmuCommand::Unload).unwrap();
+        assert_eq!(
+            (mmu(&hare)["filament_pos"].clone(), mmu(&hare)["filament_direction"].clone()),
+            (json!(0), json!(-1))
+        );
     }
 }

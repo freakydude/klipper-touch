@@ -338,7 +338,8 @@ export component TextEntryDialog inherits Scrim {
                 spacing: 8px;
                 HorizontalLayout {
                     spacing: 8px;
-                    height: 48px;
+                    // As high as the buttons in it, so they keep the gap to the keys.
+                    height: Theme.touch;
                     Text {
                         text: root.title;
                         color: Theme.muted;
@@ -597,7 +598,7 @@ export component SpoolDialog inherits Scrim {
     visible: SpoolPicker.open;
 
     changed visible => {
-        if (!self.visible) { root.selected = -1; }
+        root.selected = self.visible ? SpoolPicker.current : -1;
     }
 
     Rectangle {
@@ -612,7 +613,7 @@ export component SpoolDialog inherits Scrim {
             padding: 10px;
             spacing: 8px;
             HorizontalLayout {
-                height: 40px;
+                height: Theme.touch;
                 spacing: 10px;
                 Text {
                     horizontal-stretch: 1;
@@ -627,6 +628,12 @@ export component SpoolDialog inherits Scrim {
                     color: Theme.warning;
                     font-size: Theme.font-small;
                     vertical-alignment: center;
+                }
+                IconButton {
+                    width: Theme.touch;
+                    icon: Icons.ui-close;
+                    accessible-label: @tr("Close");
+                    clicked => { SpoolPicker.open = false; }
                 }
             }
             spools-list := ScrollList {
@@ -655,6 +662,7 @@ export component SpoolDialog inherits Scrim {
                                 second: spool.color-2;
                                 third: spool.color-3;
                                 count: spool.color-count;
+                                longitudinal: spool.longitudinal;
                             }
                         }
                         VerticalLayout {
@@ -695,15 +703,11 @@ export component SpoolDialog inherits Scrim {
             HorizontalLayout {
                 spacing: Theme.spacing;
                 height: Theme.touch;
-                IconButton {
-                    icon: Icons.ui-close;
-                    text: @tr("Close");
-                    horizontal: true;
-                    clicked => { SpoolPicker.open = false; }
-                }
+                // Takes only the link to Spoolman away; Happy Hare keeps material and colour of the gate.
                 if SpoolPicker.gate >= 0: IconButton {
-                    text: @tr("Remove");
+                    text: @tr("Unlink");
                     horizontal: true;
+                    enabled: SpoolPicker.current >= 0;
                     clicked => {
                         Actions.assign-gate-spool(SpoolPicker.gate, -1);
                         SpoolPicker.open = false;

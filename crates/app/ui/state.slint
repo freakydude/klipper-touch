@@ -2,7 +2,8 @@
 
 import { Icons } from "icons.slint";
 
-export enum Page { print, move, temperature, tune, filament, console, system, settings }
+// `updates`, `network`, `console` and `settings` (the Display tab) are tabs of the system pages.
+export enum Page { print, move, temperature, tune, filament, console, system, settings, updates, network }
 
 export struct HeaterItem {
     object: string,
@@ -14,6 +15,8 @@ export struct HeaterItem {
     can-raise: bool,
     // The temperature the spool in use recommends, when the target is off from it; empty otherwise.
     spool-hint: string,
+    // Moonraker keeps its temperature history, so a tap can show it.
+    has-history: bool,
 }
 
 export struct SensorItem {
@@ -22,6 +25,8 @@ export struct SensorItem {
     temperature: float,
     // false while the sensor has no value, e.g. a stepper driver that is switched off.
     known: bool,
+    // Moonraker keeps its temperature history, so a tap can show it.
+    has-history: bool,
 }
 
 // A fan. `kind`: part | generic | heater | controller; only part and generic fans can be set.
@@ -77,6 +82,8 @@ export struct MmuGateItem {
     color-2: color,
     color-3: color,
     color-count: int,
+    // The colours follow each other along the filament instead of lying side by side.
+    longitudinal: bool,
     // Tool mapped to this gate, -1 without one.
     tool: int,
     selected: bool,
@@ -85,6 +92,32 @@ export struct MmuGateItem {
     spool-low: bool,
     // Spoolman id of the spool in the gate, -1 for none.
     spool-id: int,
+}
+
+// A label of the temperature chart at `position`, a share from 0 to 1 along its axis.
+export struct ChartLabel {
+    text: string,
+    position: float,
+}
+
+// The way of the filament of the selected gate (Happy Hare's `filament_pos`, see `FilamentPath`). Sensors: -1 not
+// fitted, 0 free, 1 triggered; in order along the way: gate entry, gate exit, extruder, toolhead. `bowden-progress`
+// is 0 to 1 during a move through the bowden, -1 otherwise. The colours are those of the spool, as for `ColorBar`.
+export struct FilamentPathItem {
+    position: int,
+    direction: int,
+    distance: string,
+    gate-label: string,
+    bowden-progress: float,
+    gate-entry-sensor: int,
+    gate-sensor: int,
+    extruder-sensor: int,
+    toolhead-sensor: int,
+    color: color,
+    color-2: color,
+    color-3: color,
+    color-count: int,
+    longitudinal: bool,
 }
 
 // A spool of Spoolman in the picker. `place`: where it sits ("Gate 2", "In use") or empty.
@@ -97,6 +130,7 @@ export struct SpoolItem {
     color-3: color,
     // 0 to 3 colours
     color-count: int,
+    longitudinal: bool,
     place: string,
     low: bool,
 }
@@ -260,10 +294,11 @@ export global Printer {
     in property <string> history-temperature-path;
     in property <string> history-target-path;
     in property <string> history-power-path;
-    // Scale of the chart, e.g. "250 °C" and "20 °C".
-    in property <string> history-high;
-    in property <string> history-low;
-    in property <string> history-span;
+    // Grid of the chart: lines as path commands in the same view box, and their labels at a share (0 to 1) of the
+    // height from the top or of the width from the left.
+    in property <string> history-grid-path;
+    in property <[ChartLabel]> history-temperature-labels;
+    in property <[ChartLabel]> history-time-labels;
     in property <bool> can-extrude;
     in property <[FilamentSensorItem]> filament-sensors;
     // Objects of the running print; excluded ones cannot be printed again.
@@ -320,6 +355,8 @@ export global Printer {
     in property <int> spoolman-pending;
     // The spool in use: that of the selected gate, or the active spool of a printer without MMU.
     in property <bool> has-spool;
+    // Spoolman id of the spool in use, -1 for none.
+    in property <int> spool-id: -1;
     in property <string> spool-title;
     in property <string> spool-detail;
     // What is left of the spool, for example "613 g".
@@ -329,6 +366,9 @@ export global Printer {
     in property <color> spool-color-3;
     // 0 to 3 colours
     in property <int> spool-color-count;
+    in property <bool> spool-longitudinal;
+    // Where the filament of the selected gate is, for the drawing of its way.
+    in property <FilamentPathItem> mmu-path;
     in property <bool> spool-low;
     // Heating to what the spool in use recommends.
     in property <bool> has-spool-preset;
@@ -340,6 +380,8 @@ export global Printer {
     in property <[ConsoleItem]> console;
     in property <[PowerItem]> power-devices;
     in property <[UpdateItem]> updates;
+    // How many of them have an update waiting.
+    in property <int> updates-available;
 
     in property <string> clock;
     // Status bar: the message it shows (first line), and the flyout list, newest first.
@@ -360,6 +402,8 @@ export global Printer {
 export global UiSettings {
     in-out property <string> moonraker;
     in-out property <bool> fullscreen;
+    // The console leaves out Klipper's temperature reports while it waits for a heater.
+    in-out property <bool> hide-temperature-reports: true;
     in-out property <float> move-step: 10;
     in-out property <float> z-offset-step: 0.025;
     in-out property <float> temperature-step: 5;
@@ -373,7 +417,7 @@ export global UiSettings {
     callback steps-changed();
     callback moonraker-entered(string);
     callback fullscreen-toggled(bool);
-    callback preset-changed(int, float, float);
+    callback hide-temperature-reports-toggled(bool);
 }
 
 export global Actions {
@@ -506,9 +550,12 @@ export global SpoolPicker {
     in-out property <bool> open;
     // The gate to assign a spool to, -1 for the active spool of a printer without MMU.
     in-out property <int> gate: -1;
+    // The spool the gate (or the printer) has now, -1 for none; the dialog opens with it selected.
+    in-out property <int> current: -1;
 
-    public function show(gate: int) {
+    public function show(gate: int, current: int) {
         self.gate = gate;
+        self.current = current;
         self.open = true;
         Actions.load-spools();
     }
@@ -518,8 +565,6 @@ export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
     in-out property <bool> messages-open;
-    // 0 = general, 1 = network
-    in-out property <int> settings-tab;
     // Filament page: 0 = extruder, 1 = MMU
     in-out property <int> filament-tab;
     // First page of four gates that the MMU tab shows, counted from 0.
@@ -529,6 +574,8 @@ export global Navigation {
     // Tune page: 0 = basics, 1 = expert; the navigation rail opens the basics.
     in-out property <int> tune-tab;
     in-out property <bool> history-open;
+    // Width to height of the drawing area of the temperature chart; the chart's lines are drawn for this shape.
+    in-out property <float> history-aspect: 2;
     // The light panel at the light symbol of the status bar.
     in-out property <bool> light-open;
 }

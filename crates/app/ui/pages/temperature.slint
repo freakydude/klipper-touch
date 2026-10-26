@@ -12,8 +12,14 @@ component HeaterRow inherits Rectangle {
     // Narrow displays: slimmer target block and buttons.
     in property <bool> compact;
     height: root.row-height;
-    background: Theme.surface;
+    background: history-touch.pressed ? Theme.surface-raised : Theme.surface;
     border-radius: Theme.radius;
+
+    // A tap beside the buttons shows the temperature history, where Moonraker keeps one; the buttons lie above.
+    history-touch := TouchArea {
+        enabled: root.heater.has-history;
+        clicked => { Actions.open-history(root.heater.object); }
+    }
 
     HorizontalLayout {
         padding: 4px;
@@ -31,10 +37,6 @@ component HeaterRow inherits Rectangle {
         VerticalLayout {
             alignment: center;
             horizontal-stretch: 1;
-            // Tapping the name or the temperature shows the history.
-            TouchArea {
-                clicked => { Actions.open-history(root.heater.object); }
-            }
             HorizontalLayout {
                 spacing: 8px;
                 Text {
@@ -42,6 +44,12 @@ component HeaterRow inherits Rectangle {
                     color: Theme.muted;
                     font-size: Theme.font-small;
                     overflow: elide;
+                }
+                if root.heater.has-history: Image {
+                    source: Icons.nav-history;
+                    colorize: Theme.muted;
+                    width: 14px;
+                    height: 14px;
                 }
                 // The spool in use recommends another temperature than the target: a quiet note, nothing is changed.
                 if root.heater.spool-hint != "": Text {
@@ -265,7 +273,17 @@ component SensorsTab inherits Rectangle {
             background: sensor-touch.pressed ? Theme.surface-raised : Theme.surface;
             border-radius: Theme.radius;
             sensor-touch := TouchArea {
+                enabled: sensor.has-history;
                 clicked => { Actions.open-history(sensor.object); }
+            }
+            // Marks the sensors with a history in Moonraker; the others cannot open a chart.
+            if sensor.has-history: Image {
+                x: parent.width - self.width - 8px;
+                y: 8px;
+                source: Icons.nav-history;
+                colorize: Theme.muted;
+                width: 16px;
+                height: 16px;
             }
             VerticalLayout {
                 padding-left: 10px;

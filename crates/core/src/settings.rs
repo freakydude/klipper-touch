@@ -6,6 +6,8 @@ use thiserror::Error;
 
 const APP_FOLDER: &str = "freakymate";
 const FILE_NAME: &str = "settings.json";
+/// Presets the Thermal page has room for beside the heaters.
+pub const MAX_SHOWN_PRESETS: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -14,11 +16,14 @@ pub struct Settings {
     pub moonraker: String,
     pub fullscreen: bool,
     pub steps: Steps,
+    /// Edited in the settings file only; the Thermal page shows the first [`MAX_SHOWN_PRESETS`].
     pub temperature_presets: Vec<TemperaturePreset>,
     /// Macros the printer had when the touch screen last saw it; a macro missing here counts as new.
     pub known_macros: Vec<String>,
     /// Known macros the user hides from the console.
     pub hidden_macros: Vec<String>,
+    /// Leaves out the temperature reports that Klipper sends while waiting for a heater (like Mainsail).
+    pub hide_temperature_reports: bool,
 }
 
 impl Settings {
@@ -70,6 +75,7 @@ impl Default for Settings {
             ],
             known_macros: Vec::new(),
             hidden_macros: Vec::new(),
+            hide_temperature_reports: true,
         }
     }
 }
@@ -77,16 +83,6 @@ impl Default for Settings {
 impl Default for Steps {
     fn default() -> Self {
         Self { move_mm: 10.0, z_offset_mm: 0.025, temperature: 5.0, extrude_mm: 10.0, extrude_speed: 5.0 }
-    }
-}
-
-impl Settings {
-    /// Changes a preset; temperatures cannot be negative. Unknown indexes are ignored.
-    pub fn set_preset(&mut self, index: usize, extruder: f64, bed: f64) {
-        if let Some(preset) = self.temperature_presets.get_mut(index) {
-            preset.extruder = extruder.max(0.0);
-            preset.bed = bed.max(0.0);
-        }
     }
 }
 
@@ -138,6 +134,17 @@ impl SettingsStore {
         }
     }
 
+    /// Like [`Self::load`], but writes the defaults when the file is missing, so every setting (for example the
+    /// temperature presets) is there to edit by hand.
+    pub fn load_or_create(&self) -> Result<Settings, SettingsError> {
+        if self.path.exists() {
+            return self.load();
+        }
+        let settings = Settings::default();
+        self.save(&settings)?;
+        Ok(settings)
+    }
+
     /// Writes atomically via a temporary file so a power loss never leaves a half-written file.
     pub fn save(&self, settings: &Settings) -> Result<(), SettingsError> {
         let io_error = |source| SettingsError::Io { path: self.path.clone(), source };
@@ -158,17 +165,6 @@ mod tests {
 
     fn names(list: &[&str]) -> Vec<String> {
         list.iter().map(|name| name.to_string()).collect()
-    }
-
-    #[test]
-    fn presets_cannot_go_below_zero_and_unknown_indexes_are_ignored() {
-        let mut settings = Settings::default();
-
-        settings.set_preset(0, -5.0, 65.0);
-        settings.set_preset(99, 1.0, 1.0);
-
-        assert_eq!((settings.temperature_presets[0].extruder, settings.temperature_presets[0].bed), (0.0, 65.0));
-        assert_eq!(settings.temperature_presets.len(), 4);
     }
 
     #[test]
@@ -216,6 +212,17 @@ mod tests {
     fn missing_file_gives_defaults() {
         let store = temporary_store("missing");
 
+        assert_eq!(store.load().unwrap(), Settings::default());
+    }
+
+    #[test]
+    fn a_missing_file_is_created_with_the_defaults() {
+        let store = temporary_store("create");
+
+        assert_eq!(store.load_or_create().unwrap(), Settings::default());
+
+        let text = std::fs::read_to_string(store.path()).unwrap();
+        assert!(text.contains("\"temperature_presets\""));
         assert_eq!(store.load().unwrap(), Settings::default());
     }
 

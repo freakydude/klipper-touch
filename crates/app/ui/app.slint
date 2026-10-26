@@ -13,11 +13,13 @@ import { TunePage } from "pages/tune.slint";
 import { FilamentPage } from "pages/filament.slint";
 import { ConsolePage } from "pages/console.slint";
 import { SystemPage } from "pages/system.slint";
+import { UpdatesPage } from "pages/updates.slint";
 import { SettingsPage } from "pages/settings.slint";
+import { NetworkPage } from "pages/network-page.slint";
 import { ConnectionPage } from "pages/connection.slint";
 
 export { Actions, Confirm, Navigation, Network, Page, Printer, SpoolPicker, UiSettings }
-export { FileItem, HeaterItem, SensorItem, FanItem, LedItem, LedEffectItem, TuningItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
+export { ChartLabel, FilamentPathItem, FileItem, HeaterItem, SensorItem, FanItem, LedItem, LedEffectItem, TuningItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
 
 export component AppWindow inherits Window {
     title: "FreakyMate";
@@ -38,8 +40,9 @@ export component AppWindow inherits Window {
     changed height => { Display.window-height = root.height; }
 
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
-        || (Navigation.page == Page.console && Printer.connection == "connected");
-    property <bool> network-visible: Navigation.page == Page.settings && Navigation.settings-tab == 1;
+        || Navigation.page == Page.network
+        || ((Navigation.page == Page.console || Navigation.page == Page.updates) && Printer.connection == "connected");
+    property <bool> network-visible: Navigation.page == Page.network;
 
     changed network-visible => { Network.watch(self.network-visible); }
 
@@ -57,7 +60,9 @@ export component AppWindow inherits Window {
                 if Navigation.page == Page.filament: FilamentPage { }
                 if Navigation.page == Page.console: ConsolePage { }
                 if Navigation.page == Page.system: SystemPage { }
+                if Navigation.page == Page.updates: UpdatesPage { }
                 if Navigation.page == Page.settings: SettingsPage { }
+                if Navigation.page == Page.network: NetworkPage { }
                 if !Printer.ready && !root.page-works-offline: ConnectionPage { }
                 // Over the page and the navigation, below the status bar: the emergency stop stays in reach.
                 HistoryDialog { }

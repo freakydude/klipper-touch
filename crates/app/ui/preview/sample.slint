@@ -114,6 +114,11 @@ export global Sample {
             { label: "Toolhead", state: "open" },
         ];
         Printer.mmu-has-buffer = true;
+        Printer.mmu-path = {
+            bowden-progress: -1, position: 10, direction: 1, distance: "1712.4 mm", gate-label: "Gate 2",
+            gate-entry-sensor: 1, gate-sensor: 1, extruder-sensor: 1, toolhead-sensor: 1,
+            color: #4dabf7, color-count: 1, longitudinal: false,
+        };
         Printer.mmu-buffer-state = "tension";
         Printer.mmu-buffer-bias = -0.9;
         Printer.mmu-flowguard-state = "ready";
@@ -200,7 +205,6 @@ export global Sample {
             },
         ];
         Network.wired = [{ interface: "eth0", cable: true, connected: true, address: "192.168.1.42" }];
-        Navigation.page = Page.settings;
-        Navigation.settings-tab = 1;
+        Navigation.page = Page.network;
     }
 }

@@ -23,6 +23,9 @@ pub struct Spool {
     pub material: String,
     /// One to three colours: Spoolman's multi-colour filaments (`multi_color_hexes`) have up to three; empty if unknown.
     pub colors: Vec<[u8; 3]>,
+    /// The colours follow each other along the filament (`multi_color_direction` longitudinal); otherwise a
+    /// multi-colour filament has them side by side (coaxial), which is also the common case without the field.
+    pub longitudinal: bool,
     /// Grams of filament left.
     pub remaining_weight: Option<f64>,
     /// Grams of filament at the start.
@@ -56,6 +59,7 @@ impl Spool {
             filament_name: text(filament, "name"),
             material: text(filament, "material"),
             colors: filament_colors(filament),
+            longitudinal: filament.get("multi_color_direction").and_then(Value::as_str) == Some("longitudinal"),
             remaining_weight: number(value, "remaining_weight"),
             initial_weight: number(value, "initial_weight").or_else(|| number(filament, "weight")),
             spool_weight: number(value, "spool_weight").or_else(|| number(filament, "spool_weight")),
@@ -407,6 +411,9 @@ mod tests {
         value["filament"]["multi_color_direction"] = json!("coaxial");
 
         assert_eq!(Spool::from_json(&value).unwrap().colors, [[0xFF, 0x00, 0x04], [0xFF, 0xA4, 0x24], [0, 0, 0]]);
+        assert!(!Spool::from_json(&value).unwrap().longitudinal);
+        value["filament"]["multi_color_direction"] = json!("longitudinal");
+        assert!(Spool::from_json(&value).unwrap().longitudinal);
         value["filament"]["multi_color_hexes"] = json!("111111,222222,333333,444444");
         assert_eq!(Spool::from_json(&value).unwrap().colors.len(), 3);
         value["filament"]["multi_color_hexes"] = json!("");

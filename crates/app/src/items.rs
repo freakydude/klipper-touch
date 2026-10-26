@@ -2,10 +2,10 @@
 
 use crate::{format, view};
 use crate::{
-    ConsoleItem, FanItem, HeaterItem, HostInterfaceItem, LedEffectItem, LedItem, PowerItem, SensorItem, SpoolItem,
-    TuningItem, UpdateItem,
+    ConsoleItem, FanItem, FilamentPathItem, HeaterItem, HostInterfaceItem, LedEffectItem, LedItem, PowerItem,
+    SensorItem, SpoolItem, TuningItem, UpdateItem,
 };
-use freakymate_core::printer::{Fan, Heater, Led, LedEffect, TemperatureSensor};
+use freakymate_core::printer::{Fan, FilamentPath, Heater, Led, LedEffect, PathSensor, TemperatureSensor};
 use freakymate_core::spoolman::{self, Lane, Spool};
 use freakymate_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use freakymate_core::tuning::TuningValue;
@@ -54,6 +54,7 @@ pub(crate) fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
                 color_2: bar.1,
                 color_3: bar.2,
                 color_count: bar.3,
+                longitudinal: spool.longitudinal && spool.colors.len() > 1,
                 place: place.into(),
                 low: spool.is_low(),
             }
@@ -72,7 +73,7 @@ pub(crate) fn color_bar(colors: &[[u8; 3]]) -> (slint::Color, slint::Color, slin
 }
 
 /// The row of a heater; the hint says that the target is off from what the spool in use recommends.
-pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>) -> HeaterItem {
+pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>, has_history: bool) -> HeaterItem {
     let recommended = spool.and_then(|spool| match heater.object.as_str() {
         "extruder" => spool.extruder_temp,
         "heater_bed" => spool.bed_temp,
@@ -88,6 +89,7 @@ pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>) -> HeaterItem 
         target: heater.target as f32,
         power: heater.power as f32,
         can_raise: heater.can_raise(),
+        has_history,
     }
 }
 
@@ -142,12 +144,13 @@ pub(crate) fn update_item(update: &UpdateInfo) -> UpdateItem {
     }
 }
 
-pub(crate) fn sensor_item(sensor: &TemperatureSensor) -> SensorItem {
+pub(crate) fn sensor_item(sensor: &TemperatureSensor, has_history: bool) -> SensorItem {
     SensorItem {
         object: sensor.object.as_str().into(),
         label: sensor.label.as_str().into(),
         temperature: sensor.temperature.unwrap_or_default() as f32,
         known: sensor.temperature.is_some(),
+        has_history,
     }
 }
 
@@ -182,6 +185,41 @@ pub(crate) fn tuning_item(value: &TuningValue) -> TuningItem {
             .into(),
         changed: value.is_changed(),
         can_reset: value.is_changed(),
+    }
+}
+
+/// The way of the filament of the selected gate, in the colours of what is in it (see `gate_colors`).
+pub(crate) fn filament_path_item(
+    path: &FilamentPath,
+    gate: i32,
+    colors: &[[u8; 3]],
+    longitudinal: bool,
+) -> FilamentPathItem {
+    let sensor = |sensor: PathSensor| match sensor {
+        PathSensor::Absent => -1,
+        PathSensor::Free => 0,
+        PathSensor::Triggered => 1,
+    };
+    let bar = color_bar(colors);
+    FilamentPathItem {
+        position: path.position,
+        direction: path.direction,
+        distance: view::path_distance(path.distance).into(),
+        gate_label: match gate {
+            -2 => "Bypass".into(),
+            gate if gate >= 0 => format!("Gate {gate}").into(),
+            _ => SharedString::new(),
+        },
+        bowden_progress: path.bowden_progress.map_or(-1.0, |progress| progress as f32),
+        gate_entry_sensor: sensor(path.gate_entry_sensor),
+        gate_sensor: sensor(path.gate_exit_sensor),
+        extruder_sensor: sensor(path.extruder_sensor),
+        toolhead_sensor: sensor(path.toolhead_sensor),
+        color: bar.0,
+        color_2: bar.1,
+        color_3: bar.2,
+        color_count: bar.3,
+        longitudinal,
     }
 }
 

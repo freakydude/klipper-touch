@@ -58,7 +58,7 @@ impl Application {
             Some(path) => SettingsStore::new(path),
             None => SettingsStore::default_location()?,
         };
-        let settings = store.load().unwrap_or_else(|error| {
+        let settings = store.load_or_create().unwrap_or_else(|error| {
             log::warn!("{error}; using defaults");
             freakymate_core::Settings::default()
         });

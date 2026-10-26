@@ -26,6 +26,7 @@ export component SpoolStrip inherits Rectangle {
                 second: Printer.spool-color-2;
                 third: Printer.spool-color-3;
                 count: Printer.spool-color-count;
+                longitudinal: Printer.spool-longitudinal;
             }
         }
         VerticalLayout {
@@ -56,6 +57,6 @@ export component SpoolStrip inherits Rectangle {
         }
     }
     TouchArea {
-        clicked => { SpoolPicker.show(-1); }
+        clicked => { SpoolPicker.show(-1, Printer.spool-id); }
     }
 }

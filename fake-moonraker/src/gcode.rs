@@ -143,6 +143,12 @@ pub enum MmuCommand {
     FakeTangle {
         boosting: bool,
     },
+    /// Not a Happy Hare command: holds the filament at a point of its way (`filament_pos`, -1 to 10) and moving in a
+    /// direction (-1, 0, 1), for pictures of a load in progress (`FAKE_MMU_FILAMENT POS=3 DIRECTION=1`).
+    FakeFilament {
+        position: i32,
+        direction: i32,
+    },
 }
 
 impl MmuCommand {
@@ -156,6 +162,7 @@ impl MmuCommand {
             MmuCommand::Eject { .. } => "MMU_EJECT",
             MmuCommand::GateMap { .. } => "MMU_GATE_MAP",
             MmuCommand::FakeTangle { .. } => "FAKE_MMU_TANGLE",
+            MmuCommand::FakeFilament { .. } => "FAKE_MMU_FILAMENT",
         }
     }
 }
@@ -264,6 +271,12 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "MMU_GATE_MAP" => Ok(Command::Mmu(MmuCommand::GateMap {
             gate: required_index(&args, "GATE")?,
             spool_id: named_value(&args, "SPOOLID")?.map(|id| id as i64),
+        })),
+        "FAKE_MMU_FILAMENT" => Ok(Command::Mmu(MmuCommand::FakeFilament {
+            position: named_value(&args, "POS")?
+                .ok_or_else(|| CommandError::new("Missing parameter POS"))?
+                .clamp(-1.0, 10.0) as i32,
+            direction: named_value(&args, "DIRECTION")?.unwrap_or(0.0).signum() as i32,
         })),
         "FAKE_MMU_TANGLE" => {
             Ok(Command::Mmu(MmuCommand::FakeTangle { boosting: required_index(&args, "BOOST")? != 0 }))

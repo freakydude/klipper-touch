@@ -5,9 +5,10 @@ import { Icons } from "../icons.slint";
 import { Actions, Navigation, Printer } from "../state.slint";
 import { IconButton } from "controls.slint";
 
-// A line of the chart; the commands use a 1000 x 1000 view box, which stretches to the size of the chart.
+// A line of the chart. The view box is 1000 high and as wide as the drawing area's shape, because a path is scaled
+// evenly; the lines are computed for that shape (`Navigation.history-aspect`).
 component ChartLine inherits Path {
-    viewbox-width: 1000;
+    viewbox-width: 1000 * Navigation.history-aspect;
     viewbox-height: 1000;
     fill: transparent;
     stroke-width: 2px;
@@ -67,22 +68,43 @@ export component HistoryDialog inherits Rectangle {
             }
         }
 
+        // Temperature labels left of the chart, time labels below it; both at the grid lines.
         HorizontalLayout {
             spacing: Theme.spacing;
             vertical-stretch: 1;
-            VerticalLayout {
-                width: 64px;
-                Text { text: Printer.history-high; color: Theme.muted; font-size: Theme.font-small; horizontal-alignment: right; }
-                Rectangle { vertical-stretch: 1; }
-                Text { text: Printer.history-low; color: Theme.muted; font-size: Theme.font-small; horizontal-alignment: right; }
+            temperature-axis := Rectangle {
+                width: 56px;
+                for label in Printer.history-temperature-labels: Text {
+                    x: 0;
+                    y: 8px + (parent.height - 16px) * label.position - 8px;
+                    width: parent.width;
+                    height: 16px;
+                    text: label.text;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
             }
-            Rectangle {
+            chart := Rectangle {
                 horizontal-stretch: 1;
+                init => { Navigation.history-aspect = (self.width - 16px) / max(1px, self.height - 16px); }
+                changed width => { Navigation.history-aspect = (self.width - 16px) / max(1px, self.height - 16px); }
+                changed height => { Navigation.history-aspect = (self.width - 16px) / max(1px, self.height - 16px); }
                 background: Theme.surface;
                 border-radius: Theme.radius;
                 border-width: 1px;
                 border-color: Theme.border;
                 clip: true;
+                ChartLine {
+                    x: 8px;
+                    y: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height - 16px;
+                    commands: Printer.history-grid-path;
+                    stroke: Theme.border;
+                    stroke-width: 1px;
+                }
                 ChartLine {
                     x: 8px;
                     y: 8px;
@@ -108,18 +130,43 @@ export component HistoryDialog inherits Rectangle {
                     stroke: Theme.accent;
                     stroke-width: 3px;
                 }
+                if Printer.history-temperature-path == "": Text {
+                    text: @tr("Loading the history from Moonraker …");
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                }
             }
         }
 
         HorizontalLayout {
-            padding-left: 72px;
+            spacing: Theme.spacing;
+            height: 18px;
+            Rectangle { width: temperature-axis.width; }
+            Rectangle {
+                horizontal-stretch: 1;
+                for label in Printer.history-time-labels: Text {
+                    x: 8px + (parent.width - 16px) * label.position - 30px;
+                    width: 60px;
+                    text: label.text;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    x: parent.width - 8px - self.width / 2;
+                    text: @tr("now");
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                }
+            }
+        }
+
+        HorizontalLayout {
             spacing: 16px;
-            Text { text: Printer.history-span; color: Theme.muted; font-size: Theme.font-small; }
-            Rectangle { horizontal-stretch: 1; }
+            alignment: end;
             Legend { color: Theme.accent; text: @tr("Temperature"); }
             if Printer.history-target-path != "": Legend { color: Theme.muted; text: @tr("Target"); }
             if Printer.history-power-path != "": Legend { color: Theme.info.with-alpha(0.5); text: @tr("Power"); }
-            Text { text: @tr("now"); color: Theme.muted; font-size: Theme.font-small; }
         }
     }
 }

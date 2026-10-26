@@ -4,7 +4,7 @@ use crate::format;
 use chrono::{DateTime, Local};
 use freakymate_core::estimates;
 use freakymate_core::files::{FileInfo, FileMetadata, LastPrint};
-use freakymate_core::printer::FanKind;
+use freakymate_core::printer::{path_sensor_names, FanKind};
 use freakymate_core::printer::{
     FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
@@ -197,10 +197,21 @@ pub fn mmu_sensor_label(name: &str) -> String {
     characters.next().map_or_else(String::new, |first| first.to_uppercase().chain(characters).collect())
 }
 
-/// The sensors of the MMU for the chip list. The three buffer sensors are left out when a buffer gauge shows them.
+/// The sensors of the MMU for the chip list. The three buffer sensors are left out when a buffer gauge shows them, and
+/// those that the filament path draws.
 pub fn mmu_chip_sensors(sensors: &[MmuSensor], has_buffer: bool) -> Vec<&MmuSensor> {
     const BUFFER_SENSORS: [&str; 3] = ["filament_compression", "filament_tension", "filament_proportional"];
-    sensors.iter().filter(|sensor| !(has_buffer && BUFFER_SENSORS.contains(&sensor.name.as_str()))).collect()
+    let on_path = path_sensor_names(sensors);
+    sensors
+        .iter()
+        .filter(|sensor| !(has_buffer && BUFFER_SENSORS.contains(&sensor.name.as_str())))
+        .filter(|sensor| !on_path.contains(&sensor.name.as_str()))
+        .collect()
+}
+
+/// The distance on the filament path, e.g. `412.6 mm`.
+pub fn path_distance(millimetres: f64) -> String {
+    format!("{millimetres:.1} mm")
 }
 
 /// `triggered` means filament is present at the sensor; `None` is a disabled sensor.
@@ -456,14 +467,15 @@ mod tests {
 
     #[test]
     fn buffer_sensors_are_hidden_only_when_the_gauge_shows_them() {
-        let sensors = ["mmu_entry", "filament_tension", "filament_proportional", "toolhead"]
+        let sensors = ["mmu_entry", "mmu_exit", "filament_tension", "filament_proportional", "toolhead"]
             .map(|name| MmuSensor { name: name.into(), triggered: Some(false) });
         let names = |has_buffer| -> Vec<String> {
             mmu_chip_sensors(&sensors, has_buffer).iter().map(|sensor| sensor.name.clone()).collect()
         };
 
-        assert_eq!(names(true), ["mmu_entry", "toolhead"]);
-        assert_eq!(names(false).len(), 4);
+        assert!(names(true).is_empty(), "entry, exit and toolhead are on the filament path, the buffer has its gauge");
+        assert_eq!(names(false), ["filament_tension", "filament_proportional"]);
+        assert_eq!(path_distance(412.63), "412.6 mm");
     }
 
     #[test]

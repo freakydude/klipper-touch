@@ -16,8 +16,8 @@ pub use macros::{
     MacroValueError, OfferedMacro,
 };
 pub use mmu::{
-    is_mmu_klipper_sensor, FlowGuard, FlowGuardState, GateAvailability, LoadedFilament, MmuGate, MmuSensor, MmuStatus,
-    SyncFeedback, SyncFeedbackState,
+    is_mmu_klipper_sensor, path_sensor_names, FilamentPath, FlowGuard, FlowGuardState, GateAvailability,
+    LoadedFilament, MmuGate, MmuSensor, MmuStatus, PathSensor, SyncFeedback, SyncFeedbackState,
 };
 pub use objects::ObjectStore;
 pub use pending::PendingTargets;

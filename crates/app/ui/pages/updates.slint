@@ -1,0 +1,63 @@
+// Updates of the printer host through Moonraker's update manager; a tab of the system pages.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, Printer } from "../state.slint";
+import { Card, IconButton, ScrollList } from "../components/controls.slint";
+import { SystemTabs } from "../components/system-tabs.slint";
+
+export component UpdatesPage inherits Rectangle {
+    init => { Actions.refresh-system(); }
+
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+        SystemTabs { }
+        Card {
+            title: @tr("Updates");
+            icon: Icons.system-update;
+            vertical-stretch: 1;
+            update-list := ScrollList {
+                property <length> row-pitch: 54px;
+                vertical-stretch: 1;
+                content-height: Printer.updates.length * self.row-pitch;
+                for update[index] in Printer.updates: HorizontalLayout {
+                    y: index * update-list.row-pitch;
+                    width: update-list.row-width;
+                    height: 48px;
+                    spacing: Theme.spacing;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Text { text: update.name; color: Theme.foreground; font-size: Theme.font-normal; overflow: elide; }
+                        Text { text: update.detail; color: update.has-update ? Theme.warning : Theme.muted; font-size: Theme.font-small; overflow: elide; }
+                    }
+                    IconButton {
+                        width: 128px;
+                        // Fits the row, so the buttons of two updates do not touch.
+                        min-height: 40px;
+                        icon: Icons.system-update;
+                        icon-size: 20px;
+                        horizontal: true;
+                        text: @tr("Update");
+                        enabled: update.has-update && !Printer.host-actions-locked;
+                        clicked => { Confirm.ask(@tr("Update {}", update.name), update.detail, "upgrade", update.name, false); }
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                IconButton {
+                    width: 140px;
+                    height: 48px;
+                    icon: Icons.ui-refresh;
+                    icon-size: 20px;
+                    horizontal: true;
+                    text: @tr("Check");
+                    enabled: !Printer.host-actions-locked;
+                    clicked => { Actions.refresh-updates(); }
+                }
+            }
+        }
+    }
+}
