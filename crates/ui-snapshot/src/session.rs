@@ -10,7 +10,8 @@ use freakymate_core::settings::{Settings, SettingsStore};
 use freakymate_core::{Endpoint, PrinterService, ServiceChannels, Snapshot};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
 use slint::platform::{Platform, WindowAdapter};
-use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};
+use slint::platform::{PointerEventButton, WindowEvent};
+use slint::{ComponentHandle, LogicalPosition, PhysicalSize, Rgb8Pixel};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -173,6 +174,38 @@ impl Session {
             .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
         println!("{}", path.display());
         Ok(())
+    }
+
+    /// Puts a finger down at the position (logical pixels of the window).
+    pub fn press(&mut self, x: f32, y: f32) {
+        self.window.window().dispatch_event(WindowEvent::PointerPressed {
+            position: LogicalPosition::new(x, y),
+            button: PointerEventButton::Left,
+        });
+    }
+
+    /// Lifts the finger again at the position.
+    pub fn release(&mut self, x: f32, y: f32) {
+        self.window.window().dispatch_event(WindowEvent::PointerReleased {
+            position: LogicalPosition::new(x, y),
+            button: PointerEventButton::Left,
+        });
+    }
+
+    /// A short touch at the position.
+    pub fn tap(&mut self, x: f32, y: f32) {
+        self.press(x, y);
+        self.pump(Duration::from_millis(60));
+        self.release(x, y);
+        self.pump(Duration::from_millis(60));
+    }
+
+    /// Presses and releases a key of the physical keyboard (`text` is the character or a `slint::platform::Key`).
+    pub fn key(&mut self, text: impl Into<slint::SharedString>) {
+        let text = text.into();
+        self.window.window().dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+        self.window.window().dispatch_event(WindowEvent::KeyReleased { text });
+        self.pump(Duration::from_millis(30));
     }
 
     pub fn show_page(&mut self, page: Page, name: &str) -> Result<(), String> {

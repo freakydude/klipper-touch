@@ -2,11 +2,13 @@
 
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
-use crate::{Actions, AppWindow, TextTools};
+use crate::{Actions, AppWindow};
 use freakymate_core::printer::Axis;
 use freakymate_core::{Command, PrinterService, Query};
-use slint::ComponentHandle;
+use slint::platform::WindowEvent;
+use slint::{ComponentHandle, SharedString};
 use std::rc::Rc;
+use std::time::Duration;
 
 pub fn bind(
     window: &AppWindow,
@@ -168,21 +170,24 @@ pub fn bind(
     let clear_presenter = presenter.clone();
     actions.on_messages_clear(move || clear_presenter.clear_messages());
 
-    window.global::<TextTools>().on_remove_last(|text| {
-        let mut text = text.to_string();
-        text.pop();
-        text.into()
+    let key_window = window.as_weak();
+    actions.on_press_key(move |text| press_key(&key_window, text));
+}
+
+/// Types a key of the on-screen keyboard into the focused field, as a physical keyboard would. Deferred, because the
+/// tap that caused it is still being handled.
+fn press_key(window: &slint::Weak<AppWindow>, text: SharedString) {
+    let window = window.clone();
+    slint::Timer::single_shot(Duration::ZERO, move || {
+        let Some(window) = window.upgrade() else { return };
+        window.window().dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+        window.window().dispatch_event(WindowEvent::KeyReleased { text });
     });
-    window.global::<TextTools>().on_mask(|text| mask(&text).into());
 }
 
 /// A weight as typed, in grams; a comma as decimal separator is fine. Zero and negative are no weights.
 fn parse_weight(text: &str) -> Option<f64> {
     text.trim().replace(',', ".").parse::<f64>().ok().filter(|weight| weight.is_finite() && *weight > 0.0)
-}
-
-fn mask(text: &str) -> String {
-    "•".repeat(text.chars().count())
 }
 
 /// Callback with arguments that receives a cloned service.
@@ -228,11 +233,5 @@ mod tests {
         assert_eq!(parse_weight("-3"), None);
         assert_eq!(parse_weight("abc"), None);
         assert_eq!(parse_weight(""), None);
-    }
-
-    #[test]
-    fn masks_every_character() {
-        assert_eq!(mask("päss"), "••••");
-        assert_eq!(mask(""), "");
     }
 }
