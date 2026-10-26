@@ -7,21 +7,31 @@ const THUMBNAIL_SIZE: u32 = 300;
 #[derive(Debug, Clone)]
 pub struct GcodeFile {
     pub path: String,
+    pub modified: f64,
     pub estimated_time: f64,
+    /// Print duration of the last completed print; `None` if the file was never printed.
+    pub last_print_duration: Option<f64>,
     pub layer_count: u32,
     pub first_layer_extruder_temperature: f64,
     pub first_layer_bed_temperature: f64,
 }
 
 impl GcodeFile {
-    fn sample(path: &str, estimated_time: f64, layer_count: u32) -> Self {
+    fn sample(path: &str, modified: f64, estimated_time: f64, layer_count: u32) -> Self {
         Self {
             path: path.to_owned(),
+            modified,
             estimated_time,
+            last_print_duration: None,
             layer_count,
             first_layer_extruder_temperature: 210.0,
             first_layer_bed_temperature: 60.0,
         }
+    }
+
+    fn printed(mut self, print_duration: f64) -> Self {
+        self.last_print_duration = Some(print_duration);
+        self
     }
 
     pub fn filament_total(&self) -> f64 {
@@ -50,7 +60,7 @@ impl GcodeFile {
     }
 
     fn list_entry(&self) -> Value {
-        json!({ "path": self.path, "modified": 1_700_000_000.0, "size": self.size(), "permissions": "rw" })
+        json!({ "path": self.path, "modified": self.modified, "size": self.size(), "permissions": "rw" })
     }
 
     pub fn thumbnails(&self) -> Value {
@@ -66,7 +76,7 @@ impl GcodeFile {
         json!({
             "filename": self.path,
             "size": self.size(),
-            "modified": 1_700_000_000.0,
+            "modified": self.modified,
             "slicer": "FakeSlicer",
             "slicer_version": "1.0.0",
             "estimated_time": self.estimated_time,
@@ -105,9 +115,9 @@ impl Catalog {
     pub fn demo() -> Self {
         Self {
             files: vec![
-                GcodeFile::sample("calibration_cube.gcode", 1_500.0, 100),
-                GcodeFile::sample("benchy.gcode", 7_200.0, 250),
-                GcodeFile::sample("long_job.gcode", 36_000.0, 600),
+                GcodeFile::sample("calibration_cube.gcode", 1_700_000_000.0, 1_500.0, 100).printed(1_380.0),
+                GcodeFile::sample("benchy.gcode", 1_700_200_000.0, 7_200.0, 250).printed(7_650.0),
+                GcodeFile::sample("long_job.gcode", 1_700_100_000.0, 36_000.0, 600),
             ],
         }
     }
@@ -118,6 +128,37 @@ impl Catalog {
 
     pub fn list(&self) -> Value {
         Value::Array(self.files.iter().map(GcodeFile::list_entry).collect())
+    }
+
+    /// Job history, newest first: a completed job for every printed file, and a newer cancelled one for the benchy.
+    pub fn history(&self) -> Value {
+        let completed = self.files.iter().filter_map(|file| {
+            let duration = file.last_print_duration?;
+            Some(json!({
+                "job_id": format!("{:06X}", file.modified as u64),
+                "filename": file.path,
+                "status": "completed",
+                "start_time": file.modified + 60.0,
+                "end_time": file.modified + 60.0 + duration,
+                "print_duration": duration,
+                "total_duration": duration + 240.0,
+                "filament_used": file.filament_total() * 0.97,
+                "exists": true,
+            }))
+        });
+        let cancelled = json!({
+            "job_id": "0000FF",
+            "filename": "benchy.gcode",
+            "status": "cancelled",
+            "start_time": 1_700_300_000.0,
+            "end_time": 1_700_300_600.0,
+            "print_duration": 580.0,
+            "total_duration": 600.0,
+            "filament_used": 1_400.0,
+            "exists": true,
+        });
+        let jobs: Vec<Value> = std::iter::once(cancelled).chain(completed).collect();
+        json!({ "count": jobs.len(), "jobs": jobs })
     }
 
     pub fn thumbnail_svg(&self, thumbnail_path: &str) -> Option<String> {
@@ -144,6 +185,15 @@ mod tests {
         let relative_path = metadata["thumbnails"][0]["relative_path"].as_str().unwrap();
 
         assert!(catalog.thumbnail_svg(relative_path).is_some());
+    }
+
+    #[test]
+    fn history_lists_completed_jobs_after_the_newest_cancelled_one() {
+        let history = Catalog::demo().history();
+
+        assert_eq!(history["count"], 3);
+        assert_eq!(history["jobs"][0]["status"], "cancelled");
+        assert_eq!(history["jobs"][1]["status"], "completed");
     }
 
     #[test]

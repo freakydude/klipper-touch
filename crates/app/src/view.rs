@@ -2,7 +2,7 @@
 
 use crate::format;
 use chrono::{DateTime, Local};
-use klipper_touch_core::files::FileMetadata;
+use klipper_touch_core::files::{FileMetadata, LastPrint};
 use klipper_touch_core::printer::{
     FlowGuard, GateAvailability, Heater, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
@@ -12,8 +12,9 @@ use std::time::{Duration, Instant};
 /// A sent target that Klipper has not reported back by then is given up (e.g. rejected command).
 const PENDING_TARGET_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// From this progress on, extrapolating from the elapsed print time is more accurate than the slicer estimate.
-const PROGRESS_FOR_EXTRAPOLATION: f64 = 0.05;
+/// How much the expected print time counts against what has been observed so far, as a fraction of the expected
+/// time. The smaller it is, the sooner the remaining time follows the measured pace.
+const PRIOR_WEIGHT: f64 = 0.05;
 /// Cross section of 1.75 mm filament in mm².
 const FILAMENT_CROSS_SECTION: f64 = std::f64::consts::PI * 0.875 * 0.875;
 const NO_VALUE: &str = "-";
@@ -28,9 +29,14 @@ pub struct JobTexts {
     pub filament: String,
 }
 
-pub fn job_texts(job: &PrintJob, metadata: Option<&FileMetadata>, now: DateTime<Local>) -> JobTexts {
+pub fn job_texts(
+    job: &PrintJob,
+    metadata: Option<&FileMetadata>,
+    last_print: Option<&LastPrint>,
+    now: DateTime<Local>,
+) -> JobTexts {
     let metadata = metadata.filter(|metadata| metadata.filename == job.filename);
-    let remaining = if job.state.is_active() { remaining_seconds(job, metadata) } else { None };
+    let remaining = if job.state.is_active() { remaining_seconds(job, metadata, last_print) } else { None };
     JobTexts {
         name: if job.filename.is_empty() { String::new() } else { format::job_name(&job.filename) },
         elapsed: if job.filename.is_empty() { NO_VALUE.to_owned() } else { format::duration(job.print_duration) },
@@ -41,11 +47,31 @@ pub fn job_texts(job: &PrintJob, metadata: Option<&FileMetadata>, now: DateTime<
     }
 }
 
-fn remaining_seconds(job: &PrintJob, metadata: Option<&FileMetadata>) -> Option<f64> {
-    if job.progress >= PROGRESS_FOR_EXTRAPOLATION && job.print_duration > 0.0 {
-        return Some(job.print_duration / job.progress - job.print_duration);
+/// Expected total print time: the last measured print of the file, then the slicer estimate.
+fn expected_print_seconds(metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> Option<f64> {
+    last_print
+        .map(|last_print| last_print.print_duration)
+        .or_else(|| metadata.and_then(|metadata| metadata.estimated_time))
+        .filter(|seconds| *seconds > 0.0)
+}
+
+fn remaining_seconds(job: &PrintJob, metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> Option<f64> {
+    blended_remaining_seconds(expected_print_seconds(metadata, last_print), job.progress, job.print_duration)
+}
+
+/// The expected time counts like `PRIOR_WEIGHT` of it as observed print time. At the start it is the whole
+/// answer, with growing progress the measured pace (`elapsed / progress`) takes over; nothing jumps in between.
+fn blended_remaining_seconds(expected: Option<f64>, progress: f64, elapsed: f64) -> Option<f64> {
+    let remaining_share = 1.0 - progress.clamp(0.0, 1.0);
+    let Some(expected) = expected else {
+        return (progress > 0.0 && elapsed > 0.0).then(|| elapsed * remaining_share / progress);
+    };
+    if progress <= 0.0 {
+        return Some(expected);
     }
-    metadata.and_then(|metadata| metadata.estimated_time).map(|estimate| (estimate - job.print_duration).max(0.0))
+    let prior_seconds = PRIOR_WEIGHT * expected;
+    let pace = (elapsed + prior_seconds) / (progress * expected + prior_seconds);
+    Some(remaining_share * expected * pace)
 }
 
 fn layers(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
@@ -80,21 +106,47 @@ pub fn volumetric_flow(extruder_velocity: f64) -> f64 {
     extruder_velocity.max(0.0) * FILAMENT_CROSS_SECTION
 }
 
-/// Line below the file name in the file list.
-pub fn file_detail(modified: f64, size: u64, metadata: Option<&FileMetadata>) -> String {
+/// Line below the file name in the file list: modified, filament, nozzle, print time. Values of the last completed
+/// print win over what the slicer predicted; predictions are marked with `~`.
+pub fn file_detail(
+    modified: f64,
+    size: u64,
+    metadata: Option<&FileMetadata>,
+    last_print: Option<&LastPrint>,
+) -> String {
     let mut parts = vec![format::unix_date(modified)];
     if let Some(metadata) = metadata {
-        if let Some(estimate) = metadata.estimated_time {
-            parts.push(format::duration(estimate));
-        }
-        if let Some(filament) = metadata.filament_total {
-            parts.push(format::filament_length(filament));
-        }
+        parts.extend(file_filament(metadata, last_print));
+        parts.extend(metadata.nozzle_diameter.map(|diameter| format!("{diameter} nozzle")));
+        parts.extend(file_print_time(metadata, last_print));
     }
     if parts.len() == 1 {
         parts.push(format::file_size(size));
     }
     parts.join("  ·  ")
+}
+
+fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
+    let weight = last_print_weight(metadata, last_print)
+        .map(format::filament_weight)
+        .or_else(|| metadata.filament_weight_total.map(|grams| format!("~{}", format::filament_weight(grams))));
+    let parts: Vec<String> =
+        [metadata.filament_type.clone().filter(|kind| !kind.is_empty()), weight].into_iter().flatten().collect();
+    (!parts.is_empty()).then(|| parts.join(" "))
+}
+
+/// The slicer's weight scaled by the filament length the last print really used.
+fn last_print_weight(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<f64> {
+    let last_print = last_print?;
+    let planned_length = metadata.filament_total.filter(|length| *length > 0.0)?;
+    Some(metadata.filament_weight_total? * last_print.filament_used / planned_length)
+}
+
+fn file_print_time(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
+    match last_print {
+        Some(last_print) => Some(format::duration(last_print.print_duration)),
+        None => metadata.estimated_time.map(|estimate| format!("~{}", format::duration(estimate))),
+    }
 }
 
 /// Linux names wireless interfaces `wlan0`, `wlp2s0`, ...
@@ -268,29 +320,80 @@ mod tests {
     }
 
     #[test]
-    fn early_print_uses_slicer_estimate() {
+    fn print_on_the_expected_pace_counts_down_the_slicer_estimate() {
         let job = PrintJob {
             state: PrintState::Printing,
             filename: "dir/cube.gcode".into(),
-            progress: 0.01,
-            print_duration: 600.0,
+            progress: 0.1,
+            print_duration: 360.0,
             filament_used: 1000.0,
             current_layer: Some(3),
             ..PrintJob::default()
         };
 
-        let texts = job_texts(&job, Some(&metadata("dir/cube.gcode")), now());
+        let texts = job_texts(&job, Some(&metadata("dir/cube.gcode")), None, now());
 
         assert_eq!(texts.name, "cube");
-        assert_eq!(texts.elapsed, "10m 00s");
-        assert_eq!(texts.remaining, "50m 00s");
-        assert_eq!(texts.eta, "12:50");
+        assert_eq!(texts.elapsed, "6m 00s");
+        assert_eq!(texts.remaining, "54m 00s");
+        assert_eq!(texts.eta, "12:54");
         assert_eq!(texts.layers, "3 / 100");
         assert_eq!(texts.filament, "1.00 m / 5.00 m");
     }
 
     #[test]
-    fn later_print_extrapolates_from_progress() {
+    fn last_measured_print_is_the_expectation_before_the_slicer_estimate() {
+        let job = PrintJob {
+            state: PrintState::Printing,
+            filename: "a.gcode".into(),
+            progress: 0.1,
+            print_duration: 420.0,
+            ..PrintJob::default()
+        };
+        let last_print = LastPrint { print_duration: 4200.0, filament_used: 4800.0 };
+
+        let texts = job_texts(&job, Some(&metadata("a.gcode")), Some(&last_print), now());
+
+        assert_eq!(texts.remaining, "1h 03m");
+    }
+
+    #[test]
+    fn slow_start_lengthens_the_remaining_time_gradually() {
+        // Expected 3600 s, 10 % done after 480 s instead of 360 s.
+        let early = blended_remaining_seconds(Some(3600.0), 0.1, 480.0).unwrap();
+        // 50 % done after 2000 s instead of 1800 s.
+        let halfway = blended_remaining_seconds(Some(3600.0), 0.5, 2000.0).unwrap();
+
+        assert_eq!(early.round(), 3960.0);
+        assert_eq!(halfway.round(), 1982.0);
+        // The pure extrapolation lies at 4320 s and 2000 s; the estimate approaches it.
+        assert!(early < 4320.0 && halfway < 2000.0);
+    }
+
+    #[test]
+    fn remaining_time_is_continuous_in_progress() {
+        let steps: Vec<f64> = (1..=100)
+            .map(|percent| {
+                blended_remaining_seconds(Some(3600.0), f64::from(percent) / 100.0, 50.0 * f64::from(percent)).unwrap()
+            })
+            .collect();
+
+        assert!(steps.windows(2).all(|pair| (pair[0] - pair[1]).abs() < 200.0));
+    }
+
+    #[test]
+    fn without_progress_the_expectation_is_shown_whole() {
+        assert_eq!(blended_remaining_seconds(Some(3600.0), 0.0, 90.0), Some(3600.0));
+    }
+
+    #[test]
+    fn finished_print_has_nothing_left() {
+        assert_eq!(blended_remaining_seconds(Some(3600.0), 1.0, 3500.0), Some(0.0));
+        assert_eq!(blended_remaining_seconds(None, 1.0, 3500.0), Some(0.0));
+    }
+
+    #[test]
+    fn without_expectation_the_pace_is_extrapolated_once_progress_exists() {
         let job = PrintJob {
             state: PrintState::Printing,
             filename: "a.gcode".into(),
@@ -299,17 +402,18 @@ mod tests {
             ..PrintJob::default()
         };
 
-        let texts = job_texts(&job, None, now());
+        let texts = job_texts(&job, None, None, now());
 
         assert_eq!(texts.remaining, "30m 00s");
         assert_eq!(texts.layers, "-");
+        assert_eq!(blended_remaining_seconds(None, 0.0, 90.0), None);
     }
 
     #[test]
     fn standby_shows_file_totals_and_no_eta() {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
-        let texts = job_texts(&job, Some(&metadata("a.gcode")), now());
+        let texts = job_texts(&job, Some(&metadata("a.gcode")), None, now());
 
         assert_eq!(texts.remaining, "-");
         assert_eq!(texts.eta, "-");
@@ -321,7 +425,54 @@ mod tests {
     fn metadata_of_other_file_is_ignored() {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
-        assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), now()).filament, "-");
+        assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), None, now()).filament, "-");
+    }
+
+    fn file_metadata() -> FileMetadata {
+        FileMetadata {
+            filename: "a.gcode".into(),
+            estimated_time: Some(3600.0),
+            filament_total: Some(10_000.0),
+            filament_weight_total: Some(30.0),
+            filament_type: Some("PLA".into()),
+            nozzle_diameter: Some(0.4),
+            ..FileMetadata::default()
+        }
+    }
+
+    fn date_of(modified: f64) -> String {
+        format::unix_date(modified)
+    }
+
+    #[test]
+    fn unprinted_file_shows_slicer_values_marked_as_estimates() {
+        let detail = file_detail(1_700_000_000.0, 100, Some(&file_metadata()), None);
+
+        assert_eq!(detail, format!("{}  ·  PLA ~30 g  ·  0.4 nozzle  ·  ~1h 00m", date_of(1_700_000_000.0)));
+    }
+
+    #[test]
+    fn printed_file_shows_measured_time_and_scaled_weight() {
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
+
+        let detail = file_detail(1_700_000_000.0, 100, Some(&file_metadata()), Some(&last_print));
+
+        assert_eq!(detail, format!("{}  ·  PLA 27 g  ·  0.4 nozzle  ·  55m 00s", date_of(1_700_000_000.0)));
+    }
+
+    #[test]
+    fn file_without_metadata_shows_its_size() {
+        assert_eq!(file_detail(1_700_000_000.0, 512, None, None), format!("{}  ·  512 B", date_of(1_700_000_000.0)));
+    }
+
+    #[test]
+    fn missing_slicer_fields_are_left_out() {
+        let metadata =
+            FileMetadata { filename: "a.gcode".into(), nozzle_diameter: Some(0.6), ..FileMetadata::default() };
+
+        let detail = file_detail(1_700_000_000.0, 100, Some(&metadata), None);
+
+        assert_eq!(detail, format!("{}  ·  0.6 nozzle", date_of(1_700_000_000.0)));
     }
 
     #[test]

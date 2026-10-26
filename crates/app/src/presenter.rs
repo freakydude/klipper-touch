@@ -7,7 +7,7 @@ use crate::{
     MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
-use klipper_touch_core::files::{FileEntry, FileMetadata};
+use klipper_touch_core::files::{FileEntry, FileMetadata, LastPrint};
 use klipper_touch_core::printer::{macro_script, Capabilities, FilamentHandling, Heater, MacroDetails, MmuStatus};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
@@ -70,6 +70,7 @@ struct Cache {
     snapshot: Snapshot,
     files: Vec<FileEntry>,
     metadata: HashMap<String, FileMetadata>,
+    last_prints: HashMap<String, LastPrint>,
     thumbnails: HashMap<String, Image>,
 }
 
@@ -310,7 +311,7 @@ impl Presenter {
         let now = Local::now();
         let cache = self.cache.borrow();
         let job = &cache.snapshot.status.job;
-        let texts = view::job_texts(job, cache.metadata.get(&job.filename), now);
+        let texts = view::job_texts(job, cache.metadata.get(&job.filename), cache.last_prints.get(&job.filename), now);
         printer.set_clock(format::clock(now).into());
         printer.set_job_name(texts.name.into());
         printer.set_elapsed(texts.elapsed.into());
@@ -324,6 +325,7 @@ impl Presenter {
         match event {
             Event::Files(files) => self.show_files(files),
             Event::FileMetadata(metadata) => self.store_metadata(metadata),
+            Event::PrintHistory(last_prints) => self.store_last_prints(last_prints),
             Event::Thumbnail { filename, data } => self.store_thumbnail(&filename, &data),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
             Event::Updates(updates) => replace_rows(&self.updates, updates.iter().map(update_item).collect()),
@@ -576,6 +578,9 @@ impl Presenter {
             window.global::<Printer>().set_files_loading(true);
         }
         self.service.query(Query::Files);
+        if self.cache.borrow().snapshot.capabilities.server.history {
+            self.service.query(Query::PrintHistory);
+        }
     }
 
     fn show_files(&self, files: Vec<FileEntry>) {
@@ -588,21 +593,28 @@ impl Presenter {
                 .map(|file| file.path.clone())
                 .collect()
         };
-        let rows: Vec<FileItem> = {
-            let cache = self.cache.borrow();
-            files
-                .iter()
-                .map(|file| file_item(file, cache.metadata.get(&file.path), cache.thumbnails.get(&file.path)))
-                .collect()
-        };
         self.cache.borrow_mut().files = files;
-        self.files.set_vec(rows);
+        self.show_file_rows();
         if let Some(window) = self.window.upgrade() {
             window.global::<Printer>().set_files_loading(false);
         }
         for filename in missing {
             self.service.query(Query::FileDetails { filename });
         }
+    }
+
+    fn show_file_rows(&self) {
+        let rows: Vec<FileItem> = {
+            let cache = self.cache.borrow();
+            cache.files.iter().map(|file| file_row(&cache, file)).collect()
+        };
+        self.files.set_vec(rows);
+    }
+
+    fn store_last_prints(&self, last_prints: HashMap<String, LastPrint>) {
+        self.cache.borrow_mut().last_prints = last_prints;
+        self.show_file_rows();
+        self.refresh_job_texts();
     }
 
     fn store_metadata(&self, metadata: FileMetadata) {
@@ -631,7 +643,7 @@ impl Presenter {
     fn update_file_row(&self, filename: &str) {
         let cache = self.cache.borrow();
         let Some(index) = cache.files.iter().position(|file| file.path == filename) else { return };
-        let row = file_item(&cache.files[index], cache.metadata.get(filename), cache.thumbnails.get(filename));
+        let row = file_row(&cache, &cache.files[index]);
         drop(cache);
         if index < self.files.row_count() {
             self.files.set_row_data(index, row);
@@ -680,11 +692,18 @@ fn heater_item(heater: &Heater) -> HeaterItem {
     }
 }
 
-fn file_item(file: &FileEntry, metadata: Option<&FileMetadata>, thumbnail: Option<&Image>) -> FileItem {
+fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
+    let thumbnail = cache.thumbnails.get(&file.path);
     FileItem {
         path: file.path.as_str().into(),
         name: format::job_name(&file.path).into(),
-        detail: view::file_detail(file.modified, file.size, metadata).into(),
+        detail: view::file_detail(
+            file.modified,
+            file.size,
+            cache.metadata.get(&file.path),
+            cache.last_prints.get(&file.path),
+        )
+        .into(),
         thumbnail: thumbnail.cloned().unwrap_or_default(),
         has_thumbnail: thumbnail.is_some(),
     }

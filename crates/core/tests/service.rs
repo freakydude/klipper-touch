@@ -172,6 +172,24 @@ async fn runs_print_job_and_loads_file_details() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn loads_the_last_completed_print_of_each_file() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.query(Query::PrintHistory);
+    let Event::PrintHistory(last_prints) =
+        next_event(&mut channels, |event| matches!(event, Event::PrintHistory(_))).await
+    else {
+        unreachable!()
+    };
+
+    // The newer cancelled job of the benchy does not count.
+    assert_eq!(last_prints["benchy.gcode"].print_duration, 7_650.0);
+    assert!(!last_prints.contains_key("long_job.gcode"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn reports_errors_and_recovers_from_emergency_stop() {
     let endpoint = start_fake().await;
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);

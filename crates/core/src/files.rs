@@ -2,6 +2,7 @@
 
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 pub struct FileEntry {
@@ -42,6 +43,7 @@ pub struct FileMetadata {
     pub filament_type: Option<String>,
     pub layer_height: Option<f64>,
     pub object_height: Option<f64>,
+    pub nozzle_diameter: Option<f64>,
     pub first_layer_extr_temp: Option<f64>,
     pub first_layer_bed_temp: Option<f64>,
     pub thumbnails: Vec<Thumbnail>,
@@ -66,6 +68,41 @@ impl FileMetadata {
         };
         Some(format!("server/files/gcodes/{}", encode_path(&relative)))
     }
+}
+
+/// What the last completed print of a file measured, from the Moonraker job history.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LastPrint {
+    /// Seconds spent printing, without paused and idle time.
+    pub print_duration: f64,
+    /// Filament length in millimeters.
+    pub filament_used: f64,
+}
+
+#[derive(Deserialize)]
+struct HistoryJob {
+    #[serde(default)]
+    filename: String,
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    print_duration: f64,
+    #[serde(default)]
+    filament_used: f64,
+}
+
+/// The newest completed job per file; `server.history.list` returns the newest job first. Cancelled and failed
+/// jobs are left out because their duration and filament say nothing about a whole print.
+pub fn parse_last_completed_prints(result: &Value) -> HashMap<String, LastPrint> {
+    let jobs: Vec<HistoryJob> =
+        result.get("jobs").and_then(|jobs| serde_json::from_value(jobs.clone()).ok()).unwrap_or_default();
+    let mut last_prints = HashMap::new();
+    for job in jobs.into_iter().filter(|job| job.status == "completed" && job.print_duration > 0.0) {
+        last_prints
+            .entry(job.filename)
+            .or_insert(LastPrint { print_duration: job.print_duration, filament_used: job.filament_used });
+    }
+    last_prints
 }
 
 pub fn parse_file_list(result: &Value) -> Vec<FileEntry> {
@@ -132,6 +169,27 @@ mod tests {
             metadata.thumbnail_path().as_deref(),
             Some("server/files/gcodes/my%20parts/.thumbs/cube-300x300.png")
         );
+    }
+
+    #[test]
+    fn last_completed_print_is_the_newest_one_that_finished() {
+        let last_prints = parse_last_completed_prints(&json!({
+            "count": 4,
+            "jobs": [
+                { "filename": "a.gcode", "status": "cancelled", "print_duration": 50.0, "filament_used": 100.0 },
+                { "filename": "a.gcode", "status": "completed", "print_duration": 900.0, "filament_used": 2000.0 },
+                { "filename": "a.gcode", "status": "completed", "print_duration": 1000.0, "filament_used": 2100.0 },
+                { "filename": "b.gcode", "status": "error", "print_duration": 10.0, "filament_used": 5.0 }
+            ]
+        }));
+
+        assert_eq!(last_prints.len(), 1);
+        assert_eq!(last_prints["a.gcode"], LastPrint { print_duration: 900.0, filament_used: 2000.0 });
+    }
+
+    #[test]
+    fn history_without_jobs_is_empty() {
+        assert!(parse_last_completed_prints(&json!({})).is_empty());
     }
 
     #[test]

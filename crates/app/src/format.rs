@@ -68,6 +68,15 @@ pub fn filament_length(millimeters: f64) -> String {
     format!("{:.2} m", millimeters.max(0.0) / 1000.0)
 }
 
+/// Filament weight in grams; one decimal below 10 g.
+pub fn filament_weight(grams: f64) -> String {
+    if grams < 10.0 {
+        format!("{:.1} g", grams.max(0.0))
+    } else {
+        format!("{grams:.0} g")
+    }
+}
+
 pub fn file_size(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
     let mut value = bytes as f64;
@@ -117,6 +126,8 @@ mod tests {
     #[test]
     fn lengths_sizes_and_names() {
         assert_eq!(filament_length(1234.0), "1.23 m");
+        assert_eq!(filament_weight(4.56), "4.6 g");
+        assert_eq!(filament_weight(23.4), "23 g");
         assert_eq!(file_size(512), "512 B");
         assert_eq!(file_size(1_572_864), "1.5 MB");
         assert_eq!(job_name("parts/Voron Cube.gcode"), "Voron Cube");

@@ -4,11 +4,12 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
-use crate::files::{self, FileEntry, FileMetadata};
+use crate::files::{self, FileEntry, FileMetadata, LastPrint};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PrinterStatus, ServerComponents};
 use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, watch};
 
@@ -16,6 +17,8 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 const KLIPPY_POLL_INTERVAL: Duration = Duration::from_secs(2);
 const QUERY_TIMEOUT: Duration = Duration::from_secs(15);
 const CONSOLE_HISTORY: u32 = 100;
+/// Newest jobs read from the job history; files last printed before that show the slicer estimate.
+const PRINT_HISTORY_LIMIT: u32 = 300;
 const CLIENT_NAME: &str = "klipper-touch";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -43,6 +46,8 @@ pub enum Query {
     FileDetails {
         filename: String,
     },
+    /// The last completed print of each file, from the Moonraker job history.
+    PrintHistory,
     PowerDevices,
     Updates,
     ConsoleHistory,
@@ -54,6 +59,7 @@ pub enum Query {
 pub enum Event {
     Files(Vec<FileEntry>),
     FileMetadata(FileMetadata),
+    PrintHistory(HashMap<String, LastPrint>),
     Thumbnail { filename: String, data: Vec<u8> },
     PowerDevices(Vec<PowerDevice>),
     Updates(Vec<UpdateInfo>),
@@ -434,6 +440,10 @@ async fn fetch(
             }
             events.insert(0, Event::FileMetadata(FileMetadata { filename: filename.clone(), ..metadata }));
             events
+        }
+        Query::PrintHistory => {
+            let history = call("server.history.list", Some(json!({ "limit": PRINT_HISTORY_LIMIT }))).await?;
+            vec![Event::PrintHistory(files::parse_last_completed_prints(&history))]
         }
         Query::PowerDevices => {
             vec![Event::PowerDevices(system::parse_power_devices(&call("machine.device_power.devices", None).await?))]
