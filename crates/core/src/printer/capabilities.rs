@@ -2,6 +2,10 @@
 //!
 //! The UI only offers functions when the matching capability was detected.
 
+use super::macros::MacroDetails;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Capabilities {
     pub heater_bed: bool,
@@ -19,6 +23,9 @@ pub struct Capabilities {
     pub filament_sensors: Vec<String>,
     /// Callable macros (excluding helper macros starting with `_`), in upper case.
     pub macros: Vec<String>,
+    /// Parameters of each macro by upper-case name, read once from the configuration when subscribing (it only
+    /// changes with a restart). Shared, because every snapshot carries the capabilities.
+    pub macro_details: Arc<BTreeMap<String, MacroDetails>>,
     pub server: ServerComponents,
 }
 
@@ -85,11 +92,6 @@ impl Capabilities {
         } else {
             FilamentHandling::None
         }
-    }
-
-    /// At least one way to level the bed or gantry.
-    pub fn can_level(&self) -> bool {
-        self.quad_gantry_level || self.z_tilt
     }
 
     fn add_object(&mut self, name: &str) {

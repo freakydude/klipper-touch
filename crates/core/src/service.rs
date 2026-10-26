@@ -4,19 +4,22 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
-use crate::files::{self, FileEntry, FileMetadata, LastPrint};
+use crate::files::{self, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrinterStatus, ServerComponents};
 use crate::spoolman::{self, Spool, SpoolmanState};
 use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, watch, Semaphore};
 
 const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 const KLIPPY_POLL_INTERVAL: Duration = Duration::from_secs(2);
 const QUERY_TIMEOUT: Duration = Duration::from_secs(15);
+/// File details (metadata and thumbnail) fetched at the same time; the file list asks for up to 40 at once.
+const PARALLEL_FILE_DETAILS: usize = 4;
 const CONSOLE_HISTORY: u32 = 100;
 /// Newest jobs read from the job history; files last printed before that show the slicer estimate.
 const PRINT_HISTORY_LIMIT: u32 = 300;
@@ -71,7 +74,7 @@ pub enum Event {
     PrintHistory(HashMap<String, LastPrint>),
     Thumbnail {
         filename: String,
-        data: Vec<u8>,
+        image: ThumbnailImage,
     },
     PowerDevices(Vec<PowerDevice>),
     Updates(Vec<UpdateInfo>),
@@ -225,6 +228,8 @@ struct Session<'a> {
     pending_targets: PendingTargets,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
     spoolman_gate_spools: Option<Vec<u32>>,
+    /// Limits the file details in flight, so a long file list does not flood Moonraker.
+    file_details: Arc<Semaphore>,
 }
 
 impl<'a> Session<'a> {
@@ -241,6 +246,7 @@ impl<'a> Session<'a> {
             job_filename: String::new(),
             pending_targets: PendingTargets::default(),
             spoolman_gate_spools: None,
+            file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
         }
     }
 
@@ -318,6 +324,8 @@ impl<'a> Session<'a> {
         capabilities.server = self.components.clone();
         let parameters = printer::subscription(&available, &capabilities);
         let result = self.connection.call("printer.objects.subscribe", Some(parameters)).await?;
+        capabilities.macro_details =
+            Arc::new(printer::details_from_settings(result.pointer("/status/configfile/settings")));
         self.capabilities = capabilities;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
         self.klippy_ready = true;
@@ -331,7 +339,12 @@ impl<'a> Session<'a> {
         if state == KlippyState::Disconnected {
             self.store.clear();
         }
-        let message = if message.is_empty() { self.klippy_message().await } else { message.to_owned() };
+        // Without Klippy Moonraker has no `printer.info` (it answers "Method not found").
+        let message = if message.is_empty() && state != KlippyState::Disconnected {
+            self.klippy_message().await
+        } else {
+            message.to_owned()
+        };
         self.store.merge(&json!({ "webhooks": { "state": state.as_str(), "state_message": message } }));
         self.publish();
     }
@@ -487,8 +500,14 @@ impl<'a> Session<'a> {
         let http = self.http.clone();
         let endpoint = self.endpoint.clone();
         let events = self.outputs.events.clone();
-        let gate_spools = gate_spool_ids(&PrinterStatus::from_store(&self.store));
+        let gate_spools = self.spoolman_gate_spools.clone().unwrap_or_default();
+        let permits = matches!(query, Query::FileDetails { .. }).then(|| self.file_details.clone());
         tokio::spawn(async move {
+            // The timeout starts once it is this query's turn.
+            let _permit = match permits {
+                Some(permits) => permits.acquire_owned().await.ok(),
+                None => None,
+            };
             let fetched =
                 tokio::time::timeout(QUERY_TIMEOUT, fetch(&connection, &http, &endpoint, &query, &gate_spools)).await;
             match fetched {
@@ -523,7 +542,10 @@ async fn fetch(
             let mut events = Vec::new();
             if let Some(path) = metadata.thumbnail_path() {
                 match download(http, &endpoint.http_url(&path)).await {
-                    Ok(data) => events.push(Event::Thumbnail { filename: filename.clone(), data }),
+                    Ok(data) => match ThumbnailImage::decode(&data) {
+                        Some(image) => events.push(Event::Thumbnail { filename: filename.clone(), image }),
+                        None => log::info!("thumbnail of {filename} cannot be decoded"),
+                    },
                     Err(error) => log::info!("thumbnail of {filename} unavailable: {error}"),
                 }
             }

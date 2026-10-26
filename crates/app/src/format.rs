@@ -60,21 +60,6 @@ pub fn filament_weight(grams: f64) -> String {
     }
 }
 
-pub fn file_size(bytes: u64) -> String {
-    const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-    while value >= 1024.0 && unit < UNITS.len() - 1 {
-        value /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{value:.1} {}", UNITS[unit])
-    }
-}
-
 /// Display name of a G-code file: without folder and extension.
 pub fn job_name(path: &str) -> String {
     let file = path.rsplit('/').next().unwrap_or(path);
@@ -107,13 +92,11 @@ mod tests {
     }
 
     #[test]
-    fn lengths_sizes_and_names() {
+    fn lengths_weights_and_names() {
         assert_eq!(filament_length(1234.0), "1.23 m");
         assert_eq!(filament_meters(1234.0), "1.23");
         assert_eq!(filament_weight(4.56), "4.6 g");
         assert_eq!(filament_weight(23.4), "23 g");
-        assert_eq!(file_size(512), "512 B");
-        assert_eq!(file_size(1_572_864), "1.5 MB");
         assert_eq!(job_name("parts/Voron Cube.gcode"), "Voron Cube");
         assert_eq!(job_name("plain"), "plain");
     }

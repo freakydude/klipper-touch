@@ -2,6 +2,7 @@
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
+use freakymate_core::files::ThumbnailImage;
 use freakymate_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
 use freakymate_core::spoolman;
 use freakymate_core::system::ConsoleKind;
@@ -63,6 +64,8 @@ async fn connects_detects_capabilities_and_follows_state() {
     assert!(snapshot.capabilities.quad_gantry_level);
     assert!(snapshot.capabilities.has_macro("LOAD_FILAMENT"));
     assert!(!snapshot.capabilities.has_macro("_PURGE_HELPER"));
+    let park = snapshot.capabilities.macro_details.get("PARK").expect("macro details are read when subscribing");
+    assert!(park.params.iter().any(|param| param.name == "Z"));
     assert!(snapshot.capabilities.server.power);
     assert!(snapshot.status.heater("heater_generic chamber").is_some());
 
@@ -313,7 +316,9 @@ async fn runs_print_job_and_loads_file_details() {
     .await;
     let thumbnail = next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
     assert!(matches!(metadata, Event::FileMetadata(meta) if meta.estimated_time == Some(7200.0)));
-    assert!(matches!(thumbnail, Event::Thumbnail { data, .. } if data.starts_with(b"<svg")));
+    assert!(
+        matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Svg(data), .. } if data.starts_with(b"<svg"))
+    );
 
     service.send(Command::RestartService { service: "klipper".into() });
     let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;

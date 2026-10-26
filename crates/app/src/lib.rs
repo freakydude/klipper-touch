@@ -9,6 +9,7 @@ pub mod actions;
 pub mod app;
 pub mod display;
 pub mod format;
+mod items;
 pub mod network_controller;
 pub mod presenter;
 pub mod settings_controller;

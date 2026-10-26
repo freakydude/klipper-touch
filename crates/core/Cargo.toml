@@ -15,6 +15,7 @@ dev-mode = []
 [dependencies]
 dirs = "7.0.0"
 futures-util.workspace = true
+image.workspace = true
 log.workspace = true
 reqwest = { version = "0.13.5", default-features = false }
 serde.workspace = true

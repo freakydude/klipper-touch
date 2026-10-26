@@ -10,7 +10,8 @@ mod subscription;
 
 pub use capabilities::{Capabilities, FilamentHandling, ServerComponents};
 pub use macros::{
-    macro_script, offered_macros, MacroDetails, MacroField, MacroForm, MacroParam, MacroValueError, OfferedMacro,
+    details_from_settings, macro_script, offered_macros, MacroDetails, MacroField, MacroForm, MacroParam,
+    MacroValueError, OfferedMacro,
 };
 pub use mmu::{
     is_mmu_klipper_sensor, FlowGuard, FlowGuardState, GateAvailability, LoadedFilament, MmuGate, MmuSensor, MmuStatus,
