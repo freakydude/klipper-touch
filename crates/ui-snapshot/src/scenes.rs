@@ -196,6 +196,7 @@ fn printing(session: &mut Session) -> Result<(), String> {
     })?;
     session.pump(Duration::from_secs(1));
     session.show_page(Page::Print, "print-printing")?;
+    tangle_boost(session)?;
     session.show_page(Page::Temperature, "temperature-printing")?;
     session.show_page(Page::System, "system-printing")?;
 
@@ -212,6 +213,23 @@ fn printing(session: &mut Session) -> Result<(), String> {
     session.window.global::<Confirm>().invoke_execute();
     session.wait_until("print cancelled", |snapshot| snapshot.status.job.state == PrintState::Cancelled)?;
     session.capture("print-cancelled")
+}
+
+/// Raises the tension in the fake's buffer until tangle prevention boosts the gear current, and takes it back after the
+/// picture. Skipped without a buffer that tangle prevention watches (Happy Hare with a proportional sensor).
+fn tangle_boost(session: &mut Session) -> Result<(), String> {
+    let has_buffer = session.presenter.snapshot().status.mmu.as_ref().is_some_and(|mmu| mmu.flowguard.is_some());
+    if !has_buffer {
+        return Ok(());
+    }
+    let boosting = |snapshot: &klipper_touch_core::Snapshot| {
+        snapshot.status.mmu.as_ref().and_then(|mmu| mmu.flowguard.as_ref()).is_some_and(|flowguard| flowguard.boosting)
+    };
+    session.service.send(Command::RunGcode { script: "FAKE_MMU_TANGLE BOOST=1".into() });
+    session.wait_until("tangle prevention boosting", boosting)?;
+    session.show_page(Page::Print, "print-tangle-boost")?;
+    session.service.send(Command::RunGcode { script: "FAKE_MMU_TANGLE BOOST=0".into() });
+    session.wait_until("boost released", |snapshot| !boosting(snapshot))
 }
 
 /// Excludes one object of the print and checks that the Objects dialog data follows. Skipped without the module.

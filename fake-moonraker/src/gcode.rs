@@ -95,6 +95,11 @@ pub enum MmuCommand {
         gate: usize,
         spool_id: Option<i64>,
     },
+    /// Not a Happy Hare command: lets a test or the snapshot tool raise the tension that makes tangle prevention
+    /// boost the gear current (`FAKE_MMU_TANGLE BOOST=0|1`).
+    FakeTangle {
+        boosting: bool,
+    },
 }
 
 impl MmuCommand {
@@ -107,6 +112,7 @@ impl MmuCommand {
             MmuCommand::Unload => "MMU_UNLOAD",
             MmuCommand::Eject { .. } => "MMU_EJECT",
             MmuCommand::GateMap { .. } => "MMU_GATE_MAP",
+            MmuCommand::FakeTangle { .. } => "FAKE_MMU_TANGLE",
         }
     }
 }
@@ -187,6 +193,9 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             gate: required_index(&args, "GATE")?,
             spool_id: named_value(&args, "SPOOLID")?.map(|id| id as i64),
         })),
+        "FAKE_MMU_TANGLE" => {
+            Ok(Command::Mmu(MmuCommand::FakeTangle { boosting: required_index(&args, "BOOST")? != 0 }))
+        }
         "MMU_EJECT" => Ok(Command::Mmu(MmuCommand::Eject {
             gate: named_index(&args, "GATE")?,
             force: named_index(&args, "FORCE")?.is_some_and(|value| value != 0),
