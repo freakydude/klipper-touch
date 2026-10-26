@@ -241,6 +241,7 @@ pub fn mmu_flowguard_state(state: FlowGuardState) -> &'static str {
     match state {
         FlowGuardState::Off => "off",
         FlowGuardState::Triggered => "triggered",
+        FlowGuardState::Boosting => "boosting",
         FlowGuardState::Monitoring => "monitoring",
         FlowGuardState::Ready => "ready",
     }
@@ -448,9 +449,15 @@ mod tests {
     fn mmu_states_become_words_for_the_ui() {
         assert_eq!([None, Some(false), Some(true)].map(mmu_sensor_state), ["disabled", "open", "triggered"]);
         assert_eq!(
-            [FlowGuardState::Off, FlowGuardState::Triggered, FlowGuardState::Monitoring, FlowGuardState::Ready]
-                .map(mmu_flowguard_state),
-            ["off", "triggered", "monitoring", "ready"]
+            [
+                FlowGuardState::Off,
+                FlowGuardState::Triggered,
+                FlowGuardState::Boosting,
+                FlowGuardState::Monitoring,
+                FlowGuardState::Ready
+            ]
+            .map(mmu_flowguard_state),
+            ["off", "triggered", "boosting", "monitoring", "ready"]
         );
     }
 }

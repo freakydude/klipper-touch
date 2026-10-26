@@ -115,16 +115,21 @@ pub struct SyncFeedback {
 pub struct FlowGuard {
     pub enabled: bool,
     pub active: bool,
+    /// Tangle prevention raises the gear current right now: it is on, a proportional sensor reports the tension and
+    /// the tension is above its threshold.
+    pub boosting: bool,
     pub trigger: String,
     pub reason: String,
     pub level: f64,
 }
 
-/// One word for the operator: a trigger wins over monitoring, which wins over ready.
+/// One word for the operator: a trigger wins over the boost of tangle prevention, which wins over monitoring, which
+/// wins over ready.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlowGuardState {
     Off,
     Triggered,
+    Boosting,
     Monitoring,
     Ready,
 }
@@ -135,6 +140,8 @@ impl FlowGuard {
             FlowGuardState::Off
         } else if !self.trigger.is_empty() {
             FlowGuardState::Triggered
+        } else if self.boosting {
+            FlowGuardState::Boosting
         } else if self.active {
             FlowGuardState::Monitoring
         } else {
@@ -215,9 +222,9 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
             .unwrap_or_default(),
         spoolman_support: text(mmu, "spoolman_support"),
         flow_rate: read_flow_rate(mmu, &sensors),
+        flowguard: read_flowguard(mmu, &sensors),
         sensors,
         sync_feedback: read_sync_feedback(mmu),
-        flowguard: read_flowguard(mmu),
     })
 }
 
@@ -229,14 +236,16 @@ fn read_flow_rate(mmu: &Value, sensors: &[MmuSensor]) -> Option<Sourced<f64>> {
         .and_then(|encoder| encoder.get("flow_rate"))
         .and_then(Value::as_f64)
         .map(|rate| Sourced::measured(rate, ORIGIN_ENCODER));
-    let has_proportional_sensor =
-        sensors.iter().any(|sensor| sensor.name == PROPORTIONAL_SENSOR && sensor.triggered.is_some());
     let estimated = mmu
         .get("sync_feedback_flow_rate")
         .and_then(Value::as_f64)
-        .filter(|_| has_proportional_sensor)
+        .filter(|_| has_proportional_sensor(sensors))
         .map(|rate| Sourced::estimated(rate, ORIGIN_SYNC_FEEDBACK));
     prefer_measured(measured, estimated)
+}
+
+fn has_proportional_sensor(sensors: &[MmuSensor]) -> bool {
+    sensors.iter().any(|sensor| sensor.name == PROPORTIONAL_SENSOR && sensor.triggered.is_some())
 }
 
 /// A Klipper filament sensor that belongs to the MMU itself (gates and buffer). `toolhead` and `extruder` stay common:
@@ -318,11 +327,17 @@ fn read_sync_feedback(mmu: &Value) -> Option<SyncFeedback> {
     Some(SyncFeedback { state: SyncFeedbackState::parse(state), bias: bias.clamp(-1.0, 1.0) })
 }
 
-fn read_flowguard(mmu: &Value) -> Option<FlowGuard> {
+/// Tangle prevention counts only with a proportional sensor, as Happy Hare arms it only then.
+fn read_flowguard(mmu: &Value, sensors: &[MmuSensor]) -> Option<FlowGuard> {
     let flowguard = mmu.get("flowguard").filter(|value| value.is_object())?;
+    let tangle_prevention = mmu.get("tangle_prevention").filter(|value| value.is_object());
+    let boosting = tangle_prevention
+        .is_some_and(|prevention| flag(prevention, "enabled") && flag(prevention, "boosted"))
+        && has_proportional_sensor(sensors);
     Some(FlowGuard {
         enabled: flag(flowguard, "enabled"),
         active: flag(flowguard, "active"),
+        boosting,
         trigger: text(flowguard, "trigger"),
         reason: text(flowguard, "reason"),
         level: flowguard.get("level").and_then(Value::as_f64).unwrap_or_default(),
@@ -553,5 +568,39 @@ mod tests {
         assert_eq!(flowguard(true, true, "clog").state(), FlowGuardState::Triggered);
         assert_eq!(flowguard(true, true, "").state(), FlowGuardState::Monitoring);
         assert_eq!(flowguard(true, false, "").state(), FlowGuardState::Ready);
+    }
+
+    #[test]
+    fn boosting_tangle_prevention_shows_between_trigger_and_monitoring() {
+        let boosting = |trigger: &str| FlowGuard {
+            enabled: true,
+            active: true,
+            boosting: true,
+            trigger: trigger.into(),
+            ..FlowGuard::default()
+        };
+
+        assert_eq!(boosting("").state(), FlowGuardState::Boosting);
+        assert_eq!(boosting("tangle").state(), FlowGuardState::Triggered);
+        assert_eq!(FlowGuard { boosting: true, ..FlowGuard::default() }.state(), FlowGuardState::Off);
+    }
+
+    #[test]
+    fn the_boost_needs_the_switch_and_a_proportional_sensor() {
+        let boosting = |sensors: Value, enabled: bool| {
+            read_mmu(&store(json!({ "mmu": {
+                "sensors": sensors,
+                "flowguard": { "enabled": true, "active": true },
+                "tangle_prevention": { "enabled": enabled, "active": true, "boosted": true, "threshold": 0.3 }
+            } })))
+            .unwrap()
+            .flowguard
+            .unwrap()
+            .boosting
+        };
+
+        assert!(boosting(json!({ "filament_proportional": false }), true));
+        assert!(!boosting(json!({ "filament_proportional": false }), false));
+        assert!(!boosting(json!({ "filament_tension": true }), true));
     }
 }

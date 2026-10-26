@@ -237,7 +237,7 @@ export global Printer {
     in property <string> mmu-buffer-state;
     // -1 (tension) over 0 (neutral) to +1 (compressed).
     in property <float> mmu-buffer-bias;
-    // off | ready | monitoring | triggered
+    // off | ready | monitoring | boosting (tangle prevention raises the gear current) | triggered
     in property <string> mmu-flowguard-state;
     in property <string> mmu-flowguard-detail;
     // Percent from the encoder, -1 without an encoder.

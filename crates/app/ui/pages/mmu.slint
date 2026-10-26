@@ -16,6 +16,7 @@ export global MmuTexts {
     }
     pure public function flowguard(state: string, detail: string) -> string {
         if (state == "triggered") { return @tr("FlowGuard triggered") + (detail == "" ? "" : ": " + detail); }
+        if (state == "boosting") { return @tr("FlowGuard: tangle prevention"); }
         if (state == "monitoring") { return @tr("FlowGuard monitoring"); }
         return @tr("FlowGuard ready");
     }
@@ -234,7 +235,7 @@ export component MmuTab inherits Rectangle {
                         if Printer.mmu-flowguard-state != "off": IconLabel {
                             icon: Icons.mmu-flowguard;
                             text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
-                            color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Theme.muted;
+                            color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Printer.mmu-flowguard-state == "boosting" ? Theme.warning : Theme.muted;
                             font-size: Theme.font-small;
                         }
                         if Printer.mmu-flow-rate >= 0: IconLabel {
@@ -349,7 +350,7 @@ export component MmuStrip inherits Card {
             if Printer.mmu-flowguard-state != "off": IconLabel {
                 icon: Icons.mmu-flowguard;
                 text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
-                color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Theme.muted;
+                color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Printer.mmu-flowguard-state == "boosting" ? Theme.warning : Theme.muted;
                 font-size: Theme.font-small;
                 horizontal-stretch: 1;
                 min-width: 0px;
