@@ -5,6 +5,7 @@
 
 use crate::commands::Command;
 use crate::files::{self, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
+use crate::history::{self, TemperatureSeries};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrinterStatus, ServerComponents};
 use crate::spoolman::{self, Spool, SpoolmanState};
@@ -61,6 +62,8 @@ pub enum Query {
     ConsoleHistory,
     /// Network interfaces of the printer host.
     HostNetwork,
+    /// The last minutes of every heater and sensor from Moonraker's temperature store.
+    TemperatureHistory,
     /// Spoolman's state and the spools of the gates and the active spool; needs Moonraker's `spoolman` component.
     Spoolman,
     /// The most recently used spools of Spoolman, for the picker.
@@ -81,6 +84,7 @@ pub enum Event {
     ConsoleHistory(Vec<ConsoleLine>),
     ConsoleLine(ConsoleLine),
     HostNetwork(Vec<HostInterface>),
+    TemperatureHistory(HashMap<String, TemperatureSeries>),
     Spoolman(Box<SpoolmanState>),
     SpoolList(Vec<Spool>),
     /// A command changed a spool in Spoolman or the active spool; the state is out of date.
@@ -324,8 +328,7 @@ impl<'a> Session<'a> {
         capabilities.server = self.components.clone();
         let parameters = printer::subscription(&available, &capabilities);
         let result = self.connection.call("printer.objects.subscribe", Some(parameters)).await?;
-        capabilities.macro_details =
-            Arc::new(printer::details_from_settings(result.pointer("/status/configfile/settings")));
+        capabilities.apply_settings(result.pointer("/status/configfile/settings"));
         self.capabilities = capabilities;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
         self.klippy_ready = true;
@@ -573,6 +576,10 @@ async fn fetch(
         ))],
         Query::HostNetwork => {
             vec![Event::HostNetwork(system::parse_host_network(&call("machine.system_info", None).await?))]
+        }
+        Query::TemperatureHistory => {
+            let store = call("server.temperature_store", Some(json!({ "include_monitors": false }))).await?;
+            vec![Event::TemperatureHistory(history::parse_temperature_store(&store))]
         }
     };
     Ok(events)

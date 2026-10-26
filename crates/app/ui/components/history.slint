@@ -1,0 +1,125 @@
+// Temperature history of one heater or sensor: the last minutes from Moonraker, growing while it is open.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Navigation, Printer } from "../state.slint";
+import { IconButton } from "controls.slint";
+
+// A line of the chart; the commands use a 1000 x 1000 view box, which stretches to the size of the chart.
+component ChartLine inherits Path {
+    viewbox-width: 1000;
+    viewbox-height: 1000;
+    fill: transparent;
+    stroke-width: 2px;
+}
+
+component Legend inherits HorizontalLayout {
+    in property <color> color;
+    in property <string> text;
+    spacing: 6px;
+    VerticalLayout {
+        alignment: center;
+        Rectangle { width: 16px; height: 3px; background: root.color; }
+    }
+    Text { text: root.text; color: Theme.muted; font-size: Theme.font-small; vertical-alignment: center; }
+}
+
+export component HistoryDialog inherits Rectangle {
+    visible: Navigation.history-open;
+    background: Theme.background;
+
+    // Keeps taps away from the page below.
+    TouchArea { }
+
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            height: Theme.touch;
+            Image {
+                source: Icons.nav-history;
+                colorize: Theme.muted;
+                width: 28px;
+                height: 28px;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: Printer.history-title;
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+                font-weight: 600;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                horizontal-stretch: 1;
+                text: Printer.history-current;
+                color: Theme.accent;
+                font-size: Theme.font-large;
+                vertical-alignment: center;
+                horizontal-alignment: right;
+            }
+            IconButton {
+                width: Theme.touch;
+                icon: Icons.ui-close;
+                clicked => { Actions.close-history(); }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            vertical-stretch: 1;
+            VerticalLayout {
+                width: 64px;
+                Text { text: Printer.history-high; color: Theme.muted; font-size: Theme.font-small; horizontal-alignment: right; }
+                Rectangle { vertical-stretch: 1; }
+                Text { text: Printer.history-low; color: Theme.muted; font-size: Theme.font-small; horizontal-alignment: right; }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.surface;
+                border-radius: Theme.radius;
+                border-width: 1px;
+                border-color: Theme.border;
+                clip: true;
+                ChartLine {
+                    x: 8px;
+                    y: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height - 16px;
+                    commands: Printer.history-power-path;
+                    stroke: Theme.info.with-alpha(0.5);
+                }
+                ChartLine {
+                    x: 8px;
+                    y: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height - 16px;
+                    commands: Printer.history-target-path;
+                    stroke: Theme.muted;
+                }
+                ChartLine {
+                    x: 8px;
+                    y: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height - 16px;
+                    commands: Printer.history-temperature-path;
+                    stroke: Theme.accent;
+                    stroke-width: 3px;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding-left: 72px;
+            spacing: 16px;
+            Text { text: Printer.history-span; color: Theme.muted; font-size: Theme.font-small; }
+            Rectangle { horizontal-stretch: 1; }
+            Legend { color: Theme.accent; text: @tr("Temperature"); }
+            if Printer.history-target-path != "": Legend { color: Theme.muted; text: @tr("Target"); }
+            if Printer.history-power-path != "": Legend { color: Theme.info.with-alpha(0.5); text: @tr("Power"); }
+            Text { text: @tr("now"); color: Theme.muted; font-size: Theme.font-small; }
+        }
+    }
+}

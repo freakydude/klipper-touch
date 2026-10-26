@@ -77,18 +77,28 @@ export component MessagesFlyout inherits Rectangle {
         y: 52px;
         width: min(560px, root.width - 16px);
         height: root.height - 60px;
-        background: Theme.surface;
+        // Slightly see-through, so it is clear that the flyout lies over the page.
+        background: Theme.surface.with-alpha(Theme.flyout-opacity);
         border-radius: Theme.radius;
 
         VerticalLayout {
             padding: 10px;
             spacing: 8px;
-            Text {
-                height: 36px;
-                text: @tr("Messages");
-                color: Theme.foreground;
-                font-size: Theme.font-large;
-                vertical-alignment: center;
+            HorizontalLayout {
+                height: Theme.touch;
+                Text {
+                    horizontal-stretch: 1;
+                    text: @tr("Messages");
+                    color: Theme.foreground;
+                    font-size: Theme.font-large;
+                    vertical-alignment: center;
+                }
+                IconButton {
+                    width: Theme.touch;
+                    icon: Icons.ui-close;
+                    accessible-label: @tr("Close");
+                    clicked => { Navigation.messages-open = false; }
+                }
             }
 
             messages-list := ScrollList {
@@ -101,6 +111,7 @@ export component MessagesFlyout inherits Rectangle {
                     height: message.height;
                     background: Theme.surface-raised;
                     border-radius: Theme.radius;
+                    // The text takes the full width; the time is small, below it on the right.
                     HorizontalLayout {
                         padding: 10px;
                         spacing: 10px;
@@ -109,37 +120,46 @@ export component MessagesFlyout inherits Rectangle {
                             background: message.is-error ? Theme.danger : Theme.info;
                             border-radius: 2px;
                         }
-                        Text {
-                            width: 60px;
-                            text: message.time;
-                            color: Theme.muted;
-                            font-size: Theme.font-small;
-                            vertical-alignment: center;
-                        }
-                        Text {
+                        VerticalLayout {
                             horizontal-stretch: 1;
-                            text: message.text;
-                            color: message.is-error ? Theme.danger : Theme.foreground;
-                            font-size: Theme.font-normal;
-                            wrap: word-wrap;
-                            vertical-alignment: center;
-                            overflow: elide;
+                            Text {
+                                vertical-stretch: 1;
+                                text: message.text;
+                                color: message.is-error ? Theme.danger : Theme.foreground;
+                                font-size: Theme.font-normal;
+                                wrap: word-wrap;
+                                overflow: elide;
+                            }
+                            Text {
+                                height: 16px;
+                                text: message.time;
+                                color: Theme.muted;
+                                font-size: Theme.font-small;
+                                horizontal-alignment: right;
+                            }
                         }
                     }
                 }
             }
 
+            // Flat and wide: the height belongs to the messages, the width keeps the buttons easy to hit.
             HorizontalLayout {
                 spacing: Theme.spacing;
-                height: Theme.touch;
+                height: 44px;
                 IconButton {
                     text: @tr("Discard all");
                     icon: Icons.ui-delete;
+                    icon-size: 20px;
+                    horizontal: true;
+                    min-height: 44px;
                     clicked => { Actions.messages-clear(); }
                 }
                 IconButton {
                     text: @tr("Console");
                     icon: Icons.nav-console;
+                    icon-size: 20px;
+                    horizontal: true;
+                    min-height: 44px;
                     kind: "accent";
                     clicked => {
                         Navigation.page = Page.console;

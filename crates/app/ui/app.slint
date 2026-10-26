@@ -4,6 +4,8 @@ import { Theme } from "theme.slint";
 import { Actions, Confirm, Display, Navigation, Network, Page, Printer, SpoolPicker, StateIcons, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
 import { ConfirmDialog, MessagesFlyout, SpoolDialog } from "components/overlays.slint";
+import { HistoryDialog } from "components/history.slint";
+import { LightPanel } from "components/light.slint";
 import { PrintPage } from "pages/print.slint";
 import { MovePage } from "pages/move.slint";
 import { TemperaturePage } from "pages/temperature.slint";
@@ -15,7 +17,7 @@ import { SettingsPage } from "pages/settings.slint";
 import { ConnectionPage } from "pages/connection.slint";
 
 export { Actions, Confirm, Navigation, Network, Page, Printer, SpoolPicker, UiSettings }
-export { FileItem, HeaterItem, SensorItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
+export { FileItem, HeaterItem, SensorItem, FanItem, LedItem, LedEffectItem, TuningItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
 
 export component AppWindow inherits Window {
     title: "FreakyMate";
@@ -57,8 +59,15 @@ export component AppWindow inherits Window {
                 if Navigation.page == Page.system: SystemPage { }
                 if Navigation.page == Page.settings: SettingsPage { }
                 if !Printer.ready && !root.page-works-offline: ConnectionPage { }
+                // Over the page and the navigation, below the status bar: the emergency stop stays in reach.
+                HistoryDialog { }
             }
         }
+    }
+
+    if Navigation.light-open: LightPanel {
+        width: parent.width;
+        height: parent.height;
     }
 
     if Navigation.messages-open: MessagesFlyout {

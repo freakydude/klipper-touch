@@ -64,7 +64,9 @@ flowchart LR
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
-   copies pixels. Spoolman
+   copies pixels. The temperature history comes from Moonraker's `server.temperature_store` when a chart opens
+   (`history.rs`, drawn by `app/src/chart.rs` and `history_view.rs`); fans, LEDs and effects are read in
+   `printer/devices.rs`, the expert values in `tuning.rs`. Spoolman
    (`spoolman.rs`) is read through Moonraker's proxy: its state and the spools of the gates every minute and when
    Moonraker reports a change; the picker list on demand. The `lanes` (a gate each with MMU, otherwise the one active
    spool) are what the screens and the hints before a print are built from.

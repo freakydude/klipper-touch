@@ -7,8 +7,10 @@ slint::include_modules!();
 
 pub mod actions;
 pub mod app;
+mod chart;
 pub mod display;
 pub mod format;
+mod history_view;
 mod items;
 pub mod network_controller;
 pub mod presenter;

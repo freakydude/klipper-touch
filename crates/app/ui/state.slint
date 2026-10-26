@@ -17,8 +17,46 @@ export struct HeaterItem {
 }
 
 export struct SensorItem {
+    object: string,
     label: string,
     temperature: float,
+    // false while the sensor has no value, e.g. a stepper driver that is switched off.
+    known: bool,
+}
+
+// A fan. `kind`: part | generic | heater | controller; only part and generic fans can be set.
+export struct FanItem {
+    object: string,
+    label: string,
+    kind: string,
+    controllable: bool,
+    // 0 to 100.
+    speed: float,
+    // Measured speed as text ("2800 rpm"), empty without a tachometer.
+    rpm: string,
+}
+
+export struct LedItem {
+    object: string,
+    label: string,
+    // Brightness of the brightest channel, 0 to 100.
+    level: float,
+}
+
+// An effect of the led_effect plugin.
+export struct LedEffectItem {
+    name: string,
+    label: string,
+    enabled: bool,
+}
+
+// A motion or extrusion value of the expert tab; `id` names it (e.g. max_accel), the texts are formatted.
+export struct TuningItem {
+    id: string,
+    value: string,
+    configured: string,
+    changed: bool,
+    can-reset: bool,
 }
 
 export struct FilamentSensorItem {
@@ -196,8 +234,6 @@ export global Printer {
     in property <bool> homed-z;
     in property <float> z-offset;
     in property <float> speed-factor: 100;
-    in property <float> extrude-factor: 100;
-    in property <float> pressure-advance;
     in property <float> live-velocity;
     in property <float> live-flow;
 
@@ -209,8 +245,25 @@ export global Printer {
     in property <bool> has-bed;
     in property <float> bed-temperature;
     in property <float> bed-target;
-    in property <bool> has-part-fan;
-    in property <float> part-fan;
+    // Part fan first, then the other fans.
+    in property <[FanItem]> fans;
+    in property <[LedItem]> leds;
+    in property <[LedEffectItem]> led-effects;
+    // The main light (chamber or case light): there is one, its name, and whether it is on.
+    in property <bool> has-light;
+    in property <string> light-name;
+    in property <bool> light-on;
+    in property <[TuningItem]> tuning;
+    // Temperature history of one heater or sensor, drawn as SVG path commands in a 1000 x 1000 view box.
+    in property <string> history-title;
+    in property <string> history-current;
+    in property <string> history-temperature-path;
+    in property <string> history-target-path;
+    in property <string> history-power-path;
+    // Scale of the chart, e.g. "250 °C" and "20 °C".
+    in property <string> history-high;
+    in property <string> history-low;
+    in property <string> history-span;
     in property <bool> can-extrude;
     in property <[FilamentSensorItem]> filament-sensors;
     // Objects of the running print; excluded ones cannot be printed again.
@@ -333,14 +386,23 @@ export global Actions {
     callback step-heater(string, float);
     callback apply-preset(int);
     callback cool-down();
-    callback set-part-fan(float);
+    // Fan by Klipper object name, 0 to 100.
+    callback set-fan(string, float);
+    // White light of an LED, 0 to 100.
+    callback set-light(string, float);
+    callback toggle-light();
+    callback set-led-effect(string, bool);
+    // A value of the expert tab by id: one step (direction 1 or -1), or back to the configuration.
+    callback step-tuning(string, float);
+    callback reset-tuning(string);
+    // Temperature history of a heater or sensor (Klipper object name) in an overlay.
+    callback open-history(string);
+    callback close-history();
     callback adjust-z-offset(float);
     callback reset-z-offset();
     callback apply-z-offset();
     callback save-config();
     callback set-speed-factor(float);
-    callback set-extrude-factor(float);
-    callback set-pressure-advance(float);
     callback extrude(float, float);
     callback load-filament();
     callback unload-filament();
@@ -462,6 +524,13 @@ export global Navigation {
     in-out property <int> filament-tab;
     // First page of four gates that the MMU tab shows, counted from 0.
     in-out property <int> mmu-page;
+    // Thermal page: 0 = heaters, 1 = fans, 2 = sensors.
+    in-out property <int> heat-tab;
+    // Tune page: 0 = basics, 1 = expert; the navigation rail opens the basics.
+    in-out property <int> tune-tab;
+    in-out property <bool> history-open;
+    // The light panel at the light symbol of the status bar.
+    in-out property <bool> light-open;
 }
 
 // Confirmation dialog: pages set text and action, `execute` runs the action after OK.

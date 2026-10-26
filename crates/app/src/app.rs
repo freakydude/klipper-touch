@@ -93,7 +93,7 @@ impl Application {
 
         let clock = Timer::default();
         let clock_presenter = presenter.clone();
-        clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.refresh_job_texts());
+        clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.tick());
         presenter.refresh_job_texts();
 
         if options.fullscreen || settings.fullscreen() {

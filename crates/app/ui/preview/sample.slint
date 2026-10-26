@@ -23,8 +23,23 @@ export global Sample {
         Printer.has-bed = true;
         Printer.bed-temperature = 59.8;
         Printer.bed-target = 60;
-        Printer.has-part-fan = true;
-        Printer.part-fan = 40;
+        Printer.fans = [
+            { object: "fan", label: "Part fan", kind: "part", controllable: true, speed: 40, rpm: "" },
+            { object: "fan_generic nevermore", label: "Nevermore", kind: "generic", controllable: true, speed: 0, rpm: "" },
+            { object: "fan_generic exhaust", label: "Exhaust", kind: "generic", controllable: true, speed: 60, rpm: "1680 rpm" },
+            { object: "heater_fan hotend", label: "Hotend", kind: "heater", controllable: false, speed: 100, rpm: "7200 rpm" },
+        ];
+        Printer.leds = [{ object: "neopixel chamber", label: "Chamber", level: 80 }];
+        Printer.led-effects = [{ name: "rainbow", label: "Rainbow", enabled: false }];
+        Printer.has-light = true;
+        Printer.light-name = "Chamber";
+        Printer.light-on = true;
+        Printer.tuning = [
+            { id: "flow_factor", value: "100 %", configured: "100 %", changed: false, can-reset: false },
+            { id: "max_velocity", value: "300 mm/s", configured: "300 mm/s", changed: false, can-reset: false },
+            { id: "max_accel", value: "3500 mm/s²", configured: "3000 mm/s²", changed: true, can-reset: true },
+            { id: "pressure_advance", value: "0.040", configured: "0.040", changed: false, can-reset: false },
+        ];
         Printer.can-extrude = true;
         Printer.can-quad-gantry-level = true;
         Printer.has-probe = true;
@@ -58,7 +73,10 @@ export global Sample {
                 can-raise: true
             },
         ];
-        Printer.sensors = [{ label: "Raspberry Pi", temperature: 45 }];
+        Printer.sensors = [
+            { object: "temperature_sensor raspberry_pi", label: "Raspberry Pi", temperature: 45, known: true },
+            { object: "tmc2240 stepper_x", label: "Stepper X", temperature: 0, known: false },
+        ];
         Printer.filament-sensors = [
             { label: "Toolhead Runout", enabled: true, detected: true },
             { label: "Extruder Encoder", enabled: true, detected: false },

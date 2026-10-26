@@ -4,6 +4,7 @@ use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::{Actions, AppWindow};
 use freakymate_core::printer::Axis;
+use freakymate_core::tuning::TuningKey;
 use freakymate_core::{Command, PrinterService, Query};
 use slint::platform::WindowEvent;
 use slint::{ComponentHandle, SharedString};
@@ -47,9 +48,34 @@ pub fn bind(
         preset_service.send(Command::ApplyPreset { extruder: preset.extruder, bed: preset.bed });
     });
     actions.on_cool_down(send(|| Command::CoolDown));
-    actions.on_set_part_fan(with(service, |service, percent: f32| {
-        service.send(Command::SetPartFanSpeed { fraction: f64::from(percent) / 100.0 });
+    let fan_service = service.clone();
+    actions.on_set_fan(move |fan, percent| {
+        fan_service.send(Command::SetFanSpeed { fan: fan.into(), speed: f64::from(percent) / 100.0 });
+    });
+    let light_service = service.clone();
+    actions.on_set_light(move |led, percent| {
+        light_service.send(Command::SetLight { led: led.into(), level: f64::from(percent) / 100.0 });
+    });
+    actions.on_toggle_light(send(|| Command::ToggleLight));
+    let effect_service = service.clone();
+    actions.on_set_led_effect(move |effect, on| {
+        effect_service.send(Command::SetLedEffect { effect: effect.into(), on });
+    });
+    let tuning_service = service.clone();
+    actions.on_step_tuning(move |id, direction| {
+        if let Some(key) = TuningKey::parse(&id) {
+            tuning_service.send(Command::StepTuning { key, direction: f64::from(direction) });
+        }
+    });
+    actions.on_reset_tuning(with(service, |service, id: SharedString| {
+        if let Some(key) = TuningKey::parse(&id) {
+            service.send(Command::ResetTuning { key });
+        }
     }));
+    let history_presenter = presenter.clone();
+    actions.on_open_history(move |object| history_presenter.open_history(&object));
+    let close_presenter = presenter.clone();
+    actions.on_close_history(move || close_presenter.close_history());
 
     actions.on_adjust_z_offset(with(service, |service, delta: f32| {
         service.send(Command::AdjustZOffset { delta: round_offset(delta) })
@@ -59,12 +85,6 @@ pub fn bind(
     actions.on_save_config(send(|| Command::SaveConfig));
     actions.on_set_speed_factor(with(service, |service, percent: f32| {
         service.send(Command::SetSpeedFactor { percent: f64::from(percent) })
-    }));
-    actions.on_set_extrude_factor(with(service, |service, percent: f32| {
-        service.send(Command::SetExtrudeFactor { percent: f64::from(percent) });
-    }));
-    actions.on_set_pressure_advance(with(service, |service, value: f32| {
-        service.send(Command::SetPressureAdvance { value: round_offset(value) });
     }));
 
     let extrude_service = service.clone();

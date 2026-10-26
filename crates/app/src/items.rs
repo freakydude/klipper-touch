@@ -1,10 +1,14 @@
 //! Turns core values into the row structs of the Slint models, and keeps those models up to date.
 
 use crate::{format, view};
-use crate::{ConsoleItem, HeaterItem, HostInterfaceItem, PowerItem, SpoolItem, UpdateItem};
-use freakymate_core::printer::Heater;
+use crate::{
+    ConsoleItem, FanItem, HeaterItem, HostInterfaceItem, LedEffectItem, LedItem, PowerItem, SensorItem, SpoolItem,
+    TuningItem, UpdateItem,
+};
+use freakymate_core::printer::{Fan, Heater, Led, LedEffect, TemperatureSensor};
 use freakymate_core::spoolman::{self, Lane, Spool};
 use freakymate_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
+use freakymate_core::tuning::TuningValue;
 use freakymate_core::ConnectionState;
 use slint::{Model, SharedString, VecModel};
 
@@ -135,6 +139,49 @@ pub(crate) fn update_item(update: &UpdateInfo) -> UpdateItem {
         version: update.version.as_str().into(),
         detail: detail.into(),
         has_update: update.has_update(),
+    }
+}
+
+pub(crate) fn sensor_item(sensor: &TemperatureSensor) -> SensorItem {
+    SensorItem {
+        object: sensor.object.as_str().into(),
+        label: sensor.label.as_str().into(),
+        temperature: sensor.temperature.unwrap_or_default() as f32,
+        known: sensor.temperature.is_some(),
+    }
+}
+
+pub(crate) fn fan_item(fan: &Fan) -> FanItem {
+    FanItem {
+        object: fan.object.as_str().into(),
+        label: fan.label.as_str().into(),
+        kind: view::fan_kind(fan.kind).into(),
+        controllable: fan.kind.is_controllable(),
+        speed: (fan.speed * 100.0) as f32,
+        rpm: view::fan_rpm(fan.rpm).into(),
+    }
+}
+
+pub(crate) fn led_item(led: &Led) -> LedItem {
+    LedItem { object: led.object.as_str().into(), label: led.label.as_str().into(), level: (led.level * 100.0) as f32 }
+}
+
+pub(crate) fn led_effect_item(effect: &LedEffect) -> LedEffectItem {
+    LedEffectItem { name: effect.name.as_str().into(), label: effect.label.as_str().into(), enabled: effect.enabled }
+}
+
+pub(crate) fn tuning_item(value: &TuningValue) -> TuningItem {
+    let range = value.key.range();
+    TuningItem {
+        id: value.key.id().into(),
+        value: view::tuning_value(value.current, &range).into(),
+        configured: value
+            .configured
+            .map(|configured| view::tuning_value(configured, &range))
+            .unwrap_or_default()
+            .into(),
+        changed: value.is_changed(),
+        can_reset: value.is_changed(),
     }
 }
 

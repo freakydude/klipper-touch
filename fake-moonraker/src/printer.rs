@@ -1,8 +1,10 @@
 //! Simulated printer: heaters, toolhead and print job.
 
+use crate::devices::{DeviceInputs, Devices};
 use crate::files::GcodeFile;
-use crate::gcode::{Axis, Command, CommandError, MmuCommand, Move};
+use crate::gcode::{Axis, Command, CommandError, DeviceCommand, MmuCommand, Move, RetractionChange, VelocityLimit};
 use crate::happy_hare::HappyHare;
+use crate::history::{Sample, TemperatureStore};
 use crate::machine::{MachineProfile, FILAMENT_SENSORS, MMU_FILAMENT_SENSORS};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
@@ -130,6 +132,32 @@ struct PrintJob {
     filament_total: f64,
 }
 
+/// `[printer]` limits, changed by `SET_VELOCITY_LIMIT` until the next restart.
+#[derive(Debug, Clone, Copy)]
+struct Limits {
+    max_velocity: f64,
+    max_accel: f64,
+    square_corner_velocity: f64,
+    minimum_cruise_ratio: f64,
+}
+
+const CONFIGURED_LIMITS: Limits =
+    Limits { max_velocity: 300.0, max_accel: 3000.0, square_corner_velocity: 5.0, minimum_cruise_ratio: 0.5 };
+const CONFIGURED_PRESSURE_ADVANCE: f64 = 0.04;
+const CONFIGURED_SMOOTH_TIME: f64 = 0.04;
+
+/// `[firmware_retraction]`, changed by `SET_RETRACTION`.
+#[derive(Debug, Clone, Copy)]
+struct Retraction {
+    retract_length: f64,
+    retract_speed: f64,
+    unretract_extra_length: f64,
+    unretract_speed: f64,
+}
+
+const CONFIGURED_RETRACTION: Retraction =
+    Retraction { retract_length: 0.5, retract_speed: 35.0, unretract_extra_length: 0.0, unretract_speed: 30.0 };
+
 #[derive(Debug, Clone)]
 pub struct Printer {
     time_scale: f64,
@@ -147,6 +175,13 @@ pub struct Printer {
     speed_factor: f64,
     extrude_factor: f64,
     pressure_advance: f64,
+    smooth_time: f64,
+    limits: Limits,
+    /// `None` without the module (profile `basic`).
+    retraction: Option<Retraction>,
+    /// Fans, LEDs and sensors beyond the basics; `None` in the profile `basic`.
+    devices: Option<Devices>,
+    temperatures: TemperatureStore,
     z_offset: f64,
     config_pending: bool,
     gantry_leveled: bool,
@@ -191,7 +226,12 @@ impl Printer {
             fan_speed: 0.0,
             speed_factor: 1.0,
             extrude_factor: 1.0,
-            pressure_advance: 0.04,
+            pressure_advance: CONFIGURED_PRESSURE_ADVANCE,
+            smooth_time: CONFIGURED_SMOOTH_TIME,
+            limits: CONFIGURED_LIMITS,
+            retraction: profile.devices.then_some(CONFIGURED_RETRACTION),
+            devices: profile.devices.then(Devices::default),
+            temperatures: TemperatureStore::default(),
             z_offset: 0.0,
             config_pending: false,
             gantry_leveled: false,
@@ -219,6 +259,30 @@ impl Printer {
         }
         self.advance_print(seconds);
         self.advance_idle(seconds);
+        let samples = self.temperature_samples();
+        self.temperatures.advance(seconds, || samples.clone());
+    }
+
+    /// `server.temperature_store`.
+    pub fn temperature_store(&self) -> Value {
+        self.temperatures.to_json()
+    }
+
+    fn temperature_samples(&self) -> Vec<(String, Sample)> {
+        let heater = |heater: &Heater| Sample {
+            temperature: heater.temperature,
+            heater: Some((heater.target, if heater.target > heater.temperature { 1.0 } else { 0.0 })),
+        };
+        let mut samples =
+            vec![("extruder".to_owned(), heater(&self.extruder)), ("heater_bed".to_owned(), heater(&self.bed))];
+        if let Some(chamber) = &self.chamber {
+            samples.push(("heater_generic chamber".to_owned(), heater(chamber)));
+        }
+        samples.push((
+            "temperature_sensor raspberry_pi".to_owned(),
+            Sample { temperature: HOST_TEMPERATURE, heater: None },
+        ));
+        samples
     }
 
     fn advance_idle(&mut self, seconds: f64) {
@@ -261,7 +325,13 @@ impl Printer {
             Command::RelativeExtrusion => self.relative_extrusion = true,
             Command::SetSpeedFactor(factor) => self.speed_factor = factor.max(0.01),
             Command::SetExtrudeFactor(factor) => self.extrude_factor = factor.max(0.01),
-            Command::SetPressureAdvance(value) => self.pressure_advance = value.max(0.0),
+            Command::SetPressureAdvance { advance, smooth_time } => {
+                self.pressure_advance = advance.unwrap_or(self.pressure_advance).max(0.0);
+                self.smooth_time = smooth_time.unwrap_or(self.smooth_time).max(0.0);
+            }
+            Command::SetVelocityLimit(limit) => self.set_velocity_limit(limit),
+            Command::SetRetraction(change) => self.set_retraction(change)?,
+            Command::Device(command) => self.apply_device(command)?,
             Command::SetHeaterTemperature { heater, target } => self.set_named_heater(&heater, target)?,
             Command::ExcludeObject { name } => self.exclude_object(&name),
             Command::SaveConfig => self.config_pending = false,
@@ -353,6 +423,24 @@ impl Printer {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
         objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        if let Some(devices) = &self.devices {
+            let inputs = DeviceInputs {
+                nozzle_temperature: self.extruder.temperature,
+                steppers_enabled: self.homed.iter().any(|homed| *homed),
+            };
+            objects.extend(devices.status(inputs));
+        }
+        if let Some(retraction) = self.retraction {
+            objects.insert(
+                "firmware_retraction".to_owned(),
+                json!({
+                    "retract_length": retraction.retract_length,
+                    "retract_speed": retraction.retract_speed,
+                    "unretract_extra_length": retraction.unretract_extra_length,
+                    "unretract_speed": retraction.unretract_speed,
+                }),
+            );
+        }
         let sensor_names: &[&str] = if self.mmu.is_some() { &MMU_FILAMENT_SENSORS } else { &FILAMENT_SENSORS };
         for (index, name) in sensor_names.iter().take(self.profile.filament_sensors).enumerate() {
             objects.insert((*name).to_owned(), json!({ "enabled": true, "filament_detected": index != 1 }));
@@ -422,12 +510,23 @@ impl Printer {
 
     fn config_sections(&self) -> Map<String, Value> {
         let mut sections = Map::new();
-        sections
-            .insert("printer".to_owned(), json!({ "kinematics": "corexy", "max_velocity": 300, "max_accel": 3000 }));
+        let limits = CONFIGURED_LIMITS;
+        sections.insert(
+            "printer".to_owned(),
+            json!({
+                "kinematics": "corexy",
+                "max_velocity": limits.max_velocity,
+                "max_accel": limits.max_accel,
+                "square_corner_velocity": limits.square_corner_velocity,
+                "minimum_cruise_ratio": limits.minimum_cruise_ratio,
+            }),
+        );
         sections.insert(
             "extruder".to_owned(),
             json!({
                 "filament_diameter": 1.75,
+                "pressure_advance": CONFIGURED_PRESSURE_ADVANCE,
+                "pressure_advance_smooth_time": CONFIGURED_SMOOTH_TIME,
                 "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE,
                 "min_temp": MIN_HEATER_TEMPERATURE,
                 "max_temp": MAX_EXTRUDER_TARGET
@@ -455,7 +554,47 @@ impl Printer {
         if let Some(mmu) = &self.mmu {
             sections.extend(mmu.config_sections());
         }
+        if let Some(devices) = &self.devices {
+            sections.extend(devices.config_sections());
+        }
+        if self.retraction.is_some() {
+            let retraction = CONFIGURED_RETRACTION;
+            sections.insert(
+                "firmware_retraction".to_owned(),
+                json!({
+                    "retract_length": retraction.retract_length,
+                    "retract_speed": retraction.retract_speed,
+                    "unretract_extra_length": retraction.unretract_extra_length,
+                    "unretract_speed": retraction.unretract_speed,
+                }),
+            );
+        }
         sections
+    }
+
+    fn set_velocity_limit(&mut self, limit: VelocityLimit) {
+        let limits = &mut self.limits;
+        limits.max_velocity = limit.velocity.unwrap_or(limits.max_velocity);
+        limits.max_accel = limit.accel.unwrap_or(limits.max_accel);
+        limits.square_corner_velocity = limit.square_corner_velocity.unwrap_or(limits.square_corner_velocity);
+        limits.minimum_cruise_ratio = limit.minimum_cruise_ratio.unwrap_or(limits.minimum_cruise_ratio);
+    }
+
+    fn set_retraction(&mut self, change: RetractionChange) -> Result<(), CommandError> {
+        let retraction =
+            self.retraction.as_mut().ok_or_else(|| CommandError::new("Unknown command:\"SET_RETRACTION\""))?;
+        retraction.retract_length = change.retract_length.unwrap_or(retraction.retract_length);
+        retraction.retract_speed = change.retract_speed.unwrap_or(retraction.retract_speed);
+        retraction.unretract_extra_length = change.unretract_extra_length.unwrap_or(retraction.unretract_extra_length);
+        retraction.unretract_speed = change.unretract_speed.unwrap_or(retraction.unretract_speed);
+        Ok(())
+    }
+
+    fn apply_device(&mut self, command: DeviceCommand) -> Result<(), CommandError> {
+        match self.devices.as_mut() {
+            Some(devices) => devices.apply(command),
+            None => Err(CommandError::new("Unknown command for this machine")),
+        }
     }
 
     fn apply_mmu(&mut self, command: MmuCommand) -> Result<(), CommandError> {
@@ -607,7 +746,7 @@ impl Printer {
             "target": self.extruder.target,
             "power": if self.extruder.target > self.extruder.temperature { 1.0 } else { 0.0 },
             "pressure_advance": self.pressure_advance,
-            "smooth_time": 0.04,
+            "smooth_time": self.smooth_time,
             "can_extrude": self.extruder.temperature >= MIN_EXTRUDE_TEMPERATURE,
         })
     }
@@ -616,12 +755,12 @@ impl Printer {
         json!({
             "position": self.rounded_position(),
             "homed_axes": self.homed_axes(),
-            "max_accel": 3000.0,
+            "max_accel": self.limits.max_accel,
             "axis_minimum": AXIS_MINIMUM,
             "axis_maximum": AXIS_MAXIMUM,
-            "max_velocity": 300.0,
-            "square_corner_velocity": 5.0,
-            "minimum_cruise_ratio": 0.5,
+            "max_velocity": self.limits.max_velocity,
+            "square_corner_velocity": self.limits.square_corner_velocity,
+            "minimum_cruise_ratio": self.limits.minimum_cruise_ratio,
         })
     }
 

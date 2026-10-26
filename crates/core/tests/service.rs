@@ -429,3 +429,59 @@ async fn reports_disconnected_when_server_is_missing() {
 
     wait_for(&mut channels, |snapshot| snapshot.connection == ConnectionState::Disconnected).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
+    use freakymate_core::printer::FanKind;
+    use freakymate_core::tuning::TuningKey;
+
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, ready).await;
+
+    let capabilities = &snapshot.capabilities;
+    assert!(capabilities.fans.iter().any(|fan| fan == "fan_generic nevermore"));
+    assert_eq!(capabilities.main_light(), Some("neopixel chamber"));
+    assert_eq!(capabilities.white_channel("neopixel chamber"), freakymate_core::printer::WhiteChannel::All);
+    assert_eq!(capabilities.white_channel("neopixel status"), freakymate_core::printer::WhiteChannel::None);
+    assert!(capabilities.led_effects.iter().any(|effect| effect == "led_effect rainbow"));
+    assert_eq!(capabilities.tuning.get(TuningKey::MaxAccel), Some(3000.0));
+    assert!(snapshot
+        .status
+        .sensors
+        .iter()
+        .any(|sensor| sensor.object == "tmc2240 stepper_x" && sensor.temperature.is_none()));
+    assert_eq!(snapshot.status.fans[0].kind, FanKind::Part);
+
+    service.send(Command::ToggleLight);
+    service.send(Command::SetFanSpeed { fan: "fan_generic exhaust".into(), speed: 0.5 });
+    service.send(Command::SetLedEffect { effect: "rainbow".into(), on: true });
+    service.send(Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 });
+    let changed = wait_for(&mut channels, |snapshot| {
+        let light_off = snapshot.status.leds.iter().any(|led| led.object == "neopixel chamber" && led.level == 0.0);
+        let exhaust =
+            snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.rpm == Some(1400.0));
+        let effect = snapshot.status.led_effects.iter().any(|effect| effect.name == "rainbow" && effect.enabled);
+        light_off && exhaust && effect && snapshot.status.motion.max_accel == 3500.0
+    })
+    .await;
+    assert_eq!(changed.status.motion.max_accel, 3500.0);
+
+    // The fake samples once per simulated second; ask until the first samples are there.
+    timeout(WAIT_LIMIT, async {
+        loop {
+            service.query(Query::TemperatureHistory);
+            let event = next_event(&mut channels, |event| matches!(event, Event::TemperatureHistory(_))).await;
+            let Event::TemperatureHistory(history) = event else { unreachable!() };
+            if history
+                .get("extruder")
+                .is_some_and(|series| !series.temperatures.is_empty() && !series.targets.is_empty())
+            {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("temperature history not filled in time");
+}

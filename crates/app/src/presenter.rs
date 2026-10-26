@@ -1,15 +1,16 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::history_view::HistoryView;
 use crate::items::{
-    color_bar, connection_name, console_items, heater_item, host_interface_item, power_item, replace_rows, spool_rows,
-    update_item,
+    color_bar, connection_name, console_items, fan_item, heater_item, host_interface_item, led_effect_item, led_item,
+    power_item, replace_rows, sensor_item, spool_rows, tuning_item, update_item,
 };
 use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{format, thumbnail, view};
 use crate::{
-    AppWindow, ConsoleItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, MacroItem, MacroParamItem,
-    MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, SpoolItem,
-    UpdateItem,
+    AppWindow, ConsoleItem, FanItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, LedEffectItem,
+    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem,
+    Printer, SensorItem, SpoolItem, TuningItem, UpdateItem,
 };
 use chrono::Local;
 use freakymate_core::estimates;
@@ -19,6 +20,7 @@ use freakymate_core::printer::{
 };
 use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
 use freakymate_core::system::{ConsoleKind, ConsoleLine};
+use freakymate_core::tuning;
 use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
@@ -92,6 +94,11 @@ pub struct Presenter {
     origins: RefCell<HashMap<&'static str, &'static str>>,
     heaters: Rc<VecModel<HeaterItem>>,
     sensors: Rc<VecModel<SensorItem>>,
+    fans: Rc<VecModel<FanItem>>,
+    leds: Rc<VecModel<LedItem>>,
+    led_effects: Rc<VecModel<LedEffectItem>>,
+    tuning: Rc<VecModel<TuningItem>>,
+    history: HistoryView,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: Rc<VecModel<PrintObjectItem>>,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
@@ -123,6 +130,11 @@ impl Presenter {
             origins: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
+            fans: Rc::default(),
+            leds: Rc::default(),
+            led_effects: Rc::default(),
+            tuning: Rc::default(),
+            history: HistoryView::new(window),
             filament_sensors: Rc::default(),
             print_objects: Rc::default(),
             mmu_gates: Rc::default(),
@@ -147,6 +159,10 @@ impl Presenter {
         let printer = window.global::<Printer>();
         printer.set_heaters(ModelRc::from(presenter.heaters.clone()));
         printer.set_sensors(ModelRc::from(presenter.sensors.clone()));
+        printer.set_fans(ModelRc::from(presenter.fans.clone()));
+        printer.set_leds(ModelRc::from(presenter.leds.clone()));
+        printer.set_led_effects(ModelRc::from(presenter.led_effects.clone()));
+        printer.set_tuning(ModelRc::from(presenter.tuning.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         printer.set_print_objects(ModelRc::from(presenter.print_objects.clone()));
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
@@ -222,12 +238,10 @@ impl Presenter {
         printer.set_homed_z(motion.homed.z);
         printer.set_z_offset(motion.homing_origin[2] as f32);
         printer.set_speed_factor((motion.speed_factor * 100.0) as f32);
-        printer.set_extrude_factor((motion.extrude_factor * 100.0) as f32);
         printer.set_live_velocity(motion.live_velocity as f32);
         let flow = estimates::volumetric_flow(motion.live_extruder_velocity, status.extruder.filament_diameter);
         self.note_origin("volumetric flow", Some(flow.origin));
         printer.set_live_flow(flow.value as f32);
-        printer.set_pressure_advance(status.extruder.pressure_advance as f32);
         printer.set_can_extrude(status.extruder.can_extrude);
 
         let nozzle = status.heater("extruder");
@@ -237,8 +251,18 @@ impl Presenter {
         printer.set_has_bed(bed.is_some());
         printer.set_bed_temperature(bed.map_or(0.0, |heater| heater.temperature) as f32);
         printer.set_bed_target(bed.map_or(0.0, |heater| heater.target) as f32);
-        printer.set_has_part_fan(status.part_fan_speed.is_some());
-        printer.set_part_fan((status.part_fan_speed.unwrap_or_default() * 100.0) as f32);
+        let main_light = snapshot.capabilities.main_light();
+        let main_led = status.leds.iter().find(|led| Some(led.object.as_str()) == main_light);
+        printer.set_has_light(main_led.is_some());
+        printer.set_light_name(main_led.map(|led| led.label.as_str()).unwrap_or_default().into());
+        printer.set_light_on(main_led.is_some_and(|led| led.level > 0.0));
+        replace_rows(&self.fans, status.fans.iter().map(fan_item).collect());
+        replace_rows(&self.leds, status.leds.iter().map(led_item).collect());
+        replace_rows(&self.led_effects, status.led_effects.iter().map(led_effect_item).collect());
+        replace_rows(
+            &self.tuning,
+            tuning::values(status, &snapshot.capabilities.tuning).iter().map(tuning_item).collect(),
+        );
         printer.set_save_config_pending(status.save_config_pending);
         printer.set_leveling_state(match status.leveling_applied {
             Some(true) => "applied".into(),
@@ -252,17 +276,7 @@ impl Presenter {
             &self.heaters,
             status.heaters.iter().map(|heater| heater_item(heater, active_spool.as_ref())).collect(),
         );
-        replace_rows(
-            &self.sensors,
-            status
-                .sensors
-                .iter()
-                .map(|sensor| SensorItem {
-                    label: sensor.label.as_str().into(),
-                    temperature: sensor.temperature as f32,
-                })
-                .collect(),
-        );
+        replace_rows(&self.sensors, status.sensors.iter().map(sensor_item).collect());
         let has_mmu = status.mmu.as_ref().is_some_and(|mmu| mmu.enabled && mmu.is_supported());
         replace_rows(
             &self.filament_sensors,
@@ -317,6 +331,22 @@ impl Presenter {
         }
     }
 
+    /// Once a second: the clock and job times, and the live value of an open history.
+    pub fn tick(&self) {
+        self.refresh_job_texts();
+        self.history.sample(&self.cache.borrow().snapshot.status);
+    }
+
+    /// Opens the temperature history of a heater or sensor and asks Moonraker for the stored minutes.
+    pub fn open_history(&self, object: &str) {
+        self.history.open(object, &self.cache.borrow().snapshot.status);
+        self.service.query(Query::TemperatureHistory);
+    }
+
+    pub fn close_history(&self) {
+        self.history.close();
+    }
+
     /// Time-related texts; also called every second by the clock timer.
     pub fn refresh_job_texts(&self) {
         let Some(window) = self.window.upgrade() else { return };
@@ -344,6 +374,7 @@ impl Presenter {
             Event::FileMetadata(metadata) => self.store_metadata(*metadata),
             Event::PrintHistory(last_prints) => self.store_last_prints(last_prints),
             Event::Thumbnail { filename, image } => self.store_thumbnail(&filename, &image),
+            Event::TemperatureHistory(store) => self.history.store(store, &self.cache.borrow().snapshot.status),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
             Event::Updates(updates) => replace_rows(&self.updates, updates.iter().map(update_item).collect()),
             Event::ConsoleHistory(lines) => {

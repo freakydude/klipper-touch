@@ -1,9 +1,9 @@
-// Temperatures, presets and part cooling fan.
+// Thermal: heaters with presets, fans, further temperature sensors; each in its own tab.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Display, HeaterItem, Printer, UiSettings } from "../state.slint";
-import { Card, IconButton, StepSelector, TouchSlider } from "../components/controls.slint";
+import { Actions, Display, FanItem, HeaterItem, Navigation, Printer, SensorItem, UiSettings } from "../state.slint";
+import { IconButton, ProgressBar, ScrollList, StepSelector, TouchSlider } from "../components/controls.slint";
 
 component HeaterRow inherits Rectangle {
     in property <HeaterItem> heater;
@@ -31,6 +31,10 @@ component HeaterRow inherits Rectangle {
         VerticalLayout {
             alignment: center;
             horizontal-stretch: 1;
+            // Tapping the name or the temperature shows the history.
+            TouchArea {
+                clicked => { Actions.open-history(root.heater.object); }
+            }
             HorizontalLayout {
                 spacing: 8px;
                 Text {
@@ -92,31 +96,73 @@ component HeaterRow inherits Rectangle {
     }
 }
 
-// Off, slider and 100 % for the part fan; in a card on normal displays, on one line on compact ones.
-component FanControl inherits HorizontalLayout {
-    out property <float> shown: fan-slider.shown;
-    spacing: Theme.spacing;
-    IconButton {
-        width: 72px;
-        text: @tr("Off");
-        checked: Printer.part-fan < 1;
-        clicked => { Actions.set-part-fan(0); }
-    }
-    fan-slider := TouchSlider {
-        horizontal-stretch: 1;
-        value: Printer.part-fan;
-        changed(level) => { Actions.set-part-fan(level); }
-    }
-    IconButton {
-        width: 72px;
-        text: "100%";
-        checked: Printer.part-fan > 99;
-        clicked => { Actions.set-part-fan(100); }
+// Off, slider and 100 % for a fan that can be set; a bar for one that Klipper drives.
+component FanRow inherits Rectangle {
+    in property <FanItem> fan;
+    height: 60px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+
+    HorizontalLayout {
+        padding: 4px;
+        padding-left: 10px;
+        spacing: Theme.spacing;
+        Image {
+            source: Icons.thermal-fan;
+            colorize: root.fan.speed > 0 ? Theme.accent : Theme.muted;
+            width: 28px;
+            height: 28px;
+            y: (parent.height - self.height) / 2;
+        }
+        VerticalLayout {
+            alignment: center;
+            width: 170px;
+            Text { text: root.fan.label; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
+            Text {
+                text: round(fan-slider.shown) + " %" + (root.fan.rpm == "" ? "" : "  ·  " + root.fan.rpm);
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+                overflow: elide;
+            }
+        }
+        if root.fan.controllable: IconButton {
+            width: 64px;
+            text: @tr("Off");
+            checked: root.fan.speed < 1;
+            clicked => { Actions.set-fan(root.fan.object, 0); }
+        }
+        fan-slider := TouchSlider {
+            horizontal-stretch: 1;
+            visible: root.fan.controllable;
+            value: root.fan.speed;
+            changed(level) => { Actions.set-fan(root.fan.object, level); }
+        }
+        if root.fan.controllable: IconButton {
+            width: 64px;
+            text: "100%";
+            checked: root.fan.speed > 99;
+            clicked => { Actions.set-fan(root.fan.object, 100); }
+        }
+        // Klipper switches heater and controller fans itself: only how fast they run.
+        if !root.fan.controllable: VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            ProgressBar { progress: root.fan.speed / 100; bar-color: Theme.info; }
+        }
+        if !root.fan.controllable: Text {
+            width: 64px;
+            text: @tr("auto");
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
-export component TemperaturePage inherits Rectangle {
-    // Displays up to 400 px high (640x400) get tighter rows and no sensor line, so the step selector stays visible.
+component HeatersTab inherits Rectangle {
+    // Displays up to 400 px high (640x400) get tighter rows, so the step selector stays visible.
     property <bool> compact: Display.compact;
 
     VerticalLayout {
@@ -136,31 +182,15 @@ export component TemperaturePage inherits Rectangle {
                     row-height: root.compact ? 52px : 60px;
                     compact: root.compact;
                 }
-                // One line instead of a card: the page has to fit three heaters, the sensors and the fan on 800x480.
-                if Printer.sensors.length > 0 && !root.compact: HorizontalLayout {
-                    spacing: 16px;
-                    height: 22px;
-                    padding-left: 4px;
-                    VerticalLayout {
-                        alignment: center;
-                        Image { source: Icons.thermal-heating; colorize: Theme.muted; width: 18px; height: 18px; }
-                    }
-                    for sensor in Printer.sensors: Text {
-                        text: sensor.label + ": " + sensor.temperature.to-fixed(1) + " °C";
-                        color: Theme.foreground;
-                        font-size: Theme.font-small;
-                        vertical-alignment: center;
-                    }
-                }
-                if Printer.has-part-fan && !root.compact: Card {
-                    title: @tr("Part fan: {}%", round(fan.shown));
-                    icon: Icons.thermal-fan;
-                    fan := FanControl { }
-                }
-                if Printer.has-part-fan && root.compact: FanControl {
-                    height: 52px;
-                }
                 Rectangle { vertical-stretch: 1; }
+                // Under the heaters, so the presets can take the full height beside them.
+                StepSelector {
+                    label: @tr("Step");
+                    values: [1, 5, 10, 25];
+                    unit: " °C";
+                    selected <=> UiSettings.temperature-step;
+                    changed => { UiSettings.steps-changed(); }
+                }
             }
 
             VerticalLayout {
@@ -194,13 +224,105 @@ export component TemperaturePage inherits Rectangle {
                 Rectangle { vertical-stretch: 1; }
             }
         }
+    }
+}
 
-        StepSelector {
-            label: @tr("Step");
-            values: [1, 5, 10, 25];
-            unit: " °C";
-            selected <=> UiSettings.temperature-step;
-            changed => { UiSettings.steps-changed(); }
+// Every fan; scrolls when there are many.
+component FansTab inherits Rectangle {
+    property <length> row-step: 64px;
+
+    list := ScrollList {
+        x: Theme.padding;
+        y: Theme.padding;
+        width: parent.width - 2 * Theme.padding;
+        height: parent.height - 2 * Theme.padding;
+        content-height: Printer.fans.length * root.row-step;
+        for fan[index] in Printer.fans: FanRow {
+            y: index * root.row-step;
+            width: list.row-width;
+            fan: fan;
         }
+    }
+}
+
+// Every temperature without a target, three per row; a tap shows the history.
+component SensorsTab inherits Rectangle {
+    property <int> columns: Display.narrow ? 2 : 3;
+    property <length> tile-height: 64px;
+
+    list := ScrollList {
+        x: Theme.padding;
+        y: Theme.padding;
+        width: parent.width - 2 * Theme.padding;
+        height: parent.height - 2 * Theme.padding;
+        content-height: ceil(Printer.sensors.length / root.columns) * (root.tile-height + Theme.spacing);
+        for sensor[index] in Printer.sensors: Rectangle {
+            property <length> tile-width: (list.row-width - (root.columns - 1) * Theme.spacing) / root.columns;
+            x: mod(index, root.columns) * (self.tile-width + Theme.spacing);
+            y: floor(index / root.columns) * (root.tile-height + Theme.spacing);
+            width: self.tile-width;
+            height: root.tile-height;
+            background: sensor-touch.pressed ? Theme.surface-raised : Theme.surface;
+            border-radius: Theme.radius;
+            sensor-touch := TouchArea {
+                clicked => { Actions.open-history(sensor.object); }
+            }
+            VerticalLayout {
+                padding-left: 10px;
+                alignment: center;
+                Text { text: sensor.label; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
+                Text {
+                    text: sensor.known ? sensor.temperature.to-fixed(1) + " °C" : "–";
+                    color: sensor.known ? Theme.foreground : Theme.muted;
+                    font-size: Theme.font-large;
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+}
+
+// Shrinks on narrow windows instead of running off the edge.
+component Tab inherits IconButton {
+    max-width: 190px;
+    horizontal-stretch: 1;
+    horizontal: true;
+}
+
+export component TemperaturePage inherits Rectangle {
+    property <bool> has-fans: Printer.fans.length > 0;
+    property <bool> has-sensors: Printer.sensors.length > 0;
+    // A tab that the printer does not have falls back to the heaters.
+    property <int> tab: (Navigation.heat-tab == 1 && root.has-fans) || (Navigation.heat-tab == 2 && root.has-sensors) ? Navigation.heat-tab : 0;
+
+    VerticalLayout {
+        if root.has-fans || root.has-sensors: HorizontalLayout {
+            padding: Theme.padding;
+            padding-bottom: 0px;
+            spacing: Theme.spacing;
+            height: Theme.touch + Theme.padding;
+            Tab {
+                icon: Icons.thermal-heating;
+                text: @tr("Heaters");
+                checked: root.tab == 0;
+                clicked => { Navigation.heat-tab = 0; }
+            }
+            if root.has-fans: Tab {
+                icon: Icons.thermal-fan;
+                text: @tr("Fans");
+                checked: root.tab == 1;
+                clicked => { Navigation.heat-tab = 1; }
+            }
+            if root.has-sensors: Tab {
+                icon: Icons.nav-temperature;
+                text: @tr("Sensors");
+                checked: root.tab == 2;
+                clicked => { Navigation.heat-tab = 2; }
+            }
+            Rectangle { horizontal-stretch: 1; }
+        }
+        if root.tab == 0: HeatersTab { vertical-stretch: 1; }
+        if root.tab == 1: FansTab { vertical-stretch: 1; }
+        if root.tab == 2: SensorsTab { vertical-stretch: 1; }
     }
 }

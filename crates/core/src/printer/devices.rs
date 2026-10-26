@@ -1,0 +1,238 @@
+//! Fans, LEDs and LED effects: what they report and which of them a person can switch.
+//!
+//! Field names follow Klipper's Status Reference (`speed`, `rpm`, `color_data`) and the led_effect plugin
+//! (`enabled`, `klipper-led_effect/src/led_effect.py`); the plugin is optional.
+
+use super::objects::ObjectStore;
+use super::status::label;
+use serde_json::Value;
+
+/// LED drivers of Klipper; all of them report `color_data` and take `SET_LED`.
+const LED_KINDS: [&str; 5] = ["led", "neopixel", "dotstar", "pca9533", "pca9632"];
+/// Names that mark the light of the build chamber, for the switch in the status bar.
+const LIGHT_NAMES: [&str; 4] = ["chamber", "case", "light", "enclosure"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FanKind {
+    /// `[fan]`, the part cooling fan of `M106`.
+    Part,
+    /// `[fan_generic]`, e.g. an exhaust or a filter; set with `SET_FAN_SPEED`.
+    Generic,
+    /// `[heater_fan]`, runs with its heater.
+    Heater,
+    /// `[controller_fan]`, runs with the steppers.
+    Controller,
+}
+
+impl FanKind {
+    pub fn of(object: &str) -> Option<Self> {
+        match object.split_once(' ').map_or(object, |(kind, _)| kind) {
+            "fan" if object == "fan" => Some(Self::Part),
+            "fan_generic" => Some(Self::Generic),
+            "heater_fan" => Some(Self::Heater),
+            "controller_fan" => Some(Self::Controller),
+            _ => None,
+        }
+    }
+
+    /// Klipper drives heater and controller fans itself; they are only shown.
+    pub fn is_controllable(self) -> bool {
+        matches!(self, Self::Part | Self::Generic)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Fan {
+    pub object: String,
+    pub label: String,
+    pub kind: FanKind,
+    /// 0 to 1.
+    pub speed: f64,
+    /// Measured speed; only with a `tachometer_pin`.
+    pub rpm: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Led {
+    pub object: String,
+    pub label: String,
+    /// The brightest channel of all chips, 0 to 1; 0 is off.
+    pub level: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LedEffect {
+    /// The effect's name, as `SET_LED_EFFECT EFFECT=` takes it.
+    pub name: String,
+    pub label: String,
+    pub enabled: bool,
+}
+
+pub fn is_led(object: &str) -> bool {
+    object.split_once(' ').is_some_and(|(kind, _)| LED_KINDS.contains(&kind))
+}
+
+/// The LED for the light switch in the status bar: one named like a chamber or case light, else the first.
+pub fn main_light(leds: &[String]) -> Option<&str> {
+    let named = leds.iter().find(|led| {
+        let name = led.split_once(' ').map_or(led.as_str(), |(_, name)| name).to_ascii_lowercase();
+        LIGHT_NAMES.iter().any(|light| name.contains(light))
+    });
+    named.or(leds.first()).map(String::as_str)
+}
+
+/// Which chips of an LED chain have a white channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WhiteChannel {
+    #[default]
+    None,
+    /// Only some, e.g. a Stealthburner chain with RGB logo and RGBW nozzle LEDs.
+    Some,
+    All,
+}
+
+/// From the configuration: `color_order` with `W` (neopixel, dotstar; one entry per chip in `configfile.settings`)
+/// or a `white_pin` (PWM LEDs).
+pub fn white_channel(section: Option<&Value>) -> WhiteChannel {
+    let Some(section) = section else { return WhiteChannel::None };
+    if section.get("white_pin").is_some_and(|pin| !pin.is_null()) {
+        return WhiteChannel::All;
+    }
+    let orders: Vec<&str> = match section.get("color_order") {
+        Some(Value::String(order)) => vec![order.as_str()],
+        Some(Value::Array(orders)) => orders.iter().filter_map(Value::as_str).collect(),
+        _ => Vec::new(),
+    };
+    match orders.iter().filter(|order| order.contains('W')).count() {
+        0 => WhiteChannel::None,
+        white if white == orders.len() => WhiteChannel::All,
+        _ => WhiteChannel::Some,
+    }
+}
+
+/// The instance name of an object, e.g. `chamber` for `neopixel chamber`.
+pub fn instance(object: &str) -> &str {
+    object.split_once(' ').map_or(object, |(_, name)| name)
+}
+
+/// Part fan first, then generic, heater and controller fans, each in name order.
+pub(super) fn read_fans(store: &ObjectStore) -> Vec<Fan> {
+    let mut fans: Vec<Fan> = store
+        .names()
+        .filter_map(|name| Some((name, FanKind::of(name)?)))
+        .filter_map(|(name, kind)| {
+            let value = store.object(name)?;
+            Some(Fan {
+                object: name.to_owned(),
+                label: if kind == FanKind::Part { "Part fan".to_owned() } else { label(name) },
+                kind,
+                speed: value.get("speed").and_then(Value::as_f64).unwrap_or_default().clamp(0.0, 1.0),
+                rpm: value.get("rpm").and_then(Value::as_f64),
+            })
+        })
+        .collect();
+    fans.sort_by(|a, b| (a.kind, &a.object).cmp(&(b.kind, &b.object)));
+    fans
+}
+
+pub(super) fn read_leds(store: &ObjectStore) -> Vec<Led> {
+    store
+        .names()
+        .filter(|name| is_led(name))
+        .filter_map(|name| {
+            let chips = store.object(name)?.get("color_data")?.as_array()?;
+            let level =
+                chips.iter().filter_map(Value::as_array).flatten().filter_map(Value::as_f64).fold(0.0_f64, f64::max);
+            Some(Led { object: name.to_owned(), label: label(name), level: level.clamp(0.0, 1.0) })
+        })
+        .collect()
+}
+
+pub(super) fn read_led_effects(store: &ObjectStore) -> Vec<LedEffect> {
+    store
+        .names()
+        .filter(|name| name.starts_with("led_effect "))
+        .filter_map(|name| {
+            let value = store.object(name)?;
+            Some(LedEffect {
+                name: instance(name).to_owned(),
+                label: label(name),
+                enabled: value.get("enabled").and_then(Value::as_bool).unwrap_or_default(),
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn store(status: Value) -> ObjectStore {
+        let mut store = ObjectStore::default();
+        store.replace(&status);
+        store
+    }
+
+    #[test]
+    fn fans_come_part_first_and_know_who_controls_them() {
+        let fans = read_fans(&store(json!({
+            "controller_fan board": { "speed": 1.0, "rpm": 3100.0 },
+            "fan_generic nevermore": { "speed": 0.4, "rpm": null },
+            "fan": { "speed": 0.5 },
+            "heater_fan hotend": { "speed": 1.0 },
+            "fan_generic chamber_light": { "speed": 2.0 }
+        })));
+
+        let names: Vec<&str> = fans.iter().map(|fan| fan.object.as_str()).collect();
+        assert_eq!(
+            names,
+            ["fan", "fan_generic chamber_light", "fan_generic nevermore", "heater_fan hotend", "controller_fan board"]
+        );
+        assert_eq!(fans[0].label, "Part fan");
+        assert_eq!(fans[1].speed, 1.0, "speed is clamped");
+        assert_eq!(fans[2].rpm, None);
+        assert_eq!(fans[4].rpm, Some(3100.0));
+        assert!(fans[0].kind.is_controllable() && fans[2].kind.is_controllable());
+        assert!(!fans[3].kind.is_controllable() && !fans[4].kind.is_controllable());
+    }
+
+    #[test]
+    fn an_led_is_as_bright_as_its_brightest_channel() {
+        let leds = read_leds(&store(json!({
+            "neopixel chamber": { "color_data": [[0.0, 0.0, 0.0, 0.75], [0.1, 0.0, 0.0, 0.0]] },
+            "led status": { "color_data": [[0.0, 0.0, 0.0, 0.0]] },
+            "neopixel broken": { "color_data": null }
+        })));
+
+        assert_eq!(leds.len(), 2);
+        assert_eq!((leds[0].label.as_str(), leds[0].level), ("Status", 0.0));
+        assert_eq!((leds[1].label.as_str(), leds[1].level), ("Chamber", 0.75));
+    }
+
+    #[test]
+    fn effects_report_whether_they_run() {
+        let effects = read_led_effects(&store(json!({ "led_effect rainbow": { "enabled": true } })));
+        assert_eq!(effects, [LedEffect { name: "rainbow".into(), label: "Rainbow".into(), enabled: true }]);
+    }
+
+    #[test]
+    fn the_chamber_light_is_preferred_for_the_status_bar() {
+        let leds = ["neopixel sb".to_owned(), "neopixel chamber".to_owned()];
+        assert_eq!(main_light(&leds), Some("neopixel chamber"));
+        assert_eq!(main_light(&leds[..1]), Some("neopixel sb"));
+        assert_eq!(main_light(&[]), None);
+    }
+
+    #[test]
+    fn white_comes_from_the_colour_order_of_each_chip_or_a_white_pin() {
+        let white = |section: Value| white_channel(Some(&section));
+        assert_eq!(white(json!({ "color_order": ["GRBW"] })), WhiteChannel::All);
+        assert_eq!(white(json!({ "color_order": "RGBW" })), WhiteChannel::All);
+        assert_eq!(white(json!({ "color_order": ["GRB", "GRB", "GRBW", "GRBW"] })), WhiteChannel::Some);
+        assert_eq!(white(json!({ "color_order": ["GRB"] })), WhiteChannel::None);
+        assert_eq!(white(json!({ "white_pin": "PA1" })), WhiteChannel::All);
+        assert_eq!(white(json!({ "white_pin": null })), WhiteChannel::None);
+        assert_eq!(white_channel(None), WhiteChannel::None);
+    }
+}
