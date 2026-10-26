@@ -130,6 +130,11 @@ impl Session {
             "server.files.metadata" => Ok(find_file(backend, params)?.metadata()),
             "server.history.list" => Ok(backend.catalog().history()),
             "server.files.thumbnails" => Ok(find_file(backend, params)?.thumbnails()),
+            "server.spoolman.status" if backend.spoolman_enabled() => {
+                Ok(backend.with_spoolman(|spoolman| spoolman.status()))
+            }
+            "server.spoolman.post_spool_id" if backend.spoolman_enabled() => set_active_spool(backend, params),
+            "server.spoolman.proxy" if backend.spoolman_enabled() => Ok(spoolman_proxy(backend, params)),
             _ => Err(RpcError::new(METHOD_NOT_FOUND, format!("Method not found: {method}"))),
         }
     }
@@ -175,15 +180,53 @@ fn run_script(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
         backend.respond(&format!("!! {}", error.message()));
     }
     outcome?;
+    follow_selected_gate(backend);
     Ok(ok())
+}
+
+/// Happy Hare makes the spool of the selected gate the active one in Moonraker.
+fn follow_selected_gate(backend: &Backend) {
+    if !backend.spoolman_enabled() || !backend.with_printer(|printer| printer.has_mmu()) {
+        return;
+    }
+    let spool = backend.with_printer(|printer| printer.selected_gate_spool());
+    if backend.with_spoolman(|spoolman| spoolman.set_active(spool)) == Ok(true) {
+        backend.notify("notify_active_spool_set", json!([{ "spool_id": spool }]));
+    }
+}
+
+/// `server.spoolman.post_spool_id`; `null` unsets the active spool.
+fn set_active_spool(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+    let spool_id = params.get("spool_id").and_then(Value::as_u64).and_then(|id| u32::try_from(id).ok());
+    let changed = backend.with_spoolman(|spoolman| spoolman.set_active(spool_id)).map_err(RpcError::invalid_params)?;
+    if changed {
+        backend.notify("notify_active_spool_set", json!([{ "spool_id": spool_id }]));
+    }
+    Ok(json!({ "spool_id": spool_id }))
+}
+
+/// `server.spoolman.proxy` with the version 2 response.
+fn spoolman_proxy(backend: &Backend, params: &Value) -> Value {
+    let text = |field: &str| params.get(field).and_then(Value::as_str).unwrap_or_default().to_owned();
+    let body = params.get("body").cloned().unwrap_or(Value::Null);
+    match backend.with_spoolman(|spoolman| spoolman.proxy(&text("request_method"), &text("path"), &body)) {
+        Ok(response) => json!({ "response": response, "error": null }),
+        Err((status_code, message)) => {
+            json!({ "response": null, "error": { "status_code": status_code, "message": message } })
+        }
+    }
 }
 
 fn server_info(backend: &Backend) -> Value {
     let state = backend.with_printer(|printer| printer.klippy_state());
+    let mut components = vec!["file_manager", "machine", "data_store", "update_manager", "power", "history"];
+    if backend.spoolman_enabled() {
+        components.push("spoolman");
+    }
     json!({
         "klippy_connected": true,
         "klippy_state": state,
-        "components": ["file_manager", "machine", "data_store", "update_manager", "power", "history"],
+        "components": components,
         "failed_components": [],
         "registered_directories": ["gcodes", "config"],
         "warnings": [],

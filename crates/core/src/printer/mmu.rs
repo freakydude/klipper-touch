@@ -66,6 +66,10 @@ pub struct MmuGate {
     pub color: Option<[u8; 3]>,
     /// First tool that is mapped to this gate (`ttg_map`).
     pub tool: Option<usize>,
+    /// Spoolman spool of the gate (`gate_spool_id`); `None` for none (Happy Hare reports -1).
+    pub spool_id: Option<u32>,
+    /// Print temperature of the gate in °C (`gate_temperature`), from Spoolman if the gate has a spool.
+    pub temperature: Option<f64>,
 }
 
 /// A filament sensor of the MMU as reported in `mmu.sensors`; `triggered` is `None` when the sensor is disabled.
@@ -159,6 +163,10 @@ pub struct MmuStatus {
     pub paused: bool,
     pub locked: bool,
     pub gates: Vec<MmuGate>,
+    /// Gate of each tool (`ttg_map`).
+    pub tool_to_gate: Vec<usize>,
+    /// `off`, `readonly`, `push` or `pull`; empty if not reported.
+    pub spoolman_support: String,
     pub sensors: Vec<MmuSensor>,
     pub sync_feedback: Option<SyncFeedback>,
     pub flowguard: Option<FlowGuard>,
@@ -200,6 +208,12 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
         paused: flag(mmu, "is_paused"),
         locked: flag(mmu, "is_locked"),
         gates: read_gates(mmu, num_gates),
+        tool_to_gate: mmu
+            .get("ttg_map")
+            .and_then(Value::as_array)
+            .map(|map| map.iter().filter_map(|gate| gate.as_u64().map(|gate| gate as usize)).collect())
+            .unwrap_or_default(),
+        spoolman_support: text(mmu, "spoolman_support"),
         flow_rate: read_flow_rate(mmu, &sensors),
         sensors,
         sync_feedback: read_sync_feedback(mmu),
@@ -242,13 +256,15 @@ fn parse_version(text: &str) -> Option<(u32, u32)> {
 
 fn read_gates(mmu: &Value, num_gates: usize) -> Vec<MmuGate> {
     let list = |field: &str| mmu.get(field).and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
-    let (status, names, materials, colors, rgb, ttg_map) = (
+    let (status, names, materials, colors, rgb, ttg_map, spool_ids, temperatures) = (
         list("gate_status"),
         list("gate_filament_name"),
         list("gate_material"),
         list("gate_color"),
         list("gate_color_rgb"),
         list("ttg_map"),
+        list("gate_spool_id"),
+        list("gate_temperature"),
     );
     let string_at =
         |values: &[Value], index: usize| values.get(index).and_then(Value::as_str).unwrap_or_default().to_owned();
@@ -263,6 +279,8 @@ fn read_gates(mmu: &Value, num_gates: usize) -> Vec<MmuGate> {
             material: string_at(materials, index),
             color: if string_at(colors, index).is_empty() { None } else { rgb.get(index).and_then(color_from_rgb) },
             tool: ttg_map.iter().position(|gate| gate.as_u64() == Some(index as u64)),
+            spool_id: spool_ids.get(index).and_then(Value::as_i64).and_then(|id| u32::try_from(id).ok()),
+            temperature: temperatures.get(index).and_then(Value::as_f64).filter(|degrees| *degrees > 0.0),
         })
         .collect()
 }

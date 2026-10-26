@@ -92,6 +92,27 @@ pub fn bind(
         service.send(Command::RunGcode { script: script.into() })
     }));
 
+    let spools_presenter = Rc::clone(presenter);
+    actions.on_load_spools(move || spools_presenter.load_spools());
+    actions.on_set_active_spool(with(service, |service, id: i32| {
+        service.send(Command::SetActiveSpool { spool_id: u32::try_from(id).ok() });
+    }));
+    let assign_service = service.clone();
+    actions.on_assign_gate_spool(move |gate, id| {
+        if let Ok(gate) = usize::try_from(gate) {
+            assign_service.send(Command::AssignGateSpool { gate, spool_id: u32::try_from(id).ok() });
+        }
+    });
+    let (measure_service, measure_presenter) = (service.clone(), Rc::clone(presenter));
+    actions.on_measure_spool(move |id, text| match (u32::try_from(id), parse_weight(&text)) {
+        (Ok(spool_id), Some(weight)) => measure_service.send(Command::MeasureSpool { spool_id, weight }),
+        _ => measure_presenter.show_notice("Enter the weight of the spool in grams", true),
+    });
+    let preset_presenter = Rc::clone(presenter);
+    actions.on_apply_spool_preset(move || preset_presenter.apply_spool_preset());
+    let hints_presenter = Rc::clone(presenter);
+    actions.on_print_hints(move |path| hints_presenter.print_hints_text(&path).into());
+
     let files_presenter = Rc::clone(presenter);
     actions.on_refresh_files(move || files_presenter.request_files());
     actions.on_start_print(with(service, |service, filename: slint::SharedString| {
@@ -155,6 +176,11 @@ pub fn bind(
     window.global::<TextTools>().on_mask(|text| mask(&text).into());
 }
 
+/// A weight as typed, in grams; a comma as decimal separator is fine. Zero and negative are no weights.
+fn parse_weight(text: &str) -> Option<f64> {
+    text.trim().replace(',', ".").parse::<f64>().ok().filter(|weight| weight.is_finite() && *weight > 0.0)
+}
+
 fn mask(text: &str) -> String {
     "•".repeat(text.chars().count())
 }
@@ -192,6 +218,16 @@ mod tests {
         assert_eq!(parse_axis("e"), None);
         assert_eq!(round_offset(0.005_f32), 0.005);
         assert_eq!(round_offset(-0.025_f32), -0.025);
+    }
+
+    #[test]
+    fn weights_are_read_with_a_point_or_a_comma_and_must_be_positive() {
+        assert_eq!(parse_weight("793.5"), Some(793.5));
+        assert_eq!(parse_weight(" 793,5 "), Some(793.5));
+        assert_eq!(parse_weight("0"), None);
+        assert_eq!(parse_weight("-3"), None);
+        assert_eq!(parse_weight("abc"), None);
+        assert_eq!(parse_weight(""), None);
     }
 
     #[test]

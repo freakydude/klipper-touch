@@ -5,6 +5,7 @@ import { Icons } from "../icons.slint";
 import { Actions, Confirm, Display, Navigation, Printer } from "../state.slint";
 import { IconButton, IconLabel, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
+import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuStrip } from "mmu.slint";
 
 component Thumbnail inherits Rectangle {
@@ -169,7 +170,7 @@ export component FileBrowser inherits Rectangle {
                 vertical-stretch: 1;
                 enabled: root.selected >= 0 && root.selected < Printer.files.length && !Printer.is-printing;
                 clicked => {
-                    Confirm.ask(@tr("Start print"), Printer.files[root.selected].name, "start-print", Printer.files[root.selected].path, false);
+                    Confirm.ask(@tr("Start print"), Printer.files[root.selected].name + Actions.print-hints(Printer.files[root.selected].path), "start-print", Printer.files[root.selected].path, false);
                     Navigation.files-open = false;
                 }
             }
@@ -293,6 +294,7 @@ export component PrintPage inherits Rectangle {
                     }
                 }
             }
+            if Printer.has-spoolman && !Printer.has-mmu: SpoolStrip { }
             if Printer.has-mmu: MmuStrip { }
             Rectangle { vertical-stretch: 1; }
         }
@@ -314,7 +316,7 @@ export component PrintPage inherits Rectangle {
                 icon: root.finished ? Icons.print-repeat : Icons.print-start;
                 text: root.finished ? @tr("Reprint") : @tr("Start");
                 kind: "accent";
-                clicked => { Confirm.ask(@tr("Start print"), Printer.job-name, "start-print", Printer.filename, false); }
+                clicked => { Confirm.ask(@tr("Start print"), Printer.job-name + Actions.print-hints(Printer.filename), "start-print", Printer.filename, false); }
             }
             if Printer.print-state == "printing": IconButton {
                 height: 96px;

@@ -60,7 +60,10 @@ flowchart LR
    `Capabilities::filament_handling` decides where Load and Unload come from: Happy Hare, else the macros
    `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
-3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
+3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. Spoolman
+   (`spoolman.rs`) is read through Moonraker's proxy: its state and the spools of the gates every minute and when
+   Moonraker reports a change; the picker list on demand. The `lanes` (a gate each with MMU, otherwise the one active
+   spool) are what the screens and the hints before a print are built from.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
    `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` translates the
    result into G-code or Moonraker methods; moves are clamped to the axis range. Heater targets that were sent but not

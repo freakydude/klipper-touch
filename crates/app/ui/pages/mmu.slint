@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Display, MmuGateItem, Navigation, Printer } from "../state.slint";
+import { Actions, Confirm, Display, MmuGateItem, Navigation, Printer, SpoolPicker } from "../state.slint";
 import { Card, IconButton, IconLabel } from "../components/controls.slint";
 
 // Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
@@ -28,6 +28,7 @@ component GateTile inherits Rectangle {
     callback clicked;
 
     property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
+    property <bool> shows-spool: Printer.has-spoolman && root.has-filament;
     property <color> status-color: root.has-filament ? Theme.success : root.gate.availability == "empty" ? Theme.warning : Theme.muted;
 
     pure function availability-text() -> string {
@@ -77,11 +78,31 @@ component GateTile inherits Rectangle {
             font-size: Theme.font-large;
             overflow: elide;
         }
-        if !root.compact: Text {
+        // With Spoolman the line of the filament name says what is left of the spool instead (the name repeats the
+        // material and the colour above); a tap picks another spool, and a gate without one invites to pick one.
+        if !root.compact && !root.shows-spool: Text {
             text: root.gate.name;
             color: Theme.muted;
             font-size: Theme.font-small;
             overflow: elide;
+        }
+        if root.shows-spool: Rectangle {
+            height: 22px;
+            Text {
+                width: parent.width;
+                text: root.gate.spool-text != "" ? root.gate.spool-text : @tr("+ spool");
+                color: root.gate.spool-low ? Theme.warning : root.gate.spool-text != "" ? Theme.muted : Theme.accent;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            TouchArea {
+                x: -10px;
+                y: -8px;
+                width: parent.width + 20px;
+                height: parent.height + 16px;
+                clicked => { SpoolPicker.show(root.gate.index); }
+            }
         }
         Rectangle { vertical-stretch: 1; }
         IconLabel {
@@ -276,7 +297,16 @@ export component MmuStrip inherits Card {
                 font-size: Theme.font-normal;
                 font-weight: 700;
             }
-            Rectangle { horizontal-stretch: 1; }
+            // The spool of the gate in use: its filament and what is left of it.
+            Text {
+                horizontal-stretch: 1;
+                text: Printer.has-spool ? (Printer.spool-weight != "" ? Printer.spool-title + " · " + Printer.spool-weight : Printer.spool-title) : "";
+                color: Printer.spool-low ? Theme.warning : Theme.muted;
+                font-size: Theme.font-small;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+                overflow: elide;
+            }
             Text {
                 text: Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
                 color: Theme.info;

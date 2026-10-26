@@ -4,6 +4,7 @@ use crate::files::Catalog;
 use crate::host::Host;
 use crate::machine::MachineProfile;
 use crate::printer::Printer;
+use crate::spoolman::Spoolman;
 use serde_json::{json, Value};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -14,6 +15,8 @@ const NOTIFICATION_BUFFER: usize = 64;
 pub struct Backend {
     printer: Mutex<Printer>,
     host: Mutex<Host>,
+    spoolman: Mutex<Spoolman>,
+    spoolman_enabled: bool,
     catalog: Catalog,
     started: Instant,
     notifications: broadcast::Sender<String>,
@@ -28,6 +31,8 @@ impl Backend {
         Self {
             printer: Mutex::new(Printer::with_profile(time_scale, profile)),
             host: Mutex::new(Host::default()),
+            spoolman: Mutex::new(Spoolman::default()),
+            spoolman_enabled: profile.spoolman,
             catalog: Catalog::demo(),
             started: Instant::now(),
             notifications: broadcast::channel(NOTIFICATION_BUFFER).0,
@@ -57,6 +62,15 @@ impl Backend {
     pub fn with_host<R>(&self, action: impl FnOnce(&mut Host) -> R) -> R {
         let mut host = self.host.lock().expect("host lock poisoned");
         action(&mut host)
+    }
+
+    pub fn spoolman_enabled(&self) -> bool {
+        self.spoolman_enabled
+    }
+
+    pub fn with_spoolman<R>(&self, action: impl FnOnce(&mut Spoolman) -> R) -> R {
+        let mut spoolman = self.spoolman.lock().expect("spoolman lock poisoned");
+        action(&mut spoolman)
     }
 
     pub fn catalog(&self) -> &Catalog {

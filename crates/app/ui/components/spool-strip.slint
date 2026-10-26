@@ -1,0 +1,57 @@
+// The spool in use, in one line; a tap opens the picker. Only for a printer without MMU: with one, the gate says it.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Printer, SpoolPicker } from "../state.slint";
+
+export component SpoolStrip inherits Rectangle {
+    height: 52px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    accessible-role: button;
+    accessible-label: @tr("Spool");
+
+    HorizontalLayout {
+        padding: 6px;
+        padding-left: 10px;
+        spacing: 10px;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 14px;
+                height: 34px;
+                border-radius: 4px;
+                background: Printer.spool-has-color ? Printer.spool-color : Theme.border;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: Printer.has-spool ? Printer.spool-title : @tr("No spool selected");
+                color: Printer.has-spool ? Theme.foreground : Theme.muted;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+                overflow: elide;
+            }
+            if Printer.has-spool: Text {
+                text: Printer.spool-detail;
+                color: Printer.spool-low ? Theme.warning : Theme.muted;
+                font-size: Theme.font-small;
+                overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: Icons.filament-spool;
+                colorize: Theme.muted;
+                width: 22px;
+                height: 22px;
+            }
+        }
+    }
+    TouchArea {
+        clicked => { SpoolPicker.show(-1); }
+    }
+}

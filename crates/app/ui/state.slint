@@ -12,6 +12,8 @@ export struct HeaterItem {
     power: float,
     // Target is below Klipper's max_temp.
     can-raise: bool,
+    // The temperature the spool in use recommends, when the target is off from it; empty otherwise.
+    spool-hint: string,
 }
 
 export struct SensorItem {
@@ -36,6 +38,22 @@ export struct MmuGateItem {
     // Tool mapped to this gate, -1 without one.
     tool: int,
     selected: bool,
+    // Remaining filament of the spool in the gate (for example "613 g"), empty without Spoolman or spool.
+    spool-text: string,
+    spool-low: bool,
+    // Spoolman id of the spool in the gate, -1 for none.
+    spool-id: int,
+}
+
+// A spool of Spoolman in the picker. `place`: where it sits ("Gate 2", "In use") or empty.
+export struct SpoolItem {
+    id: int,
+    title: string,
+    detail: string,
+    color: color,
+    has-color: bool,
+    place: string,
+    low: bool,
 }
 
 // A sensor of the MMU. `state`: disabled | open | triggered.
@@ -236,6 +254,24 @@ export global Printer {
     // Parameter form of the macro chosen in the console.
     in property <string> macro-form-name;
     in property <[MacroParamItem]> macro-form;
+    // Spoolman: configured in Moonraker, and not reachable although it is.
+    in property <bool> has-spoolman;
+    in property <bool> spoolman-offline;
+    in property <int> spoolman-pending;
+    // The spool in use: that of the selected gate, or the active spool of a printer without MMU.
+    in property <bool> has-spool;
+    in property <string> spool-title;
+    in property <string> spool-detail;
+    // What is left of the spool, for example "613 g".
+    in property <string> spool-weight;
+    in property <color> spool-color;
+    in property <bool> spool-has-color;
+    in property <bool> spool-low;
+    // Heating to what the spool in use recommends.
+    in property <bool> has-spool-preset;
+    in property <string> spool-preset-text;
+    in property <[SpoolItem]> spools;
+    in property <bool> spools-loading;
     in property <[FileItem]> files;
     in property <bool> files-loading;
     in property <[ConsoleItem]> console;
@@ -329,6 +365,15 @@ export global Actions {
     callback messages-clear();
     callback set-macro-visible(string, bool);
     callback macro-has-params(string) -> bool;
+    // Spoolman. `gate` is -1 for a printer without MMU.
+    callback load-spools();
+    callback set-active-spool(int);
+    callback assign-gate-spool(int, int);
+    // Spool id and the gross weight in grams as typed.
+    callback measure-spool(int, string);
+    callback apply-spool-preset();
+    // What differs between a file and the spools, as lines of text for the confirmation; empty if nothing.
+    pure callback print-hints(string) -> string;
     callback open-macro-form(string);
     callback set-macro-param(int, string);
     callback macro-form-script() -> string;
@@ -386,6 +431,19 @@ export global Display {
     // 640x400 and the like: tighter rows, fewer extra lines.
     out property <bool> compact: self.window-height < 440px;
     out property <bool> narrow: self.window-width < 720px;
+}
+
+// The dialog to pick a spool, weigh it, or assign it to a gate.
+export global SpoolPicker {
+    in-out property <bool> open;
+    // The gate to assign a spool to, -1 for the active spool of a printer without MMU.
+    in-out property <int> gate: -1;
+
+    public function show(gate: int) {
+        self.gate = gate;
+        self.open = true;
+        Actions.load-spools();
+    }
 }
 
 export global Navigation {

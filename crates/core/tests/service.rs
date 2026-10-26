@@ -3,6 +3,7 @@
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use klipper_touch_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
+use klipper_touch_core::spoolman;
 use klipper_touch_core::system::ConsoleKind;
 use klipper_touch_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
 use std::time::Duration;
@@ -182,6 +183,111 @@ async fn intents_the_printer_cannot_carry_out_are_reported() {
 
     assert!(matches!(refused, Event::CommandFailed { command, message }
         if command == "Level" && message.contains("neither quad gantry level nor Z tilt")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn reads_the_spools_of_the_gates_from_spoolman() {
+    let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
+    let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, ready).await;
+    assert!(snapshot.capabilities.server.spoolman);
+
+    let Event::Spoolman(state) = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_))).await else {
+        unreachable!()
+    };
+
+    assert!(state.connected);
+    // Gate 3 stays empty; the gates 0 to 2 have the spools 1 to 3, and Moonraker starts with spool 4 active.
+    let mut ids: Vec<u32> = state.spools.keys().copied().collect();
+    ids.sort_unstable();
+    assert_eq!(ids, [1, 2, 3, 4]);
+    assert_eq!(state.active_spool_id, Some(4));
+    let spool = &state.spools[&2];
+    assert_eq!(
+        (spool.material.as_str(), spool.remaining_weight, spool.extruder_temp),
+        ("PETG", Some(40.0), Some(235.0))
+    );
+    assert!(spool.is_low());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_printer_without_spoolman_has_no_spoolman_component() {
+    let endpoint = start_fake_with(MachineProfile::basic()).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, ready).await;
+
+    service.query(Query::Spoolman);
+    service.query(Query::PowerDevices);
+
+    assert!(!snapshot.capabilities.server.spoolman);
+    // The first event is that of the power devices: nothing was asked of a Spoolman that is not there.
+    let first = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_) | Event::PowerDevices(_))).await;
+    assert!(matches!(first, Event::PowerDevices(_)));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_active_spool_is_set_and_reported_back() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::SetActiveSpool { spool_id: Some(6) });
+
+    let state = loop {
+        let Event::Spoolman(state) = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_))).await
+        else {
+            unreachable!()
+        };
+        if state.active_spool_id == Some(6) {
+            break state;
+        }
+    };
+    assert_eq!(state.spools[&6].material, "PETG");
+    let lanes = spoolman::lanes(None, &state);
+    assert_eq!(spoolman::active_spool(&lanes).map(|spool| spool.id), Some(6));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_spool_is_assigned_to_a_gate_and_its_weight_is_corrected() {
+    let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::AssignGateSpool { gate: 1, spool_id: Some(8) });
+    let snapshot = wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gates.get(1).is_some_and(|gate| gate.spool_id == Some(8)))
+    })
+    .await;
+    assert_eq!(snapshot.status.mmu.unwrap().gates[1].spool_id, Some(8));
+
+    service.send(Command::MeasureSpool { spool_id: 8, weight: 480.0 });
+    next_event(&mut channels, |event| matches!(event, Event::SpoolmanChanged)).await;
+    service.query(Query::Spoolman);
+    loop {
+        let Event::Spoolman(state) = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_))).await
+        else {
+            unreachable!()
+        };
+        if state.spools.get(&8).is_some_and(|spool| spool.remaining_weight == Some(300.0)) {
+            break;
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_picker_list_is_most_recently_used_first() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.query(Query::SpoolList);
+    let Event::SpoolList(spools) = next_event(&mut channels, |event| matches!(event, Event::SpoolList(_))).await else {
+        unreachable!()
+    };
+
+    assert_eq!(spools.len(), 8);
+    assert_eq!(spools[0].id, 8);
+    assert_eq!(spools.last().map(|spool| spool.id), Some(5));
 }
 
 #[tokio::test(flavor = "multi_thread")]

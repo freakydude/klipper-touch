@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Navigation, Page, Printer, TextTools } from "../state.slint";
+import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker, TextTools } from "../state.slint";
 import { IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
@@ -18,7 +18,7 @@ export component ConfirmDialog inherits Scrim {
 
     Rectangle {
         width: min(parent.width - 80px, 480px);
-        height: 220px;
+        height: min(parent.height - 24px, 270px);
         background: Theme.surface;
         border-radius: Theme.radius;
         border-width: 1px;
@@ -564,5 +564,157 @@ export component ExcludeObjectsDialog inherits Scrim {
                 }
             }
         }
+    }
+}
+
+// Picks a spool of Spoolman for the gate (or, without MMU, as the active spool), weighs it, or takes it out of the gate.
+// The list shows the spools in a lane first, then the most recently used ones.
+export component SpoolDialog inherits Scrim {
+    property <int> selected: -1;
+    visible: SpoolPicker.open;
+
+    changed visible => {
+        if (!self.visible) { root.selected = -1; }
+    }
+
+    Rectangle {
+        x: 8px;
+        y: 8px;
+        width: parent.width - 16px;
+        height: parent.height - 16px;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 8px;
+            HorizontalLayout {
+                height: 40px;
+                spacing: 10px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: SpoolPicker.gate >= 0 ? @tr("Spool for gate {}", SpoolPicker.gate) : @tr("Spool in use");
+                    color: Theme.foreground;
+                    font-size: Theme.font-large;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if Printer.spoolman-offline: Text {
+                    text: Printer.spoolman-pending > 0 ? @tr("Spoolman offline, {} reports waiting", Printer.spoolman-pending) : @tr("Spoolman offline");
+                    color: Theme.warning;
+                    font-size: Theme.font-small;
+                    vertical-alignment: center;
+                }
+            }
+            spools-list := ScrollList {
+                vertical-stretch: 1;
+                content-height: Printer.spools.length * (Theme.touch + Theme.spacing);
+                for spool[index] in Printer.spools: Rectangle {
+                    x: 8px;
+                    y: index * (Theme.touch + Theme.spacing);
+                    width: spools-list.row-width - 16px;
+                    height: Theme.touch;
+                    background: spool.id == root.selected ? Theme.surface-active : Theme.surface-raised;
+                    border-radius: Theme.radius;
+                    border-width: spool.id == root.selected ? 2px : 0px;
+                    border-color: Theme.accent;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 12px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 14px;
+                                height: 34px;
+                                border-radius: 4px;
+                                background: spool.has-color ? spool.color : Theme.border;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: spool.title;
+                                color: Theme.foreground;
+                                font-size: Theme.font-normal;
+                                font-weight: 600;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: spool.detail;
+                                color: spool.low ? Theme.warning : Theme.muted;
+                                font-size: Theme.font-small;
+                                overflow: elide;
+                            }
+                        }
+                        Text {
+                            text: spool.place;
+                            color: Theme.accent;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        clicked => { root.selected = spool.id; }
+                    }
+                }
+            }
+            if Printer.spools.length == 0: Text {
+                text: Printer.spools-loading ? @tr("Loading") : @tr("No spools");
+                color: Theme.muted;
+                font-size: Theme.font-normal;
+                horizontal-alignment: center;
+            }
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                IconButton {
+                    icon: Icons.ui-close;
+                    text: @tr("Close");
+                    horizontal: true;
+                    clicked => { SpoolPicker.open = false; }
+                }
+                if SpoolPicker.gate >= 0: IconButton {
+                    text: @tr("Remove");
+                    horizontal: true;
+                    clicked => {
+                        Actions.assign-gate-spool(SpoolPicker.gate, -1);
+                        SpoolPicker.open = false;
+                    }
+                }
+                IconButton {
+                    icon: Icons.filament-spool;
+                    text: @tr("Weigh");
+                    horizontal: true;
+                    enabled: root.selected >= 0;
+                    clicked => {
+                        weigh.text = "";
+                        weigh.open = true;
+                    }
+                }
+                IconButton {
+                    icon: Icons.ui-check;
+                    text: SpoolPicker.gate >= 0 ? @tr("Assign") : @tr("Use");
+                    horizontal: true;
+                    kind: "accent";
+                    enabled: root.selected >= 0;
+                    clicked => {
+                        if (SpoolPicker.gate >= 0) {
+                            Actions.assign-gate-spool(SpoolPicker.gate, root.selected);
+                        } else {
+                            Actions.set-active-spool(root.selected);
+                        }
+                        SpoolPicker.open = false;
+                    }
+                }
+            }
+        }
+    }
+
+    // The weight of the spool with its core, as the scale shows it; Spoolman subtracts the empty spool.
+    weigh := TextEntryDialog {
+        title: @tr("Weight of the spool in g, with the empty spool");
+        accepted(text) => { Actions.measure-spool(root.selected, text); }
     }
 }

@@ -1,7 +1,7 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use klipper_touch::{Confirm, Navigation, Page, Printer};
+use klipper_touch::{Confirm, Navigation, Page, Printer, SpoolPicker};
 use klipper_touch_core::network::{Availability, NetworkCommand, NetworkState};
 use klipper_touch_core::printer::{Activity, KlippyState, PrintState};
 use klipper_touch_core::{Command, ConnectionState, Query};
@@ -16,6 +16,8 @@ const IDLE_WAIT_LIMIT: Duration = Duration::from_secs(60);
 pub enum Scene {
     /// Every page in standby, with the file list.
     Pages,
+    /// Spoolman: the spool in use, the temperature hint, the picker and the hints before a print.
+    Spools,
     /// Settings > Network: list, connecting, confirmation, read-only fallback.
     Network,
     /// Print running, system page locked, cancel.
@@ -27,8 +29,8 @@ pub enum Scene {
 }
 
 impl Scene {
-    pub const ALL: [Self; 5] = [Self::Pages, Self::Network, Self::Printing, Self::Shutdown, Self::Idle];
-    pub const DEFAULT: [Self; 4] = [Self::Pages, Self::Network, Self::Printing, Self::Shutdown];
+    pub const ALL: [Self; 6] = [Self::Pages, Self::Spools, Self::Network, Self::Printing, Self::Shutdown, Self::Idle];
+    pub const DEFAULT: [Self; 5] = [Self::Pages, Self::Spools, Self::Network, Self::Printing, Self::Shutdown];
 
     /// Parses `pages,network` or `all`.
     pub fn parse_list(text: &str) -> Result<Vec<Self>, String> {
@@ -42,12 +44,13 @@ impl Scene {
         Self::ALL
             .into_iter()
             .find(|scene| scene.name() == name)
-            .ok_or_else(|| format!("unknown scene '{name}' (pages, network, printing, shutdown, idle, all)"))
+            .ok_or_else(|| format!("unknown scene '{name}' (pages, spools, network, printing, shutdown, idle, all)"))
     }
 
     fn name(self) -> &'static str {
         match self {
             Self::Pages => "pages",
+            Self::Spools => "spools",
             Self::Network => "network",
             Self::Printing => "printing",
             Self::Shutdown => "shutdown",
@@ -58,6 +61,7 @@ impl Scene {
     fn run(self, session: &mut Session) -> Result<(), String> {
         match self {
             Self::Pages => pages(session),
+            Self::Spools => spools(session),
             Self::Network => network(session),
             Self::Printing => printing(session),
             Self::Shutdown => shutdown(session),
@@ -109,6 +113,51 @@ fn pages(session: &mut Session) -> Result<(), String> {
             session.window.global::<Navigation>().set_filament_tab(0);
         }
     }
+    Ok(())
+}
+
+/// Without Spoolman in Moonraker there is nothing to show and the scene is skipped.
+fn spools(session: &mut Session) -> Result<(), String> {
+    session.pump(Duration::from_secs(2));
+    let snapshot = session.presenter.snapshot();
+    if !snapshot.capabilities.server.spoolman {
+        return Ok(());
+    }
+    let has_mmu = snapshot.status.mmu.is_some();
+    if has_mmu {
+        session.service.send(Command::MmuHome);
+        session.wait_until("MMU homed", |snapshot| snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed))?;
+        session.service.send(Command::MmuSelectGate { gate: 1 });
+    } else {
+        session.service.send(Command::SetActiveSpool { spool_id: Some(6) });
+    }
+    session.pump(Duration::from_secs(2));
+    session.service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: 210.0 });
+    session.pump(Duration::from_secs(1));
+    session.show_page(Page::Print, "print-spool")?;
+    session.show_page(Page::Temperature, "temperature-spool")?;
+
+    session.window.global::<Navigation>().set_page(Page::Print);
+    session.window.global::<SpoolPicker>().invoke_show(if has_mmu { 1 } else { -1 });
+    session.pump(Duration::from_secs(2));
+    session.capture("spool-picker")?;
+    session.window.global::<SpoolPicker>().set_open(false);
+
+    session.presenter.request_files();
+    session.pump(Duration::from_secs(2));
+    let hints = session.presenter.print_hints_text("long_job.gcode");
+    session.window.global::<Confirm>().invoke_ask(
+        "Start print".into(),
+        format!("long_job{hints}").into(),
+        "start-print".into(),
+        "long_job.gcode".into(),
+        false,
+    );
+    session.pump(Duration::from_millis(300));
+    session.capture("confirm-start-hints")?;
+    session.window.global::<Confirm>().set_open(false);
+    session.service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: 0.0 });
+    session.pump(Duration::from_millis(500));
     Ok(())
 }
 

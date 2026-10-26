@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Navigation, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, IconLabel, StepSelector } from "../components/controls.slint";
+import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuTab } from "mmu.slint";
 
 component ExtruderTab inherits Rectangle {
@@ -25,6 +26,7 @@ component ExtruderTab inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 spacing: Theme.spacing;
+                if Printer.has-spoolman && !Printer.has-mmu: SpoolStrip { }
                 Card {
                     title: @tr("Nozzle");
                     icon: Icons.thermal-nozzle;

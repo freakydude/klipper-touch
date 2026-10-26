@@ -11,6 +11,7 @@ pub mod printer;
 pub mod service;
 pub mod settings;
 pub mod sourced;
+pub mod spoolman;
 pub mod system;
 
 pub use commands::Command;

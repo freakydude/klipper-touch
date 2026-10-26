@@ -7,6 +7,7 @@ use crate::commands::Command;
 use crate::files::{self, FileEntry, FileMetadata, LastPrint};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrinterStatus, ServerComponents};
+use crate::spoolman::{self, Spool, SpoolmanState};
 use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -19,6 +20,10 @@ const QUERY_TIMEOUT: Duration = Duration::from_secs(15);
 const CONSOLE_HISTORY: u32 = 100;
 /// Newest jobs read from the job history; files last printed before that show the slicer estimate.
 const PRINT_HISTORY_LIMIT: u32 = 300;
+/// Moonraker reports the active spool and the connection itself; the weights of the spools it does not, so they are read again now and then.
+const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
+/// Spools for the picker: the most recently used ones.
+const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "klipper-touch";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -53,6 +58,10 @@ pub enum Query {
     ConsoleHistory,
     /// Network interfaces of the printer host.
     HostNetwork,
+    /// Spoolman's state and the spools of the gates and the active spool; needs Moonraker's `spoolman` component.
+    Spoolman,
+    /// The most recently used spools of Spoolman, for the picker.
+    SpoolList,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,13 +69,23 @@ pub enum Event {
     Files(Vec<FileEntry>),
     FileMetadata(Box<FileMetadata>),
     PrintHistory(HashMap<String, LastPrint>),
-    Thumbnail { filename: String, data: Vec<u8> },
+    Thumbnail {
+        filename: String,
+        data: Vec<u8>,
+    },
     PowerDevices(Vec<PowerDevice>),
     Updates(Vec<UpdateInfo>),
     ConsoleHistory(Vec<ConsoleLine>),
     ConsoleLine(ConsoleLine),
     HostNetwork(Vec<HostInterface>),
-    CommandFailed { command: String, message: String },
+    Spoolman(Box<SpoolmanState>),
+    SpoolList(Vec<Spool>),
+    /// A command changed a spool in Spoolman or the active spool; the state is out of date.
+    SpoolmanChanged,
+    CommandFailed {
+        command: String,
+        message: String,
+    },
 }
 
 enum Request {
@@ -204,6 +223,8 @@ struct Session<'a> {
     job_filename: String,
     /// Targets sent but not yet reported back; the snapshot shows them.
     pending_targets: PendingTargets,
+    /// The spools of the gates at the last look; `None` until Spoolman was asked once.
+    spoolman_gate_spools: Option<Vec<u32>>,
 }
 
 impl<'a> Session<'a> {
@@ -219,6 +240,7 @@ impl<'a> Session<'a> {
             klippy_ready: false,
             job_filename: String::new(),
             pending_targets: PendingTargets::default(),
+            spoolman_gate_spools: None,
         }
     }
 
@@ -233,6 +255,7 @@ impl<'a> Session<'a> {
         }
         self.publish();
         let mut klippy_poll = tokio::time::interval(KLIPPY_POLL_INTERVAL);
+        let mut spoolman_poll = tokio::time::interval(SPOOLMAN_POLL_INTERVAL);
         loop {
             tokio::select! {
                 notification = notifications.recv() => match notification {
@@ -246,6 +269,9 @@ impl<'a> Session<'a> {
                     Some(Request::Command(command)) => self.execute(command),
                     Some(Request::Query(query)) => self.answer(query),
                 },
+                _ = spoolman_poll.tick(), if self.klippy_ready && self.components.spoolman => {
+                    self.answer(Query::Spoolman);
+                }
                 _ = klippy_poll.tick(), if !self.klippy_ready => {
                     if let Err(error) = self.refresh_klippy().await {
                         log::debug!("klippy not ready yet: {error}");
@@ -339,6 +365,7 @@ impl<'a> Session<'a> {
                 }
             }
             "notify_power_changed" => self.answer(Query::PowerDevices),
+            "notify_active_spool_set" | "notify_spoolman_status_changed" => self.answer(Query::Spoolman),
             "notify_update_refreshed" => {
                 self.outputs.event(Event::Updates(system::parse_update_status(
                     notification.params.get(0).unwrap_or(&Value::Null),
@@ -362,6 +389,13 @@ impl<'a> Session<'a> {
             self.job_filename.clone_from(&status.job.filename);
             if !self.job_filename.is_empty() {
                 self.answer(Query::FileDetails { filename: self.job_filename.clone() });
+            }
+        }
+        if self.components.spoolman {
+            let gate_spools = gate_spool_ids(&status);
+            if self.spoolman_gate_spools.as_ref() != Some(&gate_spools) {
+                self.spoolman_gate_spools = Some(gate_spools);
+                self.answer(Query::Spoolman);
             }
         }
         self.outputs.snapshot.send_replace(Snapshot {
@@ -412,6 +446,8 @@ impl<'a> Session<'a> {
             }
             _ => false,
         };
+        let spools_change = command.changes_spools();
+        let spool_events = self.outputs.events.clone();
         let events = self.outputs.events.clone();
         let failed = move |error: CallError| {
             let message = match error {
@@ -424,8 +460,12 @@ impl<'a> Session<'a> {
         match self.connection.start_call(call.method, call.params) {
             Ok(pending) => {
                 tokio::spawn(async move {
-                    if let Err(error) = pending.response().await {
-                        failed(error);
+                    match pending.response().await {
+                        Ok(_) if spools_change => {
+                            let _ = spool_events.send(Event::SpoolmanChanged);
+                        }
+                        Ok(_) => {}
+                        Err(error) => failed(error),
                     }
                 });
             }
@@ -439,12 +479,18 @@ impl<'a> Session<'a> {
             log::debug!("no job history: Moonraker has no history component");
             return;
         }
+        if matches!(query, Query::Spoolman | Query::SpoolList) && !self.components.spoolman {
+            log::debug!("no Spoolman: Moonraker has no spoolman component");
+            return;
+        }
         let connection = self.connection.clone();
         let http = self.http.clone();
         let endpoint = self.endpoint.clone();
         let events = self.outputs.events.clone();
+        let gate_spools = gate_spool_ids(&PrinterStatus::from_store(&self.store));
         tokio::spawn(async move {
-            let fetched = tokio::time::timeout(QUERY_TIMEOUT, fetch(&connection, &http, &endpoint, &query)).await;
+            let fetched =
+                tokio::time::timeout(QUERY_TIMEOUT, fetch(&connection, &http, &endpoint, &query, &gate_spools)).await;
             match fetched {
                 Ok(Ok(results)) => results.into_iter().for_each(|event| {
                     let _ = events.send(event);
@@ -461,6 +507,7 @@ async fn fetch(
     http: &reqwest::Client,
     endpoint: &Endpoint,
     query: &Query,
+    gate_spools: &[u32],
 ) -> Result<Vec<Event>, String> {
     let call = |method: &'static str, params: Option<Value>| async move {
         connection.call(method, params).await.map_err(|error| error.to_string())
@@ -487,6 +534,12 @@ async fn fetch(
             let history = call("server.history.list", Some(json!({ "limit": PRINT_HISTORY_LIMIT }))).await?;
             vec![Event::PrintHistory(files::parse_last_completed_prints(&history))]
         }
+        Query::Spoolman => vec![Event::Spoolman(Box::new(fetch_spoolman(connection, gate_spools).await?))],
+        Query::SpoolList => {
+            let query = format!("sort=last_used%3Adesc&limit={SPOOL_LIST_LIMIT}&allow_archived=false");
+            let spools = spoolman_get(connection, "/v1/spool", Some(&query)).await?;
+            vec![Event::SpoolList(spoolman::parse_spool_list(&spools))]
+        }
         Query::PowerDevices => {
             vec![Event::PowerDevices(system::parse_power_devices(&call("machine.device_power.devices", None).await?))]
         }
@@ -512,4 +565,42 @@ async fn download(http: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> 
 fn console_line(kind: ConsoleKind, message: &str) -> ConsoleLine {
     let time = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |elapsed| elapsed.as_secs_f64());
     ConsoleLine { kind, message: message.to_owned(), time }
+}
+
+/// The spools of the gates, without duplicates.
+fn gate_spool_ids(status: &PrinterStatus) -> Vec<u32> {
+    let mut ids: Vec<u32> =
+        status.mmu.iter().flat_map(|mmu| mmu.gates.iter()).filter_map(|gate| gate.spool_id).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// Asks Spoolman through Moonraker; Spoolman has no API of its own for the touch screen.
+async fn spoolman_get(connection: &Connection, path: &str, query: Option<&str>) -> Result<Value, String> {
+    let parameters = json!({ "request_method": "GET", "path": path, "query": query, "use_v2_response": true });
+    let result = connection.call("server.spoolman.proxy", Some(parameters)).await.map_err(|error| error.to_string())?;
+    spoolman::proxy_response(&result)
+}
+
+/// The state of Spoolman and the spools the printer needs now: those of the gates and the active one. A spool that
+/// cannot be read is left out; the rest still arrives.
+async fn fetch_spoolman(connection: &Connection, gate_spools: &[u32]) -> Result<SpoolmanState, String> {
+    let status = connection.call("server.spoolman.status", None).await.map_err(|error| error.to_string())?;
+    let (connected, pending_reports, active_spool_id) = spoolman::parse_status(&status);
+    let mut state = SpoolmanState { connected, pending_reports, active_spool_id, ..SpoolmanState::default() };
+    if !connected {
+        return Ok(state);
+    }
+    let mut ids = gate_spools.to_vec();
+    ids.extend(active_spool_id);
+    ids.sort_unstable();
+    ids.dedup();
+    for id in ids {
+        match spoolman_get(connection, &format!("/v1/spool/{id}"), None).await {
+            Ok(spool) => state.spools.extend(Spool::from_json(&spool).map(|spool| (id, spool))),
+            Err(error) => log::info!("spool {id} cannot be read: {error}"),
+        }
+    }
+    Ok(state)
 }

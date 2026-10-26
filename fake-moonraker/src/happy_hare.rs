@@ -14,16 +14,16 @@ const FILAMENT_POSITION_UNLOADED: i32 = 0;
 const FILAMENT_POSITION_LOADED: i32 = 10;
 const UNIT_NAME: &str = "unit0";
 
-struct Spool {
-    name: &'static str,
-    material: &'static str,
-    vendor: &'static str,
-    color: &'static str,
-    rgb: [f64; 3],
-    temperature: i32,
+pub(crate) struct Spool {
+    pub(crate) name: &'static str,
+    pub(crate) material: &'static str,
+    pub(crate) vendor: &'static str,
+    pub(crate) color: &'static str,
+    pub(crate) rgb: [f64; 3],
+    pub(crate) temperature: i32,
 }
 
-const SPOOLS: [Spool; 4] = [
+pub(crate) const SPOOLS: [Spool; 4] = [
     Spool { name: "Red PLA", material: "PLA", vendor: "Fake", color: "red", rgb: [1.0, 0.0, 0.0], temperature: 210 },
     Spool {
         name: "Green PETG",
@@ -54,6 +54,8 @@ pub struct HappyHare {
     toolchanges: u32,
     tool_to_gate: Vec<usize>,
     gate_status: Vec<i32>,
+    /// Spoolman spool of each gate.
+    gate_spool: Vec<Option<u32>>,
 }
 
 impl HappyHare {
@@ -63,6 +65,11 @@ impl HappyHare {
         if gates > 2 {
             gate_status[gates - 1] = GATE_EMPTY;
         }
+        let gate_spool = gate_status
+            .iter()
+            .enumerate()
+            .map(|(gate, status)| (*status == GATE_AVAILABLE).then(|| gate as u32 + 1))
+            .collect();
         Self {
             gates,
             homed: false,
@@ -72,6 +79,7 @@ impl HappyHare {
             toolchanges: 0,
             tool_to_gate: (0..gates).collect(),
             gate_status,
+            gate_spool,
         }
     }
 
@@ -86,6 +94,7 @@ impl HappyHare {
             MmuCommand::Load => self.load(),
             MmuCommand::Unload => self.unload(),
             MmuCommand::Eject { gate, force } => self.eject(gate, force),
+            MmuCommand::GateMap { gate, spool_id } => self.gate_map(gate, spool_id),
         }
     }
 
@@ -199,8 +208,24 @@ impl HappyHare {
         }
     }
 
+    /// The filament of a gate: that of its Spoolman spool, which Happy Hare takes over, else a demo filament.
     fn spool(&self, gate: usize) -> &'static Spool {
-        &SPOOLS[gate % SPOOLS.len()]
+        match self.gate_spool.get(gate).copied().flatten() {
+            Some(id) => &SPOOLS[(id as usize - 1) % SPOOLS.len()],
+            None => &SPOOLS[gate % SPOOLS.len()],
+        }
+    }
+
+    /// The Spoolman spool of the selected gate, which Happy Hare makes the active one.
+    pub fn selected_spool(&self) -> Option<u32> {
+        usize::try_from(self.gate).ok().and_then(|gate| self.gate_spool.get(gate).copied().flatten())
+    }
+
+    /// `MMU_GATE_MAP GATE= SPOOLID=`; a negative id takes the spool out.
+    fn gate_map(&mut self, gate: usize, spool_id: Option<i64>) -> Result<(), CommandError> {
+        self.check_gate(gate)?;
+        self.gate_spool[gate] = spool_id.and_then(|id| u32::try_from(id).ok()).filter(|id| *id > 0);
+        Ok(())
     }
 
     fn per_gate<T>(&self, value: impl Fn(&'static Spool) -> T) -> Vec<T> {
@@ -216,7 +241,7 @@ impl HappyHare {
                     "material": spool.material,
                     "vendor": spool.vendor,
                     "color": spool.color,
-                    "spool_id": -1,
+                    "spool_id": self.gate_spool.get(gate).copied().flatten().map_or(-1, i64::from),
                     "temperature": spool.temperature,
                     "td": null,
                 })
@@ -255,6 +280,9 @@ impl HappyHare {
             "gate_color": self.per_gate(|spool| spool.color),
             "gate_color_rgb": self.per_gate(|spool| spool.rgb),
             "gate_temperature": self.per_gate(|spool| spool.temperature),
+            "gate_spool_id": self.gate_spool.iter().map(|id| id.map_or(-1, i64::from)).collect::<Vec<_>>(),
+            "spoolman_support": "push",
+            "pending_spool_id": -1,
             "encoder": self.encoder_json(),
         })
     }
@@ -429,6 +457,32 @@ mod tests {
             hare.apply(MmuCommand::Eject { gate: Some(9), force: false }).unwrap_err().message(),
             "Gate 9 does not exist"
         );
+    }
+
+    #[test]
+    fn a_gate_map_sets_the_spool_and_the_gate_takes_its_filament() {
+        let mut hare = homed(4);
+        assert_eq!(mmu(&hare)["gate_spool_id"], json!([1, 2, 3, -1]));
+
+        hare.apply(MmuCommand::GateMap { gate: 1, spool_id: Some(4) }).unwrap();
+        hare.apply(MmuCommand::GateMap { gate: 0, spool_id: Some(-1) }).unwrap();
+
+        let status = mmu(&hare);
+        assert_eq!(status["gate_spool_id"], json!([-1, 4, 3, -1]));
+        // Spool 4 is the black ABS: Happy Hare takes material and temperature from Spoolman.
+        assert_eq!(status["gate_material"][1], "ABS");
+        assert_eq!(status["spoolman_support"], "push");
+        assert!(hare.apply(MmuCommand::GateMap { gate: 9, spool_id: Some(1) }).is_err());
+    }
+
+    #[test]
+    fn the_selected_gate_makes_its_spool_the_active_one() {
+        let mut hare = homed(4);
+        assert_eq!(hare.selected_spool(), None);
+
+        hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
+
+        assert_eq!(hare.selected_spool(), Some(2));
     }
 
     #[test]

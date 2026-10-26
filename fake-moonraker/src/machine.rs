@@ -7,6 +7,8 @@ pub struct MachineProfile {
     pub mmu_gates: Option<usize>,
     /// Klipper `exclude_object` module with the objects of the print.
     pub exclude_object: bool,
+    /// Moonraker's `spoolman` component with a few spools.
+    pub spoolman: bool,
     /// Number of filament sensors, taken from the front of the list of the profile (`FILAMENT_SENSORS` or `MMU_FILAMENT_SENSORS`).
     pub filament_sensors: usize,
 }
@@ -35,6 +37,7 @@ impl MachineProfile {
             chamber_heater: false,
             mmu_gates: None,
             exclude_object: false,
+            spoolman: false,
             filament_sensors: 0,
         }
     }
@@ -45,6 +48,7 @@ impl MachineProfile {
             chamber_heater: true,
             mmu_gates: None,
             exclude_object: true,
+            spoolman: true,
             filament_sensors: 2,
         }
     }
@@ -55,6 +59,7 @@ impl MachineProfile {
             chamber_heater: true,
             mmu_gates: Some(gates),
             exclude_object: true,
+            spoolman: true,
             filament_sensors: 5,
         }
     }
