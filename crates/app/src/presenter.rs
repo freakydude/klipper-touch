@@ -689,6 +689,7 @@ impl Presenter {
         printer.set_spoolman_offline(offline);
         printer.set_spoolman_pending(pending as i32);
         printer.set_has_spool(active.is_some());
+        printer.set_spool_id(active.map_or(-1, |spool| i32::try_from(spool.id).unwrap_or(-1)));
         printer.set_spool_title(active.map(Spool::title).unwrap_or_default().into());
         printer.set_spool_detail(active.map(view::spool_detail).unwrap_or_default().into());
         printer.set_spool_weight(active.map(view::spool_remaining).unwrap_or_default().into());

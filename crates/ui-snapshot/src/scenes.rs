@@ -227,7 +227,9 @@ fn spools(session: &mut Session) -> Result<(), String> {
     session.show_page(Page::Temperature, "temperature-spool")?;
 
     session.window.global::<Navigation>().set_page(Page::Print);
-    session.window.global::<SpoolPicker>().invoke_show(if has_mmu { 1 } else { -1 });
+    // Opens like a tap on the strip or gate 1: the spool in use is selected.
+    let current = session.window.global::<Printer>().get_spool_id();
+    session.window.global::<SpoolPicker>().invoke_show(if has_mmu { 1 } else { -1 }, current);
     session.pump(Duration::from_secs(2));
     session.capture("spool-picker")?;
     session.window.global::<SpoolPicker>().set_open(false);

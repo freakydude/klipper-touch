@@ -57,6 +57,6 @@ export component SpoolStrip inherits Rectangle {
         }
     }
     TouchArea {
-        clicked => { SpoolPicker.show(-1); }
+        clicked => { SpoolPicker.show(-1, Printer.spool-id); }
     }
 }

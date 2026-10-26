@@ -355,6 +355,8 @@ export global Printer {
     in property <int> spoolman-pending;
     // The spool in use: that of the selected gate, or the active spool of a printer without MMU.
     in property <bool> has-spool;
+    // Spoolman id of the spool in use, -1 for none.
+    in property <int> spool-id: -1;
     in property <string> spool-title;
     in property <string> spool-detail;
     // What is left of the spool, for example "613 g".
@@ -548,9 +550,12 @@ export global SpoolPicker {
     in-out property <bool> open;
     // The gate to assign a spool to, -1 for the active spool of a printer without MMU.
     in-out property <int> gate: -1;
+    // The spool the gate (or the printer) has now, -1 for none; the dialog opens with it selected.
+    in-out property <int> current: -1;
 
-    public function show(gate: int) {
+    public function show(gate: int, current: int) {
         self.gate = gate;
+        self.current = current;
         self.open = true;
         Actions.load-spools();
     }

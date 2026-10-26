@@ -107,7 +107,7 @@ component GateTile inherits Rectangle {
                 y: -8px;
                 width: parent.width + 20px;
                 height: parent.height + 16px;
-                clicked => { SpoolPicker.show(root.gate.index); }
+                clicked => { SpoolPicker.show(root.gate.index, root.gate.spool-id); }
             }
         }
         Rectangle { vertical-stretch: 1; }

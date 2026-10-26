@@ -24,9 +24,8 @@ component Tube inherits Rectangle {
     in property <color> filament-3;
     in property <int> colors: 1;
     in property <bool> longitudinal;
-    in property <bool> body;
-    height: root.body ? 22px : 10px;
-    border-radius: root.body ? 4px : 5px;
+    height: 10px;
+    border-radius: 5px;
     background: Theme.surface-raised;
     border-width: 1px;
     border-color: Theme.border;
@@ -51,8 +50,8 @@ component Label inherits Text {
 
 export component FilamentPath inherits VerticalLayout {
     // `position` is Happy Hare's `filament_pos`: -1 unknown, 0 parked in the gate, 1 at the gate sensor, 2 to 4 in
-    // the bowden, 5 at the extruder entry sensor, 6 and 7 at and in the extruder gears, 8 at the toolhead sensor,
-    // 9 past it, 10 loaded to the nozzle. `direction`: 1 loading, -1 unloading, 0 standing.
+    // the bowden, 5 at the extruder entry sensor, 6 at the extruder gears, 7 gripped by them, 8 at the toolhead
+    // sensor, 9 past it, 10 loaded to the nozzle. `direction`: 1 loading, -1 unloading, 0 standing.
     in property <FilamentPathItem> path;
     // Print page: one line without labels.
     in property <bool> compact;
@@ -75,8 +74,8 @@ export component FilamentPath inherits VerticalLayout {
             return root.position == 3 ? 0.5 : root.position == 2 ? 0.1 : 0;
         }
         if (piece == 2) { return root.position >= 5 ? 1 : 0; }
-        if (piece == 3) { return root.position >= 7 ? 1 : root.position == 6 ? 0.3 : 0; }
-        if (piece == 4) { return root.position >= 8 ? 1 : 0; }
+        // Behind the extruder gears: 7 means the gears have pulled the filament in.
+        if (piece == 3) { return root.position >= 8 ? 1 : root.position == 7 ? 0.3 : 0; }
         return root.position >= 10 ? 1 : root.position == 9 ? 0.5 : 0;
     }
 
@@ -102,10 +101,17 @@ export component FilamentPath inherits VerticalLayout {
         VerticalLayout { horizontal-stretch: 5; alignment: center; Tube { fill: root.fill(1); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
         VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(2); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
         VerticalLayout { alignment: center; SensorMark { state: root.path.extruder-sensor; } }
-        VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(3); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; body: true; } }
-        VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(4); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
+        // The extruder gears: lit once the filament has reached them (6) or they have it (7 and on).
+        Image {
+            width: 22px;
+            height: 22px;
+            y: (parent.height - self.height) / 2;
+            source: Icons.filament-extruder-gears;
+            colorize: root.position >= 6 ? root.line-color : Theme.muted;
+        }
+        VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(3); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
         VerticalLayout { alignment: center; SensorMark { state: root.path.toolhead-sensor; } }
-        VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(5); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
+        VerticalLayout { horizontal-stretch: 1; alignment: center; Tube { fill: root.fill(4); filament: root.line-color; filament-2: root.path.color-2; filament-3: root.path.color-3; colors: root.neutral ? 1 : root.path.color-count; longitudinal: root.path.longitudinal; } }
         Image {
             width: 22px;
             height: 22px;
@@ -129,7 +135,7 @@ export component FilamentPath inherits VerticalLayout {
         padding-right: root.distance != "" ? 100px : 26px;
         Label { text: root.path.gate-label; horizontal-stretch: 1; horizontal-alignment: left; }
         Label { text: "Bowden"; horizontal-stretch: 5; }
-        Label { text: "Extruder"; horizontal-stretch: 2; }
-        Label { text: "Nozzle"; horizontal-stretch: 2; horizontal-alignment: right; }
+        Label { text: "Extruder"; horizontal-stretch: 3; }
+        Label { text: "Nozzle"; horizontal-stretch: 1; horizontal-alignment: right; }
     }
 }
