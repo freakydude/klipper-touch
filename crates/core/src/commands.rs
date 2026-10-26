@@ -1,9 +1,13 @@
 //! Operator commands for the printer and their translation into Moonraker calls.
 
-use crate::printer::{Axis, Motion};
+use crate::printer::{Axis, Capabilities, FilamentHandling, Motion, PrinterStatus};
 use serde_json::{json, Value};
 
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
+///
+/// Some commands state an intent (`Level`, `ApplyPreset`, `CoolDown`, `StepHeater`, `ApplyZOffset`, `LoadFilament`,
+/// `UnloadFilament`); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
+/// [`Command::to_call`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     // Print job
@@ -25,6 +29,8 @@ pub enum Command {
         distance: f64,
     },
     DisableMotors,
+    /// Levels with what the printer has: quad gantry level, else Z tilt.
+    Level,
     QuadGantryLevel,
     ZTiltAdjust,
     // Temperatures and fans
@@ -32,6 +38,18 @@ pub enum Command {
         heater: String,
         target: f64,
     },
+    /// Raises or lowers the target by `step` (with sign) from the target shown now, see [`crate::printer::Heater::stepped_target`].
+    StepHeater {
+        heater: String,
+        step: f64,
+    },
+    /// Heats the nozzle and, if there is one, the bed.
+    ApplyPreset {
+        extruder: f64,
+        bed: f64,
+    },
+    /// Switches every heater off.
+    CoolDown,
     SetPartFanSpeed {
         fraction: f64,
     },
@@ -40,10 +58,10 @@ pub enum Command {
         delta: f64,
     },
     ResetZOffset,
-    /// Applies the babystep offset to the probe or endstop position (followed by `SaveConfig`).
-    ApplyZOffset {
-        to_probe: bool,
-    },
+    /// Applies the babystep offset to the probe if there is one, else to the endstop (followed by `SaveConfig`).
+    ApplyZOffset,
+    ApplyZOffsetToProbe,
+    ApplyZOffsetToEndstop,
     SetSpeedFactor {
         percent: f64,
     },
@@ -59,10 +77,14 @@ pub enum Command {
         length: f64,
         speed: f64,
     },
+    /// Loads or unloads with what the printer has: Happy Hare, else the macros `LOAD_FILAMENT`/`UNLOAD_FILAMENT`.
+    LoadFilament,
+    UnloadFilament,
     // Free-form commands
     RunMacro {
         name: String,
     },
+    /// A blank script is ignored.
     RunGcode {
         script: String,
     },
@@ -127,7 +149,55 @@ impl Call {
 const JOG_SPEED_XY: f64 = 100.0;
 const JOG_SPEED_Z: f64 = 10.0;
 
+/// Why an intent cannot be carried out on this printer.
+const NO_LEVELING: &str = "this printer has neither quad gantry level nor Z tilt";
+const NO_LOAD_WAY: &str = "no way to load filament: no Happy Hare and no LOAD_FILAMENT macro";
+const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNLOAD_FILAMENT macro";
+
 impl Command {
+    /// Turns an intent into the commands this printer needs; every other command stays as it is. `status` shows the
+    /// heater targets including those sent but not yet reported, so steps build on each other.
+    pub fn resolve(self, capabilities: &Capabilities, status: &PrinterStatus) -> Result<Vec<Command>, String> {
+        let heater_target = |heater: &str, target: f64| Command::SetHeaterTarget { heater: heater.to_owned(), target };
+        let commands = match self {
+            Self::Level if capabilities.quad_gantry_level => vec![Self::QuadGantryLevel],
+            Self::Level if capabilities.z_tilt => vec![Self::ZTiltAdjust],
+            Self::Level => return Err(NO_LEVELING.to_owned()),
+            Self::ApplyZOffset if capabilities.probe => vec![Self::ApplyZOffsetToProbe],
+            Self::ApplyZOffset => vec![Self::ApplyZOffsetToEndstop],
+            Self::ApplyPreset { extruder, bed } => {
+                let mut commands = vec![heater_target("extruder", extruder)];
+                if capabilities.heater_bed {
+                    commands.push(heater_target("heater_bed", bed));
+                }
+                commands
+            }
+            Self::CoolDown => status.heaters.iter().map(|heater| heater_target(&heater.object, 0.0)).collect(),
+            Self::StepHeater { heater, step } => {
+                let current = status.heater(&heater).ok_or_else(|| format!("unknown heater {heater}"))?;
+                vec![heater_target(&heater, current.stepped_target(step))]
+            }
+            Self::LoadFilament => match capabilities.filament_handling() {
+                FilamentHandling::Mmu => vec![Self::MmuLoad],
+                FilamentHandling::Macros { load: true, .. } => vec![Self::RunMacro { name: "LOAD_FILAMENT".into() }],
+                _ => return Err(NO_LOAD_WAY.to_owned()),
+            },
+            Self::UnloadFilament => match capabilities.filament_handling() {
+                FilamentHandling::Mmu => vec![Self::MmuUnload],
+                FilamentHandling::Macros { unload: true, .. } => {
+                    vec![Self::RunMacro { name: "UNLOAD_FILAMENT".into() }]
+                }
+                _ => return Err(NO_UNLOAD_WAY.to_owned()),
+            },
+            Self::RunGcode { script } => match script.trim() {
+                "" => Vec::new(),
+                trimmed => vec![Self::RunGcode { script: trimmed.to_owned() }],
+            },
+            other => vec![other],
+        };
+        Ok(commands)
+    }
+
     /// Translates the command; `motion` provides the current position for clamped moves.
     /// `None` if the command would have no effect in the current state.
     pub fn to_call(&self, motion: &Motion) -> Option<Call> {
@@ -149,8 +219,8 @@ impl Command {
                 Call::gcode(format!("SET_GCODE_OFFSET Z_ADJUST={} MOVE=1", number(*delta)))
             }
             Self::ResetZOffset => Call::gcode("SET_GCODE_OFFSET Z=0 MOVE=1"),
-            Self::ApplyZOffset { to_probe: true } => Call::gcode("Z_OFFSET_APPLY_PROBE"),
-            Self::ApplyZOffset { to_probe: false } => Call::gcode("Z_OFFSET_APPLY_ENDSTOP"),
+            Self::ApplyZOffsetToProbe => Call::gcode("Z_OFFSET_APPLY_PROBE"),
+            Self::ApplyZOffsetToEndstop => Call::gcode("Z_OFFSET_APPLY_ENDSTOP"),
             Self::SetSpeedFactor { percent } => Call::gcode(format!("M220 S{}", percent.max(1.0).round())),
             Self::SetExtrudeFactor { percent } => Call::gcode(format!("M221 S{}", percent.max(1.0).round())),
             Self::SetPressureAdvance { value } => {
@@ -183,6 +253,14 @@ impl Command {
             Self::ShutdownHost => Call::new("machine.shutdown"),
             Self::RefreshUpdates => Call::new("machine.update.refresh"),
             Self::Upgrade { name } => Call::with("machine.update.upgrade", json!({ "name": name })),
+            // Intents are resolved before; none of them is a call of its own.
+            Self::Level
+            | Self::StepHeater { .. }
+            | Self::ApplyPreset { .. }
+            | Self::CoolDown
+            | Self::ApplyZOffset
+            | Self::LoadFilament
+            | Self::UnloadFilament => return None,
         };
         Some(call)
     }
@@ -347,6 +425,119 @@ mod tests {
         assert_eq!(start, Call::with("printer.print.start", json!({ "filename": "a/b.gcode" })));
         assert_eq!(power.params.unwrap(), json!({ "device": "printer", "action": "off" }));
         assert_eq!(Command::EmergencyStop.to_call(&motion).unwrap().method, "printer.emergency_stop");
+    }
+
+    fn printer(objects: &[&str]) -> Capabilities {
+        Capabilities::from_objects(objects.iter().copied())
+    }
+
+    fn status_with_targets(targets: &[(&str, f64)]) -> PrinterStatus {
+        PrinterStatus {
+            heaters: targets
+                .iter()
+                .map(|(object, target)| crate::printer::Heater {
+                    object: (*object).to_owned(),
+                    target: *target,
+                    min_temp: 10.0,
+                    ..crate::printer::Heater::default()
+                })
+                .collect(),
+            ..PrinterStatus::default()
+        }
+    }
+
+    fn resolved(command: Command, objects: &[&str]) -> Result<Vec<Command>, String> {
+        command.resolve(&printer(objects), &PrinterStatus::default())
+    }
+
+    fn set(heater: &str, target: f64) -> Command {
+        Command::SetHeaterTarget { heater: heater.into(), target }
+    }
+
+    #[test]
+    fn leveling_uses_quad_gantry_level_before_z_tilt() {
+        assert_eq!(resolved(Command::Level, &["quad_gantry_level", "z_tilt"]), Ok(vec![Command::QuadGantryLevel]));
+        assert_eq!(resolved(Command::Level, &["z_tilt"]), Ok(vec![Command::ZTiltAdjust]));
+        assert!(resolved(Command::Level, &["extruder"]).is_err());
+    }
+
+    #[test]
+    fn the_z_offset_goes_to_the_probe_if_there_is_one() {
+        assert_eq!(resolved(Command::ApplyZOffset, &["probe"]), Ok(vec![Command::ApplyZOffsetToProbe]));
+        assert_eq!(resolved(Command::ApplyZOffset, &["extruder"]), Ok(vec![Command::ApplyZOffsetToEndstop]));
+        assert_eq!(script(Command::ApplyZOffsetToProbe), "Z_OFFSET_APPLY_PROBE");
+        assert_eq!(script(Command::ApplyZOffsetToEndstop), "Z_OFFSET_APPLY_ENDSTOP");
+    }
+
+    #[test]
+    fn a_preset_heats_the_bed_only_if_there_is_one() {
+        let preset = Command::ApplyPreset { extruder: 210.0, bed: 60.0 };
+
+        assert_eq!(
+            resolved(preset.clone(), &["extruder", "heater_bed"]),
+            Ok(vec![set("extruder", 210.0), set("heater_bed", 60.0)])
+        );
+        assert_eq!(resolved(preset, &["extruder"]), Ok(vec![set("extruder", 210.0)]));
+    }
+
+    #[test]
+    fn cooling_down_switches_every_heater_off() {
+        let status =
+            status_with_targets(&[("extruder", 210.0), ("heater_bed", 60.0), ("heater_generic chamber", 40.0)]);
+
+        let commands = Command::CoolDown.resolve(&printer(&[]), &status);
+
+        assert_eq!(
+            commands,
+            Ok(vec![set("extruder", 0.0), set("heater_bed", 0.0), set("heater_generic chamber", 0.0)])
+        );
+    }
+
+    #[test]
+    fn a_step_starts_from_the_target_shown_now() {
+        let status = status_with_targets(&[("extruder", 200.0)]);
+        let step = |step| Command::StepHeater { heater: "extruder".into(), step };
+
+        assert_eq!(step(5.0).resolve(&printer(&[]), &status), Ok(vec![set("extruder", 205.0)]));
+        assert_eq!(step(-5.0).resolve(&printer(&[]), &status), Ok(vec![set("extruder", 195.0)]));
+        assert!(Command::StepHeater { heater: "nozzle".into(), step: 5.0 }.resolve(&printer(&[]), &status).is_err());
+    }
+
+    #[test]
+    fn loading_prefers_happy_hare_then_the_macros() {
+        let macro_named = |name: &str| Command::RunMacro { name: name.into() };
+
+        assert_eq!(resolved(Command::LoadFilament, &["mmu", "gcode_macro LOAD_FILAMENT"]), Ok(vec![Command::MmuLoad]));
+        assert_eq!(resolved(Command::UnloadFilament, &["mmu"]), Ok(vec![Command::MmuUnload]));
+        assert_eq!(
+            resolved(Command::LoadFilament, &["gcode_macro LOAD_FILAMENT"]),
+            Ok(vec![macro_named("LOAD_FILAMENT")])
+        );
+        assert_eq!(
+            resolved(Command::UnloadFilament, &["gcode_macro UNLOAD_FILAMENT"]),
+            Ok(vec![macro_named("UNLOAD_FILAMENT")])
+        );
+        assert!(resolved(Command::LoadFilament, &["gcode_macro UNLOAD_FILAMENT"]).is_err());
+        assert!(resolved(Command::UnloadFilament, &["extruder"]).is_err());
+    }
+
+    #[test]
+    fn typed_gcode_is_trimmed_and_blank_input_is_dropped() {
+        let gcode = |script: &str| Command::RunGcode { script: script.into() };
+
+        assert_eq!(resolved(gcode("  G28 \n"), &[]), Ok(vec![gcode("G28")]));
+        assert_eq!(resolved(gcode("   "), &[]), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn other_commands_stay_as_they_are() {
+        assert_eq!(resolved(Command::PausePrint, &[]), Ok(vec![Command::PausePrint]));
+    }
+
+    #[test]
+    fn intents_are_no_calls_of_their_own() {
+        assert_eq!(Command::Level.to_call(&Motion::default()), None);
+        assert_eq!(Command::CoolDown.to_call(&Motion::default()), None);
     }
 
     #[test]

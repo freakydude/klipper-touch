@@ -2,21 +2,15 @@
 
 use crate::format;
 use chrono::{DateTime, Local};
-use klipper_touch_core::files::FileMetadata;
+use klipper_touch_core::estimates;
+use klipper_touch_core::files::{FileInfo, FileMetadata, LastPrint};
 use klipper_touch_core::printer::{
-    FlowGuard, GateAvailability, Heater, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
+    FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use klipper_touch_core::{Provenance, Sourced};
 
-/// A sent target that Klipper has not reported back by then is given up (e.g. rejected command).
-const PENDING_TARGET_TIMEOUT: Duration = Duration::from_secs(3);
-
-/// From this progress on, extrapolating from the elapsed print time is more accurate than the slicer estimate.
-const PROGRESS_FOR_EXTRAPOLATION: f64 = 0.05;
-/// Cross section of 1.75 mm filament in mm².
-const FILAMENT_CROSS_SECTION: f64 = std::f64::consts::PI * 0.875 * 0.875;
 const NO_VALUE: &str = "-";
+const ORIGIN_PACE_ONLY: &str = "measured pace only";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JobTexts {
@@ -26,11 +20,23 @@ pub struct JobTexts {
     pub eta: String,
     pub layers: String,
     pub filament: String,
+    /// Source of the expected print time behind the remaining time while a job runs; for the log.
+    pub expectation_origin: Option<&'static str>,
 }
 
-pub fn job_texts(job: &PrintJob, metadata: Option<&FileMetadata>, now: DateTime<Local>) -> JobTexts {
+pub fn job_texts(
+    job: &PrintJob,
+    metadata: Option<&FileMetadata>,
+    last_print: Option<&LastPrint>,
+    now: DateTime<Local>,
+) -> JobTexts {
     let metadata = metadata.filter(|metadata| metadata.filename == job.filename);
-    let remaining = if job.state.is_active() { remaining_seconds(job, metadata) } else { None };
+    let expected = if job.state.is_active() { estimates::expected_print_seconds(metadata, last_print) } else { None };
+    let remaining = job
+        .state
+        .is_active()
+        .then(|| estimates::remaining_print_seconds(job, expected.map(|expected| expected.value)))
+        .flatten();
     JobTexts {
         name: if job.filename.is_empty() { String::new() } else { format::job_name(&job.filename) },
         elapsed: if job.filename.is_empty() { NO_VALUE.to_owned() } else { format::duration(job.print_duration) },
@@ -38,23 +44,15 @@ pub fn job_texts(job: &PrintJob, metadata: Option<&FileMetadata>, now: DateTime<
         eta: remaining.map_or_else(|| NO_VALUE.to_owned(), |seconds| format::finish_time(now, seconds)),
         layers: layers(job, metadata),
         filament: filament(job, metadata),
+        expectation_origin: job
+            .state
+            .is_active()
+            .then(|| expected.map_or(ORIGIN_PACE_ONLY, |expected| expected.origin)),
     }
-}
-
-fn remaining_seconds(job: &PrintJob, metadata: Option<&FileMetadata>) -> Option<f64> {
-    if job.progress >= PROGRESS_FOR_EXTRAPOLATION && job.print_duration > 0.0 {
-        return Some(job.print_duration / job.progress - job.print_duration);
-    }
-    metadata.and_then(|metadata| metadata.estimated_time).map(|estimate| (estimate - job.print_duration).max(0.0))
 }
 
 fn layers(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
-    let total = job.total_layer.or_else(|| {
-        let metadata = metadata?;
-        let height = metadata.object_height?;
-        let layer = metadata.layer_height.filter(|layer| *layer > 0.0)?;
-        Some((height / layer).round() as u32)
-    });
+    let total = estimates::total_layers(job, metadata).map(|total| total.value);
     match (job.current_layer, total) {
         (Some(current), Some(total)) => format!("{current} / {total}"),
         (Some(current), None) => current.to_string(),
@@ -75,31 +73,58 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
     }
 }
 
-/// Volumetric flow in mm³/s from the extruder velocity.
-pub fn volumetric_flow(extruder_velocity: f64) -> f64 {
-    extruder_velocity.max(0.0) * FILAMENT_CROSS_SECTION
+/// What a row of the file list shows; an empty text is a fact the file does not have.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FileFacts {
+    pub modified: String,
+    pub material: String,
+    pub nozzle: String,
+    pub time: String,
+    pub extruder_temperature: String,
+    pub bed_temperature: String,
+    pub chamber_temperature: String,
 }
 
-/// Line below the file name in the file list.
-pub fn file_detail(modified: f64, size: u64, metadata: Option<&FileMetadata>) -> String {
-    let mut parts = vec![format::unix_date(modified)];
-    if let Some(metadata) = metadata {
-        if let Some(estimate) = metadata.estimated_time {
-            parts.push(format::duration(estimate));
-        }
-        if let Some(filament) = metadata.filament_total {
-            parts.push(format::filament_length(filament));
-        }
+/// The facts of a file for its row. Values of the last completed print win over what the slicer predicted;
+/// predictions are marked with `~`. The temperatures are the slicer's settings, not predictions.
+pub fn file_facts(info: &FileInfo) -> FileFacts {
+    let mut facts = FileFacts { modified: format::unix_date(info.entry.modified), ..FileFacts::default() };
+    if let Some(metadata) = info.metadata {
+        facts.material = file_filament(metadata, info.last_print).unwrap_or_default();
+        facts.nozzle =
+            metadata.nozzle_diameter.filter(|diameter| *diameter > 0.0).map_or_else(String::new, |d| d.to_string());
+        facts.time = file_print_time(metadata, info.last_print).unwrap_or_default();
+        facts.extruder_temperature = degrees(metadata.first_layer_extr_temp);
+        facts.bed_temperature = degrees(metadata.first_layer_bed_temp);
+        facts.chamber_temperature = degrees(metadata.chamber_temp);
     }
-    if parts.len() == 1 {
-        parts.push(format::file_size(size));
-    }
-    parts.join("  ·  ")
+    facts
 }
 
-/// Linux names wireless interfaces `wlan0`, `wlp2s0`, ...
-pub fn is_wireless_interface(name: &str) -> bool {
-    name.starts_with("wl")
+/// A temperature of 0 means that the slicer sets none.
+fn degrees(temperature: Option<f64>) -> String {
+    temperature.filter(|degrees| *degrees > 0.0).map_or_else(String::new, |degrees| format!("{degrees:.0}°"))
+}
+
+fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
+    let weight =
+        estimates::filament_weight_grams(metadata, last_print).map(|grams| show(grams, format::filament_weight));
+    let parts: Vec<String> =
+        [metadata.filament_type.clone().filter(|kind| !kind.is_empty()), weight].into_iter().flatten().collect();
+    (!parts.is_empty()).then(|| parts.join(" "))
+}
+
+fn file_print_time(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
+    estimates::expected_print_seconds(Some(metadata), last_print).map(|seconds| show(seconds, format::duration))
+}
+
+/// A prediction carries a `~` so that it is not mistaken for a measurement.
+fn show(value: Sourced<f64>, format: impl FnOnce(f64) -> String) -> String {
+    let text = format(value.value);
+    match value.provenance {
+        Provenance::Measured => text,
+        Provenance::Estimated => format!("~{text}"),
+    }
 }
 
 /// Names of the MMU sensors as the operator reads them; unknown ones lose the `mmu_` prefix and get spaces.
@@ -127,15 +152,6 @@ pub fn mmu_sensor_label(name: &str) -> String {
     let words = name.strip_prefix("mmu_").unwrap_or(name).replace('_', " ");
     let mut characters = words.chars();
     characters.next().map_or_else(String::new, |first| first.to_uppercase().chain(characters).collect())
-}
-
-/// A Klipper filament sensor that belongs to the MMU itself (gates and buffer). `toolhead` and `extruder` stay common:
-/// they sit behind the MMU and matter without one. `object` is the Klipper object name, for example
-/// `filament_switch_sensor mmu_entry_0`.
-pub fn is_mmu_klipper_sensor(object: &str) -> bool {
-    let name = object.split_once(' ').map_or(object, |(_, name)| name);
-    let name = name.rsplit_once(':').map_or(name, |(_, name)| name);
-    name.starts_with("mmu_") || matches!(name, "filament_compression" | "filament_tension" | "filament_proportional")
 }
 
 /// The sensors of the MMU for the chip list. The three buffer sensors are left out when a buffer gauge shows them.
@@ -180,42 +196,12 @@ pub fn mmu_buffer_state(state: SyncFeedbackState) -> &'static str {
     }
 }
 
-/// One word for the operator: a trigger wins over monitoring, which wins over ready.
-pub fn mmu_flowguard_state(flowguard: &FlowGuard) -> &'static str {
-    if !flowguard.enabled {
-        "off"
-    } else if !flowguard.trigger.is_empty() {
-        "triggered"
-    } else if flowguard.active {
-        "monitoring"
-    } else {
-        "ready"
-    }
-}
-
-/// Heater targets sent but not yet reported by Klipper, so quick taps on + and − build on each other
-/// and the new target shows at once.
-#[derive(Debug, Default)]
-pub struct PendingTargets {
-    targets: HashMap<String, (f64, Instant)>,
-}
-
-impl PendingTargets {
-    pub fn request(&mut self, object: &str, target: f64, now: Instant) {
-        self.targets.insert(object.to_owned(), (target, now));
-    }
-
-    /// Shows pending targets on the reported heaters; forgets confirmed and outdated ones.
-    pub fn apply(&mut self, heaters: &mut [Heater], now: Instant) {
-        self.targets.retain(|object, (target, sent)| {
-            now.duration_since(*sent) < PENDING_TARGET_TIMEOUT
-                && heaters.iter().any(|heater| &heater.object == object && heater.target != *target)
-        });
-        for heater in heaters {
-            if let Some((target, _)) = self.targets.get(&heater.object) {
-                heater.target = *target;
-            }
-        }
+pub fn mmu_flowguard_state(state: FlowGuardState) -> &'static str {
+    match state {
+        FlowGuardState::Off => "off",
+        FlowGuardState::Triggered => "triggered",
+        FlowGuardState::Monitoring => "monitoring",
+        FlowGuardState::Ready => "ready",
     }
 }
 
@@ -223,34 +209,7 @@ impl PendingTargets {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-
-    #[test]
-    fn pending_targets_cover_the_delay_until_klipper_reports_back() {
-        let start = Instant::now();
-        let reported = |target| vec![Heater { object: "extruder".into(), target, ..Heater::default() }];
-        let mut pending = PendingTargets::default();
-        pending.request("extruder", 45.0, start);
-        pending.request("extruder", 50.0, start);
-
-        let mut heaters = reported(45.0);
-        pending.apply(&mut heaters, start + Duration::from_millis(200));
-        assert_eq!(heaters[0].target, 50.0);
-
-        let mut heaters = reported(50.0);
-        pending.apply(&mut heaters, start + Duration::from_millis(400));
-        pending.request("extruder", 55.0, start + Duration::from_millis(500));
-        let mut heaters = reported(50.0);
-        pending.apply(&mut heaters, start + PENDING_TARGET_TIMEOUT + Duration::from_secs(1));
-        assert_eq!(heaters[0].target, 50.0);
-    }
-
-    #[test]
-    fn recognizes_wireless_interfaces() {
-        assert!(is_wireless_interface("wlan0"));
-        assert!(is_wireless_interface("wlp3s0"));
-        assert!(!is_wireless_interface("eth0"));
-        assert!(!is_wireless_interface("enp1s0"));
-    }
+    use klipper_touch_core::files::FileEntry;
 
     fn now() -> DateTime<Local> {
         Local.with_ymd_and_hms(2026, 10, 21, 12, 0, 0).unwrap()
@@ -268,29 +227,46 @@ mod tests {
     }
 
     #[test]
-    fn early_print_uses_slicer_estimate() {
+    fn print_on_the_expected_pace_counts_down_the_slicer_estimate() {
         let job = PrintJob {
             state: PrintState::Printing,
             filename: "dir/cube.gcode".into(),
-            progress: 0.01,
-            print_duration: 600.0,
+            progress: 0.1,
+            print_duration: 360.0,
             filament_used: 1000.0,
             current_layer: Some(3),
             ..PrintJob::default()
         };
 
-        let texts = job_texts(&job, Some(&metadata("dir/cube.gcode")), now());
+        let texts = job_texts(&job, Some(&metadata("dir/cube.gcode")), None, now());
 
         assert_eq!(texts.name, "cube");
-        assert_eq!(texts.elapsed, "10m 00s");
-        assert_eq!(texts.remaining, "50m 00s");
-        assert_eq!(texts.eta, "12:50");
+        assert_eq!(texts.elapsed, "6m 00s");
+        assert_eq!(texts.remaining, "54m 00s");
+        assert_eq!(texts.eta, "12:54");
         assert_eq!(texts.layers, "3 / 100");
         assert_eq!(texts.filament, "1.00 m / 5.00 m");
     }
 
     #[test]
-    fn later_print_extrapolates_from_progress() {
+    fn last_measured_print_is_the_expectation_before_the_slicer_estimate() {
+        let job = PrintJob {
+            state: PrintState::Printing,
+            filename: "a.gcode".into(),
+            progress: 0.1,
+            print_duration: 420.0,
+            ..PrintJob::default()
+        };
+        let last_print = LastPrint { print_duration: 4200.0, filament_used: 4800.0 };
+
+        let texts = job_texts(&job, Some(&metadata("a.gcode")), Some(&last_print), now());
+
+        assert_eq!(texts.remaining, "1h 03m");
+        assert_eq!(texts.expectation_origin, Some(estimates::ORIGIN_LAST_PRINT));
+    }
+
+    #[test]
+    fn without_expectation_the_pace_is_extrapolated_once_progress_exists() {
         let job = PrintJob {
             state: PrintState::Printing,
             filename: "a.gcode".into(),
@@ -299,20 +275,22 @@ mod tests {
             ..PrintJob::default()
         };
 
-        let texts = job_texts(&job, None, now());
+        let texts = job_texts(&job, None, None, now());
 
         assert_eq!(texts.remaining, "30m 00s");
         assert_eq!(texts.layers, "-");
+        assert_eq!(texts.expectation_origin, Some(ORIGIN_PACE_ONLY));
     }
 
     #[test]
     fn standby_shows_file_totals_and_no_eta() {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
-        let texts = job_texts(&job, Some(&metadata("a.gcode")), now());
+        let texts = job_texts(&job, Some(&metadata("a.gcode")), None, now());
 
         assert_eq!(texts.remaining, "-");
         assert_eq!(texts.eta, "-");
+        assert_eq!(texts.expectation_origin, None);
         assert_eq!(texts.layers, "100");
         assert_eq!(texts.filament, "5.00 m");
     }
@@ -321,7 +299,87 @@ mod tests {
     fn metadata_of_other_file_is_ignored() {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
-        assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), now()).filament, "-");
+        assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), None, now()).filament, "-");
+    }
+
+    fn file_metadata() -> FileMetadata {
+        FileMetadata {
+            filename: "a.gcode".into(),
+            estimated_time: Some(3600.0),
+            filament_total: Some(10_000.0),
+            filament_weight_total: Some(30.0),
+            filament_type: Some("PLA".into()),
+            nozzle_diameter: Some(0.4),
+            ..FileMetadata::default()
+        }
+    }
+
+    fn facts_of(metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> FileFacts {
+        let entry = FileEntry { path: "a.gcode".into(), modified: 1_700_000_000.0, size: 100 };
+        file_facts(&FileInfo { entry: &entry, metadata, last_print })
+    }
+
+    fn slicer_settings() -> FileMetadata {
+        FileMetadata {
+            first_layer_extr_temp: Some(215.0),
+            first_layer_bed_temp: Some(60.0),
+            chamber_temp: Some(45.0),
+            ..file_metadata()
+        }
+    }
+
+    #[test]
+    fn unprinted_file_shows_slicer_values_marked_as_estimates() {
+        let facts = facts_of(Some(&slicer_settings()), None);
+
+        assert_eq!(
+            facts,
+            FileFacts {
+                modified: format::unix_date(1_700_000_000.0),
+                material: "PLA ~30 g".into(),
+                nozzle: "0.4".into(),
+                time: "~1h 00m".into(),
+                extruder_temperature: "215°".into(),
+                bed_temperature: "60°".into(),
+                chamber_temperature: "45°".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn printed_file_shows_measured_time_and_scaled_weight() {
+        let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
+
+        let facts = facts_of(Some(&file_metadata()), Some(&last_print));
+
+        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("PLA 27 g", "55m 00s"));
+    }
+
+    #[test]
+    fn file_without_metadata_shows_only_its_date() {
+        let facts = facts_of(None, None);
+
+        assert_eq!(facts, FileFacts { modified: format::unix_date(1_700_000_000.0), ..FileFacts::default() });
+    }
+
+    #[test]
+    fn missing_slicer_fields_and_zero_temperatures_are_left_out() {
+        let metadata = FileMetadata {
+            filename: "a.gcode".into(),
+            nozzle_diameter: Some(0.6),
+            chamber_temp: Some(0.0),
+            first_layer_bed_temp: Some(0.0),
+            ..FileMetadata::default()
+        };
+
+        let facts = facts_of(Some(&metadata), None);
+
+        assert_eq!(facts.nozzle, "0.6");
+        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("", ""));
+        assert_eq!(
+            (facts.extruder_temperature.as_str(), facts.bed_temperature.as_str(), facts.chamber_temperature.as_str()),
+            ("", "", "")
+        );
     }
 
     #[test]
@@ -331,16 +389,6 @@ mod tests {
         assert_eq!(mmu_sensor_label("mmu_future_probe"), "Future probe");
         assert_eq!(mmu_sensor_label("hotend"), "Hotend");
         assert_eq!(mmu_sensor_label(""), "");
-    }
-
-    #[test]
-    fn mmu_sensors_are_told_apart_from_common_klipper_sensors() {
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor mmu_entry_0"));
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor filament_tension"));
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor unit0:mmu_exit_1"));
-        assert!(!is_mmu_klipper_sensor("filament_switch_sensor toolhead"));
-        assert!(!is_mmu_klipper_sensor("filament_switch_sensor extruder"));
-        assert!(!is_mmu_klipper_sensor("filament_motion_sensor extruder_encoder"));
     }
 
     #[test]
@@ -358,21 +406,10 @@ mod tests {
     #[test]
     fn mmu_states_become_words_for_the_ui() {
         assert_eq!([None, Some(false), Some(true)].map(mmu_sensor_state), ["disabled", "open", "triggered"]);
-        let flowguard = |enabled, active, trigger: &str| FlowGuard {
-            enabled,
-            active,
-            trigger: trigger.into(),
-            ..FlowGuard::default()
-        };
-        assert_eq!(mmu_flowguard_state(&flowguard(false, true, "clog")), "off");
-        assert_eq!(mmu_flowguard_state(&flowguard(true, true, "clog")), "triggered");
-        assert_eq!(mmu_flowguard_state(&flowguard(true, true, "")), "monitoring");
-        assert_eq!(mmu_flowguard_state(&flowguard(true, false, "")), "ready");
-    }
-
-    #[test]
-    fn flow_from_extruder_velocity() {
-        assert!((volumetric_flow(10.0) - 24.05).abs() < 0.01);
-        assert_eq!(volumetric_flow(-1.0), 0.0);
+        assert_eq!(
+            [FlowGuardState::Off, FlowGuardState::Triggered, FlowGuardState::Monitoring, FlowGuardState::Ready]
+                .map(mmu_flowguard_state),
+            ["off", "triggered", "monitoring", "ready"]
+        );
     }
 }

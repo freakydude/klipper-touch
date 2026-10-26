@@ -49,12 +49,21 @@ export struct PrintObjectItem {
     excluded: bool,
 }
 
+// Texts of a file row; an empty text is a fact the file does not have.
 export struct FileItem {
     path: string,
     name: string,
-    detail: string,
+    modified: string,
+    material: string,
+    nozzle: string,
+    time: string,
+    extruder-temperature: string,
+    bed-temperature: string,
+    chamber-temperature: string,
     thumbnail: image,
     has-thumbnail: bool,
+    // False for a file that has no thumbnail: its row then starts with the text.
+    show-thumbnail: bool,
 }
 
 export struct ConsoleItem {

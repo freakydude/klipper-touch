@@ -23,6 +23,7 @@ flowchart LR
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
         SET[settings.rs<br/>JSON file]
         FS[files.rs / system.rs]
+        EST[estimates.rs / sourced.rs<br/>derived values with their source]
         NET[network/*<br/>NetworkService]
     end
     M[(Moonraker / Klipper)]
@@ -36,6 +37,7 @@ flowchart LR
     SVC --> CMD
     SVC --> PR
     SVC --> FS
+    P --> EST
     SVC --> MR --> M
     F -. replaces in tests .-> M
     N --> NET --> NM
@@ -59,8 +61,10 @@ flowchart LR
    `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
    Every new state goes to the UI as a `Snapshot` through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`.
-4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. `Command::to_call` translates them into
-   G-code or Moonraker methods; moves are clamped to the axis range. Commands go onto the wire in the order they were
+4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
+   `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` translates the
+   result into G-code or Moonraker methods; moves are clamped to the axis range. Heater targets that were sent but not
+   yet reported back are kept by the service and shown in the next `Snapshot`. Commands go onto the wire in the order they were
    sent (`Connection::start_call`); only the replies are awaited concurrently. A task per command would let two taps
    overtake each other, and a heater target is absolute.
 5. `presenter.rs` runs in the Slint event loop (`slint::spawn_local`) and writes the globals `Printer` and `UiSettings`.
@@ -97,10 +101,14 @@ flowchart LR
 
 ## Extending
 
-- **New command**: variant in `Command` + translation in `to_call` + test; callback in `state.slint` (`Actions`),
+- **New command**: variant in `Command` + translation in `to_call` (or, if the printer's capabilities decide what it
+  means, an intent resolved in `Command::resolve`) + test; callback in `state.slint` (`Actions`),
   wiring in `actions.rs`, control on the page.
 - **New capability**: detection in `Capabilities::add_object` (or `ServerComponents`), subscription in `subscription.rs`,
   field in `PrinterStatus`, property in `Printer` and assignment in `presenter.rs`.
+- **New derived value** (from several sources, e.g. a measurement and a slicer estimate): the rule goes into the core
+  (`estimates.rs`, or next to the status reader), returns a `Sourced` value that names its source, and gets a test per
+  source. `view.rs` only formats it (a prediction gets a `~`).
 - **New page**: `pages/<name>.slint`, entry in `Page`, `NavRail` and `app.slint`; check with `ui-snapshot`.
 - **Extend the fake**: method in `fake-moonraker/src/session.rs`, G-code in `gcode.rs`/`printer.rs`, plus a test.
 

@@ -141,6 +141,50 @@ async fn commands_reach_the_printer_in_the_order_they_were_sent() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn quick_heater_steps_build_on_each_other() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    // Each step starts from the target the previous one set, even before Klipper reported it back.
+    for _ in 0..4 {
+        service.send(Command::StepHeater { heater: "extruder".into(), step: 10.0 });
+    }
+
+    wait_for(&mut channels, |snapshot| snapshot.status.heater("extruder").is_some_and(|heater| heater.target == 40.0))
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn presets_and_cooling_down_act_on_every_heater() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::ApplyPreset { extruder: 210.0, bed: 60.0 });
+    let targets = |snapshot: &Snapshot| {
+        ["extruder", "heater_bed"].map(|name| snapshot.status.heater(name).map(|heater| heater.target))
+    };
+    wait_for(&mut channels, |snapshot| targets(snapshot) == [Some(210.0), Some(60.0)]).await;
+
+    service.send(Command::CoolDown);
+    wait_for(&mut channels, |snapshot| targets(snapshot) == [Some(0.0), Some(0.0)]).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn intents_the_printer_cannot_carry_out_are_reported() {
+    let endpoint = start_fake_with(MachineProfile::basic()).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::Level);
+    let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
+
+    assert!(matches!(refused, Event::CommandFailed { command, message }
+        if command == "Level" && message.contains("neither quad gantry level nor Z tilt")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn runs_print_job_and_loads_file_details() {
     let endpoint = start_fake().await;
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
@@ -169,6 +213,24 @@ async fn runs_print_job_and_loads_file_details() {
 
     service.send(Command::CancelPrint);
     wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Cancelled).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn loads_the_last_completed_print_of_each_file() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.query(Query::PrintHistory);
+    let Event::PrintHistory(last_prints) =
+        next_event(&mut channels, |event| matches!(event, Event::PrintHistory(_))).await
+    else {
+        unreachable!()
+    };
+
+    // The newer cancelled job of the benchy does not count.
+    assert_eq!(last_prints["benchy.gcode"].print_duration, 7_650.0);
+    assert!(!last_prints.contains_key("long_job.gcode"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
