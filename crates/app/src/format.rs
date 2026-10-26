@@ -43,7 +43,12 @@ pub fn unix_date(unix_seconds: f64) -> String {
 
 /// Filament length in meters from millimeters.
 pub fn filament_length(millimeters: f64) -> String {
-    format!("{:.2} m", millimeters.max(0.0) / 1000.0)
+    format!("{} m", filament_meters(millimeters))
+}
+
+/// The number of `filament_length` alone, for two lengths that share one unit (`1.92 / 5.20 m`).
+pub fn filament_meters(millimeters: f64) -> String {
+    format!("{:.2}", millimeters.max(0.0) / 1000.0)
 }
 
 /// Filament weight in grams; one decimal below 10 g.
@@ -104,6 +109,7 @@ mod tests {
     #[test]
     fn lengths_sizes_and_names() {
         assert_eq!(filament_length(1234.0), "1.23 m");
+        assert_eq!(filament_meters(1234.0), "1.23");
         assert_eq!(filament_weight(4.56), "4.6 g");
         assert_eq!(filament_weight(23.4), "23 g");
         assert_eq!(file_size(512), "512 B");

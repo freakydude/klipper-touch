@@ -66,7 +66,7 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
     match (job.state, total) {
         (PrintState::Standby, Some(total)) => format::filament_length(total),
         (_, Some(total)) if job.filament_used > 0.0 => {
-            format!("{} / {}", format::filament_length(job.filament_used), format::filament_length(total))
+            format!("{} / {}", format::filament_meters(job.filament_used), format::filament_length(total))
         }
         _ if job.filament_used > 0.0 => format::filament_length(job.filament_used),
         _ => NO_VALUE.to_owned(),
@@ -245,7 +245,7 @@ mod tests {
         assert_eq!(texts.remaining, "54m 00s");
         assert_eq!(texts.eta, "12:54");
         assert_eq!(texts.layers, "3 / 100");
-        assert_eq!(texts.filament, "1.00 m / 5.00 m");
+        assert_eq!(texts.filament, "1.00 / 5.00 m");
     }
 
     #[test]

@@ -263,7 +263,8 @@ export component MmuTab inherits Rectangle {
 // Condensed state of the MMU for the print page: selected tool and gate, buffer, FlowGuard and, when the MMU paused the
 // print, the reason with the buttons to recover.
 export component MmuStrip inherits Card {
-    title: @tr("MMU");
+    // A small display has no room for the headline and the buffer text; the gate and the gauge say the same.
+    title: Display.compact ? "" : @tr("MMU");
     icon: Icons.mmu-unit;
     VerticalLayout {
         spacing: 6px;
@@ -286,7 +287,7 @@ export component MmuStrip inherits Card {
         // While the MMU holds the print, the reason and the buttons need the room; the reason already names the cause.
         if Printer.mmu-has-buffer && !Printer.mmu-paused: VerticalLayout {
             spacing: 4px;
-            IconLabel {
+            if !Display.compact: IconLabel {
                 icon: Icons.mmu-sync;
                 text: @tr("Buffer: {}", MmuTexts.buffer(Printer.mmu-buffer-state));
                 color: strip-gauge.marker-color;
@@ -299,17 +300,21 @@ export component MmuStrip inherits Card {
         }
         if !Printer.mmu-paused: HorizontalLayout {
             spacing: Theme.spacing;
+            // The flow rate is short and stays whole; the FlowGuard text gives way when the strip is narrow.
             if Printer.mmu-flowguard-state != "off": IconLabel {
                 icon: Icons.mmu-flowguard;
                 text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
                 color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Theme.muted;
                 font-size: Theme.font-small;
+                horizontal-stretch: 1;
+                min-width: 0px;
             }
             if Printer.mmu-flow-rate >= 0: IconLabel {
                 icon: Icons.filament-flow;
                 text: @tr("Flow {} %", round(Printer.mmu-flow-rate));
                 color: Theme.muted;
                 font-size: Theme.font-small;
+                horizontal-stretch: 0;
             }
         }
         if Printer.mmu-paused && Printer.mmu-reason != "": Text {

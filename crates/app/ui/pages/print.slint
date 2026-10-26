@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Display, Navigation, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Display, Navigation, Printer } from "../state.slint";
 import { IconButton, IconLabel, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
 import { MmuStrip } from "mmu.slint";
@@ -195,24 +195,16 @@ export component PrintPage inherits Rectangle {
                 source: Printer.job-thumbnail;
                 available: root.has-job && Printer.has-job-thumbnail;
             }
-            HorizontalLayout {
-                spacing: 6px;
-                VerticalLayout {
-                    alignment: start;
-                    Image {
-                        source: StateIcons.print-state(Printer.print-state);
-                        colorize: Printer.print-state == "error" ? Theme.danger : Printer.print-state == "standby" ? Theme.muted : Theme.accent;
-                        width: 22px;
-                        height: 22px;
-                    }
-                }
-                Text {
-                    text: root.has-job ? Printer.job-name : @tr("No print loaded");
-                    color: Theme.foreground;
-                    font-size: Theme.font-normal;
-                    font-weight: 600;
-                    wrap: word-wrap;
-                }
+            // The status bar shows the state of the print; long names have no spaces: break anywhere and stop after
+            // three lines, so the name stays in its column.
+            Text {
+                text: root.has-job ? Printer.job-name : @tr("No print loaded");
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+                wrap: char-wrap;
+                overflow: elide;
+                max-height: 3 * 22px;
             }
             if Printer.job-message != "": Text {
                 text: Printer.job-message;
@@ -245,22 +237,59 @@ export component PrintPage inherits Rectangle {
                     }
                 }
             }
-            GridLayout {
+            // Left the times, right the figures of the job. The times are short, the figures need room: 4 to 5.
+            VerticalLayout {
                 spacing: Theme.spacing;
-                Row {
-                    ValueTile { icon: Icons.print-duration; label: @tr("Elapsed"); value: Printer.elapsed; }
-                    ValueTile { icon: Icons.print-eta; label: @tr("Remaining"); value: Printer.remaining; }
-                }
-                Row {
-                    ValueTile { icon: Icons.print-layers; label: @tr("Layer"); value: Printer.layers; }
-                    ValueTile { icon: Icons.ui-info; label: @tr("ETA"); value: Printer.eta; }
-                }
-                Row {
-                    ValueTile { icon: Icons.filament-spool; label: @tr("Filament"); value: Printer.filament; }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
                     ValueTile {
+                        weight: 4;
+                        show-icon: !Display.narrow;
+                        icon: Icons.print-duration;
+                        label: @tr("Elapsed");
+                        value: Printer.elapsed;
+                    }
+                    ValueTile {
+                        weight: 5;
+                        show-icon: !Display.narrow;
+                        icon: Icons.print-layers;
+                        label: @tr("Layer");
+                        value: Printer.layers;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    ValueTile {
+                        weight: 4;
+                        show-icon: !Display.narrow;
+                        icon: Icons.print-eta;
+                        label: @tr("Remaining");
+                        value: Printer.remaining;
+                    }
+                    ValueTile {
+                        weight: 5;
+                        show-icon: !Display.narrow;
+                        icon: Icons.filament-spool;
+                        label: @tr("Filament");
+                        value: Printer.filament;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: Theme.spacing;
+                    ValueTile {
+                        weight: 4;
+                        show-icon: !Display.narrow;
+                        icon: Icons.ui-info;
+                        label: @tr("ETA");
+                        value: Printer.eta;
+                    }
+                    ValueTile {
+                        weight: 5;
+                        show-icon: !Display.narrow;
                         icon: Icons.motion-speed;
-                        label: @tr("Speed / Flow");
-                        value: round(Printer.live-velocity) + " mm/s · " + Printer.live-flow.to-fixed(1) + " mm³/s";
+                        // Two short lines instead of one long value: the speed, and under the icon's label the flow.
+                        label: @tr("Flow {} mm³/s", Printer.live-flow.to-fixed(1));
+                        value: round(Printer.live-velocity) + " mm/s";
                     }
                 }
             }

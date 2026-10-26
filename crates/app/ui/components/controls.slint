@@ -164,14 +164,23 @@ export component ValueTile inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <image> icon;
+    // A narrow display gives the room of the icon to the text.
+    in property <bool> show-icon: true;
+    // Share of the width among tiles side by side (4 and 5: four to five).
+    in property <float> weight: 1;
     background: Theme.surface;
     border-radius: Theme.radius;
     min-height: 52px;
+    // The width of tiles side by side follows their `weight` only (default: equal), never their text:
+    // a changing value must not move the columns.
+    horizontal-stretch: root.weight;
+    preferred-width: 0px;
+    min-width: 0px;
 
     HorizontalLayout {
         padding: 6px;
         spacing: 8px;
-        if root.icon.width > 0: VerticalLayout {
+        if root.icon.width > 0 && root.show-icon: VerticalLayout {
             alignment: center;
             Image {
                 source: root.icon;
