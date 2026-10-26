@@ -141,12 +141,7 @@ impl SettingsController {
 
     fn change_preset(&self, index: i32, extruder: f64, bed: f64) {
         let Ok(index) = usize::try_from(index) else { return };
-        self.update(|settings| {
-            if let Some(preset) = settings.temperature_presets.get_mut(index) {
-                preset.extruder = extruder.max(0.0);
-                preset.bed = bed.max(0.0);
-            }
-        });
+        self.update(|settings| settings.set_preset(index, extruder, bed));
         if let Some(preset) = self.preset(index) {
             if index < self.presets.row_count() {
                 self.presets.set_row_data(index, preset_item(&preset));

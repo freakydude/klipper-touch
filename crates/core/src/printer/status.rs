@@ -188,6 +188,8 @@ pub struct ExtruderState {
     pub pressure_advance: f64,
     pub smooth_time: f64,
     pub can_extrude: bool,
+    /// Configured `filament_diameter` in mm; `None` until the configuration is known.
+    pub filament_diameter: Option<f64>,
 }
 
 /// Heater with a target temperature; `object` is the Klipper object name, e.g. `heater_generic chamber`.
@@ -277,7 +279,7 @@ impl PrinterStatus {
             activity: Activity::parse(text(object("idle_timeout"), "state")),
             job: read_job(object("print_stats"), object("display_status"), object("virtual_sdcard")),
             motion: read_motion(object("toolhead"), object("motion_report"), object("gcode_move")),
-            extruder: read_extruder(object("extruder")),
+            extruder: read_extruder(object("extruder"), object("configfile").pointer("/settings/extruder")),
             heaters: read_heaters(store),
             sensors: read_sensors(store),
             part_fan_speed: store.object("fan").map(|fan| number(fan, "speed")),
@@ -351,11 +353,12 @@ fn read_motion(toolhead: &Value, motion_report: &Value, gcode_move: &Value) -> M
     }
 }
 
-fn read_extruder(extruder: &Value) -> ExtruderState {
+fn read_extruder(extruder: &Value, configuration: Option<&Value>) -> ExtruderState {
     ExtruderState {
         pressure_advance: number(extruder, "pressure_advance"),
         smooth_time: number(extruder, "smooth_time"),
         can_extrude: flag(extruder, "can_extrude"),
+        filament_diameter: configuration.and_then(|section| section.get("filament_diameter")).and_then(Value::as_f64),
     }
 }
 
@@ -544,6 +547,17 @@ mod tests {
         assert_eq!((nozzle.min_temp, nozzle.max_temp), (10.0, Some(280.0)));
         let bed = status.heater("heater_bed").unwrap();
         assert_eq!((bed.min_temp, bed.max_temp), (0.0, None));
+    }
+
+    #[test]
+    fn reads_the_filament_diameter_from_the_configuration() {
+        let status = PrinterStatus::from_store(&store(json!({
+            "extruder": { "temperature": 20.0 },
+            "configfile": { "settings": { "extruder": { "filament_diameter": 2.85 } } }
+        })));
+
+        assert_eq!(status.extruder.filament_diameter, Some(2.85));
+        assert_eq!(PrinterStatus::from_store(&ObjectStore::default()).extruder.filament_diameter, None);
     }
 
     #[test]

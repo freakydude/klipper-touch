@@ -80,6 +80,16 @@ impl Default for Steps {
     }
 }
 
+impl Settings {
+    /// Changes a preset; temperatures cannot be negative. Unknown indexes are ignored.
+    pub fn set_preset(&mut self, index: usize, extruder: f64, bed: f64) {
+        if let Some(preset) = self.temperature_presets.get_mut(index) {
+            preset.extruder = extruder.max(0.0);
+            preset.bed = bed.max(0.0);
+        }
+    }
+}
+
 impl TemperaturePreset {
     pub fn new(name: &str, extruder: f64, bed: f64) -> Self {
         Self { name: name.to_owned(), extruder, bed }
@@ -148,6 +158,17 @@ mod tests {
 
     fn names(list: &[&str]) -> Vec<String> {
         list.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn presets_cannot_go_below_zero_and_unknown_indexes_are_ignored() {
+        let mut settings = Settings::default();
+
+        settings.set_preset(0, -5.0, 65.0);
+        settings.set_preset(99, 1.0, 1.0);
+
+        assert_eq!((settings.temperature_presets[0].extruder, settings.temperature_presets[0].bed), (0.0, 65.0));
+        assert_eq!(settings.temperature_presets.len(), 4);
     }
 
     #[test]

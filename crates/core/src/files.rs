@@ -70,6 +70,71 @@ impl FileMetadata {
     }
 }
 
+/// This many files of the list get their metadata and thumbnail right away; the rest stays plain.
+const DETAILS_LIMIT: usize = 40;
+
+/// Everything known about one file of the list.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FileInfo<'a> {
+    pub entry: &'a FileEntry,
+    pub metadata: Option<&'a FileMetadata>,
+    pub last_print: Option<&'a LastPrint>,
+}
+
+/// The file list together with what arrives later for its files: metadata and the last completed prints. The data
+/// comes from three queries; this joins them and decides which files still need details.
+#[derive(Debug, Clone, Default)]
+pub struct FileCatalog {
+    entries: Vec<FileEntry>,
+    metadata: HashMap<String, FileMetadata>,
+    last_prints: HashMap<String, LastPrint>,
+}
+
+impl FileCatalog {
+    pub fn set_entries(&mut self, entries: Vec<FileEntry>) {
+        self.entries = entries;
+    }
+
+    pub fn entries(&self) -> &[FileEntry] {
+        &self.entries
+    }
+
+    /// Files at the top of the list whose metadata has not been loaded yet.
+    pub fn needing_details(&self) -> Vec<String> {
+        self.entries
+            .iter()
+            .take(DETAILS_LIMIT)
+            .filter(|entry| !self.metadata.contains_key(&entry.path))
+            .map(|entry| entry.path.clone())
+            .collect()
+    }
+
+    /// Metadata also arrives for the file of the running job, which need not be in the list.
+    pub fn store_metadata(&mut self, metadata: FileMetadata) {
+        self.metadata.insert(metadata.filename.clone(), metadata);
+    }
+
+    pub fn store_last_prints(&mut self, last_prints: HashMap<String, LastPrint>) {
+        self.last_prints = last_prints;
+    }
+
+    pub fn metadata(&self, path: &str) -> Option<&FileMetadata> {
+        self.metadata.get(path)
+    }
+
+    pub fn last_print(&self, path: &str) -> Option<&LastPrint> {
+        self.last_prints.get(path)
+    }
+
+    pub fn position(&self, path: &str) -> Option<usize> {
+        self.entries.iter().position(|entry| entry.path == path)
+    }
+
+    pub fn info<'a>(&'a self, entry: &'a FileEntry) -> FileInfo<'a> {
+        FileInfo { entry, metadata: self.metadata(&entry.path), last_print: self.last_print(&entry.path) }
+    }
+}
+
 /// What the last completed print of a file measured, from the Moonraker job history.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LastPrint {
@@ -197,5 +262,55 @@ mod tests {
         let metadata = parse_metadata(&json!({ "filename": "a.gcode" })).unwrap();
 
         assert_eq!(metadata.thumbnail_path(), None);
+    }
+
+    fn entry(path: &str) -> FileEntry {
+        FileEntry { path: path.to_owned(), modified: 1.0, size: 10 }
+    }
+
+    fn metadata(path: &str) -> FileMetadata {
+        FileMetadata { filename: path.to_owned(), estimated_time: Some(60.0), ..FileMetadata::default() }
+    }
+
+    #[test]
+    fn the_catalog_joins_entry_metadata_and_last_print_of_a_file() {
+        let mut catalog = FileCatalog::default();
+        catalog.set_entries(vec![entry("a.gcode"), entry("b.gcode")]);
+        catalog.store_metadata(metadata("a.gcode"));
+        catalog.store_last_prints(HashMap::from([(
+            "a.gcode".to_owned(),
+            LastPrint { print_duration: 5.0, filament_used: 1.0 },
+        )]));
+
+        let a = catalog.info(&catalog.entries()[0]);
+        let b = catalog.info(&catalog.entries()[1]);
+
+        assert_eq!((a.metadata.is_some(), a.last_print.is_some()), (true, true));
+        assert_eq!((b.metadata.is_some(), b.last_print.is_some()), (false, false));
+        assert_eq!(catalog.position("b.gcode"), Some(1));
+        assert_eq!(catalog.position("c.gcode"), None);
+    }
+
+    #[test]
+    fn only_files_without_metadata_at_the_top_of_the_list_need_details() {
+        let mut catalog = FileCatalog::default();
+        let names: Vec<String> = (0..DETAILS_LIMIT + 5).map(|index| format!("f{index}.gcode")).collect();
+        catalog.set_entries(names.iter().map(|name| entry(name)).collect());
+        catalog.store_metadata(metadata("f0.gcode"));
+
+        let needing = catalog.needing_details();
+
+        assert_eq!(needing.len(), DETAILS_LIMIT - 1);
+        assert!(!needing.contains(&"f0.gcode".to_owned()));
+        assert!(!needing.contains(&format!("f{DETAILS_LIMIT}.gcode")));
+    }
+
+    #[test]
+    fn metadata_of_a_file_outside_the_list_is_kept() {
+        let mut catalog = FileCatalog::default();
+        catalog.store_metadata(metadata("running.gcode"));
+
+        assert!(catalog.metadata("running.gcode").is_some());
+        assert!(catalog.needing_details().is_empty());
     }
 }

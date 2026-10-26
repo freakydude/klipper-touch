@@ -418,6 +418,7 @@ impl Printer {
         sections.insert(
             "extruder".to_owned(),
             json!({
+                "filament_diameter": 1.75,
                 "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE,
                 "min_temp": MIN_HEATER_TEMPERATURE,
                 "max_temp": MAX_EXTRUDER_TARGET

@@ -27,28 +27,6 @@ pub fn finish_time(now: DateTime<Local>, remaining_seconds: f64) -> String {
     }
 }
 
-/// Happy Hare and other plugins put HTML into their responses for Mainsail (`<span style=...>`, `&nbsp;`); the
-/// touch UI shows the text only. A `<` that does not start a tag stays.
-pub fn strip_markup(text: &str) -> String {
-    let mut plain = String::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(start) = rest.find('<') {
-        let (before, tag_and_after) = rest.split_at(start);
-        plain.push_str(before);
-        let starts_tag =
-            tag_and_after[1..].chars().next().is_some_and(|next| next.is_ascii_alphabetic() || next == '/');
-        match tag_and_after.find('>').filter(|_| starts_tag) {
-            Some(end) => rest = &tag_and_after[end + 1..],
-            None => {
-                plain.push('<');
-                rest = &tag_and_after[1..];
-            }
-        }
-    }
-    plain.push_str(rest);
-    plain.replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&amp;", "&")
-}
-
 pub fn unix_clock(unix_seconds: f64) -> String {
     Local
         .timestamp_opt(unix_seconds as i64, 0)
@@ -132,17 +110,5 @@ mod tests {
         assert_eq!(file_size(1_572_864), "1.5 MB");
         assert_eq!(job_name("parts/Voron Cube.gcode"), "Voron Cube");
         assert_eq!(job_name("plain"), "plain");
-    }
-
-    #[test]
-    fn markup_of_plugin_responses_is_removed() {
-        assert_eq!(
-            strip_markup(r#"<span style="color:#C0C0C0">(\_/)</span> <b>Happy Hare</b> v4.1.0"#),
-            r"(\_/) Happy Hare v4.1.0"
-        );
-        assert_eq!(strip_markup("Gate&nbsp;0 &amp; tool &lt;T0&gt;"), "Gate 0 & tool <T0>");
-        assert_eq!(strip_markup("Move out of range: x < 0 and y <5"), "Move out of range: x < 0 and y <5");
-        assert_eq!(strip_markup("half <span"), "half <span");
-        assert_eq!(strip_markup(""), "");
     }
 }

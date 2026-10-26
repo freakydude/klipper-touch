@@ -6,11 +6,11 @@
 use crate::commands::Command;
 use crate::files::{self, FileEntry, FileMetadata, LastPrint};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
-use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PrinterStatus, ServerComponents};
+use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrinterStatus, ServerComponents};
 use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, watch};
 
 const RECONNECT_DELAY: Duration = Duration::from_secs(2);
@@ -202,6 +202,8 @@ struct Session<'a> {
     components: ServerComponents,
     klippy_ready: bool,
     job_filename: String,
+    /// Targets sent but not yet reported back; the snapshot shows them.
+    pending_targets: PendingTargets,
 }
 
 impl<'a> Session<'a> {
@@ -216,6 +218,7 @@ impl<'a> Session<'a> {
             components: ServerComponents::default(),
             klippy_ready: false,
             job_filename: String::new(),
+            pending_targets: PendingTargets::default(),
         }
     }
 
@@ -345,9 +348,16 @@ impl<'a> Session<'a> {
         }
     }
 
+    /// The state with the heater targets that were sent but not yet reported back.
+    fn current_status(&mut self) -> PrinterStatus {
+        let mut status = PrinterStatus::from_store(&self.store);
+        self.pending_targets.apply(&mut status.heaters, Instant::now());
+        status
+    }
+
     /// Publishes the state and loads the print file's metadata when the job changes.
     fn publish(&mut self) {
-        let status = PrinterStatus::from_store(&self.store);
+        let status = self.current_status();
         if status.job.filename != self.job_filename {
             self.job_filename.clone_from(&status.job.filename);
             if !self.job_filename.is_empty() {
@@ -362,19 +372,46 @@ impl<'a> Session<'a> {
         });
     }
 
-    fn execute(&self, command: Command) {
-        let status = PrinterStatus::from_store(&self.store);
+    /// Carries out a command; an intent first becomes the commands this printer needs.
+    fn execute(&mut self, command: Command) {
+        let status = self.current_status();
+        let description = command.describe();
+        let commands = match command.resolve(&self.capabilities, &status) {
+            Ok(commands) => commands,
+            Err(message) => {
+                self.outputs.event(Event::CommandFailed { command: description, message });
+                return;
+            }
+        };
+        let mut targets_changed = false;
+        for command in commands {
+            targets_changed |= self.dispatch(command, &status);
+        }
+        if targets_changed {
+            self.publish();
+        }
+    }
+
+    /// Sends one concrete command; true if it set a heater target, which the snapshot shows at once.
+    fn dispatch(&mut self, command: Command, status: &PrinterStatus) -> bool {
         if command.interrupts_print() && status.job.state.is_active() {
             self.outputs.event(Event::CommandFailed {
                 command: command.describe(),
                 message: "not possible while a print is running".to_owned(),
             });
-            return;
+            return false;
         }
-        let Some(call) = command.to_call(&status.motion) else { return };
+        let Some(call) = command.to_call(&status.motion) else { return false };
         if let Command::RunGcode { script } = &command {
             self.outputs.event(Event::ConsoleLine(console_line(ConsoleKind::Command, script)));
         }
+        let target_set = match &command {
+            Command::SetHeaterTarget { heater, target } => {
+                self.pending_targets.request(heater, target.max(0.0), Instant::now());
+                true
+            }
+            _ => false,
+        };
         let events = self.outputs.events.clone();
         let failed = move |error: CallError| {
             let message = match error {
@@ -394,9 +431,14 @@ impl<'a> Session<'a> {
             }
             Err(error) => failed(error),
         }
+        target_set
     }
 
     fn answer(&self, query: Query) {
+        if query == Query::PrintHistory && !self.components.history {
+            log::debug!("no job history: Moonraker has no history component");
+            return;
+        }
         let connection = self.connection.clone();
         let http = self.http.clone();
         let endpoint = self.endpoint.clone();

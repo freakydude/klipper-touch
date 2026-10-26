@@ -7,6 +7,7 @@
 
 use serde_json::Value;
 use std::collections::BTreeMap;
+use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroParam {
@@ -61,6 +62,98 @@ pub fn parse_params(template: &str) -> Vec<MacroParam> {
 fn default_argument(after_name: &str) -> Option<&str> {
     let tail = after_name.trim_start().strip_prefix('|')?.trim_start().strip_prefix("default(")?;
     tail.split(')').next()
+}
+
+/// A macro as the operator is offered it; `visible` is false for macros the operator hid.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OfferedMacro {
+    pub name: String,
+    pub visible: bool,
+}
+
+/// The macros to offer: all except those that override a built-in command (`rename_existing`).
+pub fn offered_macros(
+    all: &[String],
+    details: &BTreeMap<String, MacroDetails>,
+    hidden: &[String],
+) -> Vec<OfferedMacro> {
+    all.iter()
+        .filter(|name| !details.get(&name.to_ascii_uppercase()).is_some_and(|details| details.renamed))
+        .map(|name| OfferedMacro { name: name.clone(), visible: !hidden.contains(name) })
+        .collect()
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum MacroValueError {
+    /// Klipper splits the command at spaces, so the rest would become more parameters.
+    #[error("Macro parameter values cannot contain spaces")]
+    ContainsWhitespace,
+}
+
+/// One parameter of the open form with what the operator typed for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MacroField {
+    pub name: String,
+    /// Shown while the value is empty; Klipper uses it then.
+    pub placeholder: String,
+    pub value: String,
+}
+
+/// The parameter form of one macro: fields with values, and the command they result in.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MacroForm {
+    name: String,
+    fields: Vec<MacroField>,
+}
+
+impl MacroForm {
+    /// Empty fields for the parameters of the macro; without `details` the form has no fields.
+    pub fn open(name: &str, details: Option<&MacroDetails>) -> Self {
+        let fields = details
+            .map(|details| {
+                details
+                    .params
+                    .iter()
+                    .map(|param| MacroField {
+                        name: param.name.clone(),
+                        placeholder: param.default.clone().unwrap_or_default(),
+                        value: String::new(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self { name: name.to_owned(), fields }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn fields(&self) -> &[MacroField] {
+        &self.fields
+    }
+
+    /// Sets the value of one field; an unknown index is ignored.
+    pub fn set_value(&mut self, index: usize, value: &str) -> Result<(), MacroValueError> {
+        if value.chars().any(char::is_whitespace) {
+            return Err(MacroValueError::ContainsWhitespace);
+        }
+        if let Some(field) = self.fields.get_mut(index) {
+            field.value = value.to_owned();
+        }
+        Ok(())
+    }
+
+    /// The command for the form, e.g. `PARK Z=20`; fields without a value are left out.
+    pub fn script(&self) -> String {
+        let arguments: Vec<(&str, &str)> = self
+            .fields
+            .iter()
+            .filter(|field| !field.value.is_empty())
+            .map(|field| (field.name.as_str(), field.value.as_str()))
+            .collect();
+        macro_script(&self.name, &arguments)
+    }
 }
 
 /// The command that runs a macro with arguments that have a value. Macros named like G- or M-codes take their
@@ -226,5 +319,62 @@ mod tests {
         assert_eq!(details.len(), 2);
         assert_eq!(details["PARK"].params, [param("Z", Some("10"))]);
         assert!(details["PAUSE"].renamed);
+    }
+
+    fn details(params: &[(&str, Option<&str>)], renamed: bool) -> MacroDetails {
+        MacroDetails { params: params.iter().map(|(name, default)| param(name, *default)).collect(), renamed }
+    }
+
+    #[test]
+    fn renamed_macros_are_not_offered_and_hidden_ones_are_marked() {
+        let all: Vec<String> = ["PARK", "M600", "PRINT_END"].map(str::to_owned).into();
+        let details = BTreeMap::from([("M600".to_owned(), details(&[], true))]);
+
+        let offered = offered_macros(&all, &details, &["PRINT_END".to_owned()]);
+
+        assert_eq!(
+            offered,
+            [
+                OfferedMacro { name: "PARK".into(), visible: true },
+                OfferedMacro { name: "PRINT_END".into(), visible: false }
+            ]
+        );
+    }
+
+    #[test]
+    fn the_form_has_a_field_per_parameter_with_its_default_as_placeholder() {
+        let form = MacroForm::open("PARK", Some(&details(&[("Z", Some("10")), ("SPEED", None)], false)));
+
+        let fields: Vec<(&str, &str)> =
+            form.fields().iter().map(|field| (field.name.as_str(), field.placeholder.as_str())).collect();
+        assert_eq!(fields, [("Z", "10"), ("SPEED", "")]);
+        assert_eq!(form.name(), "PARK");
+    }
+
+    #[test]
+    fn the_form_script_leaves_out_empty_fields() {
+        let mut form = MacroForm::open("PARK", Some(&details(&[("Z", Some("10")), ("SPEED", None)], false)));
+        assert_eq!(form.script(), "PARK");
+
+        form.set_value(0, "20").unwrap();
+
+        assert_eq!(form.script(), "PARK Z=20");
+    }
+
+    #[test]
+    fn values_with_spaces_are_refused_and_keep_the_old_value() {
+        let mut form = MacroForm::open("PARK", Some(&details(&[("Z", None)], false)));
+        form.set_value(0, "5").unwrap();
+
+        assert_eq!(form.set_value(0, "1 2"), Err(MacroValueError::ContainsWhitespace));
+        assert_eq!(form.fields()[0].value, "5");
+    }
+
+    #[test]
+    fn an_unknown_field_index_is_ignored() {
+        let mut form = MacroForm::open("PARK", None);
+
+        assert_eq!(form.set_value(3, "x"), Ok(()));
+        assert!(form.fields().is_empty());
     }
 }

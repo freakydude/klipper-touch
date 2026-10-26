@@ -29,38 +29,22 @@ pub fn bind(
         }
     });
     actions.on_disable_motors(send(|| Command::DisableMotors));
-    let (level_service, level_presenter) = (service.clone(), Rc::clone(presenter));
-    actions.on_level(move || {
-        let capabilities = level_presenter.capabilities();
-        if capabilities.quad_gantry_level {
-            level_service.send(Command::QuadGantryLevel);
-        } else if capabilities.z_tilt {
-            level_service.send(Command::ZTiltAdjust);
-        }
-    });
+    actions.on_level(send(|| Command::Level));
 
-    let heater_presenter = Rc::clone(presenter);
-    actions.on_set_heater(move |heater, target| heater_presenter.set_heater_target(&heater, f64::from(target)));
-    let step_presenter = Rc::clone(presenter);
-    actions.on_step_heater(move |object, step| {
-        if let Some(heater) = step_presenter.heater(&object) {
-            step_presenter.set_heater_target(&object, heater.stepped_target(f64::from(step)));
-        }
+    let heater_service = service.clone();
+    actions.on_set_heater(move |heater, target| {
+        heater_service.send(Command::SetHeaterTarget { heater: heater.into(), target: f64::from(target) });
     });
-    let (preset_settings, preset_presenter) = (Rc::clone(settings), Rc::clone(presenter));
+    let step_service = service.clone();
+    actions.on_step_heater(move |heater, step| {
+        step_service.send(Command::StepHeater { heater: heater.into(), step: f64::from(step) });
+    });
+    let (preset_service, preset_settings) = (service.clone(), Rc::clone(settings));
     actions.on_apply_preset(move |index| {
         let Some(preset) = usize::try_from(index).ok().and_then(|index| preset_settings.preset(index)) else { return };
-        preset_presenter.set_heater_target("extruder", preset.extruder);
-        if preset_presenter.capabilities().heater_bed {
-            preset_presenter.set_heater_target("heater_bed", preset.bed);
-        }
+        preset_service.send(Command::ApplyPreset { extruder: preset.extruder, bed: preset.bed });
     });
-    let cool_presenter = Rc::clone(presenter);
-    actions.on_cool_down(move || {
-        for heater in cool_presenter.snapshot().status.heaters {
-            cool_presenter.set_heater_target(&heater.object, 0.0);
-        }
-    });
+    actions.on_cool_down(send(|| Command::CoolDown));
     actions.on_set_part_fan(with(service, |service, percent: f32| {
         service.send(Command::SetPartFanSpeed { fraction: f64::from(percent) / 100.0 });
     }));
@@ -69,10 +53,7 @@ pub fn bind(
         service.send(Command::AdjustZOffset { delta: round_offset(delta) })
     }));
     actions.on_reset_z_offset(send(|| Command::ResetZOffset));
-    let (offset_service, offset_presenter) = (service.clone(), Rc::clone(presenter));
-    actions.on_apply_z_offset(move || {
-        offset_service.send(Command::ApplyZOffset { to_probe: offset_presenter.capabilities().probe });
-    });
+    actions.on_apply_z_offset(send(|| Command::ApplyZOffset));
     actions.on_save_config(send(|| Command::SaveConfig));
     actions.on_set_speed_factor(with(service, |service, percent: f32| {
         service.send(Command::SetSpeedFactor { percent: f64::from(percent) })
@@ -88,8 +69,8 @@ pub fn bind(
     actions.on_extrude(move |length, speed| {
         extrude_service.send(Command::Extrude { length: f64::from(length), speed: f64::from(speed) });
     });
-    actions.on_load_filament(send(|| Command::RunMacro { name: "LOAD_FILAMENT".into() }));
-    actions.on_unload_filament(send(|| Command::RunMacro { name: "UNLOAD_FILAMENT".into() }));
+    actions.on_load_filament(send(|| Command::LoadFilament));
+    actions.on_unload_filament(send(|| Command::UnloadFilament));
     actions.on_run_macro(with(service, |service, name: slint::SharedString| {
         service.send(Command::RunMacro { name: name.into() })
     }));
@@ -108,10 +89,7 @@ pub fn bind(
     actions.on_mmu_recover(send(|| Command::MmuRecover));
     actions.on_mmu_unlock(send(|| Command::MmuUnlock));
     actions.on_run_gcode(with(service, |service, script: slint::SharedString| {
-        let script = script.trim().to_owned();
-        if !script.is_empty() {
-            service.send(Command::RunGcode { script });
-        }
+        service.send(Command::RunGcode { script: script.into() })
     }));
 
     let files_presenter = Rc::clone(presenter);

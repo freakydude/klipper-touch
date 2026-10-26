@@ -7,20 +7,20 @@ use crate::{
     MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem, Printer, SensorItem, UpdateItem,
 };
 use chrono::Local;
-use klipper_touch_core::files::{FileEntry, FileMetadata, LastPrint};
-use klipper_touch_core::printer::{macro_script, Capabilities, FilamentHandling, Heater, MacroDetails, MmuStatus};
+use klipper_touch_core::estimates;
+use klipper_touch_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint};
+use klipper_touch_core::printer::{
+    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, Heater, MacroDetails, MacroForm, MmuStatus,
+};
 use klipper_touch_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
-use klipper_touch_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
+use klipper_touch_core::{ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::Instant;
 
 const CONSOLE_LIMIT: usize = 300;
-/// This many files get metadata and thumbnail right away; the rest stays plain.
-const FILE_DETAILS_LIMIT: usize = 40;
 /// Status bar and its flyout. Shared with the timer that hides informations, hence the `Rc`.
 struct StatusView {
     window: slint::Weak<AppWindow>,
@@ -68,9 +68,7 @@ type MacrosLoaded = Box<dyn Fn(&[String])>;
 #[derive(Default)]
 struct Cache {
     snapshot: Snapshot,
-    files: Vec<FileEntry>,
-    metadata: HashMap<String, FileMetadata>,
-    last_prints: HashMap<String, LastPrint>,
+    catalog: FileCatalog,
     thumbnails: HashMap<String, Image>,
 }
 
@@ -78,7 +76,6 @@ pub struct Presenter {
     window: slint::Weak<AppWindow>,
     service: PrinterService,
     cache: RefCell<Cache>,
-    pending_targets: RefCell<view::PendingTargets>,
     /// Last logged source of each derived value, so that a change is logged once.
     origins: RefCell<HashMap<&'static str, &'static str>>,
     heaters: Rc<VecModel<HeaterItem>>,
@@ -94,7 +91,7 @@ pub struct Presenter {
     macros_loaded: RefCell<Option<MacrosLoaded>>,
     macro_details: RefCell<BTreeMap<String, MacroDetails>>,
     macro_form: Rc<VecModel<MacroParamItem>>,
-    macro_form_name: RefCell<String>,
+    macro_form_state: RefCell<MacroForm>,
     files: Rc<VecModel<FileItem>>,
     console: Rc<VecModel<ConsoleItem>>,
     power_devices: Rc<VecModel<PowerItem>>,
@@ -110,7 +107,6 @@ impl Presenter {
             window: window.as_weak(),
             service,
             cache: RefCell::default(),
-            pending_targets: RefCell::default(),
             origins: RefCell::default(),
             heaters: Rc::default(),
             sensors: Rc::default(),
@@ -125,7 +121,7 @@ impl Presenter {
             macros_loaded: RefCell::default(),
             macro_details: RefCell::default(),
             macro_form: Rc::default(),
-            macro_form_name: RefCell::default(),
+            macro_form_state: RefCell::default(),
             files: Rc::default(),
             console: Rc::default(),
             power_devices: Rc::default(),
@@ -183,27 +179,10 @@ impl Presenter {
         self.cache.borrow().snapshot.capabilities.clone()
     }
 
-    /// Heater as the UI shows it, including targets Klipper has not reported back yet.
-    pub fn heater(&self, object: &str) -> Option<Heater> {
-        let mut heaters = self.cache.borrow().snapshot.status.heaters.clone();
-        self.pending_targets.borrow_mut().apply(&mut heaters, Instant::now());
-        heaters.into_iter().find(|heater| heater.object == object)
-    }
-
-    /// Sends a heater target and shows it right away instead of waiting for the next status update.
-    pub fn set_heater_target(&self, object: &str, target: f64) {
-        self.pending_targets.borrow_mut().request(object, target, Instant::now());
-        self.service.send(Command::SetHeaterTarget { heater: object.to_owned(), target });
-        let snapshot = self.snapshot();
-        self.apply_snapshot(&snapshot);
-    }
-
     pub fn apply_snapshot(&self, snapshot: &Snapshot) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
-        let mut shown = snapshot.status.clone();
-        self.pending_targets.borrow_mut().apply(&mut shown.heaters, Instant::now());
-        let status = &shown;
+        let status = &snapshot.status;
         let connected = snapshot.connection == ConnectionState::Connected;
         let ready = connected && status.klippy_state == klipper_touch_core::printer::KlippyState::Ready;
 
@@ -230,7 +209,9 @@ impl Presenter {
         printer.set_speed_factor((motion.speed_factor * 100.0) as f32);
         printer.set_extrude_factor((motion.extrude_factor * 100.0) as f32);
         printer.set_live_velocity(motion.live_velocity as f32);
-        printer.set_live_flow(view::volumetric_flow(motion.live_extruder_velocity) as f32);
+        let flow = estimates::volumetric_flow(motion.live_extruder_velocity, status.extruder.filament_diameter);
+        self.note_origin("volumetric flow", Some(flow.origin));
+        printer.set_live_flow(flow.value as f32);
         printer.set_pressure_advance(status.extruder.pressure_advance as f32);
         printer.set_can_extrude(status.extruder.can_extrude);
 
@@ -269,7 +250,7 @@ impl Presenter {
                 .filament_sensors
                 .iter()
                 // With Happy Hare its gate and buffer sensors belong to the MMU tab; this card keeps the common ones.
-                .filter(|sensor| !(has_mmu && view::is_mmu_klipper_sensor(&sensor.object)))
+                .filter(|sensor| !(has_mmu && is_mmu_klipper_sensor(&sensor.object)))
                 .map(|sensor| FilamentSensorItem {
                     label: sensor.label.as_str().into(),
                     enabled: sensor.enabled,
@@ -322,7 +303,8 @@ impl Presenter {
         let now = Local::now();
         let cache = self.cache.borrow();
         let job = &cache.snapshot.status.job;
-        let texts = view::job_texts(job, cache.metadata.get(&job.filename), cache.last_prints.get(&job.filename), now);
+        let texts =
+            view::job_texts(job, cache.catalog.metadata(&job.filename), cache.catalog.last_print(&job.filename), now);
         printer.set_clock(format::clock(now).into());
         printer.set_job_name(texts.name.into());
         printer.set_elapsed(texts.elapsed.into());
@@ -356,7 +338,7 @@ impl Presenter {
                     self.console.push(item);
                 }
                 if line.kind == ConsoleKind::Response {
-                    self.show_console_response(&line.message);
+                    self.show_console_response(&line);
                 }
             }
             Event::HostNetwork(interfaces) => {
@@ -436,7 +418,7 @@ impl Presenter {
         printer.set_mmu_buffer_state(view::mmu_buffer_state(feedback.state).into());
         printer.set_mmu_buffer_bias(feedback.bias as f32);
         let flowguard = mmu.flowguard.clone().unwrap_or_default();
-        printer.set_mmu_flowguard_state(view::mmu_flowguard_state(&flowguard).into());
+        printer.set_mmu_flowguard_state(view::mmu_flowguard_state(flowguard.state()).into());
         let detail: Vec<&str> = [flowguard.trigger.as_str(), flowguard.reason.as_str()]
             .into_iter()
             .filter(|part| !part.is_empty())
@@ -460,20 +442,14 @@ impl Presenter {
     }
 
     fn refresh_macro_views(&self) {
-        let details = self.macro_details.borrow();
-        let renamed = |name: &String| details.get(&name.to_ascii_uppercase()).is_some_and(|details| details.renamed);
-        let all = self.all_macros.borrow();
-        let hidden = self.hidden_macros.borrow();
-        let offered: Vec<&String> = all.iter().filter(|name| !renamed(name)).collect();
-        let visible: Vec<SharedString> = offered
-            .iter()
-            .filter(|name| !hidden.contains(name))
-            .map(|name| SharedString::from(name.as_str()))
-            .collect();
+        let offered =
+            offered_macros(&self.all_macros.borrow(), &self.macro_details.borrow(), &self.hidden_macros.borrow());
+        let visible: Vec<SharedString> =
+            offered.iter().filter(|offer| offer.visible).map(|offer| SharedString::from(offer.name.as_str())).collect();
         replace_rows(&self.macros, visible);
         let items: Vec<MacroItem> = offered
             .iter()
-            .map(|name| MacroItem { name: SharedString::from(name.as_str()), visible: !hidden.contains(name) })
+            .map(|offer| MacroItem { name: SharedString::from(offer.name.as_str()), visible: offer.visible })
             .collect();
         replace_rows(&self.macro_items, items);
     }
@@ -493,48 +469,43 @@ impl Presenter {
 
     /// Fills the form with the parameters of a macro; empty values are left to Klipper's defaults.
     pub fn open_macro_form(&self, name: &str) {
-        let params = self.macro_details.borrow().get(&name.to_ascii_uppercase()).map(|details| details.params.clone());
-        let rows: Vec<MacroParamItem> = params
-            .unwrap_or_default()
+        let form = MacroForm::open(name, self.macro_details.borrow().get(&name.to_ascii_uppercase()));
+        let rows: Vec<MacroParamItem> = form
+            .fields()
             .iter()
-            .map(|param| MacroParamItem {
-                name: SharedString::from(param.name.as_str()),
-                placeholder: SharedString::from(param.default.as_deref().unwrap_or_default()),
-                value: SharedString::default(),
+            .map(|field| MacroParamItem {
+                name: SharedString::from(field.name.as_str()),
+                placeholder: SharedString::from(field.placeholder.as_str()),
+                value: SharedString::from(field.value.as_str()),
             })
             .collect();
-        *self.macro_form_name.borrow_mut() = name.to_owned();
+        *self.macro_form_state.borrow_mut() = form;
         self.macro_form.set_vec(rows);
         self.show_macro_form_name();
     }
 
-    /// Sets one parameter of the open form; values with spaces would split into several Klipper parameters.
+    /// Sets one parameter of the open form.
     pub fn set_macro_param(&self, index: usize, value: &str) {
-        if value.chars().any(char::is_whitespace) {
-            self.show_notice("Macro parameter values cannot contain spaces", true);
-            return;
-        }
-        if let Some(mut row) = self.macro_form.row_data(index) {
-            row.value = SharedString::from(value);
-            self.macro_form.set_row_data(index, row);
+        let result = self.macro_form_state.borrow_mut().set_value(index, value);
+        match result {
+            Ok(()) => {
+                if let Some(mut row) = self.macro_form.row_data(index) {
+                    row.value = SharedString::from(value);
+                    self.macro_form.set_row_data(index, row);
+                }
+            }
+            Err(error) => self.show_notice(&error.to_string(), true),
         }
     }
 
-    /// The command for the open form, e.g. `PARK Z=20`; parameters without a value are left out.
+    /// The command for the open form, e.g. `PARK Z=20`.
     pub fn macro_form_script(&self) -> String {
-        let values: Vec<(String, String)> = self
-            .macro_form
-            .iter()
-            .filter(|row| !row.value.is_empty())
-            .map(|row| (row.name.to_string(), row.value.to_string()))
-            .collect();
-        let arguments: Vec<(&str, &str)> = values.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
-        macro_script(self.macro_form_name.borrow().as_str(), &arguments)
+        self.macro_form_state.borrow().script()
     }
 
     fn show_macro_form_name(&self) {
         let Some(window) = self.window.upgrade() else { return };
-        window.global::<Printer>().set_macro_form_name(SharedString::from(self.macro_form_name.borrow().as_str()));
+        window.global::<Printer>().set_macro_form_name(SharedString::from(self.macro_form_state.borrow().name()));
     }
 
     /// Empties the shown log only; the history on the printer stays and returns on the next load.
@@ -561,13 +532,12 @@ impl Presenter {
 
     /// A `!!` (error) or `//` (information) response of Klipper. Other responses stay in the console.
     /// Informations are left out while a print runs, when Klipper sends many of them.
-    fn show_console_response(&self, message: &str) {
-        let is_error = message.starts_with("!!");
-        let is_information = message.starts_with("//") && !self.is_printing();
-        if !is_error && !is_information {
+    fn show_console_response(&self, line: &ConsoleLine) {
+        let is_error = line.is_error();
+        if !is_error && !(line.is_information() && !self.is_printing()) {
             return;
         }
-        let text = response_text(message);
+        let text = line.text();
         let added = self.status.log.borrow_mut().add_response(&text, is_error, now_seconds());
         if let Some(id) = added {
             self.show_message(id, &text, is_error);
@@ -593,26 +563,16 @@ impl Presenter {
             window.global::<Printer>().set_files_loading(true);
         }
         self.service.query(Query::Files);
-        if self.cache.borrow().snapshot.capabilities.server.history {
-            self.service.query(Query::PrintHistory);
-        }
+        self.service.query(Query::PrintHistory);
     }
 
     fn show_files(&self, files: Vec<FileEntry>) {
-        let missing: Vec<String> = {
-            let cache = self.cache.borrow();
-            files
-                .iter()
-                .take(FILE_DETAILS_LIMIT)
-                .filter(|file| !cache.metadata.contains_key(&file.path))
-                .map(|file| file.path.clone())
-                .collect()
-        };
-        self.cache.borrow_mut().files = files;
+        self.cache.borrow_mut().catalog.set_entries(files);
         self.show_file_rows();
         if let Some(window) = self.window.upgrade() {
             window.global::<Printer>().set_files_loading(false);
         }
+        let missing = self.cache.borrow().catalog.needing_details();
         for filename in missing {
             self.service.query(Query::FileDetails { filename });
         }
@@ -621,13 +581,13 @@ impl Presenter {
     fn show_file_rows(&self) {
         let rows: Vec<FileItem> = {
             let cache = self.cache.borrow();
-            cache.files.iter().map(|file| file_row(&cache, file)).collect()
+            cache.catalog.entries().iter().map(|entry| file_row(&cache, entry)).collect()
         };
         self.files.set_vec(rows);
     }
 
     fn store_last_prints(&self, last_prints: HashMap<String, LastPrint>) {
-        self.cache.borrow_mut().last_prints = last_prints;
+        self.cache.borrow_mut().catalog.store_last_prints(last_prints);
         self.show_file_rows();
         self.refresh_job_texts();
     }
@@ -636,7 +596,7 @@ impl Presenter {
         let filename = metadata.filename.clone();
         let is_job = {
             let mut cache = self.cache.borrow_mut();
-            cache.metadata.insert(filename.clone(), metadata);
+            cache.catalog.store_metadata(metadata);
             cache.snapshot.status.job.filename == filename
         };
         self.update_file_row(&filename);
@@ -657,8 +617,8 @@ impl Presenter {
 
     fn update_file_row(&self, filename: &str) {
         let cache = self.cache.borrow();
-        let Some(index) = cache.files.iter().position(|file| file.path == filename) else { return };
-        let row = file_row(&cache, &cache.files[index]);
+        let Some(index) = cache.catalog.position(filename) else { return };
+        let row = file_row(&cache, &cache.catalog.entries()[index]);
         drop(cache);
         if index < self.files.row_count() {
             self.files.set_row_data(index, row);
@@ -712,26 +672,10 @@ fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
     FileItem {
         path: file.path.as_str().into(),
         name: format::job_name(&file.path).into(),
-        detail: view::file_detail(
-            file.modified,
-            file.size,
-            cache.metadata.get(&file.path),
-            cache.last_prints.get(&file.path),
-        )
-        .into(),
+        detail: view::file_detail(&cache.catalog.info(file)).into(),
         thumbnail: thumbnail.cloned().unwrap_or_default(),
         has_thumbnail: thumbnail.is_some(),
     }
-}
-
-/// Klipper marks responses with `!!` (error) or `//` (information). The console shows the colour instead.
-fn strip_response_marker(message: &str) -> &str {
-    message.strip_prefix("!!").or_else(|| message.strip_prefix("//")).map_or(message, str::trim_start)
-}
-
-/// The text of a response as shown: without its marker and without the HTML of plugins.
-fn response_text(message: &str) -> String {
-    format::strip_markup(strip_response_marker(message))
 }
 
 /// One row per message line: the console list has fixed row heights, so a line break inside a row would overlap its neighbours.
@@ -739,8 +683,8 @@ fn response_text(message: &str) -> String {
 fn console_items(line: &ConsoleLine) -> Vec<ConsoleItem> {
     let time = format::unix_clock(line.time);
     let is_command = line.kind == ConsoleKind::Command;
-    let is_error = line.message.starts_with("!!");
-    let text = if is_command { line.message.clone() } else { response_text(&line.message) };
+    let is_error = line.is_error();
+    let text = line.text();
     let mut rows: Vec<&str> = text.lines().collect();
     if rows.is_empty() {
         rows.push("");
@@ -763,7 +707,7 @@ fn power_item(device: &PowerDevice) -> PowerItem {
 fn host_interface_item(interface: &HostInterface) -> HostInterfaceItem {
     HostInterfaceItem {
         name: interface.name.as_str().into(),
-        wireless: view::is_wireless_interface(&interface.name),
+        wireless: interface.is_wireless(),
         addresses: interface.addresses.join(", ").into(),
         mac: interface.mac_address.as_str().into(),
     }

@@ -88,6 +88,54 @@ pub struct ConsoleLine {
     pub time: f64,
 }
 
+impl ConsoleLine {
+    /// Klipper marks error responses with `!!`.
+    pub fn is_error(&self) -> bool {
+        self.message.starts_with("!!")
+    }
+
+    /// Klipper marks information responses with `//`.
+    pub fn is_information(&self) -> bool {
+        self.message.starts_with("//")
+    }
+
+    /// The text as shown. A response loses its marker (`!!` error, `//` information; the colour tells them apart)
+    /// and the HTML of plugins; a command is shown as typed.
+    pub fn text(&self) -> String {
+        match self.kind {
+            ConsoleKind::Command => self.message.clone(),
+            ConsoleKind::Response => strip_markup(
+                self.message
+                    .strip_prefix("!!")
+                    .or_else(|| self.message.strip_prefix("//"))
+                    .map_or(self.message.as_str(), str::trim_start),
+            ),
+        }
+    }
+}
+
+/// Happy Hare and other plugins put HTML into their responses for Mainsail (`<span style=...>`, `&nbsp;`); the
+/// touch UI shows the text only. A `<` that does not start a tag stays.
+pub fn strip_markup(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find('<') {
+        let (before, tag_and_after) = rest.split_at(start);
+        plain.push_str(before);
+        let starts_tag =
+            tag_and_after[1..].chars().next().is_some_and(|next| next.is_ascii_alphabetic() || next == '/');
+        match tag_and_after.find('>').filter(|_| starts_tag) {
+            Some(end) => rest = &tag_and_after[end + 1..],
+            None => {
+                plain.push('<');
+                rest = &tag_and_after[1..];
+            }
+        }
+    }
+    plain.push_str(rest);
+    plain.replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&amp;", "&")
+}
+
 pub fn parse_gcode_store(result: &Value) -> Vec<ConsoleLine> {
     result
         .get("gcode_store")
@@ -138,6 +186,13 @@ pub struct HostInterface {
     pub mac_address: String,
     /// IPv4 and global IPv6 addresses.
     pub addresses: Vec<String>,
+}
+
+impl HostInterface {
+    /// Linux names wireless interfaces `wlan0`, `wlp2s0`, ...
+    pub fn is_wireless(&self) -> bool {
+        self.name.starts_with("wl")
+    }
 }
 
 pub fn parse_host_network(result: &Value) -> Vec<HostInterface> {
@@ -228,5 +283,49 @@ mod tests {
         assert_eq!(interfaces[0].name, "eth0");
         assert_eq!(interfaces[1].addresses, ["192.168.1.127"]);
         assert_eq!(interfaces[1].mac_address, "aa:bb");
+    }
+
+    fn response(message: &str) -> ConsoleLine {
+        ConsoleLine { kind: ConsoleKind::Response, message: message.to_owned(), time: 0.0 }
+    }
+
+    #[test]
+    fn console_text_loses_the_klipper_marker_and_plugin_markup() {
+        assert_eq!(response("!! Lost connection").text(), "Lost connection");
+        assert_eq!(response("// Klipper state: Ready").text(), "Klipper state: Ready");
+        assert_eq!(response(r#"// <b><span style="color:#87CEEB">EMPTY</span></b>&nbsp;gate"#).text(), "EMPTY gate");
+    }
+
+    #[test]
+    fn a_command_is_shown_as_typed() {
+        let command = ConsoleLine { kind: ConsoleKind::Command, message: "// G28".to_owned(), time: 0.0 };
+
+        assert_eq!(command.text(), "// G28");
+    }
+
+    #[test]
+    fn only_bang_bang_responses_are_errors() {
+        assert!(response("!! Timer too close").is_error());
+        assert!(!response("// ok").is_error());
+    }
+
+    #[test]
+    fn markup_of_plugin_responses_is_removed() {
+        assert_eq!(
+            strip_markup(r#"<span style="color:#C0C0C0">(\_/)</span> <b>Happy Hare</b> v4.1.0"#),
+            r"(\_/) Happy Hare v4.1.0"
+        );
+        assert_eq!(strip_markup("Gate&nbsp;0 &amp; tool &lt;T0&gt;"), "Gate 0 & tool <T0>");
+        assert_eq!(strip_markup("Move out of range: x < 0 and y <5"), "Move out of range: x < 0 and y <5");
+        assert_eq!(strip_markup("half <span"), "half <span");
+        assert_eq!(strip_markup(""), "");
+    }
+
+    #[test]
+    fn wireless_interfaces_are_recognized_by_their_linux_name() {
+        let interface = |name: &str| HostInterface { name: name.to_owned(), ..HostInterface::default() };
+
+        assert!(interface("wlan0").is_wireless() && interface("wlp3s0").is_wireless());
+        assert!(!interface("eth0").is_wireless() && !interface("enp1s0").is_wireless());
     }
 }

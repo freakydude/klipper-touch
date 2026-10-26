@@ -9,6 +9,14 @@ use crate::sourced::{prefer_measured, Sourced};
 /// time. The smaller it is, the sooner the remaining time follows the measured pace.
 const PRIOR_WEIGHT: f64 = 0.05;
 
+/// Klipper requires `filament_diameter` in the extruder section, so a missing value means that the configuration is
+/// not known (yet): assume the usual 1.75 mm filament.
+const ASSUMED_FILAMENT_DIAMETER_MM: f64 = 1.75;
+
+pub const ORIGIN_KLIPPER_REPORT: &str = "reported by Klipper";
+pub const ORIGIN_LAYER_HEIGHT: &str = "object height divided by layer height";
+pub const ORIGIN_CONFIGURED_DIAMETER: &str = "configured filament diameter";
+pub const ORIGIN_ASSUMED_DIAMETER: &str = "assumed filament diameter of 1.75 mm";
 pub const ORIGIN_LAST_PRINT: &str = "last completed print";
 pub const ORIGIN_SLICER_ESTIMATE: &str = "slicer estimate";
 pub const ORIGIN_LAST_PRINT_LENGTH: &str = "length of the last print, scaled by the slicer weight";
@@ -39,6 +47,29 @@ pub fn filament_weight_grams(metadata: &FileMetadata, last_print: Option<&LastPr
     });
     let estimated = slicer_weight.map(|grams| Sourced::estimated(grams, ORIGIN_SLICER_ESTIMATE));
     prefer_measured(measured, estimated)
+}
+
+/// Number of layers of a job: what Klipper reports (`SET_PRINT_STATS_INFO`), else the object height of the file
+/// divided by its layer height.
+pub fn total_layers(job: &PrintJob, metadata: Option<&FileMetadata>) -> Option<Sourced<u32>> {
+    let reported = job.total_layer.map(|layers| Sourced::measured(layers, ORIGIN_KLIPPER_REPORT));
+    let derived = metadata.and_then(|metadata| {
+        let height = metadata.object_height?;
+        let layer = metadata.layer_height.filter(|layer| *layer > 0.0)?;
+        Some(Sourced::estimated((height / layer).round() as u32, ORIGIN_LAYER_HEIGHT))
+    });
+    prefer_measured(reported, derived)
+}
+
+/// Volumetric flow in mm³/s from the extruder velocity in mm/s and the configured filament diameter in mm.
+pub fn volumetric_flow(extruder_velocity: f64, filament_diameter: Option<f64>) -> Sourced<f64> {
+    let configured = filament_diameter.filter(|diameter| *diameter > 0.0);
+    let diameter = configured.unwrap_or(ASSUMED_FILAMENT_DIAMETER_MM);
+    let flow = extruder_velocity.max(0.0) * std::f64::consts::PI * (diameter / 2.0).powi(2);
+    match configured {
+        Some(_) => Sourced::measured(flow, ORIGIN_CONFIGURED_DIAMETER),
+        None => Sourced::estimated(flow, ORIGIN_ASSUMED_DIAMETER),
+    }
 }
 
 /// Seconds left of a running print. The expected total time counts like `PRIOR_WEIGHT` of it as observed print
@@ -176,5 +207,42 @@ mod tests {
     fn without_expectation_the_pace_is_extrapolated_once_progress_exists() {
         assert_eq!(remaining(None, 0.5, 1800.0), Some(1800.0));
         assert_eq!(remaining(None, 0.0, 90.0), None);
+    }
+
+    #[test]
+    fn layers_reported_by_klipper_beat_the_ones_derived_from_the_file() {
+        let job = PrintJob { total_layer: Some(120), ..PrintJob::default() };
+        let file = FileMetadata { object_height: Some(20.0), layer_height: Some(0.2), ..FileMetadata::default() };
+
+        assert_eq!(total_layers(&job, Some(&file)), Some(Sourced::measured(120, ORIGIN_KLIPPER_REPORT)));
+    }
+
+    #[test]
+    fn layers_are_derived_from_object_and_layer_height() {
+        let file = FileMetadata { object_height: Some(20.0), layer_height: Some(0.2), ..FileMetadata::default() };
+
+        assert_eq!(total_layers(&PrintJob::default(), Some(&file)), Some(Sourced::estimated(100, ORIGIN_LAYER_HEIGHT)));
+        assert_eq!(total_layers(&PrintJob::default(), None), None);
+        let flat = FileMetadata { layer_height: Some(0.0), ..file };
+        assert_eq!(total_layers(&PrintJob::default(), Some(&flat)), None);
+    }
+
+    #[test]
+    fn flow_follows_the_configured_filament_diameter() {
+        let thin = volumetric_flow(10.0, Some(1.75));
+        let thick = volumetric_flow(10.0, Some(2.85));
+
+        assert!((thin.value - 24.05).abs() < 0.01);
+        assert!((thick.value - 63.79).abs() < 0.01);
+        assert_eq!((thin.provenance, thin.origin), (Provenance::Measured, ORIGIN_CONFIGURED_DIAMETER));
+    }
+
+    #[test]
+    fn flow_assumes_1_75_mm_without_a_configured_diameter_and_says_so() {
+        let flow = volumetric_flow(10.0, None);
+
+        assert!((flow.value - 24.05).abs() < 0.01);
+        assert_eq!((flow.provenance, flow.origin), (Provenance::Estimated, ORIGIN_ASSUMED_DIAMETER));
+        assert_eq!(volumetric_flow(-1.0, None).value, 0.0);
     }
 }

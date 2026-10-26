@@ -116,6 +116,29 @@ pub struct FlowGuard {
     pub level: f64,
 }
 
+/// One word for the operator: a trigger wins over monitoring, which wins over ready.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlowGuardState {
+    Off,
+    Triggered,
+    Monitoring,
+    Ready,
+}
+
+impl FlowGuard {
+    pub fn state(&self) -> FlowGuardState {
+        if !self.enabled {
+            FlowGuardState::Off
+        } else if !self.trigger.is_empty() {
+            FlowGuardState::Triggered
+        } else if self.active {
+            FlowGuardState::Monitoring
+        } else {
+            FlowGuardState::Ready
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MmuStatus {
     /// `mmu_machine.happy_hare_version`, for example `4.1.0`; empty when not reported.
@@ -200,6 +223,15 @@ fn read_flow_rate(mmu: &Value, sensors: &[MmuSensor]) -> Option<Sourced<f64>> {
         .filter(|_| has_proportional_sensor)
         .map(|rate| Sourced::estimated(rate, ORIGIN_SYNC_FEEDBACK));
     prefer_measured(measured, estimated)
+}
+
+/// A Klipper filament sensor that belongs to the MMU itself (gates and buffer). `toolhead` and `extruder` stay common:
+/// they sit behind the MMU and matter without one. `object` is the Klipper object name, for example
+/// `filament_switch_sensor mmu_entry_0`.
+pub fn is_mmu_klipper_sensor(object: &str) -> bool {
+    let name = object.split_once(' ').map_or(object, |(_, name)| name);
+    let name = name.rsplit_once(':').map_or(name, |(_, name)| name);
+    name.starts_with("mmu_") || matches!(name, "filament_compression" | "filament_tension" | "filament_proportional")
 }
 
 /// `major.minor` of a version such as `4.1.0` or `v4.10`.
@@ -478,5 +510,30 @@ mod tests {
             "sensors": { "filament_proportional": false }, "sync_feedback_flow_rate": null
         } }));
         assert_eq!(read_mmu(&store).unwrap().flow_rate, None);
+    }
+
+    #[test]
+    fn mmu_sensors_are_told_apart_from_common_klipper_sensors() {
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor mmu_entry_0"));
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor filament_tension"));
+        assert!(is_mmu_klipper_sensor("filament_switch_sensor unit0:mmu_exit_1"));
+        assert!(!is_mmu_klipper_sensor("filament_switch_sensor toolhead"));
+        assert!(!is_mmu_klipper_sensor("filament_switch_sensor extruder"));
+        assert!(!is_mmu_klipper_sensor("filament_motion_sensor extruder_encoder"));
+    }
+
+    #[test]
+    fn flowguard_state_is_one_word_where_a_trigger_wins() {
+        let flowguard = |enabled, active, trigger: &str| FlowGuard {
+            enabled,
+            active,
+            trigger: trigger.into(),
+            ..FlowGuard::default()
+        };
+
+        assert_eq!(flowguard(false, true, "clog").state(), FlowGuardState::Off);
+        assert_eq!(flowguard(true, true, "clog").state(), FlowGuardState::Triggered);
+        assert_eq!(flowguard(true, true, "").state(), FlowGuardState::Monitoring);
+        assert_eq!(flowguard(true, false, "").state(), FlowGuardState::Ready);
     }
 }
