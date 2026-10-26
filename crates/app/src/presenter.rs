@@ -320,7 +320,7 @@ impl Presenter {
     pub fn handle_event(&self, event: Event) {
         match event {
             Event::Files(files) => self.show_files(files),
-            Event::FileMetadata(metadata) => self.store_metadata(metadata),
+            Event::FileMetadata(metadata) => self.store_metadata(*metadata),
             Event::PrintHistory(last_prints) => self.store_last_prints(last_prints),
             Event::Thumbnail { filename, data } => self.store_thumbnail(&filename, &data),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
@@ -668,13 +668,22 @@ fn heater_item(heater: &Heater) -> HeaterItem {
 }
 
 fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
+    let info = cache.catalog.info(file);
+    let facts = view::file_facts(&info);
     let thumbnail = cache.thumbnails.get(&file.path);
     FileItem {
         path: file.path.as_str().into(),
         name: format::job_name(&file.path).into(),
-        detail: view::file_detail(&cache.catalog.info(file)).into(),
+        modified: facts.modified.into(),
+        material: facts.material.into(),
+        nozzle: facts.nozzle.into(),
+        time: facts.time.into(),
+        extruder_temperature: facts.extruder_temperature.into(),
+        bed_temperature: facts.bed_temperature.into(),
+        chamber_temperature: facts.chamber_temperature.into(),
         thumbnail: thumbnail.cloned().unwrap_or_default(),
         has_thumbnail: thumbnail.is_some(),
+        show_thumbnail: thumbnail.is_some() || info.thumbnail_expected(),
     }
 }
 

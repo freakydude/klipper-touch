@@ -73,19 +73,37 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
     }
 }
 
-/// Line below the file name in the file list: modified, filament, nozzle, print time. Values of the last completed
-/// print win over what the slicer predicted; predictions are marked with `~`.
-pub fn file_detail(info: &FileInfo) -> String {
-    let mut parts = vec![format::unix_date(info.entry.modified)];
+/// What a row of the file list shows; an empty text is a fact the file does not have.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FileFacts {
+    pub modified: String,
+    pub material: String,
+    pub nozzle: String,
+    pub time: String,
+    pub extruder_temperature: String,
+    pub bed_temperature: String,
+    pub chamber_temperature: String,
+}
+
+/// The facts of a file for its row. Values of the last completed print win over what the slicer predicted;
+/// predictions are marked with `~`. The temperatures are the slicer's settings, not predictions.
+pub fn file_facts(info: &FileInfo) -> FileFacts {
+    let mut facts = FileFacts { modified: format::unix_date(info.entry.modified), ..FileFacts::default() };
     if let Some(metadata) = info.metadata {
-        parts.extend(file_filament(metadata, info.last_print));
-        parts.extend(metadata.nozzle_diameter.map(|diameter| format!("{diameter} nozzle")));
-        parts.extend(file_print_time(metadata, info.last_print));
+        facts.material = file_filament(metadata, info.last_print).unwrap_or_default();
+        facts.nozzle =
+            metadata.nozzle_diameter.filter(|diameter| *diameter > 0.0).map_or_else(String::new, |d| d.to_string());
+        facts.time = file_print_time(metadata, info.last_print).unwrap_or_default();
+        facts.extruder_temperature = degrees(metadata.first_layer_extr_temp);
+        facts.bed_temperature = degrees(metadata.first_layer_bed_temp);
+        facts.chamber_temperature = degrees(metadata.chamber_temp);
     }
-    if parts.len() == 1 {
-        parts.push(format::file_size(info.entry.size));
-    }
-    parts.join("  ·  ")
+    facts
+}
+
+/// A temperature of 0 means that the slicer sets none.
+fn degrees(temperature: Option<f64>) -> String {
+    temperature.filter(|degrees| *degrees > 0.0).map_or_else(String::new, |degrees| format!("{degrees:.0}°"))
 }
 
 fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
@@ -296,44 +314,72 @@ mod tests {
         }
     }
 
-    fn detail_of(size: u64, metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> String {
-        let entry = FileEntry { path: "a.gcode".into(), modified: 1_700_000_000.0, size };
-        file_detail(&FileInfo { entry: &entry, metadata, last_print })
+    fn facts_of(metadata: Option<&FileMetadata>, last_print: Option<&LastPrint>) -> FileFacts {
+        let entry = FileEntry { path: "a.gcode".into(), modified: 1_700_000_000.0, size: 100 };
+        file_facts(&FileInfo { entry: &entry, metadata, last_print })
     }
 
-    fn date_of(modified: f64) -> String {
-        format::unix_date(modified)
+    fn slicer_settings() -> FileMetadata {
+        FileMetadata {
+            first_layer_extr_temp: Some(215.0),
+            first_layer_bed_temp: Some(60.0),
+            chamber_temp: Some(45.0),
+            ..file_metadata()
+        }
     }
 
     #[test]
     fn unprinted_file_shows_slicer_values_marked_as_estimates() {
-        let detail = detail_of(100, Some(&file_metadata()), None);
+        let facts = facts_of(Some(&slicer_settings()), None);
 
-        assert_eq!(detail, format!("{}  ·  PLA ~30 g  ·  0.4 nozzle  ·  ~1h 00m", date_of(1_700_000_000.0)));
+        assert_eq!(
+            facts,
+            FileFacts {
+                modified: format::unix_date(1_700_000_000.0),
+                material: "PLA ~30 g".into(),
+                nozzle: "0.4".into(),
+                time: "~1h 00m".into(),
+                extruder_temperature: "215°".into(),
+                bed_temperature: "60°".into(),
+                chamber_temperature: "45°".into(),
+            }
+        );
     }
 
     #[test]
     fn printed_file_shows_measured_time_and_scaled_weight() {
         let last_print = LastPrint { print_duration: 3300.0, filament_used: 9_000.0 };
 
-        let detail = detail_of(100, Some(&file_metadata()), Some(&last_print));
+        let facts = facts_of(Some(&file_metadata()), Some(&last_print));
 
-        assert_eq!(detail, format!("{}  ·  PLA 27 g  ·  0.4 nozzle  ·  55m 00s", date_of(1_700_000_000.0)));
+        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("PLA 27 g", "55m 00s"));
     }
 
     #[test]
-    fn file_without_metadata_shows_its_size() {
-        assert_eq!(detail_of(512, None, None), format!("{}  ·  512 B", date_of(1_700_000_000.0)));
+    fn file_without_metadata_shows_only_its_date() {
+        let facts = facts_of(None, None);
+
+        assert_eq!(facts, FileFacts { modified: format::unix_date(1_700_000_000.0), ..FileFacts::default() });
     }
 
     #[test]
-    fn missing_slicer_fields_are_left_out() {
-        let metadata =
-            FileMetadata { filename: "a.gcode".into(), nozzle_diameter: Some(0.6), ..FileMetadata::default() };
+    fn missing_slicer_fields_and_zero_temperatures_are_left_out() {
+        let metadata = FileMetadata {
+            filename: "a.gcode".into(),
+            nozzle_diameter: Some(0.6),
+            chamber_temp: Some(0.0),
+            first_layer_bed_temp: Some(0.0),
+            ..FileMetadata::default()
+        };
 
-        let detail = detail_of(100, Some(&metadata), None);
+        let facts = facts_of(Some(&metadata), None);
 
-        assert_eq!(detail, format!("{}  ·  0.6 nozzle", date_of(1_700_000_000.0)));
+        assert_eq!(facts.nozzle, "0.6");
+        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("", ""));
+        assert_eq!(
+            (facts.extruder_temperature.as_str(), facts.bed_temperature.as_str(), facts.chamber_temperature.as_str()),
+            ("", "", "")
+        );
     }
 
     #[test]

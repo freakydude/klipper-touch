@@ -46,6 +46,7 @@ pub struct FileMetadata {
     pub nozzle_diameter: Option<f64>,
     pub first_layer_extr_temp: Option<f64>,
     pub first_layer_bed_temp: Option<f64>,
+    pub chamber_temp: Option<f64>,
     pub thumbnails: Vec<Thumbnail>,
 }
 
@@ -79,6 +80,13 @@ pub struct FileInfo<'a> {
     pub entry: &'a FileEntry,
     pub metadata: Option<&'a FileMetadata>,
     pub last_print: Option<&'a LastPrint>,
+}
+
+impl FileInfo<'_> {
+    /// A file whose metadata is not loaded yet may still come with a thumbnail; one whose metadata lists none will not.
+    pub fn thumbnail_expected(&self) -> bool {
+        self.metadata.is_none_or(|metadata| metadata.thumbnail_path().is_some())
+    }
 }
 
 /// The file list together with what arrives later for its files: metadata and the last completed prints. The data
@@ -312,5 +320,23 @@ mod tests {
 
         assert!(catalog.metadata("running.gcode").is_some());
         assert!(catalog.needing_details().is_empty());
+    }
+
+    #[test]
+    fn a_thumbnail_is_expected_until_the_metadata_says_there_is_none() {
+        let mut catalog = FileCatalog::default();
+        let with = FileMetadata {
+            filename: "with.gcode".into(),
+            thumbnails: vec![Thumbnail { width: 32, height: 32, relative_path: "t.png".into() }],
+            ..FileMetadata::default()
+        };
+        catalog.set_entries(vec![entry("unknown.gcode"), entry("with.gcode"), entry("without.gcode")]);
+        catalog.store_metadata(with);
+        catalog.store_metadata(metadata("without.gcode"));
+
+        let expected: Vec<bool> =
+            catalog.entries().iter().map(|entry| catalog.info(entry).thumbnail_expected()).collect();
+
+        assert_eq!(expected, [true, true, false]);
     }
 }

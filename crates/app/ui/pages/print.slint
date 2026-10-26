@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Display, Navigation, Printer, StateIcons } from "../state.slint";
-import { IconButton, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
+import { IconButton, IconLabel, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
 import { MmuStrip } from "mmu.slint";
 
@@ -28,11 +28,24 @@ component Thumbnail inherits Rectangle {
     }
 }
 
+component FileChip inherits IconLabel {
+    color: Theme.muted;
+    font-size: Theme.font-small;
+    icon-size: 16px;
+}
+
 component FileRow inherits Rectangle {
     in property <string> name;
-    in property <string> detail;
+    in property <string> modified;
+    in property <string> material;
+    in property <string> nozzle;
+    in property <string> time;
+    in property <string> extruder-temperature;
+    in property <string> bed-temperature;
+    in property <string> chamber-temperature;
     in property <image> thumbnail;
     in property <bool> has-thumbnail;
+    in property <bool> show-thumbnail;
     in property <bool> selected;
     callback clicked;
     height: 72px;
@@ -46,26 +59,52 @@ component FileRow inherits Rectangle {
     }
     HorizontalLayout {
         padding: 4px;
+        padding-left: root.show-thumbnail ? 4px : 14px;
         spacing: 10px;
-        Thumbnail {
+        if root.show-thumbnail: Thumbnail {
             width: 64px;
             source: root.thumbnail;
             available: root.has-thumbnail;
         }
         VerticalLayout {
             alignment: center;
-            spacing: 2px;
-            Text {
-                text: root.name;
-                color: Theme.foreground;
-                font-size: Theme.font-normal;
-                overflow: elide;
+            spacing: 4px;
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: root.name;
+                    color: Theme.foreground;
+                    font-size: Theme.font-normal;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: root.modified;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
             }
-            Text {
-                text: root.detail;
-                color: Theme.muted;
-                font-size: Theme.font-small;
-                overflow: elide;
+            // The temperatures are the least important facts: a narrow display leaves them out.
+            HorizontalLayout {
+                spacing: 14px;
+                if root.material != "": FileChip { icon: Icons.filament-spool; text: root.material; }
+                if root.nozzle != "": FileChip { icon: Icons.print-nozzle-diameter; text: root.nozzle; }
+                if root.time != "": FileChip { icon: Icons.print-duration; text: root.time; }
+                if root.extruder-temperature != "" && !Display.narrow: FileChip {
+                    icon: Icons.thermal-nozzle;
+                    text: root.extruder-temperature;
+                }
+                if root.bed-temperature != "" && !Display.narrow: FileChip {
+                    icon: Icons.thermal-bed;
+                    text: root.bed-temperature;
+                }
+                if root.chamber-temperature != "" && !Display.narrow: FileChip {
+                    icon: Icons.thermal-chamber;
+                    text: root.chamber-temperature;
+                }
+                Rectangle { }
             }
         }
     }
@@ -91,9 +130,16 @@ export component FileBrowser inherits Rectangle {
                 y: index * root.row-step;
                 width: list.row-width;
                 name: file.name;
-                detail: file.detail;
+                modified: file.modified;
+                material: file.material;
+                nozzle: file.nozzle;
+                time: file.time;
+                extruder-temperature: file.extruder-temperature;
+                bed-temperature: file.bed-temperature;
+                chamber-temperature: file.chamber-temperature;
                 thumbnail: file.thumbnail;
                 has-thumbnail: file.has-thumbnail;
+                show-thumbnail: file.show-thumbnail;
                 selected: index == root.selected;
                 clicked => { root.selected = index; }
             }

@@ -58,7 +58,7 @@ pub enum Query {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     Files(Vec<FileEntry>),
-    FileMetadata(FileMetadata),
+    FileMetadata(Box<FileMetadata>),
     PrintHistory(HashMap<String, LastPrint>),
     Thumbnail { filename: String, data: Vec<u8> },
     PowerDevices(Vec<PowerDevice>),
@@ -480,7 +480,7 @@ async fn fetch(
                     Err(error) => log::info!("thumbnail of {filename} unavailable: {error}"),
                 }
             }
-            events.insert(0, Event::FileMetadata(FileMetadata { filename: filename.clone(), ..metadata }));
+            events.insert(0, Event::FileMetadata(Box::new(FileMetadata { filename: filename.clone(), ..metadata })));
             events
         }
         Query::PrintHistory => {
