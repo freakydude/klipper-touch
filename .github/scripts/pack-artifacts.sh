@@ -11,14 +11,14 @@ for directory in */; do
   if [[ "$name" != *windows* ]]; then
     cat > "$name/release_info.json" << EOF
 {
-  "project_name": "klipper-touch",
+  "project_name": "freakymate",
   "project_owner": "freakydude",
   "version": "$version",
   "asset_name": "$name.zip"
 }
 EOF
     # upload-artifact loses the execute bits; Moonraker restores them from the zip when extracting.
-    chmod 0755 "$name/klipper-touch" "$name/install.sh" "$name/uninstall.sh"
+    chmod 0755 "$name/freakymate" "$name/install.sh" "$name/uninstall.sh"
     bash "$(dirname "${BASH_SOURCE[0]}")/build-deb.sh" "$name" "$version"
   fi
   (cd "$name" && zip -qr "../$name.zip" .)

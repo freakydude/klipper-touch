@@ -1,5 +1,5 @@
 [Unit]
-Description=klipper-touch touch UI for Klipper (user %i)
+Description=freakymate touch UI for Klipper (user %i)
 After=systemd-user-sessions.service network-online.target moonraker.service getty@tty1.service
 Wants=network-online.target
 Conflicts=getty@tty1.service
@@ -11,7 +11,7 @@ PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 Environment=XDG_RUNTIME_DIR=/run/user/%U
-ExecStart=/usr/bin/cage -s -- /usr/bin/klipper-touch --fullscreen --settings /home/%i/printer_data/config/klipper-touch.json
+ExecStart=/usr/bin/cage -s -- /usr/bin/freakymate --fullscreen --settings /home/%i/printer_data/config/freakymate.json
 Restart=always
 RestartSec=5
 

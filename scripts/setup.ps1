@@ -48,4 +48,4 @@ if ($existing -match '(?m)^\[target\.x86_64-pc-windows-gnu\]') {
     Write-Host "Linker rust-lld enabled in $cargoConfig (the next build compiles everything once)."
 }
 
-Write-Host 'Done. Fully restart VS Code, then: cargo run -p klipper-touch'
+Write-Host 'Done. Fully restart VS Code, then: cargo run -p freakymate'

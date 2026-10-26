@@ -75,7 +75,7 @@ impl Host {
                 "mainsail": { "name": "mainsail", "configured_type": "web", "version": "v2.14.0", "remote_version": "v2.14.0" },
                 "crowsnest": { "name": "crowsnest", "configured_type": "git_repo", "version": "v4.1.12", "remote_version": "v4.1.12", "is_valid": true, "commits_behind_count": 0 },
                 "moonraker-timelapse": { "name": "moonraker-timelapse", "configured_type": "git_repo", "version": "v0.0.1-150", "remote_version": "v0.0.1-150", "is_valid": true, "commits_behind_count": 0 },
-                "klipper-touch": { "name": "klipper-touch", "configured_type": "zip", "version": "v0.2.3", "remote_version": "v0.2.3" },
+                "freakymate": { "name": "freakymate", "configured_type": "zip", "version": "v0.2.3", "remote_version": "v0.2.3" },
             }
         })
     }

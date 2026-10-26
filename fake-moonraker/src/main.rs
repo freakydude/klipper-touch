@@ -85,8 +85,8 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("cannot listen on port {}: {error}", options.port))?;
 
-    println!("Fake-Moonraker listening. Start klipper-touch with:");
-    println!("  cargo run -p klipper-touch -- --moonraker http://127.0.0.1:{}", options.port);
+    println!("Fake-Moonraker listening. Start freakymate with:");
+    println!("  cargo run -p freakymate -- --moonraker http://127.0.0.1:{}", options.port);
 
     let config = ServerConfig {
         time_scale: options.time_scale,

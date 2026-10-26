@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          pattern: klipper-touch-*
+          pattern: freakymate-*
           path: artifacts
       - name: Pack
         working-directory: artifacts
@@ -66,6 +66,6 @@ jobs:
           if [ -n "$PREVIOUS" ]; then notes_start=(--notes-start-tag "$PREVIOUS"); fi
           gh release create "$TAG" artifacts/*.zip artifacts/*.deb \
             --target "$GITHUB_SHA" \
-            --title "klipper-touch $TAG" \
+            --title "freakymate $TAG" \
             --generate-notes "${notes_start[@]}" \
             --latest

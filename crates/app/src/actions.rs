@@ -3,8 +3,8 @@
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::{Actions, AppWindow, TextTools};
-use klipper_touch_core::printer::Axis;
-use klipper_touch_core::{Command, PrinterService, Query};
+use freakymate_core::printer::Axis;
+use freakymate_core::{Command, PrinterService, Query};
 use slint::ComponentHandle;
 use std::rc::Rc;
 

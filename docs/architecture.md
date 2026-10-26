@@ -8,7 +8,7 @@ offered.
 
 ```mermaid
 flowchart LR
-    subgraph app [crates/app – klipper-touch]
+    subgraph app [crates/app – freakymate]
         UI[ui/*.slint<br/>pages, components, globals]
         P[presenter.rs<br/>state → globals]
         A[actions.rs<br/>callbacks → Command]
@@ -16,7 +16,7 @@ flowchart LR
         N[network_controller.rs]
         V[view.rs / format.rs<br/>pure derivations]
     end
-    subgraph core [crates/core – klipper-touch-core]
+    subgraph core [crates/core – freakymate-core]
         SVC[service.rs<br/>PrinterService]
         CMD[commands.rs<br/>Command → Call]
         PR[printer/*<br/>objects, status, capabilities]
@@ -46,7 +46,7 @@ flowchart LR
 | Crate                | Responsibility                                                                                    | Depends on                               |
 | -------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `crates/core`        | Connection, protocol, printer state, capabilities, commands, settings. No UI code.                | tokio, tokio-tungstenite, reqwest, serde |
-| `crates/app`         | Slint UI and its binding to the core; binary `klipper-touch` (the only shipped program).          | core, slint                              |
+| `crates/app`         | Slint UI and its binding to the core; binary `freakymate` (the only shipped program).          | core, slint                              |
 | `crates/ui-snapshot` | Development tool: renders the UI headless to PNG against a running (fake) Moonraker, in scenes.   | app, core                                |
 | `crates/icon-index`  | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
 | `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`).  | axum, tokio                              |

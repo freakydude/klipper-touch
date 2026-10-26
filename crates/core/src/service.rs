@@ -24,7 +24,7 @@ const PRINT_HISTORY_LIMIT: u32 = 300;
 const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// Spools for the picker: the most recently used ones.
 const SPOOL_LIST_LIMIT: u32 = 100;
-const CLIENT_NAME: &str = "klipper-touch";
+const CLIENT_NAME: &str = "freakymate";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConnectionState {

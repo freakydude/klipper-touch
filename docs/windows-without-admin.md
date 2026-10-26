@@ -1,6 +1,6 @@
 # Rust on Windows without admin rights
 
-Developing klipper-touch on Windows without admin rights, without WSL/Docker, with rust-analyzer in VS Code.
+Developing freakymate on Windows without admin rights, without WSL/Docker, with rust-analyzer in VS Code.
 
 This document covers the Windows setup only (PowerShell scripts `scripts\*.ps1`). On WSL2 with Arch Linux, the
 bash counterparts apply instead: `scripts/setup-wsl.sh` checks the environment, `scripts/ui-preview.sh` and
@@ -10,7 +10,7 @@ bash counterparts apply instead: `scripts/setup-wsl.sh` checks the environment, 
 
 1. Install Rust via `rustup` (works without admin, default toolchain does not matter).
 2. Run `powershell -File scripts\setup.ps1` and restart VS Code completely.
-3. Check: `cargo test --workspace`; start: task "run: klipper-touch (fake Moonraker)" or debug configuration "debug: klipper-touch (fake Moonraker)".
+3. Check: `cargo test --workspace`; start: task "run: freakymate (fake Moonraker)" or debug configuration "debug: freakymate (fake Moonraker)".
 
 The first build downloads and compiles Slint with all dependencies and takes a few minutes.
 
@@ -41,9 +41,9 @@ next to the old one; old folders can be deleted.
 After a change to the UI most of the time goes into two steps that use only one CPU core each, so the machine looks
 idle (one `rustc.exe` at about 10 %):
 
-- type checking the crate `klipper-touch`, which contains the Rust code Slint generates from `ui/*.slint`
+- type checking the crate `freakymate`, which contains the Rust code Slint generates from `ui/*.slint`
   (stable rustc checks a crate single-threaded; about 10 s, up to 50 s after larger UI changes),
-- linking `klipper-touch.exe` and `ui-snapshot.exe` (each single-threaded).
+- linking `freakymate.exe` and `ui-snapshot.exe` (each single-threaded).
 
 Linking with w64devkit's `ld` took about 21 s per binary, with `rust-lld` about 11 s (incremental build 38 s → 25 s).
 `scripts\setup.ps1` therefore adds to `%USERPROFILE%\.cargo\config.toml`:

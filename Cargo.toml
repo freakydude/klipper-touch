@@ -14,12 +14,12 @@ default-members = ["crates/app"]
 version = "0.0.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/freakydude/klipper-touch"
+repository = "https://github.com/freakydude/freakymate"
 rust-version = "1.92"
 
 [workspace.dependencies]
-klipper-touch-core = { path = "crates/core" }
-klipper-touch = { path = "crates/app" }
+freakymate-core = { path = "crates/core" }
+freakymate = { path = "crates/app" }
 fake-moonraker = { path = "fake-moonraker" }
 futures-util = { version = "0.3.34", default-features = false, features = [
     "sink",

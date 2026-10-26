@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-const APP_FOLDER: &str = "klipper-touch";
+const APP_FOLDER: &str = "freakymate";
 const FILE_NAME: &str = "settings.json";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -117,7 +117,7 @@ impl SettingsStore {
         Self { path: path.into() }
     }
 
-    /// Default location: `<config dir>/klipper-touch/settings.json`.
+    /// Default location: `<config dir>/freakymate/settings.json`.
     pub fn default_location() -> Result<Self, SettingsError> {
         let directory = dirs::config_dir().ok_or(SettingsError::NoConfigDirectory)?;
         Ok(Self::new(directory.join(APP_FOLDER).join(FILE_NAME)))

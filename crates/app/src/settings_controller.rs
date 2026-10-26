@@ -3,8 +3,8 @@
 use crate::network_controller::NetworkController;
 use crate::presenter::Presenter;
 use crate::{AppWindow, PresetItem, UiSettings};
-use klipper_touch_core::settings::{Settings, SettingsStore, TemperaturePreset};
-use klipper_touch_core::{Endpoint, PrinterService};
+use freakymate_core::settings::{Settings, SettingsStore, TemperaturePreset};
+use freakymate_core::{Endpoint, PrinterService};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -70,7 +70,7 @@ impl SettingsController {
         ui.set_extrude_length(settings.steps.extrude_mm as f32);
         ui.set_extrude_speed(settings.steps.extrude_speed as f32);
         ui.set_settings_file(self.store.path().display().to_string().into());
-        ui.set_version(klipper_touch_core::VERSION.into());
+        ui.set_version(freakymate_core::VERSION.into());
         self.presets.set_vec(settings.temperature_presets.iter().map(preset_item).collect::<Vec<_>>());
         ui.set_presets(ModelRc::from(self.presets.clone()));
     }
