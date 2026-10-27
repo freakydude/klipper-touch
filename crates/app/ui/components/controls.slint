@@ -42,14 +42,12 @@ export component IconButton inherits Rectangle {
         padding: 4px;
         spacing: 2px;
         alignment: center;
-        if root.has-icon: HorizontalLayout {
-            alignment: center;
-            Image {
-                source: root.icon;
-                colorize: root.content;
-                width: root.icon-size;
-                height: root.icon-size;
-            }
+        if root.has-icon: Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.content;
+            width: root.icon-size;
+            height: root.icon-size;
         }
         if root.text != "": Text {
             text: root.text;
@@ -66,14 +64,12 @@ export component IconButton inherits Rectangle {
         padding-right: 10px;
         spacing: 8px;
         alignment: root.align-start ? LayoutAlignment.start : LayoutAlignment.center;
-        if root.has-icon: VerticalLayout {
-            alignment: center;
-            Image {
-                source: root.icon;
-                colorize: root.content;
-                width: root.icon-size;
-                height: root.icon-size;
-            }
+        if root.has-icon: Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.content;
+            width: root.icon-size;
+            height: root.icon-size;
         }
         if root.text != "": Text {
             text: root.text;
@@ -84,6 +80,83 @@ export component IconButton inherits Rectangle {
             overflow: elide;
         }
     }
+}
+
+// A setting that is on or off: the name at the left, a switch at the right edge; the whole row is the touch area.
+export component ToggleRow inherits Rectangle {
+    in property <string> text;
+    // Optional symbol left of the name.
+    in property <image> icon;
+    in property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled;
+
+    min-height: 44px;
+    border-radius: Theme.radius;
+    background: !root.enabled ? Theme.surface : touch.pressed ? Theme.surface-active : Theme.surface-raised;
+    accessible-role: switch;
+    accessible-label: root.text;
+    accessible-checked: root.checked;
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.toggled(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 10px;
+        spacing: Theme.spacing;
+        if root.icon.width > 0: Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+            width: Theme.icon-small;
+            height: Theme.icon-small;
+        }
+        Text {
+            horizontal-stretch: 1;
+            text: root.text;
+            color: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+            font-size: Theme.font-normal;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Rectangle {
+            cross-axis-self-alignment: center;
+            width: 48px;
+            height: 28px;
+            border-radius: self.height / 2;
+            background: root.checked && root.enabled ? Theme.accent : Theme.surface;
+            border-width: root.checked ? 0px : 1px;
+            border-color: Theme.border;
+            animate background { duration: 120ms; }
+            Rectangle {
+                x: root.checked ? parent.width - self.width - 3px : 3px;
+                width: 22px;
+                height: 22px;
+                border-radius: self.height / 2;
+                background: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+                animate x { duration: 120ms; }
+            }
+        }
+    }
+}
+
+// Panel of a flyout over the page: slightly see-through, with an outline and a shadow so its edge stands out. The
+// software renderer draws no shadows, so the outline alone must carry it there. Taps inside stay inside.
+export component FlyoutPanel inherits Rectangle {
+    background: Theme.surface.with-alpha(Theme.flyout-opacity);
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Theme.flyout-border;
+    drop-shadow-blur: 16px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #000000c0;
+
+    TouchArea { }
+
+    @children
 }
 
 // Selection of a step size from fixed levels.
@@ -142,6 +215,7 @@ export component Card inherits Rectangle {
             spacing: 6px;
             height: 20px;
             if root.icon.width > 0: Image {
+                cross-axis-self-alignment: center;
                 source: root.icon;
                 colorize: Theme.muted;
                 width: 18px;
@@ -180,14 +254,12 @@ export component ValueTile inherits Rectangle {
     HorizontalLayout {
         padding: 6px;
         spacing: 8px;
-        if root.icon.width > 0 && root.show-icon: VerticalLayout {
-            alignment: center;
-            Image {
-                source: root.icon;
-                colorize: Theme.muted;
-                width: 22px;
-                height: 22px;
-            }
+        if root.icon.width > 0 && root.show-icon: Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: Theme.muted;
+            width: 22px;
+            height: 22px;
         }
         VerticalLayout {
             alignment: center;
@@ -373,14 +445,12 @@ export component IconLabel inherits HorizontalLayout {
     in property <length> icon-size: 20px;
     spacing: 6px;
 
-    VerticalLayout {
-        alignment: center;
-        Image {
-            source: root.icon;
-            colorize: root.color;
-            width: root.icon-size;
-            height: root.icon-size;
-        }
+    Image {
+        cross-axis-self-alignment: center;
+        source: root.icon;
+        colorize: root.color;
+        width: root.icon-size;
+        height: root.icon-size;
     }
 
     Text {

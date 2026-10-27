@@ -16,14 +16,12 @@ export component StatusBar inherits Rectangle {
         HorizontalLayout {
             spacing: 6px;
             horizontal-stretch: 1;
-            VerticalLayout {
-                alignment: center;
-                Image {
-                    source: StateIcons.summary();
-                    colorize: Printer.ready ? Theme.foreground : Theme.warning;
-                    width: 24px;
-                    height: 24px;
-                }
+            Image {
+                cross-axis-self-alignment: center;
+                source: StateIcons.summary();
+                colorize: Printer.ready ? Theme.foreground : Theme.warning;
+                width: 24px;
+                height: 24px;
             }
             Text {
                 text: StateIcons.summary-label();
@@ -37,9 +35,12 @@ export component StatusBar inherits Rectangle {
         HorizontalLayout {
             spacing: 4px;
             visible: Printer.ready;
-            VerticalLayout {
-                alignment: center;
-                Image { source: Icons.thermal-nozzle; colorize: Printer.nozzle-target > 0 ? Theme.accent : Theme.muted; width: 20px; height: 20px; }
+            Image {
+                cross-axis-self-alignment: center;
+                source: Icons.thermal-nozzle;
+                colorize: Printer.nozzle-target > 0 ? Theme.accent : Theme.muted;
+                width: 20px;
+                height: 20px;
             }
             Text {
                 text: round(Printer.nozzle-temperature) + "°" + (Printer.nozzle-target > 0 ? " / " + round(Printer.nozzle-target) + "°" : "");
@@ -51,9 +52,12 @@ export component StatusBar inherits Rectangle {
         if Printer.has-bed: HorizontalLayout {
             spacing: 4px;
             visible: Printer.ready;
-            VerticalLayout {
-                alignment: center;
-                Image { source: Icons.thermal-bed; colorize: Printer.bed-target > 0 ? Theme.accent : Theme.muted; width: 20px; height: 20px; }
+            Image {
+                cross-axis-self-alignment: center;
+                source: Icons.thermal-bed;
+                colorize: Printer.bed-target > 0 ? Theme.accent : Theme.muted;
+                width: 20px;
+                height: 20px;
             }
             Text {
                 text: round(Printer.bed-temperature) + "°" + (Printer.bed-target > 0 ? " / " + round(Printer.bed-target) + "°" : "");
@@ -81,14 +85,12 @@ export component StatusBar inherits Rectangle {
                 padding-left: 8px;
                 padding-right: 8px;
                 spacing: 6px;
-                VerticalLayout {
-                    alignment: center;
-                    Image {
-                        source: Printer.status-message-error ? Icons.ui-error : Icons.ui-info;
-                        colorize: Theme.foreground;
-                        width: 20px;
-                        height: 20px;
-                    }
+                Image {
+                    cross-axis-self-alignment: center;
+                    source: Printer.status-message-error ? Icons.ui-error : Icons.ui-info;
+                    colorize: Theme.foreground;
+                    width: 20px;
+                    height: 20px;
                 }
                 Text {
                     text: Printer.status-message;
@@ -175,14 +177,12 @@ component NavItem inherits Rectangle {
     VerticalLayout {
         alignment: center;
         spacing: 1px;
-        HorizontalLayout {
-            alignment: center;
-            Image {
-                source: root.icon;
-                colorize: root.content;
-                width: 26px;
-                height: 26px;
-            }
+        Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.content;
+            width: 26px;
+            height: 26px;
         }
         Text {
             text: root.label;

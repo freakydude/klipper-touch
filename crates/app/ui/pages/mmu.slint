@@ -297,8 +297,10 @@ export component MmuStrip inherits Card {
     // A small display has no room for the headline and the buffer text; the gate and the gauge say the same.
     title: Display.compact ? "" : @tr("MMU");
     icon: Icons.mmu-unit;
+    // Room left over goes evenly between the lines, not to one of them.
     VerticalLayout {
         spacing: 6px;
+        alignment: space-between;
         HorizontalLayout {
             spacing: Theme.spacing;
             Text {
@@ -309,18 +311,16 @@ export component MmuStrip inherits Card {
             }
             Rectangle { horizontal-stretch: 1; }
             // The spool of the gate in use: its colours, its filament and what is left of it.
-            if Printer.has-spool: VerticalLayout {
-                alignment: center;
-                ColorBar {
-                    width: 34px;
-                    height: 12px;
-                    border-radius: 6px;
-                    first: Printer.spool-color;
-                    second: Printer.spool-color-2;
-                    third: Printer.spool-color-3;
-                    count: Printer.spool-color-count;
-                    longitudinal: Printer.spool-longitudinal;
-                }
+            if Printer.has-spool: ColorBar {
+                cross-axis-self-alignment: center;
+                width: 34px;
+                height: 12px;
+                border-radius: 6px;
+                first: Printer.spool-color;
+                second: Printer.spool-color-2;
+                third: Printer.spool-color-3;
+                count: Printer.spool-color-count;
+                longitudinal: Printer.spool-longitudinal;
             }
             Text {
                 text: Printer.has-spool ? (Printer.spool-weight != "" ? Printer.spool-title + " · " + Printer.spool-weight : Printer.spool-title) : "";
@@ -334,6 +334,7 @@ export component MmuStrip inherits Card {
                 text: Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
                 color: Theme.info;
                 font-size: Theme.font-small;
+                vertical-alignment: center;
                 overflow: elide;
             }
         }
