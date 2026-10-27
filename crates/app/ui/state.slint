@@ -300,6 +300,8 @@ export global Printer {
     in property <[ChartLabel]> history-temperature-labels;
     in property <[ChartLabel]> history-time-labels;
     in property <bool> can-extrude;
+    // Lengths for extruding by hand that Klipper accepts (`max_extrude_only_distance`).
+    in property <[float]> extrude-lengths: [5, 10, 25, 50];
     in property <[FilamentSensorItem]> filament-sensors;
     // Objects of the running print; excluded ones cannot be printed again.
     in property <[PrintObjectItem]> print-objects;

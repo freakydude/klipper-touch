@@ -423,6 +423,8 @@ impl Printer {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
         objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        // Like Klipper: the sensor type `temperature_host` adds its own object beside the section.
+        objects.insert("temperature_host raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
         if let Some(devices) = &self.devices {
             let inputs = DeviceInputs {
                 nozzle_temperature: self.extruder.temperature,
@@ -528,6 +530,8 @@ impl Printer {
                 "pressure_advance": CONFIGURED_PRESSURE_ADVANCE,
                 "pressure_advance_smooth_time": CONFIGURED_SMOOTH_TIME,
                 "min_extrude_temp": MIN_EXTRUDE_TEMPERATURE,
+                // Klipper's default; `settings` lists defaults too.
+                "max_extrude_only_distance": 50.0,
                 "min_temp": MIN_HEATER_TEMPERATURE,
                 "max_temp": MAX_EXTRUDER_TARGET
             }),

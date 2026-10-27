@@ -10,7 +10,7 @@ use crate::{format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FanItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, LedEffectItem,
     LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem,
-    Printer, SensorItem, SpoolItem, TuningItem, UpdateItem,
+    Printer, SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
 };
 use chrono::Local;
 use freakymate_core::estimates;
@@ -103,6 +103,8 @@ pub struct Presenter {
     history_requested: Cell<bool>,
     /// Leave Klipper's temperature reports out of the console (setting).
     hide_temperature_reports: Cell<bool>,
+    /// The lengths the Filament page offers, set again only when the configuration changes them.
+    extrude_lengths: RefCell<Vec<f64>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: Rc<VecModel<PrintObjectItem>>,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
@@ -141,6 +143,7 @@ impl Presenter {
             history: HistoryView::new(window),
             history_requested: Cell::default(),
             hide_temperature_reports: Cell::new(true),
+            extrude_lengths: RefCell::default(),
             filament_sensors: Rc::default(),
             print_objects: Rc::default(),
             mmu_gates: Rc::default(),
@@ -216,6 +219,21 @@ impl Presenter {
         self.cache.borrow().snapshot.capabilities.clone()
     }
 
+    /// Offers only lengths Klipper accepts; a selected length beyond them falls back to the longest one.
+    fn set_extrude_lengths(&self, window: &AppWindow, lengths: Vec<f64>) {
+        if *self.extrude_lengths.borrow() == lengths {
+            return;
+        }
+        let values: Vec<f32> = lengths.iter().map(|length| *length as f32).collect();
+        let longest = values.last().copied().unwrap_or_default();
+        window.global::<Printer>().set_extrude_lengths(ModelRc::from(Rc::new(VecModel::from(values))));
+        let settings = window.global::<UiSettings>();
+        if settings.get_extrude_length() > longest {
+            settings.set_extrude_length(longest);
+        }
+        *self.extrude_lengths.borrow_mut() = lengths;
+    }
+
     pub fn apply_snapshot(&self, snapshot: &Snapshot) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
@@ -249,6 +267,7 @@ impl Presenter {
         self.note_origin("volumetric flow", Some(flow.origin));
         printer.set_live_flow(flow.value as f32);
         printer.set_can_extrude(status.extruder.can_extrude);
+        self.set_extrude_lengths(&window, status.extruder.extrude_lengths());
 
         let nozzle = status.heater("extruder");
         printer.set_nozzle_temperature(nozzle.map_or(0.0, |heater| heater.temperature) as f32);

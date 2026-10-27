@@ -184,6 +184,11 @@ pub struct Motion {
     pub extrude_factor: f64,
 }
 
+/// Lengths in mm the Filament page offers for extruding by hand.
+pub const EXTRUDE_LENGTHS_MM: [f64; 5] = [5.0, 10.0, 25.0, 50.0, 100.0];
+/// Klipper's default of `max_extrude_only_distance` in mm.
+const DEFAULT_MAX_EXTRUDE_ONLY_MM: f64 = 50.0;
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ExtruderState {
     pub pressure_advance: f64,
@@ -191,6 +196,22 @@ pub struct ExtruderState {
     pub can_extrude: bool,
     /// Configured `filament_diameter` in mm; `None` until the configuration is known.
     pub filament_diameter: Option<f64>,
+    /// Configured `max_extrude_only_distance` in mm: Klipper refuses longer moves of the extruder alone.
+    pub max_extrude_only_mm: Option<f64>,
+}
+
+impl ExtruderState {
+    /// The lengths of [`EXTRUDE_LENGTHS_MM`] Klipper accepts (Klipper's default limit while the configuration is
+    /// unknown); the limit itself when it is shorter than all of them.
+    pub fn extrude_lengths(&self) -> Vec<f64> {
+        let limit = self.max_extrude_only_mm.unwrap_or(DEFAULT_MAX_EXTRUDE_ONLY_MM);
+        let lengths: Vec<f64> = EXTRUDE_LENGTHS_MM.into_iter().filter(|length| *length <= limit).collect();
+        if lengths.is_empty() {
+            vec![limit]
+        } else {
+            lengths
+        }
+    }
 }
 
 /// Heater with a target temperature; `object` is the Klipper object name, e.g. `heater_generic chamber`.
@@ -379,6 +400,9 @@ fn read_extruder(extruder: &Value, configuration: Option<&Value>) -> ExtruderSta
         smooth_time: number(extruder, "smooth_time"),
         can_extrude: flag(extruder, "can_extrude"),
         filament_diameter: configuration.and_then(|section| section.get("filament_diameter")).and_then(Value::as_f64),
+        max_extrude_only_mm: configuration
+            .and_then(|section| section.get("max_extrude_only_distance"))
+            .and_then(Value::as_f64),
     }
 }
 
@@ -417,8 +441,10 @@ fn heater(object: &str, value: &Value, settings: Option<&Value>) -> Heater {
     }
 }
 
-/// Object kinds that are only a temperature; `tmc2240` reports the temperature of the driver.
-const SENSOR_KINDS: [&str; 4] = ["temperature_sensor", "temperature_host", "temperature_combined", "tmc2240"];
+/// Object kinds that are only a temperature; `tmc2240` reports the temperature of the driver. Not
+/// `temperature_host`/`temperature_combined`: Klipper adds them beside the section that uses the sensor type, so they
+/// would show the same sensor twice (see `Capabilities::temperature_sensors`).
+const SENSOR_KINDS: [&str; 2] = ["temperature_sensor", "tmc2240"];
 
 /// In the order of [`SENSOR_KINDS`], each kind in name order.
 fn read_sensors(store: &ObjectStore) -> Vec<TemperatureSensor> {
@@ -537,6 +563,7 @@ mod tests {
             "heater_generic chamber": { "temperature": 35.0, "target": 0.0 },
             "temperature_sensor mcu_temp": { "temperature": 41.0 },
             "tmc2240 stepper_x": { "temperature": null },
+            "temperature_sensor pi": { "temperature": 48.5 },
             "temperature_host pi": { "temperature": 48.5 },
             "fan": { "speed": 0.5 },
             "quad_gantry_level": { "applied": true }
@@ -586,6 +613,21 @@ mod tests {
         assert_eq!((nozzle.min_temp, nozzle.max_temp), (10.0, Some(280.0)));
         let bed = status.heater("heater_bed").unwrap();
         assert_eq!((bed.min_temp, bed.max_temp), (0.0, None));
+    }
+
+    #[test]
+    fn only_lengths_klipper_accepts_are_offered_for_extruding() {
+        let configured = |limit: f64| ExtruderState { max_extrude_only_mm: Some(limit), ..ExtruderState::default() };
+
+        assert_eq!(ExtruderState::default().extrude_lengths(), [5.0, 10.0, 25.0, 50.0]);
+        assert_eq!(configured(100.0).extrude_lengths(), EXTRUDE_LENGTHS_MM);
+        assert_eq!(configured(30.0).extrude_lengths(), [5.0, 10.0, 25.0]);
+        assert_eq!(configured(2.0).extrude_lengths(), [2.0]);
+        let status = PrinterStatus::from_store(&store(json!({
+            "extruder": { "temperature": 20.0 },
+            "configfile": { "settings": { "extruder": { "max_extrude_only_distance": 100.0 } } }
+        })));
+        assert_eq!(status.extruder.max_extrude_only_mm, Some(100.0));
     }
 
     #[test]

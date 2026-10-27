@@ -1,6 +1,6 @@
 //! The temperature history overlay: which heater or sensor it shows and how the values reach the UI. Only what
 //! Moonraker keeps in its temperature store (`server.temperature_store`) is shown; objects it does not keep (for
-//! example `temperature_host` or stepper drivers) have no history.
+//! example stepper drivers) have no history.
 
 use crate::{chart, AppWindow, ChartLabel, Navigation, Printer};
 use freakymate_core::history::TemperatureSeries;

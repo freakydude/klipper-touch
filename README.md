@@ -38,8 +38,7 @@ is the BTT HDMI5 (5", 800x480, landscape).
   is open. Moonraker keeps heaters and `temperature_sensor` objects there; the others have no history. Further tabs when the printer has them:
   - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
     bar, speed in rpm where there is a tachometer.
-  - **Sensors**: every temperature without a target (`temperature_sensor`, `temperature_host`,
-    `temperature_combined`, TMC2240 drivers).
+  - **Sensors**: every temperature without a target (`temperature_sensor` of any sensor type, TMC2240 drivers).
 - **Light**: the light symbol in the status bar opens a panel with the main (chamber) light as a switch, every LED
   (`neopixel`, `led`, `dotstar`, …) on, off and dimmed as white light, and the effects of the
   [led_effect](https://github.com/julianschill/klipper-led_effect) plugin when it is installed.
@@ -48,7 +47,7 @@ is the BTT HDMI5 (5", 800x480, landscape).
   the calibration values until the next restart: flow factor, pressure advance and smooth time, velocity and
   acceleration limits, square corner velocity, minimum cruise ratio and firmware retraction; it shows where a value
   differs from the configuration and resets it.
-- **Filament**: extrude/retract with length and speed, `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
+- **Filament**: extrude/retract with length and speed (lengths up to `max_extrude_only_distance`), `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
 - **System**, in five tabs:
   - **Machine**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices.
   - **Updates**: Moonraker's update manager; the tab shows how many updates are waiting.

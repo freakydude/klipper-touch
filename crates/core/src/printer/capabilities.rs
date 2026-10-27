@@ -22,8 +22,9 @@ pub struct Capabilities {
     pub mmu: bool,
     /// Additional heaters with a target temperature (`heater_generic`, `temperature_fan`, additional extruders).
     pub extra_heaters: Vec<String>,
-    /// Temperatures without a target: `temperature_sensor`, `temperature_host`, `temperature_combined` and the
-    /// drivers that measure their own (`tmc2240`).
+    /// Temperatures without a target: `temperature_sensor` and the drivers that measure their own (`tmc2240`).
+    /// Klipper adds a `temperature_host` or `temperature_combined` object next to the section that uses that sensor
+    /// type (`temperature_sensor cb1` brings `temperature_host cb1`); those are the same sensor and left out.
     pub temperature_sensors: Vec<String>,
     pub filament_sensors: Vec<String>,
     /// `fan`, `fan_generic`, `heater_fan` and `controller_fan` objects.
@@ -144,9 +145,7 @@ impl Capabilities {
             ("exclude_object", None) => self.exclude_object = true,
             ("mmu", None) => self.mmu = true,
             ("heater_generic" | "temperature_fan", Some(_)) => self.extra_heaters.push(name.to_owned()),
-            ("temperature_sensor" | "temperature_host" | "temperature_combined" | "tmc2240", Some(_)) => {
-                self.temperature_sensors.push(name.to_owned())
-            }
+            ("temperature_sensor" | "tmc2240", Some(_)) => self.temperature_sensors.push(name.to_owned()),
             ("led_effect", Some(_)) => self.led_effects.push(name.to_owned()),
             _ if FanKind::of(name).is_some() => self.fans.push(name.to_owned()),
             _ if devices::is_led(name) => self.leds.push(name.to_owned()),
@@ -184,6 +183,7 @@ mod tests {
             "bltouch",
             "heater_generic chamber",
             "temperature_sensor raspberry_pi",
+            "temperature_host raspberry_pi",
             "filament_switch_sensor runout",
             "gcode_macro PRINT_START",
             "gcode_macro load_filament",
