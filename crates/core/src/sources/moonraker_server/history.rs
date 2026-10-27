@@ -1,6 +1,5 @@
 //! Moonraker's `history` component: the jobs printed so far, the last completed print per file and the newest job.
 
-use crate::sources::klipper::{PrintJob, PrintState};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -24,7 +23,8 @@ struct AuxiliaryEntry {
     value: Value,
 }
 
-/// The newest job of the history once it has ended, for the end of the print the print page shows.
+/// The newest job of the history once it has ended, for the end of the print the print page shows (see
+/// [`crate::domain::job_end`]).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FinishedJob {
     pub filename: String,
@@ -32,20 +32,6 @@ pub struct FinishedJob {
     pub status: String,
     /// Unix seconds.
     pub end_time: f64,
-}
-
-impl FinishedJob {
-    /// When `job` ended, if this history entry is that job: the same file and an outcome that matches its state.
-    /// Every outcome besides completed and cancelled is a failure (shutdown, disconnect, server exit).
-    pub fn end_of(&self, job: &PrintJob) -> Option<f64> {
-        let matches = match job.state {
-            PrintState::Complete => self.status == "completed",
-            PrintState::Cancelled => self.status == "cancelled",
-            PrintState::Error => !matches!(self.status.as_str(), "completed" | "cancelled" | "in_progress"),
-            _ => false,
-        };
-        (matches && self.filename == job.filename).then_some(self.end_time)
-    }
 }
 
 /// The job history as far as the UI uses it.
@@ -119,25 +105,16 @@ mod tests {
     }
 
     #[test]
-    fn the_newest_job_tells_when_the_shown_job_ended() {
+    fn the_newest_job_is_the_first_of_the_list() {
         let history = parse_print_history(&json!({ "jobs": [
             { "filename": "a.gcode", "status": "cancelled", "end_time": 1_700_000_600.0 },
             { "filename": "a.gcode", "status": "completed", "end_time": 1_600_000_000.0 }
         ] }));
-        let newest = history.newest.unwrap();
-        let job = |state| PrintJob { state, filename: "a.gcode".into(), ..PrintJob::default() };
 
-        assert_eq!(newest.end_of(&job(PrintState::Cancelled)), Some(1_700_000_600.0));
-        assert_eq!(newest.end_of(&job(PrintState::Complete)), None);
-        assert_eq!(newest.end_of(&PrintJob { filename: "b.gcode".into(), ..job(PrintState::Cancelled) }), None);
-    }
-
-    #[test]
-    fn every_other_outcome_is_the_end_of_a_failed_job() {
-        let newest = FinishedJob { filename: "a.gcode".into(), status: "klippy_shutdown".into(), end_time: 5.0 };
-        let failed = PrintJob { state: PrintState::Error, filename: "a.gcode".into(), ..PrintJob::default() };
-
-        assert_eq!(newest.end_of(&failed), Some(5.0));
+        assert_eq!(
+            history.newest,
+            Some(FinishedJob { filename: "a.gcode".into(), status: "cancelled".into(), end_time: 1_700_000_600.0 })
+        );
     }
 
     #[test]

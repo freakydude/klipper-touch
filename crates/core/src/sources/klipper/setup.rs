@@ -1,7 +1,9 @@
 //! What this Klipper has: read from `printer.objects.list` and, once per subscription, from its configuration (it
 //! only changes with a restart, which subscribes again).
 
-use super::devices::{self, FanKind, WhiteChannel};
+use super::devices::{self, FanKind, Led, WhiteChannel};
+use super::filament_sensors::is_filament_sensor;
+use super::leveling::Leveling;
 use super::macros::{self, MacroDetails};
 use super::tuning::TuningConfig;
 use crate::sources::subscription::Subscription;
@@ -10,15 +12,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 const HEATER_FIELDS: &[&str] = &["temperature", "target", "power"];
-
-/// How the gantry or bed is levelled.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Leveling {
-    /// `[quad_gantry_level]`, `QUAD_GANTRY_LEVEL`; wins if both are configured.
-    QuadGantry,
-    /// `[z_tilt]`, `Z_TILT_ADJUST`.
-    ZTilt,
-}
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Setup {
@@ -52,20 +45,17 @@ pub struct Setup {
 impl Setup {
     pub fn from_objects<'a>(names: impl IntoIterator<Item = &'a str>) -> Self {
         let mut setup = Self::default();
-        let (mut quad_gantry, mut z_tilt) = (false, false);
+        let mut leveling_objects = Vec::new();
         for name in names {
             let (kind, instance) = name.split_once(' ').map_or((name, None), |(kind, instance)| (kind, Some(instance)));
             match (kind, instance) {
-                ("quad_gantry_level", None) => quad_gantry = true,
-                ("z_tilt", None) => z_tilt = true,
+                (_, None) if Leveling::objects().contains(&kind) => leveling_objects.push(kind),
                 ("probe" | "bltouch" | "smart_effector" | "probe_eddy_current", _) => setup.probe = true,
                 ("heater_generic" | "temperature_fan", Some(_)) => setup.extra_heaters.push(name.to_owned()),
                 ("temperature_sensor" | "tmc2240", Some(_)) => setup.temperature_sensors.push(name.to_owned()),
                 _ if FanKind::of(name).is_some() => setup.fans.push(name.to_owned()),
                 _ if devices::is_led(name) => setup.leds.push(name.to_owned()),
-                ("filament_switch_sensor" | "filament_motion_sensor", Some(_)) => {
-                    setup.filament_sensors.push(name.to_owned())
-                }
+                (_, Some(_)) if is_filament_sensor(kind) => setup.filament_sensors.push(name.to_owned()),
                 ("gcode_macro", Some(macro_name)) if !macro_name.starts_with('_') => {
                     setup.macros.push(macro_name.to_ascii_uppercase());
                 }
@@ -73,11 +63,7 @@ impl Setup {
                 _ => {}
             }
         }
-        setup.leveling = match (quad_gantry, z_tilt) {
-            (true, _) => Some(Leveling::QuadGantry),
-            (false, true) => Some(Leveling::ZTilt),
-            (false, false) => None,
-        };
+        setup.leveling = Leveling::detect(&leveling_objects);
         setup.macros.sort();
         setup
     }
@@ -97,6 +83,18 @@ impl Setup {
     /// The LED the light switch of the status bar turns on and off.
     pub fn main_light(&self) -> Option<&str> {
         devices::main_light(&self.leds)
+    }
+
+    /// The state of the main light among the reported LEDs; `None` if there is none or it reports nothing yet.
+    pub fn main_led<'a>(&self, leds: &'a [Led]) -> Option<&'a Led> {
+        let main_light = self.main_light()?;
+        leds.iter().find(|led| led.object == main_light)
+    }
+
+    /// Channel levels `[red, green, blue, white]` for white light at `level` (0 to 1) on `led`, see
+    /// [`WhiteChannel::white_light`].
+    pub fn white_light(&self, led: &str, level: f64) -> [f64; 4] {
+        self.white_channel(led).white_light(level)
     }
 
     pub fn has_macro(&self, name: &str) -> bool {
@@ -138,8 +136,9 @@ impl Setup {
         );
         subscription.add("configfile", Some(&["save_config_pending", "settings"]));
         subscription.add("heater_bed", Some(HEATER_FIELDS));
-        subscription.add("quad_gantry_level", Some(&["applied"]));
-        subscription.add("z_tilt", Some(&["applied"]));
+        for leveling in Leveling::objects() {
+            subscription.add(leveling, Some(&["applied"]));
+        }
         subscription.add(
             "firmware_retraction",
             Some(&["retract_length", "retract_speed", "unretract_extra_length", "unretract_speed"]),

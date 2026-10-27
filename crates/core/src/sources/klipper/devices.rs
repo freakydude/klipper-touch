@@ -82,6 +82,21 @@ pub enum WhiteChannel {
     All,
 }
 
+impl WhiteChannel {
+    /// Channel levels `[red, green, blue, white]` for white light at `level` (0 to 1, 0 is off): the white channel
+    /// where every chip has one, the same level on every colour where none has, and both for a mixed chain, so its
+    /// RGB chips light up too.
+    pub fn white_light(self, level: f64) -> [f64; 4] {
+        let level = level.clamp(0.0, 1.0);
+        let (colour, white) = match self {
+            Self::All => (0.0, level),
+            Self::Some => (level, level),
+            Self::None => (level, 0.0),
+        };
+        [colour, colour, colour, white]
+    }
+}
+
 /// From the configuration: `color_order` with `W` (neopixel, dotstar; one entry per chip in `configfile.settings`)
 /// or a `white_pin` (PWM LEDs).
 pub fn white_channel(section: Option<&Value>) -> WhiteChannel {

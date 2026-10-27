@@ -284,8 +284,7 @@ impl Presenter {
         printer.set_bed_temperature(bed.map_or(0.0, |heater| heater.temperature) as f32);
         printer.set_bed_target(bed.map_or(0.0, |heater| heater.target) as f32);
         let klipper = &snapshot.sources.klipper;
-        let main_light = klipper.main_light();
-        let main_led = status.leds.iter().find(|led| Some(led.object.as_str()) == main_light);
+        let main_led = klipper.main_led(&status.leds);
         printer.set_has_light(main_led.is_some());
         printer.set_light_name(main_led.map(|led| led.label.as_str()).unwrap_or_default().into());
         printer.set_light_on(main_led.is_some_and(|led| led.level > 0.0));

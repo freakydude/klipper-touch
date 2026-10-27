@@ -4,5 +4,6 @@
 pub mod estimates;
 pub mod filament;
 pub mod file_catalog;
+pub mod job_end;
 pub mod pause;
 pub mod spools;

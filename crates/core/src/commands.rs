@@ -6,7 +6,7 @@ use crate::moonraker::Call;
 use crate::sources::happy_hare::commands as mmu;
 use crate::sources::klipper::commands::{self as klipper, run_gcode};
 use crate::sources::klipper::tuning::TuningKey;
-use crate::sources::klipper::{Axis, Leveling, Motion, Setup, WhiteChannel};
+use crate::sources::klipper::{Axis, Leveling, Motion, Setup};
 use crate::sources::macro_conventions::{LOAD_FILAMENT_MACRO, UNLOAD_FILAMENT_MACRO};
 use crate::sources::moonraker_server::{machine, power, update_manager};
 use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
@@ -192,16 +192,10 @@ const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNL
 const NO_LIGHT: &str = "this printer has no LED";
 const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
-/// White light: the white channel where every chip has one, the same level on every colour where none has, and both
-/// for a mixed chain, so its RGB chips light up too.
+/// White light at `level` with the channels this LED has, see [`Setup::white_light`].
 fn light(setup: &Setup, led: &str, level: f64) -> Command {
-    let level = level.clamp(0.0, 1.0);
-    let (colour, white) = match setup.white_channel(led) {
-        WhiteChannel::All => (0.0, level),
-        WhiteChannel::Some => (level, level),
-        WhiteChannel::None => (level, 0.0),
-    };
-    Command::SetLed { led: led.to_owned(), red: colour, green: colour, blue: colour, white }
+    let [red, green, blue, white] = setup.white_light(led, level);
+    Command::SetLed { led: led.to_owned(), red, green, blue, white }
 }
 
 /// A call of one of Mainsail's layer pause macros, see [`crate::sources::mainsail_config`].
@@ -234,7 +228,7 @@ impl Command {
             Self::SetLight { led, level } => vec![light(setup, &led, level)],
             Self::ToggleLight => {
                 let led = setup.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
-                let lit = status.leds.iter().any(|candidate| candidate.object == led && candidate.level > 0.0);
+                let lit = setup.main_led(&status.leds).is_some_and(|main| main.level > 0.0);
                 vec![light(setup, led, if lit { 0.0 } else { 1.0 })]
             }
             Self::StepTuning { key, direction } => {
@@ -385,6 +379,7 @@ impl Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sources::klipper::WhiteChannel;
     use serde_json::json;
 
     fn motion_at(position: [f64; 4]) -> Motion {

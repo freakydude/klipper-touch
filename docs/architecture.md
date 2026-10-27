@@ -62,7 +62,9 @@ nothing is loaded at runtime or can be switched off. What is detected is used.
 | Domain      | `domain/`                               | Questions that need several sources; each answered in one place, with its order. |
 | Service     | `service.rs`, `commands.rs`             | Collects, publishes `Snapshot`s and `Event`s, resolves and sends commands.       |
 
-Sources: `klipper/` (Klipper's own objects, configuration, macros, tuning values), `moonraker_server/` (files, job
+Sources: `klipper/` (Klipper's own objects, one module per kind: `job`, `motion`, `extruder`, `heaters`, `devices`
+(fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`; `status.rs` puts them together,
+`setup.rs` detects what is there; plus configuration, macros, tuning values), `moonraker_server/` (files, job
 history, power, update manager, temperature and console stores, host information), `happy_hare/`, `spoolman.rs`,
 `led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,
 `UNLOAD_FILAMENT`). `Sources` (`sources/mod.rs`) holds what was detected, each optional source as `Option` or an empty
@@ -76,7 +78,8 @@ of every source reaches Klipper through `klipper::commands::run_gcode`.
 Domain: `filament.rs` (what Load and Unload run, which filament sensors belong to the printer), `pause.rs` (what is
 known about a pause, planning a pause at a layer), `spools.rs` (lanes, hints before a print), `estimates.rs` (print
 time, weight, layers, flow; measured before estimated, see `sourced.rs`), `file_catalog.rs` (the file list joined
-with metadata, last completed print and its spool).
+with metadata, last completed print and its spool), `job_end.rs` (when the job Klipper shows ended, from the job
+history).
 
 ## Data flow
 

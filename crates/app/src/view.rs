@@ -4,6 +4,7 @@ use crate::format;
 use chrono::{DateTime, Local};
 use freakymate_core::domain::estimates;
 use freakymate_core::domain::file_catalog::FileInfo;
+use freakymate_core::domain::job_end;
 use freakymate_core::domain::pause::{Interruption, InterruptionFact};
 use freakymate_core::domain::spools::PrintHint;
 use freakymate_core::sources::happy_hare::{
@@ -83,7 +84,7 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
 /// When the shown job ended, from the job history; `-` while it runs or if the history does not know.
 pub fn ended_text(job: &PrintJob, newest: Option<&FinishedJob>, now: DateTime<Local>) -> String {
     newest
-        .and_then(|newest| newest.end_of(job))
+        .and_then(|newest| job_end::ended_at(job, newest))
         .map_or_else(|| NO_VALUE.to_owned(), |end| format::unix_moment(now, end))
 }
 

@@ -3,7 +3,7 @@
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use freakymate_core::domain::filament::{self, FilamentHandling};
-use freakymate_core::domain::{pause, spools};
+use freakymate_core::domain::{job_end, pause, spools};
 use freakymate_core::sources::happy_hare::{GateAvailability, LoadedFilament};
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Axis, FanKind, KlippyState, Leveling, PrintState, WhiteChannel};
@@ -351,7 +351,7 @@ async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
     let ended = timeout(WAIT_LIMIT, async {
         loop {
             if let Event::PrintHistory(history) = channels.events.recv().await.expect("service stopped") {
-                if let Some(end) = history.newest.and_then(|newest| newest.end_of(&cancelled.status.job)) {
+                if let Some(end) = history.newest.and_then(|newest| job_end::ended_at(&cancelled.status.job, &newest)) {
                     return end;
                 }
             }

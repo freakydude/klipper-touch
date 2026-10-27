@@ -1,23 +1,37 @@
 //! Klipper itself: its objects (heaters, sensors, fans, LEDs, motion, print job), its configuration and its macros.
+//! Each kind of object has its own module; `status.rs` puts them together, `setup.rs` detects what is there.
 
 pub mod commands;
 mod devices;
+mod exclude_object;
+mod extruder;
+mod fields;
+mod filament_sensors;
+mod firmware_retraction;
+mod heaters;
+mod job;
+mod leveling;
 mod macros;
+mod motion;
 mod pending;
 mod setup;
 mod status;
 pub mod tuning;
 
-pub use setup::{Leveling, Setup};
-
 pub use devices::{instance, is_led, main_light, white_channel, Fan, FanKind, Led, WhiteChannel};
+pub use exclude_object::PrintObject;
+pub use extruder::ExtruderState;
+pub use filament_sensors::FilamentSensor;
+pub use firmware_retraction::Retraction;
+pub use heaters::{Heater, TemperatureSensor};
+pub use job::{PrintJob, PrintState};
+pub use leveling::Leveling;
 pub use macros::{
     details_from_settings, macro_script, offered_macros, MacroDetails, MacroField, MacroForm, MacroParam,
     MacroValueError, OfferedMacro,
 };
+pub use motion::{Axis, HomedAxes, Motion};
 pub use pending::PendingTargets;
+pub use setup::Setup;
 pub(in crate::sources) use status::KlipperParts;
-pub use status::{
-    label, Activity, Axis, ExtruderState, FilamentSensor, Heater, HomedAxes, KlippyState, Motion, PrintJob,
-    PrintObject, PrintState, Retraction, TemperatureSensor,
-};
+pub use status::{label, Activity, KlippyState};
