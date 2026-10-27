@@ -31,13 +31,21 @@ jobs:
         run: cargo clippy -p freakymate --no-default-features -- -D warnings
       - run: cargo test --workspace
 
-  windows:
-    name: Windows build and tests
+  # Tests and release build as separate jobs: in sequence they make Windows the longest job of the run.
+  windows-test:
+    name: Windows tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
+
+  windows:
+    name: Windows build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
       - run: cargo build --release -p freakymate --no-default-features --bin freakymate
       - name: Collect
         shell: bash
