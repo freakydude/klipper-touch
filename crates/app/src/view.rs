@@ -2,14 +2,19 @@
 
 use crate::format;
 use chrono::{DateTime, Local};
-use freakymate_core::estimates;
-use freakymate_core::files::{FileInfo, FileMetadata, FinishedJob, LastPrint};
-use freakymate_core::printer::{path_sensor_names, FanKind, Interruption, InterruptionFact};
-use freakymate_core::printer::{
-    FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
+use freakymate_core::domain::estimates;
+use freakymate_core::domain::file_catalog::FileInfo;
+use freakymate_core::domain::job_end;
+use freakymate_core::domain::pause::{Interruption, InterruptionFact};
+use freakymate_core::domain::spools::PrintHint;
+use freakymate_core::sources::happy_hare::{
+    path_sensor_names, FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, SyncFeedbackState,
 };
-use freakymate_core::spoolman::{PrintHint, Spool};
-use freakymate_core::tuning::TuningRange;
+use freakymate_core::sources::klipper::tuning::TuningRange;
+use freakymate_core::sources::klipper::{FanKind, PrintJob, PrintState};
+use freakymate_core::sources::moonraker_server::files::FileMetadata;
+use freakymate_core::sources::moonraker_server::history::{FinishedJob, LastPrint};
+use freakymate_core::sources::spoolman::Spool;
 use freakymate_core::{Provenance, Sourced};
 
 const NO_VALUE: &str = "-";
@@ -79,7 +84,7 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
 /// When the shown job ended, from the job history; `-` while it runs or if the history does not know.
 pub fn ended_text(job: &PrintJob, newest: Option<&FinishedJob>, now: DateTime<Local>) -> String {
     newest
-        .and_then(|newest| newest.end_of(job))
+        .and_then(|newest| job_end::ended_at(job, newest))
         .map_or_else(|| NO_VALUE.to_owned(), |end| format::unix_moment(now, end))
 }
 
@@ -303,7 +308,7 @@ pub fn tuning_value(value: f64, range: &TuningRange) -> String {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use freakymate_core::files::FileEntry;
+    use freakymate_core::sources::moonraker_server::files::FileEntry;
 
     fn now() -> DateTime<Local> {
         Local.with_ymd_and_hms(2026, 10, 21, 12, 0, 0).unwrap()
@@ -542,9 +547,9 @@ mod tests {
         assert_eq!(fan_rpm(Some(2799.6)), "2800 rpm");
         assert_eq!(fan_rpm(None), "");
         assert_eq!(fan_kind(FanKind::Generic), "generic");
-        let accel = freakymate_core::tuning::TuningKey::MaxAccel.range();
+        let accel = freakymate_core::sources::klipper::tuning::TuningKey::MaxAccel.range();
         assert_eq!(tuning_value(5000.0, &accel), "5000 mm/s²");
-        let advance = freakymate_core::tuning::TuningKey::PressureAdvance.range();
+        let advance = freakymate_core::sources::klipper::tuning::TuningKey::PressureAdvance.range();
         assert_eq!(tuning_value(0.04, &advance), "0.040");
     }
 }

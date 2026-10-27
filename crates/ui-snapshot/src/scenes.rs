@@ -3,8 +3,8 @@
 use crate::session::Session;
 use freakymate::{Confirm, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
-use freakymate_core::printer::{Activity, KlippyState, PrintState};
-use freakymate_core::tuning::TuningKey;
+use freakymate_core::sources::klipper::tuning::TuningKey;
+use freakymate_core::sources::klipper::{Activity, KlippyState, PrintState};
 use freakymate_core::{Command, ConnectionState, Query};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
@@ -129,7 +129,8 @@ fn pages(session: &mut Session) -> Result<(), String> {
         if page == Page::Temperature {
             heat_tabs(session)?;
         }
-        if page == Page::Tune && session.presenter.snapshot().capabilities.tuning.get(TuningKey::MaxAccel).is_some() {
+        let has_tuning = session.presenter.snapshot().sources.klipper.tuning.get(TuningKey::MaxAccel).is_some();
+        if page == Page::Tune && has_tuning {
             session.window.global::<Navigation>().set_tune_tab(1);
             session.show_page(Page::Tune, "tune-expert")?;
             session.window.global::<Navigation>().set_tune_tab(0);
@@ -206,7 +207,7 @@ fn nozzle_history(session: &mut Session) -> Result<(), String> {
 fn spools(session: &mut Session) -> Result<(), String> {
     session.pump(Duration::from_secs(2));
     let snapshot = session.presenter.snapshot();
-    if !snapshot.capabilities.server.spoolman {
+    if !snapshot.sources.moonraker.spoolman {
         return Ok(());
     }
     let has_mmu = snapshot.status.mmu.is_some();

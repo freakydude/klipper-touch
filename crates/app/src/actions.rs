@@ -3,8 +3,8 @@
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::{Actions, AppWindow};
-use freakymate_core::printer::Axis;
-use freakymate_core::tuning::TuningKey;
+use freakymate_core::sources::klipper::tuning::TuningKey;
+use freakymate_core::sources::klipper::Axis;
 use freakymate_core::{Command, PrinterService, Query};
 use slint::platform::WindowEvent;
 use slint::{ComponentHandle, SharedString};

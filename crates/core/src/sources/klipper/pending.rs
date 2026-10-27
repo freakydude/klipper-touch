@@ -1,6 +1,6 @@
 //! Heater targets sent but not yet reported by Klipper.
 
-use super::status::Heater;
+use super::heaters::Heater;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

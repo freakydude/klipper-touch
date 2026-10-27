@@ -1,10 +1,11 @@
 //! Values derived from several sources. Each rule prefers what the printer measured over what the slicer or
 //! Klipper predicted (see [`prefer_measured`]) and says which source it used.
 
-use crate::files::{FileMetadata, LastPrint};
-use crate::printer::PrintJob;
 use crate::sourced::{prefer_measured, Sourced};
-use crate::spoolman::Spool;
+use crate::sources::klipper::PrintJob;
+use crate::sources::moonraker_server::files::FileMetadata;
+use crate::sources::moonraker_server::history::LastPrint;
+use crate::sources::spoolman::Spool;
 
 /// How much the expected print time counts against what has been observed so far, as a fraction of the expected
 /// time. The smaller it is, the sooner the remaining time follows the measured pace.
@@ -103,8 +104,8 @@ pub fn remaining_print_seconds(job: &PrintJob, expected: Option<f64>) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::printer::PrintState;
     use crate::sourced::Provenance;
+    use crate::sources::klipper::PrintState;
 
     fn running(progress: f64, print_duration: f64) -> PrintJob {
         PrintJob { state: PrintState::Printing, progress, print_duration, ..PrintJob::default() }
