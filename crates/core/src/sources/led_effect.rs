@@ -47,6 +47,15 @@ pub(super) fn read_effects(store: &ObjectStore) -> Vec<LedEffect> {
         .collect()
 }
 
+/// Starts or stops an effect.
+pub fn set_effect(effect: &str, on: bool) -> String {
+    if on {
+        format!("SET_LED_EFFECT EFFECT={effect}")
+    } else {
+        format!("SET_LED_EFFECT EFFECT={effect} STOP=1")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,5 +69,11 @@ mod tests {
         let effects = read_effects(&store);
 
         assert_eq!(effects, [LedEffect { name: "rainbow".into(), label: "Rainbow".into(), enabled: true }]);
+    }
+
+    #[test]
+    fn effects_start_and_stop() {
+        assert_eq!(set_effect("rainbow", true), "SET_LED_EFFECT EFFECT=rainbow");
+        assert_eq!(set_effect("rainbow", false), "SET_LED_EFFECT EFFECT=rainbow STOP=1");
     }
 }

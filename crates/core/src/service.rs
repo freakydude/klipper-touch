@@ -6,8 +6,9 @@
 use crate::commands::Command;
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
 use crate::sources::klipper::{KlippyState, PendingTargets, PrintState};
-use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, PrintHistory, ThumbnailImage};
+use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
 use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
+use crate::sources::moonraker_server::history::{self, PrintHistory};
 use crate::sources::moonraker_server::machine::{self, HostInterface};
 use crate::sources::moonraker_server::power::{self, PowerDevice};
 use crate::sources::moonraker_server::temperature_store::{self, TemperatureSeries};
@@ -573,8 +574,8 @@ async fn fetch(
             events
         }
         Query::PrintHistory => {
-            let history = call("server.history.list", Some(json!({ "limit": PRINT_HISTORY_LIMIT }))).await?;
-            vec![Event::PrintHistory(files::parse_print_history(&history))]
+            let jobs = call("server.history.list", Some(json!({ "limit": PRINT_HISTORY_LIMIT }))).await?;
+            vec![Event::PrintHistory(history::parse_print_history(&jobs))]
         }
         Query::Spoolman => vec![Event::Spoolman(Box::new(fetch_spoolman(connection, gate_spools).await?))],
         Query::SpoolList => {

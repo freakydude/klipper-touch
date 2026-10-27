@@ -1,5 +1,6 @@
 //! Klipper itself: its objects (heaters, sensors, fans, LEDs, motion, print job), its configuration and its macros.
 
+pub mod commands;
 mod devices;
 mod macros;
 mod pending;

@@ -3,6 +3,7 @@
 use crate::format;
 use chrono::{DateTime, Local};
 use freakymate_core::domain::estimates;
+use freakymate_core::domain::file_catalog::FileInfo;
 use freakymate_core::domain::pause::{Interruption, InterruptionFact};
 use freakymate_core::domain::spools::PrintHint;
 use freakymate_core::sources::happy_hare::{
@@ -10,7 +11,8 @@ use freakymate_core::sources::happy_hare::{
 };
 use freakymate_core::sources::klipper::tuning::TuningRange;
 use freakymate_core::sources::klipper::{FanKind, PrintJob, PrintState};
-use freakymate_core::sources::moonraker_server::files::{FileInfo, FileMetadata, FinishedJob, LastPrint};
+use freakymate_core::sources::moonraker_server::files::FileMetadata;
+use freakymate_core::sources::moonraker_server::history::{FinishedJob, LastPrint};
 use freakymate_core::sources::spoolman::Spool;
 use freakymate_core::{Provenance, Sourced};
 

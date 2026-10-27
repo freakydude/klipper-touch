@@ -1,6 +1,7 @@
 //! Moonraker's `update_manager` component: versions of the installed software and the system packages.
 
-use serde_json::Value;
+use crate::moonraker::Call;
+use serde_json::{json, Value};
 
 /// State of a software package in the update manager.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -26,6 +27,15 @@ pub fn parse_update_status(result: &Value) -> Vec<UpdateInfo> {
     let mut updates: Vec<UpdateInfo> = version_info.iter().map(|(name, info)| update_info(name, info)).collect();
     updates.sort_by(|left, right| (left.name != "system", &left.name).cmp(&(right.name != "system", &right.name)));
     updates
+}
+
+/// Asks the update manager to look for new versions.
+pub fn refresh() -> Call {
+    Call::new("machine.update.refresh")
+}
+
+pub fn upgrade(name: &str) -> Call {
+    Call::with("machine.update.upgrade", json!({ "name": name }))
 }
 
 fn update_info(name: &str, info: &Value) -> UpdateInfo {
@@ -57,7 +67,6 @@ fn update_info(name: &str, info: &Value) -> UpdateInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn update_status_lists_system_first_and_detects_new_versions() {

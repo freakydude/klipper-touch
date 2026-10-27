@@ -3,6 +3,8 @@
 //! Field names and value ranges follow Happy Hare 4.1 (`mmu_sync_feedback.py`, `mmu_sensor_manager.py`) and were
 //! checked against a real single-gate machine with a proportional sync-feedback buffer and no encoder.
 
+pub mod commands;
+
 use super::objects::ObjectStore;
 use super::subscription::Subscription;
 use crate::sourced::{prefer_measured, Sourced};

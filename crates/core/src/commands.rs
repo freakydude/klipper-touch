@@ -1,11 +1,15 @@
-//! Operator commands for the printer and their translation into Moonraker calls.
+//! Operator commands for the printer: intents resolved by what the printer has, and which source carries out each
+//! concrete command. What a source is told (G-code, Moonraker methods) is known by the source itself.
 
 use crate::domain::filament::{self, FilamentHandling};
+use crate::moonraker::Call;
+use crate::sources::happy_hare::commands as mmu;
+use crate::sources::klipper::commands::{self as klipper, run_gcode};
 use crate::sources::klipper::tuning::TuningKey;
-use crate::sources::klipper::{self, instance, Axis, FanKind, Leveling, Motion, WhiteChannel};
+use crate::sources::klipper::{Axis, Leveling, Motion, Setup, WhiteChannel};
 use crate::sources::macro_conventions::{LOAD_FILAMENT_MACRO, UNLOAD_FILAMENT_MACRO};
-use crate::sources::{PrinterStatus, Sources};
-use serde_json::{json, Value};
+use crate::sources::moonraker_server::{machine, power, update_manager};
+use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
 
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 ///
@@ -72,7 +76,7 @@ pub enum Command {
         led: String,
         level: f64,
     },
-    /// Switches the main light (see [`klipper::Setup::main_light`]) on or off.
+    /// Switches the main light (see [`Setup::main_light`]) on or off.
     ToggleLight,
     /// Colour channels from 0 to 1 (`SET_LED`).
     SetLed {
@@ -181,31 +185,6 @@ pub enum Command {
     },
 }
 
-/// A concrete Moonraker call.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Call {
-    pub method: &'static str,
-    pub params: Option<Value>,
-}
-
-impl Call {
-    fn new(method: &'static str) -> Self {
-        Self { method, params: None }
-    }
-
-    fn with(method: &'static str, params: Value) -> Self {
-        Self { method, params: Some(params) }
-    }
-
-    fn gcode(script: impl Into<String>) -> Self {
-        Self::with("printer.gcode.script", json!({ "script": script.into() }))
-    }
-}
-
-/// Fixed speeds for manual moves in mm/s.
-const JOG_SPEED_XY: f64 = 100.0;
-const JOG_SPEED_Z: f64 = 10.0;
-
 /// Why an intent cannot be carried out on this printer.
 const NO_LEVELING: &str = "this printer has neither quad gantry level nor Z tilt";
 const NO_LOAD_WAY: &str = "no way to load filament: no Happy Hare and no LOAD_FILAMENT macro";
@@ -215,9 +194,9 @@ const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
 /// White light: the white channel where every chip has one, the same level on every colour where none has, and both
 /// for a mixed chain, so its RGB chips light up too.
-fn light(klipper: &klipper::Setup, led: &str, level: f64) -> Command {
+fn light(setup: &Setup, led: &str, level: f64) -> Command {
     let level = level.clamp(0.0, 1.0);
-    let (colour, white) = match klipper.white_channel(led) {
+    let (colour, white) = match setup.white_channel(led) {
         WhiteChannel::All => (0.0, level),
         WhiteChannel::Some => (level, level),
         WhiteChannel::None => (level, 0.0),
@@ -230,28 +209,19 @@ fn layer_pause(script: Option<String>) -> Result<Vec<Command>, String> {
     script.map(|script| vec![Command::RunGcode { script }]).ok_or_else(|| NO_LAYER_PAUSE.to_owned())
 }
 
-/// `M106` for the part fan, `SET_FAN_SPEED` for a generic fan; the others cannot be set.
-fn fan_gcode(fan: &str, speed: f64) -> Option<String> {
-    match FanKind::of(fan)? {
-        FanKind::Part => Some(format!("M106 S{}", (speed * 255.0).round())),
-        FanKind::Generic => Some(format!("SET_FAN_SPEED FAN={} SPEED={:.2}", instance(fan), speed)),
-        FanKind::Heater | FanKind::Controller => None,
-    }
-}
-
 impl Command {
     /// Turns an intent into the commands this printer needs; every other command stays as it is. `status` shows the
     /// heater targets including those sent but not yet reported, so steps build on each other.
     pub fn resolve(self, sources: &Sources, status: &PrinterStatus) -> Result<Vec<Command>, String> {
-        let klipper = &sources.klipper;
+        let setup = &sources.klipper;
         let heater_target = |heater: &str, target: f64| Command::SetHeaterTarget { heater: heater.to_owned(), target };
         let commands = match self {
-            Self::Level => match klipper.leveling {
+            Self::Level => match setup.leveling {
                 Some(Leveling::QuadGantry) => vec![Self::QuadGantryLevel],
                 Some(Leveling::ZTilt) => vec![Self::ZTiltAdjust],
                 None => return Err(NO_LEVELING.to_owned()),
             },
-            Self::ApplyZOffset if klipper.probe => vec![Self::ApplyZOffsetToProbe],
+            Self::ApplyZOffset if setup.probe => vec![Self::ApplyZOffsetToProbe],
             Self::ApplyZOffset => vec![Self::ApplyZOffsetToEndstop],
             Self::ApplyPreset { extruder, bed } => {
                 let mut commands = vec![heater_target("extruder", extruder)];
@@ -261,19 +231,18 @@ impl Command {
                 commands
             }
             Self::CoolDown => status.heaters.iter().map(|heater| heater_target(&heater.object, 0.0)).collect(),
-            Self::SetLight { led, level } => vec![light(klipper, &led, level)],
+            Self::SetLight { led, level } => vec![light(setup, &led, level)],
             Self::ToggleLight => {
-                let led = klipper.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
+                let led = setup.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
                 let lit = status.leds.iter().any(|candidate| candidate.object == led && candidate.level > 0.0);
-                vec![light(klipper, led, if lit { 0.0 } else { 1.0 })]
+                vec![light(setup, led, if lit { 0.0 } else { 1.0 })]
             }
             Self::StepTuning { key, direction } => {
                 let current = key.current(status).ok_or_else(|| format!("this printer has no {}", key.id()))?;
                 vec![Self::SetTuning { key, value: key.stepped(current, direction) }]
             }
             Self::ResetTuning { key } => {
-                let value =
-                    klipper.tuning.get(key).ok_or_else(|| format!("{} is not in the configuration", key.id()))?;
+                let value = setup.tuning.get(key).ok_or_else(|| format!("{} is not in the configuration", key.id()))?;
                 vec![Self::SetTuning { key, value }]
             }
             Self::StepHeater { heater, step } => {
@@ -314,84 +283,58 @@ impl Command {
         Ok(commands)
     }
 
-    /// Translates the command; `motion` provides the current position for clamped moves.
-    /// `None` if the command would have no effect in the current state.
+    /// The call of the source that carries out this command; `motion` provides the current position for clamped
+    /// moves. `None` if the command would have no effect in the current state.
     pub fn to_call(&self, motion: &Motion) -> Option<Call> {
         let call = match self {
-            Self::StartPrint { filename } => Call::with("printer.print.start", json!({ "filename": filename })),
-            Self::PausePrint => Call::new("printer.print.pause"),
-            Self::ResumePrint => Call::new("printer.print.resume"),
-            Self::CancelPrint => Call::new("printer.print.cancel"),
-            Self::Home { x, y, z } => Call::gcode(home_gcode(*x, *y, *z)),
-            Self::Jog { axis, distance } => Call::gcode(jog_gcode(motion, *axis, *distance)?),
-            Self::DisableMotors => Call::gcode("M84"),
-            Self::QuadGantryLevel => Call::gcode("QUAD_GANTRY_LEVEL"),
-            Self::ZTiltAdjust => Call::gcode("Z_TILT_ADJUST"),
-            Self::SetHeaterTarget { heater, target } => Call::gcode(heater_gcode(heater, target.max(0.0))),
-            Self::SetFanSpeed { fan, speed } => Call::gcode(fan_gcode(fan, speed.clamp(0.0, 1.0))?),
+            // Klipper
+            Self::StartPrint { filename } => klipper::start_print(filename),
+            Self::PausePrint => klipper::pause_print(),
+            Self::ResumePrint => klipper::resume_print(),
+            Self::CancelPrint => klipper::cancel_print(),
+            Self::EmergencyStop => klipper::emergency_stop(),
+            Self::RestartKlipper => klipper::restart(),
+            Self::FirmwareRestart => klipper::firmware_restart(),
+            Self::Home { x, y, z } => run_gcode(klipper::home(*x, *y, *z)),
+            Self::Jog { axis, distance } => run_gcode(klipper::jog(motion, *axis, *distance)?),
+            Self::DisableMotors => run_gcode(klipper::DISABLE_MOTORS),
+            Self::QuadGantryLevel => run_gcode(klipper::QUAD_GANTRY_LEVEL),
+            Self::ZTiltAdjust => run_gcode(klipper::Z_TILT_ADJUST),
+            Self::SetHeaterTarget { heater, target } => run_gcode(klipper::heater_target(heater, *target)),
+            Self::SetFanSpeed { fan, speed } => run_gcode(klipper::fan_speed(fan, *speed)?),
             Self::SetLed { led, red, green, blue, white } => {
-                let channel = |value: &f64| format!("{:.2}", value.clamp(0.0, 1.0));
-                Call::gcode(format!(
-                    "SET_LED LED={} RED={} GREEN={} BLUE={} WHITE={} SYNC=0",
-                    instance(led),
-                    channel(red),
-                    channel(green),
-                    channel(blue),
-                    channel(white)
-                ))
+                run_gcode(klipper::set_led(led, [*red, *green, *blue, *white]))
             }
-            Self::SetLedEffect { effect, on: true } => Call::gcode(format!("SET_LED_EFFECT EFFECT={effect}")),
-            Self::SetLedEffect { effect, on: false } => Call::gcode(format!("SET_LED_EFFECT EFFECT={effect} STOP=1")),
-            Self::SetTuning { key, value } => Call::gcode(key.gcode(*value)),
-            Self::AdjustZOffset { delta } => {
-                Call::gcode(format!("SET_GCODE_OFFSET Z_ADJUST={} MOVE=1", number(*delta)))
-            }
-            Self::ResetZOffset => Call::gcode("SET_GCODE_OFFSET Z=0 MOVE=1"),
-            Self::ApplyZOffsetToProbe => Call::gcode("Z_OFFSET_APPLY_PROBE"),
-            Self::ApplyZOffsetToEndstop => Call::gcode("Z_OFFSET_APPLY_ENDSTOP"),
-            Self::SetSpeedFactor { percent } => Call::gcode(format!("M220 S{}", percent.max(1.0).round())),
-            Self::SaveConfig => Call::gcode("SAVE_CONFIG"),
-            Self::Extrude { length, speed } => {
-                Call::gcode(format!("M83\nG1 E{} F{}", number(*length), number(speed.abs() * 60.0)))
-            }
-            Self::RunMacro { name } => Call::gcode(name.clone()),
-            Self::RunGcode { script } => Call::gcode(script.clone()),
-            Self::ExcludeObject { name } => Call::gcode(exclude_object_gcode(name)?),
-            Self::MmuSelectGate { gate } => Call::gcode(format!("MMU_SELECT GATE={gate}")),
-            Self::MmuLoad => Call::gcode("MMU_LOAD"),
-            Self::MmuUnload => Call::gcode("MMU_UNLOAD"),
-            Self::MmuEject { gate: Some(gate) } => Call::gcode(format!("MMU_EJECT GATE={gate}")),
-            Self::MmuEject { gate: None } => Call::gcode("MMU_EJECT"),
-            Self::MmuHome => Call::gcode("MMU_HOME"),
-            Self::MmuRecover => Call::gcode("MMU_RECOVER"),
-            Self::MmuUnlock => Call::gcode("MMU_UNLOCK"),
-            Self::AssignGateSpool { gate, spool_id } => {
-                Call::gcode(format!("MMU_GATE_MAP GATE={gate} SPOOLID={}", spool_id.map_or(-1, i64::from)))
-            }
-            Self::SetActiveSpool { spool_id } => {
-                Call::with("server.spoolman.post_spool_id", json!({ "spool_id": spool_id }))
-            }
-            Self::MeasureSpool { spool_id, weight } => Call::with(
-                "server.spoolman.proxy",
-                json!({
-                    "request_method": "PUT",
-                    "path": format!("/v1/spool/{spool_id}/measure"),
-                    "body": { "weight": weight },
-                    "use_v2_response": true
-                }),
-            ),
-            Self::EmergencyStop => Call::new("printer.emergency_stop"),
-            Self::RestartKlipper => Call::new("printer.restart"),
-            Self::FirmwareRestart => Call::new("printer.firmware_restart"),
-            Self::SetPowerDevice { device, on } => Call::with(
-                "machine.device_power.post_device",
-                json!({ "device": device, "action": if *on { "on" } else { "off" } }),
-            ),
-            Self::RestartService { service } => Call::with("machine.services.restart", json!({ "service": service })),
-            Self::RebootHost => Call::new("machine.reboot"),
-            Self::ShutdownHost => Call::new("machine.shutdown"),
-            Self::RefreshUpdates => Call::new("machine.update.refresh"),
-            Self::Upgrade { name } => Call::with("machine.update.upgrade", json!({ "name": name })),
+            Self::SetTuning { key, value } => run_gcode(key.gcode(*value)),
+            Self::AdjustZOffset { delta } => run_gcode(klipper::adjust_z_offset(*delta)),
+            Self::ResetZOffset => run_gcode(klipper::RESET_Z_OFFSET),
+            Self::ApplyZOffsetToProbe => run_gcode(klipper::APPLY_Z_OFFSET_TO_PROBE),
+            Self::ApplyZOffsetToEndstop => run_gcode(klipper::APPLY_Z_OFFSET_TO_ENDSTOP),
+            Self::SetSpeedFactor { percent } => run_gcode(klipper::speed_factor(*percent)),
+            Self::SaveConfig => run_gcode(klipper::SAVE_CONFIG),
+            Self::Extrude { length, speed } => run_gcode(klipper::extrude(*length, *speed)),
+            Self::RunMacro { name } => run_gcode(name.clone()),
+            Self::RunGcode { script } => run_gcode(script.clone()),
+            Self::ExcludeObject { name } => run_gcode(klipper::exclude_object(name)?),
+            // Klipper plugins
+            Self::SetLedEffect { effect, on } => run_gcode(led_effect::set_effect(effect, *on)),
+            Self::MmuSelectGate { gate } => run_gcode(mmu::select_gate(*gate)),
+            Self::MmuLoad => run_gcode(mmu::LOAD),
+            Self::MmuUnload => run_gcode(mmu::UNLOAD),
+            Self::MmuEject { gate } => run_gcode(mmu::eject(*gate)),
+            Self::MmuHome => run_gcode(mmu::HOME),
+            Self::MmuRecover => run_gcode(mmu::RECOVER),
+            Self::MmuUnlock => run_gcode(mmu::UNLOCK),
+            Self::AssignGateSpool { gate, spool_id } => run_gcode(mmu::assign_gate_spool(*gate, *spool_id)),
+            // Moonraker's components
+            Self::SetActiveSpool { spool_id } => spoolman::set_active_spool(*spool_id),
+            Self::MeasureSpool { spool_id, weight } => spoolman::measure_spool(*spool_id, *weight),
+            Self::SetPowerDevice { device, on } => power::switch_device(device, *on),
+            Self::RestartService { service } => machine::restart_service(service),
+            Self::RebootHost => machine::reboot(),
+            Self::ShutdownHost => machine::shutdown(),
+            Self::RefreshUpdates => update_manager::refresh(),
+            Self::Upgrade { name } => update_manager::upgrade(name),
             // Intents are resolved before; none of them is a call of its own.
             Self::Level
             | Self::StepHeater { .. }
@@ -439,56 +382,10 @@ impl Command {
     }
 }
 
-fn home_gcode(x: bool, y: bool, z: bool) -> String {
-    if x && y && z || !(x || y || z) {
-        return "G28".to_owned();
-    }
-    let axes: Vec<&str> = [(x, "X"), (y, "Y"), (z, "Z")]
-        .into_iter()
-        .filter_map(|(selected, letter)| selected.then_some(letter))
-        .collect();
-    format!("G28 {}", axes.join(" "))
-}
-
-/// `EXCLUDE_OBJECT` reads the name up to the next space, so names with spaces cannot be excluded.
-fn exclude_object_gcode(name: &str) -> Option<String> {
-    (!name.is_empty() && !name.contains(char::is_whitespace)).then(|| format!("EXCLUDE_OBJECT NAME={name}"))
-}
-
-fn jog_gcode(motion: &Motion, axis: Axis, distance: f64) -> Option<String> {
-    let index = axis.index();
-    let current = motion.position[index];
-    let (minimum, maximum) = (motion.axis_minimum[index], motion.axis_maximum[index]);
-    let target = if maximum > minimum { (current + distance).clamp(minimum, maximum) } else { current + distance };
-    if (target - current).abs() < 1e-6 {
-        return None;
-    }
-    let speed = if axis == Axis::Z { JOG_SPEED_Z } else { JOG_SPEED_XY };
-    Some(format!("G90\nG1 {}{} F{}", axis.letter(), number(target), number(speed * 60.0)))
-}
-
-/// G-code for a target temperature, matching the kind of heater.
-fn heater_gcode(heater: &str, target: f64) -> String {
-    let target = number(target);
-    match heater.split_once(' ') {
-        None if heater == "extruder" => format!("M104 S{target}"),
-        None if heater == "heater_bed" => format!("M140 S{target}"),
-        Some(("temperature_fan", name)) => format!("SET_TEMPERATURE_FAN_TARGET TEMPERATURE_FAN={name} TARGET={target}"),
-        Some((_, name)) => format!("SET_HEATER_TEMPERATURE HEATER={name} TARGET={target}"),
-        None => format!("SET_HEATER_TEMPERATURE HEATER={heater} TARGET={target}"),
-    }
-}
-
-/// Number without redundant decimal places, the way Klipper likes it.
-fn number(value: f64) -> String {
-    let rounded = (value * 10_000.0).round() / 10_000.0;
-    let text = format!("{rounded:.4}");
-    text.trim_end_matches('0').trim_end_matches('.').to_owned()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn motion_at(position: [f64; 4]) -> Motion {
         Motion {
@@ -506,83 +403,33 @@ mod tests {
     }
 
     #[test]
-    fn homing_selects_axes() {
-        assert_eq!(script(Command::Home { x: true, y: true, z: false }), "G28 X Y");
-        assert_eq!(script(Command::Home { x: true, y: true, z: true }), "G28");
-        assert_eq!(script(Command::Home { x: false, y: false, z: true }), "G28 Z");
-    }
-
-    #[test]
-    fn happy_hare_commands_use_the_documented_parameters() {
-        assert_eq!(script(Command::MmuSelectGate { gate: 3 }), "MMU_SELECT GATE=3");
-        assert_eq!(script(Command::MmuLoad), "MMU_LOAD");
-        assert_eq!(script(Command::MmuUnload), "MMU_UNLOAD");
-        assert_eq!(script(Command::MmuEject { gate: None }), "MMU_EJECT");
-        assert_eq!(script(Command::MmuEject { gate: Some(1) }), "MMU_EJECT GATE=1");
-        assert_eq!(script(Command::MmuHome), "MMU_HOME");
-        assert_eq!(script(Command::MmuRecover), "MMU_RECOVER");
-        assert_eq!(script(Command::MmuUnlock), "MMU_UNLOCK");
-    }
-
-    #[test]
-    fn exclude_object_names_the_object() {
-        let exclude = |name: &str| Command::ExcludeObject { name: name.into() };
-        assert_eq!(script(exclude("Benchy_0")), "EXCLUDE_OBJECT NAME=Benchy_0");
-        assert_eq!(exclude("Part 2").to_call(&motion_at([0.0; 4])), None);
-        assert_eq!(exclude("").to_call(&motion_at([0.0; 4])), None);
-    }
-
-    #[test]
-    fn jog_is_clamped_to_axis_limits() {
-        assert_eq!(script(Command::Jog { axis: Axis::X, distance: -50.0 }), "G90\nG1 X0 F6000");
-        assert_eq!(script(Command::Jog { axis: Axis::Z, distance: 0.1 }), "G90\nG1 Z5.1 F600");
-        let at_minimum = motion_at([0.0, 0.0, 0.0, 0.0]);
-        assert_eq!(Command::Jog { axis: Axis::X, distance: -1.0 }.to_call(&at_minimum), None);
-    }
-
-    #[test]
-    fn heater_targets_use_matching_gcode() {
-        assert_eq!(script(Command::SetHeaterTarget { heater: "extruder".into(), target: 210.0 }), "M104 S210");
-        assert_eq!(script(Command::SetHeaterTarget { heater: "heater_bed".into(), target: -5.0 }), "M140 S0");
-        assert_eq!(
-            script(Command::SetHeaterTarget { heater: "heater_generic chamber".into(), target: 45.5 }),
-            "SET_HEATER_TEMPERATURE HEATER=chamber TARGET=45.5"
-        );
-        assert_eq!(
-            script(Command::SetHeaterTarget { heater: "temperature_fan nevermore".into(), target: 40.0 }),
-            "SET_TEMPERATURE_FAN_TARGET TEMPERATURE_FAN=nevermore TARGET=40"
-        );
-        assert_eq!(
-            script(Command::SetHeaterTarget { heater: "extruder1".into(), target: 200.0 }),
-            "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=200"
-        );
-    }
-
-    #[test]
-    fn tuning_and_extrusion_commands() {
-        assert_eq!(script(Command::AdjustZOffset { delta: -0.005 }), "SET_GCODE_OFFSET Z_ADJUST=-0.005 MOVE=1");
-        assert_eq!(script(Command::SetFanSpeed { fan: "fan".into(), speed: 0.5 }), "M106 S128");
-        assert_eq!(
-            script(Command::SetFanSpeed { fan: "fan_generic nevermore".into(), speed: 0.4 }),
-            "SET_FAN_SPEED FAN=nevermore SPEED=0.40"
-        );
-        assert_eq!(
-            Command::SetFanSpeed { fan: "heater_fan hotend".into(), speed: 1.0 }.to_call(&Motion::default()),
-            None
-        );
-        assert_eq!(script(Command::SetSpeedFactor { percent: 110.0 }), "M220 S110");
-        assert_eq!(script(Command::Extrude { length: -10.0, speed: 5.0 }), "M83\nG1 E-10 F300");
-    }
-
-    #[test]
-    fn rpc_commands_carry_parameters() {
+    fn each_command_reaches_its_source() {
         let motion = Motion::default();
-        let start = Command::StartPrint { filename: "a/b.gcode".into() }.to_call(&motion).unwrap();
-        let power = Command::SetPowerDevice { device: "printer".into(), on: false }.to_call(&motion).unwrap();
+        let method = |command: Command| command.to_call(&motion).unwrap().method;
 
-        assert_eq!(start, Call::with("printer.print.start", json!({ "filename": "a/b.gcode" })));
-        assert_eq!(power.params.unwrap(), json!({ "device": "printer", "action": "off" }));
-        assert_eq!(Command::EmergencyStop.to_call(&motion).unwrap().method, "printer.emergency_stop");
+        assert_eq!(script(Command::Jog { axis: Axis::Z, distance: 0.1 }), "G90\nG1 Z5.1 F600");
+        assert_eq!(script(Command::MmuEject { gate: Some(1) }), "MMU_EJECT GATE=1");
+        assert_eq!(
+            script(Command::SetLedEffect { effect: "rainbow".into(), on: false }),
+            "SET_LED_EFFECT EFFECT=rainbow STOP=1"
+        );
+        assert_eq!(script(Command::RunMacro { name: "PARK".into() }), "PARK");
+        assert_eq!(method(Command::StartPrint { filename: "a.gcode".into() }), "printer.print.start");
+        assert_eq!(method(Command::SetActiveSpool { spool_id: None }), "server.spoolman.post_spool_id");
+        assert_eq!(
+            method(Command::SetPowerDevice { device: "printer".into(), on: true }),
+            "machine.device_power.post_device"
+        );
+        assert_eq!(method(Command::RebootHost), "machine.reboot");
+        assert_eq!(method(Command::Upgrade { name: "klipper".into() }), "machine.update.upgrade");
+    }
+
+    #[test]
+    fn commands_without_effect_are_not_sent() {
+        let at_minimum = motion_at([0.0; 4]);
+        assert_eq!(Command::Jog { axis: Axis::X, distance: -1.0 }.to_call(&at_minimum), None);
+        assert_eq!(Command::ExcludeObject { name: "Part 2".into() }.to_call(&at_minimum), None);
+        assert_eq!(Command::SetFanSpeed { fan: "heater_fan hotend".into(), speed: 1.0 }.to_call(&at_minimum), None);
     }
 
     fn printer(objects: &[&str]) -> Sources {
@@ -734,21 +581,9 @@ mod tests {
     }
 
     #[test]
-    fn spool_commands_reach_moonraker_and_happy_hare() {
-        assert_eq!(script(Command::AssignGateSpool { gate: 2, spool_id: Some(18) }), "MMU_GATE_MAP GATE=2 SPOOLID=18");
-        assert_eq!(script(Command::AssignGateSpool { gate: 2, spool_id: None }), "MMU_GATE_MAP GATE=2 SPOOLID=-1");
-        let motion = Motion::default();
-        let active = Command::SetActiveSpool { spool_id: Some(18) }.to_call(&motion).unwrap();
-        assert_eq!(active, Call::with("server.spoolman.post_spool_id", json!({ "spool_id": 18 })));
-        let none = Command::SetActiveSpool { spool_id: None }.to_call(&motion).unwrap();
-        assert_eq!(none.params.unwrap(), json!({ "spool_id": null }));
-        let measure = Command::MeasureSpool { spool_id: 18, weight: 793.5 }.to_call(&motion).unwrap();
-        assert_eq!(measure.method, "server.spoolman.proxy");
-        assert_eq!(
-            measure.params.unwrap(),
-            json!({ "request_method": "PUT", "path": "/v1/spool/18/measure", "body": { "weight": 793.5 }, "use_v2_response": true })
-        );
+    fn spool_commands_make_the_spools_be_read_again() {
         assert!(Command::MeasureSpool { spool_id: 1, weight: 1.0 }.changes_spools());
+        assert!(Command::AssignGateSpool { gate: 0, spool_id: None }.changes_spools());
         assert!(!Command::PausePrint.changes_spools());
     }
 
@@ -783,18 +618,6 @@ mod tests {
         let rgb = Command::SetLight { led: "neopixel status".into(), level: 0.5 }.resolve(&sources, &status).unwrap();
         assert_eq!(script(rgb[0].clone()), "SET_LED LED=status RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.00 SYNC=0");
         assert!(Command::ToggleLight.resolve(&printer(&[]), &status).is_err());
-    }
-
-    #[test]
-    fn led_effects_start_and_stop() {
-        assert_eq!(
-            script(Command::SetLedEffect { effect: "rainbow".into(), on: true }),
-            "SET_LED_EFFECT EFFECT=rainbow"
-        );
-        assert_eq!(
-            script(Command::SetLedEffect { effect: "rainbow".into(), on: false }),
-            "SET_LED_EFFECT EFFECT=rainbow STOP=1"
-        );
     }
 
     #[test]

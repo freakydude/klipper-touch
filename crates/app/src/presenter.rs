@@ -14,14 +14,14 @@ use crate::{
 };
 use chrono::Local;
 use freakymate_core::domain::filament::{self, FilamentHandling};
+use freakymate_core::domain::file_catalog::FileCatalog;
 use freakymate_core::domain::spools::{self, Lane};
 use freakymate_core::domain::{estimates, pause};
 use freakymate_core::sources::happy_hare::{MmuGate, MmuStatus};
 use freakymate_core::sources::klipper::{offered_macros, tuning, KlippyState, Leveling, MacroDetails, MacroForm};
-use freakymate_core::sources::moonraker_server::files::{
-    FileCatalog, FileEntry, FileMetadata, FinishedJob, PrintHistory, ThumbnailImage,
-};
+use freakymate_core::sources::moonraker_server::files::{FileEntry, FileMetadata, ThumbnailImage};
 use freakymate_core::sources::moonraker_server::gcode_store::{ConsoleKind, ConsoleLine};
+use freakymate_core::sources::moonraker_server::history::{FinishedJob, PrintHistory};
 use freakymate_core::sources::spoolman::{Spool, SpoolmanState};
 use freakymate_core::sources::PrinterStatus;
 use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};

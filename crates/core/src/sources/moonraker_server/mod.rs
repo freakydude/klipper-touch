@@ -3,6 +3,7 @@
 
 pub mod files;
 pub mod gcode_store;
+pub mod history;
 pub mod machine;
 pub mod power;
 pub mod server_info;

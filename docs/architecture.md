@@ -18,7 +18,7 @@ flowchart LR
     end
     subgraph core [crates/core – freakymate-core]
         SVC[service.rs<br/>PrinterService, only collects]
-        CMD[commands.rs<br/>Command → Call]
+        CMD[commands.rs<br/>Command → source]
         DOM[domain/*<br/>questions across sources]
         SRC[sources/*<br/>one module per origin]
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
@@ -35,6 +35,7 @@ flowchart LR
     P --> DOM
     S --> SET
     SVC --> CMD --> DOM --> SRC
+    CMD --> SRC
     SVC --> SRC
     SVC --> MR --> M
     F -. replaces in tests .-> M
@@ -62,16 +63,20 @@ nothing is loaded at runtime or can be switched off. What is detected is used.
 | Service     | `service.rs`, `commands.rs`             | Collects, publishes `Snapshot`s and `Event`s, resolves and sends commands.       |
 
 Sources: `klipper/` (Klipper's own objects, configuration, macros, tuning values), `moonraker_server/` (files, job
-history, power, update manager, temperature and console stores, host information), `happy_hare.rs`, `spoolman.rs`,
+history, power, update manager, temperature and console stores, host information), `happy_hare/`, `spoolman.rs`,
 `led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,
 `UNLOAD_FILAMENT`). `Sources` (`sources/mod.rs`) holds what was detected, each optional source as `Option` or an empty
 list, its variety as data (gates, sensors, LEDs). `PrinterStatus` is the state of all printer objects, Klipper's and
 those of its plugins. Happy Hare counts only while it is enabled and at least version 4.1
-(`PrinterStatus::happy_hare`); every rule that depends on it asks there.
+(`PrinterStatus::happy_hare`); every rule that depends on it asks there. Each source also knows what it is told:
+Klipper's methods and G-code in `klipper/commands.rs`, Happy Hare's in `happy_hare/commands.rs`, the others beside
+their reader (`led_effect.rs`, `spoolman.rs`, `moonraker_server/power.rs`, `machine.rs`, `update_manager.rs`). G-code
+of every source reaches Klipper through `klipper::commands::run_gcode`.
 
 Domain: `filament.rs` (what Load and Unload run, which filament sensors belong to the printer), `pause.rs` (what is
 known about a pause, planning a pause at a layer), `spools.rs` (lanes, hints before a print), `estimates.rs` (print
-time, weight, layers, flow; measured before estimated, see `sourced.rs`).
+time, weight, layers, flow; measured before estimated, see `sourced.rs`), `file_catalog.rs` (the file list joined
+with metadata, last completed print and its spool).
 
 ## Data flow
 
@@ -80,7 +85,7 @@ time, weight, layers, flow; measured before estimated, see `sourced.rs`).
    adds (`Sources::subscription`). The parameters of the macros are read once from `configfile.settings` at that point
    (`Sources::apply_settings`); the configuration only changes with a restart, which subscribes again.
 2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view
-   (heaters, motion, job, objects to exclude, and Happy Hare in `sources/happy_hare.rs`: gates, sensors, buffer,
+   (heaters, motion, job, objects to exclude, and Happy Hare in `sources/happy_hare/`: gates, sensors, buffer,
    FlowGuard). Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
@@ -90,8 +95,9 @@ time, weight, layers, flow; measured before estimated, see `sourced.rs`).
    (`domain::spools::lanes`: a gate each while Happy Hare has the say, otherwise the one active spool) are what the
    screens and the hints before a print are built from.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
-   `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` translates the
-   result into G-code or Moonraker methods; moves are clamped to the axis range. Heater targets that were sent but not
+   `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` hands the
+   result to the source that carries it out, which builds the G-code or Moonraker call; moves are clamped to the
+   axis range. Heater targets that were sent but not
    yet reported back are kept by the service and shown in the next `Snapshot`. Commands go onto the wire in the order they were
    sent (`Connection::start_call`); only the replies are awaited concurrently. A task per command would let two taps
    overtake each other, and a heater target is absolute.
@@ -137,8 +143,9 @@ time, weight, layers, flow; measured before estimated, see `sourced.rs`).
 
 ## Extending
 
-- **New command**: variant in `Command` + translation in `to_call` (or, if what the printer has decides what it
-  means, an intent resolved in `Command::resolve`) + test; callback in `state.slint` (`Actions`),
+- **New command**: variant in `Command`, its G-code or call in the module of its source (with a test) and one line
+  in `to_call` that hands it there (or, if what the printer has decides what it means, an intent resolved in
+  `Command::resolve`); callback in `state.slint` (`Actions`),
   wiring in `actions.rs`, control on the page.
 - **New source** (a plugin, a Moonraker component, a macro convention): its own module in `sources/` with detection
   (a field in `Sources`, `Option` or a list), its objects in `Sources::subscription`, its reader and tests; property

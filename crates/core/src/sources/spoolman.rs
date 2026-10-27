@@ -1,7 +1,8 @@
 //! Spoolman, through Moonraker's `spoolman` component: the spools, the active spool and the connection state. Where
 //! the spools sit in the printer is answered in [`crate::domain::spools`].
 
-use serde_json::Value;
+use crate::moonraker::Call;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 
 /// A spool with less than this share of its start weight left is flagged.
@@ -152,6 +153,24 @@ pub fn parse_spool_list(value: &Value) -> Vec<Spool> {
     value.as_array().map(|spools| spools.iter().filter_map(Spool::from_json).collect()).unwrap_or_default()
 }
 
+/// The spool Moonraker tracks the filament use of; `None` for none.
+pub fn set_active_spool(spool_id: Option<u32>) -> Call {
+    Call::with("server.spoolman.post_spool_id", json!({ "spool_id": spool_id }))
+}
+
+/// Sets the weight of a spool from a measurement; `weight` is the gross weight of the spool in grams.
+pub fn measure_spool(spool_id: u32, weight: f64) -> Call {
+    Call::with(
+        "server.spoolman.proxy",
+        json!({
+            "request_method": "PUT",
+            "path": format!("/v1/spool/{spool_id}/measure"),
+            "body": { "weight": weight },
+            "use_v2_response": true
+        }),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,5 +293,17 @@ mod tests {
         // 1 m of 1.75 mm ABS+ (1.04 g/cm³) weighs about 2.5 g.
         assert!((spool.weight_of_length(1000.0).unwrap() - 2.5).abs() < 0.01);
         assert_eq!(Spool { diameter: None, ..spool }.weight_of_length(1000.0), None);
+    }
+
+    #[test]
+    fn spool_commands_go_through_moonrakers_component() {
+        assert_eq!(set_active_spool(Some(18)), Call::with("server.spoolman.post_spool_id", json!({ "spool_id": 18 })));
+        assert_eq!(set_active_spool(None).params.unwrap(), json!({ "spool_id": null }));
+        let measure = measure_spool(18, 793.5);
+        assert_eq!(measure.method, "server.spoolman.proxy");
+        assert_eq!(
+            measure.params.unwrap(),
+            json!({ "request_method": "PUT", "path": "/v1/spool/18/measure", "body": { "weight": 793.5 }, "use_v2_response": true })
+        );
     }
 }

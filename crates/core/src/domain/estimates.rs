@@ -3,7 +3,8 @@
 
 use crate::sourced::{prefer_measured, Sourced};
 use crate::sources::klipper::PrintJob;
-use crate::sources::moonraker_server::files::{FileMetadata, LastPrint};
+use crate::sources::moonraker_server::files::FileMetadata;
+use crate::sources::moonraker_server::history::LastPrint;
 use crate::sources::spoolman::Spool;
 
 /// How much the expected print time counts against what has been observed so far, as a fraction of the expected

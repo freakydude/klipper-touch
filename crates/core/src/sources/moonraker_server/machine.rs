@@ -1,6 +1,7 @@
-//! Moonraker's `machine` component: what it reports about the printer host (read-only).
+//! Moonraker's `machine` component: what it reports about the printer host, and restarting its services or the host.
 
-use serde_json::Value;
+use crate::moonraker::Call;
+use serde_json::{json, Value};
 
 /// Network interface of the printer host as reported by Moonraker (read-only).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -44,10 +45,21 @@ pub fn parse_host_network(result: &Value) -> Vec<HostInterface> {
     interfaces
 }
 
+pub fn restart_service(service: &str) -> Call {
+    Call::with("machine.services.restart", json!({ "service": service }))
+}
+
+pub fn reboot() -> Call {
+    Call::new("machine.reboot")
+}
+
+pub fn shutdown() -> Call {
+    Call::new("machine.shutdown")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn reads_host_network_without_link_local_addresses() {
