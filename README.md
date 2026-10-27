@@ -340,9 +340,11 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
 
 - Versions come from git tags (`.github/scripts/version.sh`): releases are `vX.Y.0`, every later commit on `main` adds
   one to the patch number (`0.2.1`, `0.2.2`, ...). Pull request builds are `X.Y.Z-pr.<number>.<run>`, other branches
-  `X.Y.Z-dev.<commit>`, local builds `0.0.0-dev`. The version is shown on the Settings page and by `--version`.
-- Every push and pull request: format, clippy, tests, builds and packages for all targets (`.github/workflows/ci.yml`),
-  with cargo caching. The packages are attached to the run as artifact `packages-<version>`; pull requests get a
+  `X.Y.Z-dev.<commit>` (started manually), local builds `0.0.0-dev`. The version is shown on the Settings page and by
+  `--version`.
+- Every push to `main` and every pull request: format, clippy, tests, builds and packages for all targets
+  (`.github/workflows/ci.yml`), with cargo caching; a branch without a pull request can be built with **Run workflow**.
+  A newer commit cancels the running build of the same branch or pull request. The packages are attached to the run as artifact `packages-<version>`; pull requests get a
   comment with the download link, so an open pull request can be tried before it is merged.
 - Every push to `main` is published as prerelease `vX.Y.Z`, replacing the previous prerelease. Moonraker offers it on
   the `beta` channel.

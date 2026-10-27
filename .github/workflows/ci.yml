@@ -1,18 +1,20 @@
 name: CI
 
-# Every push and pull request: tests, builds and packages for all platforms (artifact "packages-<version>").
+# Every push to main and every pull request: tests, builds and packages for all platforms (artifact "packages-<version>").
 # Pull requests get a comment with the download link; every push to main is published as prerelease
 # vX.Y.<commits since the last release>, replacing the previous prerelease. Releases: workflow "Release".
+# Branches without a pull request: start the workflow manually ("Run workflow").
 on:
   push:
-    branches: ["**"]
+    # Only main: a branch push with an open pull request would otherwise run twice (push and pull_request).
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Runs on main are queued, so prereleases are published in commit order.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # A newer commit replaces the running build, also on main: each prerelease replaces all older ones anyway.
+  cancel-in-progress: true
 
 permissions:
   contents: read
