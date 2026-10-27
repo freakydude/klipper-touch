@@ -30,6 +30,8 @@ component ExtruderTab inherits Rectangle {
                 Card {
                     title: @tr("Nozzle");
                     icon: Icons.thermal-nozzle;
+                    tappable: true;
+                    clicked => { Navigation.show-heaters(); }
                     HorizontalLayout {
                         spacing: Theme.spacing;
                         Text {

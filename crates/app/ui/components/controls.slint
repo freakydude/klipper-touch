@@ -205,8 +205,16 @@ export component StepSelector inherits HorizontalLayout {
 export component Card inherits Rectangle {
     in property <string> title;
     in property <image> icon;
+    // A tap on free space of the card calls `clicked`; its own buttons lie above and keep their taps.
+    in property <bool> tappable;
+    callback clicked;
     background: Theme.surface;
     border-radius: Theme.radius;
+
+    TouchArea {
+        enabled: root.tappable;
+        clicked => { root.clicked(); }
+    }
 
     VerticalLayout {
         padding: Theme.padding;
@@ -242,7 +250,11 @@ export component ValueTile inherits Rectangle {
     in property <bool> show-icon: true;
     // Share of the width among tiles side by side (4 and 5: four to five).
     in property <float> weight: 1;
-    background: Theme.surface;
+    // A tile that opens something on a tap shows a small muted icon at its right edge.
+    in property <image> action-icon;
+    in property <bool> enabled-action;
+    callback clicked;
+    background: tile-touch.pressed ? Theme.surface-raised : Theme.surface;
     border-radius: Theme.radius;
     min-height: 52px;
     // The width of tiles side by side follows their `weight` only (default: equal), never their text:
@@ -250,6 +262,11 @@ export component ValueTile inherits Rectangle {
     horizontal-stretch: root.weight;
     preferred-width: 0px;
     min-width: 0px;
+
+    tile-touch := TouchArea {
+        enabled: root.enabled-action;
+        clicked => { root.clicked(); }
+    }
 
     HorizontalLayout {
         padding: 6px;
@@ -263,6 +280,7 @@ export component ValueTile inherits Rectangle {
         }
         VerticalLayout {
             alignment: center;
+            horizontal-stretch: 1;
             Text {
                 text: root.label;
                 color: Theme.muted;
@@ -277,6 +295,13 @@ export component ValueTile inherits Rectangle {
                 font-weight: 600;
                 overflow: elide;
             }
+        }
+        if root.enabled-action && root.action-icon.width > 0: Image {
+            cross-axis-self-alignment: center;
+            source: root.action-icon;
+            colorize: Theme.muted;
+            width: 18px;
+            height: 18px;
         }
     }
 }

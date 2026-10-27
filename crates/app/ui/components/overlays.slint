@@ -587,6 +587,115 @@ export component ExcludeObjectsDialog inherits Scrim {
     }
 }
 
+// Plans a pause at a layer with Mainsail's macros. Whether a pause is planned is not shown: the macros keep the plan,
+// and another client may change it.
+export component LayerPauseDialog inherits Scrim {
+    property <bool> shown;
+    property <int> layer;
+    property <int> first-layer: Printer.current-layer + 1;
+    // Without a reported total the layer has no upper limit.
+    property <int> last-layer: Printer.total-layers > 0 ? Printer.total-layers : 999999;
+    visible: root.shown && (Printer.layer-pause-next || Printer.layer-pause-at);
+
+    public function open() {
+        root.layer = min(root.first-layer, root.last-layer);
+        root.shown = true;
+    }
+
+    function step(delta: int) {
+        root.layer = max(min(root.first-layer, root.last-layer), min(root.last-layer, root.layer + delta));
+    }
+
+    Rectangle {
+        width: min(parent.width - 16px, 520px);
+        height: content.preferred-height;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.surface;
+        border-radius: Theme.radius;
+
+        content := VerticalLayout {
+            padding: 12px;
+            spacing: Theme.spacing;
+            Text {
+                text: @tr("Pause at a layer");
+                color: Theme.foreground;
+                font-size: Theme.font-large;
+            }
+            Text {
+                text: Printer.total-layers > 0 ? @tr("Now at layer {} of {}", Printer.current-layer, Printer.total-layers) : @tr("Now at layer {}", Printer.current-layer);
+                color: Theme.muted;
+                font-size: Theme.font-small;
+            }
+            if Printer.layer-pause-next: IconButton {
+                icon: Icons.print-pause;
+                text: @tr("At the next layer");
+                horizontal: true;
+                clicked => {
+                    Actions.pause-at-next-layer();
+                    root.shown = false;
+                }
+            }
+            if Printer.layer-pause-at: HorizontalLayout {
+                spacing: Theme.spacing;
+                IconButton {
+                    text: "−10";
+                    clicked => { root.step(-10); }
+                }
+                IconButton {
+                    icon: Icons.ui-minus;
+                    clicked => { root.step(-1); }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.layer;
+                    color: Theme.foreground;
+                    font-size: Theme.font-large;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                IconButton {
+                    icon: Icons.ui-plus;
+                    clicked => { root.step(1); }
+                }
+                IconButton {
+                    text: "+10";
+                    clicked => { root.step(10); }
+                }
+            }
+            if Printer.layer-pause-at: IconButton {
+                icon: Icons.print-pause;
+                text: @tr("At layer {}", root.layer);
+                horizontal: true;
+                kind: "accent";
+                clicked => {
+                    Actions.pause-at-layer(root.layer);
+                    root.shown = false;
+                }
+            }
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                IconButton {
+                    icon: Icons.ui-delete;
+                    text: @tr("Clear planned pause");
+                    horizontal: true;
+                    clicked => {
+                        Actions.clear-layer-pause();
+                        root.shown = false;
+                    }
+                }
+                IconButton {
+                    icon: Icons.ui-close;
+                    text: @tr("Close");
+                    horizontal: true;
+                    clicked => { root.shown = false; }
+                }
+            }
+        }
+    }
+}
+
 // Picks a spool of Spoolman for the gate (or, without MMU, as the active spool), weighs it, or takes it out of the gate.
 // The list shows the spools in a lane first, then the most recently used ones.
 export component SpoolDialog inherits Scrim {

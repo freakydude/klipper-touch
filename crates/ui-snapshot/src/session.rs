@@ -208,6 +208,11 @@ impl Session {
         self.pump(Duration::from_millis(30));
     }
 
+    /// The layout is the 800x480 one that fixed tap positions refer to: fitted to the display, or that size itself.
+    pub fn has_reference_layout(&self) -> bool {
+        self.options.fit || (self.options.width, self.options.height) == (800, 480)
+    }
+
     pub fn show_page(&mut self, page: Page, name: &str) -> Result<(), String> {
         self.window.global::<Navigation>().set_page(page);
         self.capture(name)

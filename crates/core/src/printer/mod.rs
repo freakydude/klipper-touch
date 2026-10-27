@@ -5,6 +5,7 @@ mod devices;
 mod macros;
 mod mmu;
 mod objects;
+mod pause;
 mod pending;
 mod status;
 mod subscription;
@@ -20,6 +21,10 @@ pub use mmu::{
     LoadedFilament, MmuGate, MmuSensor, MmuStatus, PathSensor, SyncFeedback, SyncFeedbackState,
 };
 pub use objects::ObjectStore;
+pub use pause::{
+    interruption, layer_pause_offer, Interruption, InterruptionFact, LayerPauseOffer, PAUSE_AT_LAYER_MACRO,
+    PAUSE_NEXT_LAYER_MACRO,
+};
 pub use pending::PendingTargets;
 pub use status::{
     label, Activity, Axis, ExtruderState, FilamentSensor, Heater, HomedAxes, KlippyState, Motion, PrintJob,

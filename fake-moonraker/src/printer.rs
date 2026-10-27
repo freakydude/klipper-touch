@@ -5,6 +5,7 @@ use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, DeviceCommand, MmuCommand, Move, RetractionChange, VelocityLimit};
 use crate::happy_hare::HappyHare;
 use crate::history::{Sample, TemperatureStore};
+use crate::layer_pause::LayerPause;
 use crate::machine::{MachineProfile, FILAMENT_SENSORS, MMU_FILAMENT_SENSORS};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
@@ -19,10 +20,24 @@ const MIN_HEATER_TEMPERATURE: f64 = 10.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
 /// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
-const MACROS: [&str; 7] =
-    ["PRINT_START", "PRINT_END", "LOAD_FILAMENT", "UNLOAD_FILAMENT", "PARK", "_PURGE_HELPER", "PAUSE"];
+const MACROS: [&str; 10] = [
+    "PRINT_START",
+    "PRINT_END",
+    "LOAD_FILAMENT",
+    "UNLOAD_FILAMENT",
+    "PARK",
+    "_PURGE_HELPER",
+    "PAUSE",
+    LAYER_PAUSE_NEXT_MACRO,
+    LAYER_PAUSE_AT_MACRO,
+    PRINT_STATS_INFO_MACRO,
+];
+/// Mainsail's layer pause macros (mainsail-config), see [`LayerPause`].
+const LAYER_PAUSE_NEXT_MACRO: &str = "SET_PAUSE_NEXT_LAYER";
+const LAYER_PAUSE_AT_MACRO: &str = "SET_PAUSE_AT_LAYER";
+const PRINT_STATS_INFO_MACRO: &str = "SET_PRINT_STATS_INFO";
 /// Templates of the macros above, so parameters and defaults can be read like on a real printer.
-const MACRO_TEMPLATES: [(&str, &str); 7] = [
+const MACRO_TEMPLATES: [(&str, &str); 10] = [
     ("PRINT_START", "{% set BED = params.BED|default(60) %}\nM140 S{BED}\nM109 S{params.EXTRUDER|default(210)}"),
     ("PRINT_END", "M104 S0\nM140 S0"),
     ("LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(230)|float %}\nM104 S{TEMP}"),
@@ -30,7 +45,15 @@ const MACRO_TEMPLATES: [(&str, &str); 7] = [
     ("PARK", "{% set Z = params.Z|default(10) %}\nG91\nG1 Z{Z}\nG90"),
     ("_PURGE_HELPER", "G1 E{params.AMOUNT|default(5)}"),
     ("PAUSE", "PAUSE_BASE"),
+    (LAYER_PAUSE_NEXT_MACRO, "{% set ENABLE = params.ENABLE|default(1)|int != 0 %}\n{% set MACRO = params.MACRO|default('PAUSE') %}"),
+    (
+        LAYER_PAUSE_AT_MACRO,
+        "{% set ENABLE = params.ENABLE|int != 0 if params.ENABLE is defined else params.LAYER is defined %}\n{% set LAYER = params.LAYER|default(0)|int %}\n{% set MACRO = params.MACRO|default('PAUSE') %}",
+    ),
+    (PRINT_STATS_INFO_MACRO, "SET_PRINT_STATS_INFO_BASE {rawparams}"),
 ];
+/// Klipper's message after a move outside the axis limits, for `FAKE_PRINT_ERROR`.
+const PRINT_ERROR_MESSAGE: &str = "Move out of range: 310.000 150.000 12.400 [482.120]";
 const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
@@ -87,7 +110,7 @@ impl PrintState {
         }
     }
 
-    fn is_active(self) -> bool {
+    pub fn is_active(self) -> bool {
         matches!(self, PrintState::Printing | PrintState::Paused)
     }
 }
@@ -192,6 +215,7 @@ pub struct Printer {
     total_duration: f64,
     job: Option<PrintJob>,
     excluded_objects: Vec<String>,
+    layer_pause: LayerPause,
     /// Simulated seconds since the last command; drives `idle_timeout.state`.
     inactive_seconds: f64,
 }
@@ -242,12 +266,35 @@ impl Printer {
             total_duration: 0.0,
             job: None,
             excluded_objects: Vec::new(),
+            layer_pause: LayerPause::default(),
             inactive_seconds: BUSY_SECONDS,
         }
     }
 
     pub fn print_state(&self) -> PrintState {
         self.print_state
+    }
+
+    /// The job as Moonraker's history records it when it ended; `None` while it runs or without a job.
+    pub fn ended_job(&self, end_time: f64) -> Option<Value> {
+        let status = match self.print_state {
+            PrintState::Complete => "completed",
+            PrintState::Cancelled => "cancelled",
+            PrintState::Error if self.klippy == KlippyState::Shutdown => "klippy_shutdown",
+            PrintState::Error => "error",
+            PrintState::Standby | PrintState::Printing | PrintState::Paused => return None,
+        };
+        Some(json!({
+            "job_id": format!("{:06X}", end_time as u64),
+            "filename": self.filename,
+            "status": status,
+            "start_time": end_time - self.total_duration,
+            "end_time": end_time,
+            "print_duration": round(self.print_duration, 2),
+            "total_duration": round(self.total_duration, 2),
+            "filament_used": round(self.filament_used(), 2),
+            "exists": true,
+        }))
     }
 
     pub fn advance(&mut self, elapsed: Duration) {
@@ -337,6 +384,8 @@ impl Printer {
             Command::SaveConfig => self.config_pending = false,
             Command::QuadGantryLevel => self.level_gantry()?,
             Command::Mmu(command) => self.apply_mmu(command)?,
+            Command::LayerPause(command) => self.layer_pause.apply(command),
+            Command::FakePrintError => self.fail_print()?,
             Command::Help | Command::Ignored => {}
         }
         Ok(())
@@ -377,8 +426,23 @@ impl Printer {
             return Err(CommandError::new("No active print job"));
         }
         self.print_state = PrintState::Cancelled;
-        self.switch_heaters_off();
+        self.end_job();
         Ok(())
+    }
+
+    fn fail_print(&mut self) -> Result<(), CommandError> {
+        if !self.print_state.is_active() {
+            return Err(CommandError::new("No active print job"));
+        }
+        self.print_state = PrintState::Error;
+        self.message = PRINT_ERROR_MESSAGE.to_owned();
+        self.end_job();
+        Ok(())
+    }
+
+    fn end_job(&mut self) {
+        self.switch_heaters_off();
+        self.layer_pause.clear();
     }
 
     pub fn emergency_stop(&mut self) {
@@ -450,6 +514,7 @@ impl Printer {
         for name in MACROS {
             objects.insert(format!("gcode_macro {name}"), json!({}));
         }
+        objects.insert(format!("gcode_macro {PRINT_STATS_INFO_MACRO}"), self.layer_pause.macro_status());
         Value::Object(objects)
     }
 
@@ -553,6 +618,9 @@ impl Printer {
             if name == "PAUSE" {
                 section["rename_existing"] = json!("BASE_PAUSE");
             }
+            if name == PRINT_STATS_INFO_MACRO {
+                section["rename_existing"] = json!("SET_PRINT_STATS_INFO_BASE");
+            }
             sections.insert(format!("gcode_macro {name}"), section);
         }
         if let Some(mmu) = &self.mmu {
@@ -646,11 +714,18 @@ impl Printer {
     fn advance_print(&mut self, seconds: f64) {
         match self.print_state {
             PrintState::Printing => {
+                let layer_before = self.layers().0;
                 self.total_duration += seconds;
                 self.print_duration += seconds;
                 if self.progress() >= 1.0 {
                     self.print_state = PrintState::Complete;
-                    self.switch_heaters_off();
+                    self.end_job();
+                } else if let (Some(before), Some(now)) = (layer_before, self.layers().0) {
+                    // The slicer's `SET_PRINT_STATS_INFO CURRENT_LAYER=` runs Mainsail's override at every layer;
+                    // a long tick of the simulation may pass several.
+                    if (before + 1..=now).any(|layer| self.layer_pause.on_layer_change(layer)) {
+                        self.print_state = PrintState::Paused;
+                    }
                 }
             }
             PrintState::Paused => self.total_duration += seconds,
@@ -942,6 +1017,34 @@ mod tests {
         printer.advance(Duration::from_secs(750));
         assert_eq!(printer.print_state(), PrintState::Complete);
         assert_eq!(printer.status()["extruder"]["target"], 0.0);
+    }
+
+    #[test]
+    fn a_planned_layer_pause_pauses_the_print_at_that_layer() {
+        let mut printer = printer();
+        let file = Catalog::demo().find("calibration_cube.gcode").unwrap().clone();
+        printer.start_print(&file).unwrap();
+        run(&mut printer, "SET_PAUSE_AT_LAYER LAYER=30").unwrap();
+        assert_eq!(printer.status()["gcode_macro SET_PRINT_STATS_INFO"]["pause_at_layer"]["enable"], true);
+
+        printer.advance(Duration::from_secs(750));
+
+        assert_eq!(printer.print_state(), PrintState::Paused);
+        assert_eq!(printer.status()["gcode_macro SET_PRINT_STATS_INFO"]["pause_at_layer"]["enable"], false);
+    }
+
+    #[test]
+    fn a_print_error_ends_the_job_with_klippers_message() {
+        let mut printer = printer();
+        let file = Catalog::demo().find("benchy.gcode").unwrap().clone();
+        printer.start_print(&file).unwrap();
+
+        run(&mut printer, "FAKE_PRINT_ERROR").unwrap();
+
+        let status = printer.status();
+        assert_eq!(status["print_stats"]["state"], "error");
+        assert_eq!(status["print_stats"]["message"], PRINT_ERROR_MESSAGE);
+        assert!(run(&mut printer, "FAKE_PRINT_ERROR").is_err());
     }
 
     #[test]

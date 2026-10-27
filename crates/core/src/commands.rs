@@ -1,13 +1,16 @@
 //! Operator commands for the printer and their translation into Moonraker calls.
 
-use crate::printer::{instance, Axis, Capabilities, FanKind, FilamentHandling, Motion, PrinterStatus, WhiteChannel};
+use crate::printer::{
+    instance, Axis, Capabilities, FanKind, FilamentHandling, Motion, PrinterStatus, WhiteChannel, PAUSE_AT_LAYER_MACRO,
+    PAUSE_NEXT_LAYER_MACRO,
+};
 use crate::tuning::TuningKey;
 use serde_json::{json, Value};
 
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 ///
 /// Some commands state an intent (`Level`, `ApplyPreset`, `CoolDown`, `StepHeater`, `ApplyZOffset`, `LoadFilament`,
-/// `UnloadFilament`); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
+/// `UnloadFilament`, the layer pauses); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
 /// [`Command::to_call`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -18,6 +21,14 @@ pub enum Command {
     PausePrint,
     ResumePrint,
     CancelPrint,
+    /// Plans a pause at the next layer change with Mainsail's macro, see [`crate::printer::layer_pause_offer`].
+    PauseAtNextLayer,
+    /// Plans a pause when the print reaches `layer`.
+    PauseAtLayer {
+        layer: u32,
+    },
+    /// Takes back a pause planned at a layer, wherever it was planned.
+    ClearLayerPause,
     // Motion
     Home {
         x: bool,
@@ -200,6 +211,7 @@ const NO_LEVELING: &str = "this printer has neither quad gantry level nor Z tilt
 const NO_LOAD_WAY: &str = "no way to load filament: no Happy Hare and no LOAD_FILAMENT macro";
 const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNLOAD_FILAMENT macro";
 const NO_LIGHT: &str = "this printer has no LED";
+const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
 /// White light: the white channel where every chip has one, the same level on every colour where none has, and both
 /// for a mixed chain, so its RGB chips light up too.
@@ -211,6 +223,15 @@ fn light(capabilities: &Capabilities, led: &str, level: f64) -> Command {
         WhiteChannel::None => (level, 0.0),
     };
     Command::SetLed { led: led.to_owned(), red: colour, green: colour, blue: colour, white }
+}
+
+/// A call of one of Mainsail's layer pause macros with documented parameters only; nothing is assumed about what the
+/// macro does inside.
+fn layer_pause(capabilities: &Capabilities, name: &str, parameters: &str) -> Result<Command, String> {
+    if !capabilities.has_macro(name) {
+        return Err(NO_LAYER_PAUSE.to_owned());
+    }
+    Ok(Command::RunGcode { script: format!("{name} {parameters}") })
 }
 
 /// `M106` for the part fan, `SET_FAN_SPEED` for a generic fan; the others cannot be set.
@@ -272,6 +293,20 @@ impl Command {
                 }
                 _ => return Err(NO_UNLOAD_WAY.to_owned()),
             },
+            Self::PauseAtNextLayer => vec![layer_pause(capabilities, PAUSE_NEXT_LAYER_MACRO, "ENABLE=1")?],
+            Self::PauseAtLayer { layer } => {
+                vec![layer_pause(capabilities, PAUSE_AT_LAYER_MACRO, &format!("ENABLE=1 LAYER={layer}"))?]
+            }
+            Self::ClearLayerPause => {
+                let commands: Vec<Command> = [PAUSE_NEXT_LAYER_MACRO, PAUSE_AT_LAYER_MACRO]
+                    .into_iter()
+                    .filter_map(|name| layer_pause(capabilities, name, "ENABLE=0").ok())
+                    .collect();
+                if commands.is_empty() {
+                    return Err(NO_LAYER_PAUSE.to_owned());
+                }
+                commands
+            }
             Self::RunGcode { script } => match script.trim() {
                 "" => Vec::new(),
                 trimmed => vec![Self::RunGcode { script: trimmed.to_owned() }],
@@ -370,7 +405,10 @@ impl Command {
             | Self::ResetTuning { .. }
             | Self::ApplyZOffset
             | Self::LoadFilament
-            | Self::UnloadFilament => return None,
+            | Self::UnloadFilament
+            | Self::PauseAtNextLayer
+            | Self::PauseAtLayer { .. }
+            | Self::ClearLayerPause => return None,
         };
         Some(call)
     }
@@ -581,6 +619,28 @@ mod tests {
         assert_eq!(resolved(Command::Level, &["quad_gantry_level", "z_tilt"]), Ok(vec![Command::QuadGantryLevel]));
         assert_eq!(resolved(Command::Level, &["z_tilt"]), Ok(vec![Command::ZTiltAdjust]));
         assert!(resolved(Command::Level, &["extruder"]).is_err());
+    }
+
+    #[test]
+    fn layer_pauses_call_mainsails_macros_with_documented_parameters_only() {
+        let both = ["gcode_macro SET_PAUSE_NEXT_LAYER", "gcode_macro SET_PAUSE_AT_LAYER"];
+        let gcode = |script: &str| Command::RunGcode { script: script.into() };
+
+        assert_eq!(resolved(Command::PauseAtNextLayer, &both), Ok(vec![gcode("SET_PAUSE_NEXT_LAYER ENABLE=1")]));
+        assert_eq!(
+            resolved(Command::PauseAtLayer { layer: 42 }, &both),
+            Ok(vec![gcode("SET_PAUSE_AT_LAYER ENABLE=1 LAYER=42")])
+        );
+        assert_eq!(
+            resolved(Command::ClearLayerPause, &both),
+            Ok(vec![gcode("SET_PAUSE_NEXT_LAYER ENABLE=0"), gcode("SET_PAUSE_AT_LAYER ENABLE=0")])
+        );
+        assert_eq!(
+            resolved(Command::ClearLayerPause, &["gcode_macro SET_PAUSE_AT_LAYER"]),
+            Ok(vec![gcode("SET_PAUSE_AT_LAYER ENABLE=0")])
+        );
+        assert!(resolved(Command::PauseAtNextLayer, &["gcode_macro SET_PAUSE_AT_LAYER"]).is_err());
+        assert!(resolved(Command::ClearLayerPause, &["extruder"]).is_err());
     }
 
     #[test]

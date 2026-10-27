@@ -7,6 +7,7 @@ pub mod gcode;
 pub mod happy_hare;
 pub mod history;
 pub mod host;
+pub mod layer_pause;
 pub mod machine;
 pub mod printer;
 pub mod server;

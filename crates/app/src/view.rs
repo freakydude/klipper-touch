@@ -3,8 +3,8 @@
 use crate::format;
 use chrono::{DateTime, Local};
 use freakymate_core::estimates;
-use freakymate_core::files::{FileInfo, FileMetadata, LastPrint};
-use freakymate_core::printer::{path_sensor_names, FanKind};
+use freakymate_core::files::{FileInfo, FileMetadata, FinishedJob, LastPrint};
+use freakymate_core::printer::{path_sensor_names, FanKind, Interruption, InterruptionFact};
 use freakymate_core::printer::{
     FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, PrintJob, PrintState, SyncFeedbackState,
 };
@@ -74,6 +74,26 @@ fn filament(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
         _ if job.filament_used > 0.0 => format::filament_length(job.filament_used),
         _ => NO_VALUE.to_owned(),
     }
+}
+
+/// When the shown job ended, from the job history; `-` while it runs or if the history does not know.
+pub fn ended_text(job: &PrintJob, newest: Option<&FinishedJob>, now: DateTime<Local>) -> String {
+    newest
+        .and_then(|newest| newest.end_of(job))
+        .map_or_else(|| NO_VALUE.to_owned(), |end| format::unix_moment(now, end))
+}
+
+/// What the sources state about a pause or an error, one fact per line; empty if none states anything.
+pub fn interruption_text(interruption: &Interruption) -> String {
+    interruption
+        .facts
+        .iter()
+        .map(|fact| match fact {
+            InterruptionFact::KlipperMessage(text) | InterruptionFact::MmuReason(text) => text.clone(),
+            InterruptionFact::SensorEmpty { label } => format!("{label}: no filament"),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// What is left of a spool, for example `613 g`; empty without a weight.
@@ -374,6 +394,29 @@ mod tests {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
         assert_eq!(job_texts(&job, Some(&metadata("b.gcode")), None, now()).filament, "-");
+    }
+
+    #[test]
+    fn the_end_of_a_finished_job_comes_from_the_history() {
+        let job = PrintJob { state: PrintState::Complete, filename: "a.gcode".into(), ..PrintJob::default() };
+        let end = Local.with_ymd_and_hms(2026, 10, 21, 11, 32, 0).unwrap().timestamp() as f64;
+        let newest = FinishedJob { filename: "a.gcode".into(), status: "completed".into(), end_time: end };
+
+        assert_eq!(ended_text(&job, Some(&newest), now()), "11:32");
+        assert_eq!(ended_text(&job, None, now()), "-");
+    }
+
+    #[test]
+    fn every_stated_fact_of_an_interruption_is_a_line() {
+        let interruption = Interruption {
+            failed: false,
+            facts: vec![
+                InterruptionFact::KlipperMessage("Filament runout".into()),
+                InterruptionFact::SensorEmpty { label: "Toolhead Runout".into() },
+            ],
+        };
+
+        assert_eq!(interruption_text(&interruption), "Filament runout\nToolhead Runout: no filament");
     }
 
     fn file_metadata() -> FileMetadata {

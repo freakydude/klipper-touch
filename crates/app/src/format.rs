@@ -19,11 +19,19 @@ pub fn clock(time: DateTime<Local>) -> String {
 
 /// Time of day at which a remaining duration ends; with date if it is no longer today.
 pub fn finish_time(now: DateTime<Local>, remaining_seconds: f64) -> String {
-    let finish = now + chrono::Duration::seconds(remaining_seconds.max(0.0).round() as i64);
-    if finish.date_naive() == now.date_naive() {
-        clock(finish)
+    moment(now, now + chrono::Duration::seconds(remaining_seconds.max(0.0).round() as i64))
+}
+
+/// Time of day of a moment given in Unix seconds; with date if it is not today.
+pub fn unix_moment(now: DateTime<Local>, unix_seconds: f64) -> String {
+    Local.timestamp_opt(unix_seconds as i64, 0).single().map_or_else(String::new, |time| moment(now, time))
+}
+
+fn moment(now: DateTime<Local>, time: DateTime<Local>) -> String {
+    if time.date_naive() == now.date_naive() {
+        clock(time)
     } else {
-        finish.format("%d.%m. %H:%M").to_string()
+        time.format("%d.%m. %H:%M").to_string()
     }
 }
 
@@ -89,6 +97,16 @@ mod tests {
 
         assert_eq!(finish_time(now, 5_400.0), "11:30");
         assert_eq!(finish_time(now, 20.0 * 3600.0), "22.10. 06:00");
+    }
+
+    #[test]
+    fn a_past_moment_carries_its_date_unless_it_is_today() {
+        let now = Local.with_ymd_and_hms(2026, 10, 21, 10, 0, 0).unwrap();
+        let earlier_today = Local.with_ymd_and_hms(2026, 10, 21, 8, 15, 0).unwrap().timestamp() as f64;
+        let yesterday = Local.with_ymd_and_hms(2026, 10, 20, 23, 5, 0).unwrap().timestamp() as f64;
+
+        assert_eq!(unix_moment(now, earlier_today), "08:15");
+        assert_eq!(unix_moment(now, yesterday), "20.10. 23:05");
     }
 
     #[test]

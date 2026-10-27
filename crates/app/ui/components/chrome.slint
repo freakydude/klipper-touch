@@ -4,6 +4,36 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
 
+// A temperature of the status bar; a tap leads to the heaters without looking like a button.
+component TemperatureReading inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> heating;
+    min-width: reading.min-width;
+    preferred-width: reading.preferred-width;
+
+    TouchArea {
+        clicked => { Navigation.show-heaters(); }
+    }
+
+    reading := HorizontalLayout {
+        spacing: 4px;
+        Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.heating ? Theme.accent : Theme.muted;
+            width: 20px;
+            height: 20px;
+        }
+        Text {
+            text: root.text;
+            color: Theme.foreground;
+            font-size: Theme.font-normal;
+            vertical-alignment: center;
+        }
+    }
+}
+
 export component StatusBar inherits Rectangle {
     height: 44px;
     background: Theme.surface;
@@ -32,39 +62,17 @@ export component StatusBar inherits Rectangle {
             }
         }
 
-        HorizontalLayout {
-            spacing: 4px;
+        TemperatureReading {
             visible: Printer.ready;
-            Image {
-                cross-axis-self-alignment: center;
-                source: Icons.thermal-nozzle;
-                colorize: Printer.nozzle-target > 0 ? Theme.accent : Theme.muted;
-                width: 20px;
-                height: 20px;
-            }
-            Text {
-                text: round(Printer.nozzle-temperature) + "°" + (Printer.nozzle-target > 0 ? " / " + round(Printer.nozzle-target) + "°" : "");
-                color: Theme.foreground;
-                font-size: Theme.font-normal;
-                vertical-alignment: center;
-            }
+            icon: Icons.thermal-nozzle;
+            heating: Printer.nozzle-target > 0;
+            text: round(Printer.nozzle-temperature) + "°" + (Printer.nozzle-target > 0 ? " / " + round(Printer.nozzle-target) + "°" : "");
         }
-        if Printer.has-bed: HorizontalLayout {
-            spacing: 4px;
+        if Printer.has-bed: TemperatureReading {
             visible: Printer.ready;
-            Image {
-                cross-axis-self-alignment: center;
-                source: Icons.thermal-bed;
-                colorize: Printer.bed-target > 0 ? Theme.accent : Theme.muted;
-                width: 20px;
-                height: 20px;
-            }
-            Text {
-                text: round(Printer.bed-temperature) + "°" + (Printer.bed-target > 0 ? " / " + round(Printer.bed-target) + "°" : "");
-                color: Theme.foreground;
-                font-size: Theme.font-normal;
-                vertical-alignment: center;
-            }
+            icon: Icons.thermal-bed;
+            heating: Printer.bed-target > 0;
+            text: round(Printer.bed-temperature) + "°" + (Printer.bed-target > 0 ? " / " + round(Printer.bed-target) + "°" : "");
         }
         // Newest message of the status bar; tapping it opens the flyout with all messages.
         if Printer.status-message-visible: Rectangle {

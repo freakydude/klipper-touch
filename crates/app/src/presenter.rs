@@ -14,9 +14,10 @@ use crate::{
 };
 use chrono::Local;
 use freakymate_core::estimates;
-use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
+use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, FinishedJob, PrintHistory, ThumbnailImage};
 use freakymate_core::printer::{
-    is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails, MacroForm, MmuGate, MmuStatus,
+    self as core_printer, is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails,
+    MacroForm, MmuGate, MmuStatus,
 };
 use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
 use freakymate_core::system::{ConsoleKind, ConsoleLine};
@@ -84,6 +85,8 @@ struct Cache {
     spoolman_known: bool,
     /// The spools of the picker, most recently used first.
     spool_list: Vec<Spool>,
+    /// The newest job of the history, for the end of a finished print.
+    newest_job: Option<FinishedJob>,
 }
 
 pub struct Presenter {
@@ -251,7 +254,13 @@ impl Presenter {
         printer.set_activity(status.activity.as_str().into());
         printer.set_filename(status.job.filename.as_str().into());
         printer.set_progress(status.job.progress as f32);
-        printer.set_job_message(status.job.message.as_str().into());
+        let interruption = core_printer::interruption(status);
+        printer.set_interruption_text(interruption.as_ref().map(view::interruption_text).unwrap_or_default().into());
+        let layer_pause = core_printer::layer_pause_offer(&snapshot.capabilities, status);
+        printer.set_layer_pause_next(layer_pause.is_some_and(|offer| offer.next_layer));
+        printer.set_layer_pause_at(layer_pause.is_some_and(|offer| offer.at_layer));
+        printer.set_current_layer(layer_pause.map_or(0, |offer| offer.current_layer as i32));
+        printer.set_total_layers(layer_pause.and_then(|offer| offer.total_layers).map_or(0, |total| total as i32));
 
         let motion = &status.motion;
         printer.set_position_x(motion.live_position[0] as f32);
@@ -405,6 +414,7 @@ impl Presenter {
         printer.set_eta(texts.eta.into());
         printer.set_layers(texts.layers.into());
         printer.set_filament(texts.filament.into());
+        printer.set_ended(view::ended_text(job, cache.newest_job.as_ref(), now).into());
         if let Some(origin) = texts.expectation_origin {
             self.note_origin("print time expectation", Some(origin));
         }
@@ -414,7 +424,7 @@ impl Presenter {
         match event {
             Event::Files(files) => self.show_files(files),
             Event::FileMetadata(metadata) => self.store_metadata(*metadata),
-            Event::PrintHistory(last_prints) => self.store_last_prints(last_prints),
+            Event::PrintHistory(history) => self.store_history(history),
             Event::Thumbnail { filename, image } => self.store_thumbnail(&filename, &image),
             Event::TemperatureHistory(store) => self.history.store(store, &self.cache.borrow().snapshot.status),
             Event::PowerDevices(devices) => replace_rows(&self.power_devices, devices.iter().map(power_item).collect()),
@@ -544,7 +554,6 @@ impl Presenter {
         printer.set_mmu_tool(mmu.tool.max(-1));
         printer.set_mmu_paused(mmu.paused);
         printer.set_mmu_locked(mmu.locked);
-        printer.set_mmu_reason(mmu.reason_for_pause.as_str().into());
         printer.set_mmu_homed(mmu.homed);
         printer.set_mmu_has_buffer(has_buffer);
         let feedback = mmu.sync_feedback.unwrap_or_default();
@@ -827,8 +836,12 @@ impl Presenter {
         replace_rows(&self.files, rows);
     }
 
-    fn store_last_prints(&self, last_prints: HashMap<String, LastPrint>) {
-        self.cache.borrow_mut().catalog.store_last_prints(last_prints);
+    fn store_history(&self, history: PrintHistory) {
+        {
+            let mut cache = self.cache.borrow_mut();
+            cache.catalog.store_last_prints(history.last_prints);
+            cache.newest_job = history.newest;
+        }
         self.show_file_rows();
         self.refresh_job_texts();
     }

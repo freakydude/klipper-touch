@@ -4,10 +4,12 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
-use crate::files::{self, FileEntry, FileMetadata, LastPrint, ThumbnailImage};
+use crate::files::{self, FileEntry, FileMetadata, PrintHistory, ThumbnailImage};
 use crate::history::{self, TemperatureSeries};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
-use crate::printer::{self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrinterStatus, ServerComponents};
+use crate::printer::{
+    self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrintState, PrinterStatus, ServerComponents,
+};
 use crate::spoolman::{self, Spool, SpoolmanState};
 use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
 use serde_json::{json, Value};
@@ -55,7 +57,7 @@ pub enum Query {
     FileDetails {
         filename: String,
     },
-    /// The last completed print of each file, from the Moonraker job history.
+    /// The last completed print of each file and the newest job, from the Moonraker job history.
     PrintHistory,
     PowerDevices,
     Updates,
@@ -74,7 +76,7 @@ pub enum Query {
 pub enum Event {
     Files(Vec<FileEntry>),
     FileMetadata(Box<FileMetadata>),
-    PrintHistory(HashMap<String, LastPrint>),
+    PrintHistory(PrintHistory),
     Thumbnail {
         filename: String,
         image: ThumbnailImage,
@@ -228,6 +230,7 @@ struct Session<'a> {
     components: ServerComponents,
     klippy_ready: bool,
     job_filename: String,
+    job_state: PrintState,
     /// Targets sent but not yet reported back; the snapshot shows them.
     pending_targets: PendingTargets,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
@@ -248,6 +251,7 @@ impl<'a> Session<'a> {
             components: ServerComponents::default(),
             klippy_ready: false,
             job_filename: String::new(),
+            job_state: PrintState::default(),
             pending_targets: PendingTargets::default(),
             spoolman_gate_spools: None,
             file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
@@ -381,6 +385,8 @@ impl<'a> Session<'a> {
                 }
             }
             "notify_power_changed" => self.answer(Query::PowerDevices),
+            // Moonraker may record the end of a job after the state change was published.
+            "notify_history_changed" => self.answer(Query::PrintHistory),
             "notify_active_spool_set" | "notify_spoolman_status_changed" => self.answer(Query::Spoolman),
             "notify_update_refreshed" => {
                 self.outputs.event(Event::Updates(system::parse_update_status(
@@ -398,13 +404,20 @@ impl<'a> Session<'a> {
         status
     }
 
-    /// Publishes the state and loads the print file's metadata when the job changes.
+    /// Publishes the state, loads the print file's metadata when the job changes and the history when it has ended
+    /// (when it ended and what it took).
     fn publish(&mut self) {
         let status = self.current_status();
         if status.job.filename != self.job_filename {
             self.job_filename.clone_from(&status.job.filename);
             if !self.job_filename.is_empty() {
                 self.answer(Query::FileDetails { filename: self.job_filename.clone() });
+            }
+        }
+        if status.job.state != self.job_state {
+            self.job_state = status.job.state;
+            if self.job_state.is_finished() {
+                self.answer(Query::PrintHistory);
             }
         }
         if self.components.spoolman {
@@ -557,7 +570,7 @@ async fn fetch(
         }
         Query::PrintHistory => {
             let history = call("server.history.list", Some(json!({ "limit": PRINT_HISTORY_LIMIT }))).await?;
-            vec![Event::PrintHistory(files::parse_last_completed_prints(&history))]
+            vec![Event::PrintHistory(files::parse_print_history(&history))]
         }
         Query::Spoolman => vec![Event::Spoolman(Box::new(fetch_spoolman(connection, gate_spools).await?))],
         Query::SpoolList => {

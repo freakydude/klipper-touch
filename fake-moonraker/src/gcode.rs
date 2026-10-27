@@ -1,5 +1,6 @@
 //! Parser for the G-code lines the UI sends via `printer.gcode.script`.
 
+use crate::layer_pause::LayerPauseCommand;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +78,11 @@ pub enum Command {
     QuadGantryLevel,
     Help,
     Mmu(MmuCommand),
+    /// Mainsail's layer pause macros.
+    LayerPause(LayerPauseCommand),
+    /// Ends the running print with an error, like Klipper after a move out of range (`FAKE_PRINT_ERROR`; not in
+    /// Klipper).
+    FakePrintError,
     Ignored,
 }
 
@@ -263,6 +269,14 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "SAVE_CONFIG" => Ok(Command::SaveConfig),
         "QUAD_GANTRY_LEVEL" => Ok(Command::QuadGantryLevel),
         "HELP" => Ok(Command::Help),
+        "SET_PAUSE_NEXT_LAYER" => Ok(Command::LayerPause(LayerPauseCommand::NextLayer {
+            enable: named_index(&args, "ENABLE")?.is_none_or(|enable| enable != 0),
+        })),
+        "SET_PAUSE_AT_LAYER" => Ok(Command::LayerPause(LayerPauseCommand::AtLayer {
+            enable: named_index(&args, "ENABLE")?.map(|enable| enable != 0),
+            layer: named_index(&args, "LAYER")?.map(|layer| layer as u32),
+        })),
+        "FAKE_PRINT_ERROR" => Ok(Command::FakePrintError),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" => Ok(Command::Mmu(MmuCommand::Select { gate: required_index(&args, "GATE")? })),
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
@@ -381,6 +395,22 @@ mod tests {
         assert_eq!(
             commands,
             vec![Command::RelativePositioning, Command::Move(Move { e: Some(10.0), ..Move::default() }),]
+        );
+    }
+
+    #[test]
+    fn parses_mainsails_layer_pause_macros() {
+        let commands =
+            parse_script("SET_PAUSE_NEXT_LAYER\nSET_PAUSE_NEXT_LAYER ENABLE=0\nSET_PAUSE_AT_LAYER ENABLE=1 LAYER=42")
+                .unwrap();
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::LayerPause(LayerPauseCommand::NextLayer { enable: true }),
+                Command::LayerPause(LayerPauseCommand::NextLayer { enable: false }),
+                Command::LayerPause(LayerPauseCommand::AtLayer { enable: Some(true), layer: Some(42) }),
+            ]
         );
     }
 
