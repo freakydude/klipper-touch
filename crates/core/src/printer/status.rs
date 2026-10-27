@@ -75,6 +75,11 @@ impl PrintState {
     pub fn is_active(self) -> bool {
         matches!(self, Self::Printing | Self::Paused)
     }
+
+    /// The job has ended, well or not.
+    pub fn is_finished(self) -> bool {
+        matches!(self, Self::Complete | Self::Cancelled | Self::Error)
+    }
 }
 
 /// `idle_timeout.state`: whether the machine is working, independent of a print job.

@@ -373,12 +373,7 @@ export component MmuStrip inherits Card {
                 horizontal-stretch: 0;
             }
         }
-        if Printer.mmu-paused && Printer.mmu-reason != "": Text {
-            text: Printer.mmu-reason;
-            color: Theme.warning;
-            font-size: Theme.font-small;
-            wrap: word-wrap;
-        }
+        // The reason of the pause stands in the banner of the print page.
         if Printer.mmu-paused || Printer.mmu-locked: HorizontalLayout {
             spacing: Theme.spacing;
             height: Theme.touch;

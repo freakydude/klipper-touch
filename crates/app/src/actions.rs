@@ -143,6 +143,7 @@ pub fn bind(
     actions.on_pause_print(send(|| Command::PausePrint));
     actions.on_resume_print(send(|| Command::ResumePrint));
     actions.on_cancel_print(send(|| Command::CancelPrint));
+    bind_layer_pause(&actions, service, presenter);
 
     actions.on_emergency_stop(send(|| Command::EmergencyStop));
     actions.on_restart_klipper(send(|| Command::RestartKlipper));
@@ -192,6 +193,28 @@ pub fn bind(
 
     let key_window = window.as_weak();
     actions.on_press_key(move |text| press_key(&key_window, text));
+}
+
+/// Planning a pause at a layer. The macros report nothing back, so a short notice confirms what was sent; it says
+/// nothing about the plan, which may change in another client.
+fn bind_layer_pause(actions: &Actions, service: &PrinterService, presenter: &Rc<Presenter>) {
+    let send_with_notice = |command: fn(i32) -> Option<(Command, String)>| {
+        let (service, presenter) = (service.clone(), Rc::clone(presenter));
+        move |layer: i32| {
+            if let Some((command, notice)) = command(layer) {
+                service.send(command);
+                presenter.show_notice(&notice, false);
+            }
+        }
+    };
+    let next_layer = send_with_notice(|_| Some((Command::PauseAtNextLayer, "Pause at the next layer sent".into())));
+    actions.on_pause_at_next_layer(move || next_layer(0));
+    actions.on_pause_at_layer(send_with_notice(|layer| {
+        let layer = u32::try_from(layer).ok().filter(|layer| *layer > 0)?;
+        Some((Command::PauseAtLayer { layer }, format!("Pause at layer {layer} sent")))
+    }));
+    let clear = send_with_notice(|_| Some((Command::ClearLayerPause, "Planned pauses cleared".into())));
+    actions.on_clear_layer_pause(move || clear(0));
 }
 
 /// Types a key of the on-screen keyboard into the focused field, as a physical keyboard would. Deferred, because the

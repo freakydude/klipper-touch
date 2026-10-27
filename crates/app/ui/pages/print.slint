@@ -4,7 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Display, Navigation, Printer } from "../state.slint";
 import { IconButton, IconLabel, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
-import { ExcludeObjectsDialog } from "../components/overlays.slint";
+import { ExcludeObjectsDialog, LayerPauseDialog } from "../components/overlays.slint";
 import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuStrip } from "mmu.slint";
 
@@ -26,6 +26,47 @@ component Thumbnail inherits Rectangle {
         colorize: Theme.disabled-foreground;
         width: parent.width / 3;
         height: parent.width / 3;
+    }
+}
+
+// A paused or failed print and what the sources state about it; the reason is never guessed.
+component InterruptionBanner inherits Rectangle {
+    in property <bool> failed;
+    in property <string> details;
+    property <color> tone: root.failed ? Theme.danger : Theme.warning;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: root.tone;
+    min-height: 52px;
+
+    HorizontalLayout {
+        padding: 6px;
+        padding-left: 8px;
+        spacing: 8px;
+        Image {
+            cross-axis-self-alignment: center;
+            source: root.failed ? Icons.ui-error : Icons.print-pause;
+            colorize: root.tone;
+            width: 22px;
+            height: 22px;
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.failed ? @tr("Print failed") : @tr("Paused");
+                color: root.tone;
+                font-size: Theme.font-normal;
+                font-weight: 600;
+            }
+            if root.details != "": Text {
+                text: root.details;
+                color: Theme.foreground;
+                font-size: Theme.font-small;
+                wrap: word-wrap;
+            }
+        }
     }
 }
 
@@ -207,12 +248,6 @@ export component PrintPage inherits Rectangle {
                 overflow: elide;
                 max-height: 3 * 22px;
             }
-            if Printer.job-message != "": Text {
-                text: Printer.job-message;
-                color: Printer.print-state == "error" ? Theme.danger : Theme.muted;
-                font-size: Theme.font-small;
-                wrap: word-wrap;
-            }
             Rectangle { vertical-stretch: 1; }
         }
 
@@ -248,22 +283,33 @@ export component PrintPage inherits Rectangle {
                         label: @tr("Elapsed");
                         value: Printer.elapsed;
                     }
+                    // A tap plans a pause at a layer, if the printer has Mainsail's macros for it.
                     ValueTile {
                         weight: 5;
                         show-icon: !Display.narrow;
                         icon: Icons.print-layers;
                         label: @tr("Layer");
                         value: Printer.layers;
+                        action-icon: Icons.print-pause;
+                        enabled-action: Printer.layer-pause-next || Printer.layer-pause-at;
+                        clicked => { layer-pause-dialog.open(); }
                     }
                 }
                 HorizontalLayout {
                     spacing: Theme.spacing;
-                    ValueTile {
+                    if !root.finished: ValueTile {
                         weight: 4;
                         show-icon: !Display.narrow;
                         icon: Icons.print-eta;
                         label: @tr("Remaining");
                         value: Printer.remaining;
+                    }
+                    if root.finished: ValueTile {
+                        weight: 4;
+                        show-icon: !Display.narrow;
+                        icon: Printer.print-state == "complete" ? Icons.print-complete : Printer.print-state == "cancelled" ? Icons.print-cancel : Icons.state-error;
+                        label: Printer.print-state == "complete" ? @tr("Finished") : Printer.print-state == "cancelled" ? @tr("Cancelled") : @tr("Failed");
+                        value: Printer.ended;
                     }
                     ValueTile {
                         weight: 5;
@@ -273,7 +319,13 @@ export component PrintPage inherits Rectangle {
                         value: Printer.filament;
                     }
                 }
-                HorizontalLayout {
+                // Times and speed only say something while the print runs; a pause or an error shows what is known
+                // about it instead.
+                if Printer.print-state == "paused" || Printer.print-state == "error": InterruptionBanner {
+                    failed: Printer.print-state == "error";
+                    details: Printer.interruption-text;
+                }
+                if Printer.print-state == "printing": HorizontalLayout {
                     spacing: Theme.spacing;
                     ValueTile {
                         weight: 4;
@@ -349,4 +401,6 @@ export component PrintPage inherits Rectangle {
     FileBrowser { }
 
     objects-dialog := ExcludeObjectsDialog { }
+
+    layer-pause-dialog := LayerPauseDialog { }
 }

@@ -309,6 +309,12 @@ fn taps(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
+/// The Layer tile of the print page and the first button of the layer pause dialog (800x480, no fitting).
+const LAYER_TILE: (f32, f32) = (580.0, 133.0);
+const NEXT_LAYER_BUTTON: (f32, f32) = (440.0, 195.0);
+/// The nozzle temperature of the status bar while a print runs and no message is shown (800x480, no fitting).
+const STATUS_BAR_NOZZLE: (f32, f32) = (440.0, 22.0);
+
 /// The command field of the console (800x480, no fitting).
 const COMMAND_FIELD: (f32, f32) = (480.0, 444.0);
 
@@ -384,15 +390,14 @@ fn printing(session: &mut Session) -> Result<(), String> {
     })?;
     session.pump(Duration::from_secs(1));
     session.show_page(Page::Print, "print-printing")?;
+    temperature_leads_to_heaters(session)?;
     nozzle_history(session)?;
     tangle_boost(session)?;
     session.show_page(Page::Temperature, "temperature-printing")?;
     session.show_page(Page::System, "system-printing")?;
 
     session.window.global::<Navigation>().set_page(Page::Print);
-    session.service.send(Command::PausePrint);
-    session.wait_until("print paused", |snapshot| snapshot.status.job.state == PrintState::Paused)?;
-    session.pump(Duration::from_secs(1));
+    pause_at_next_layer(session)?;
     session.capture("print-paused")?;
     exclude_object(session)?;
     session.service.send(Command::ResumePrint);
@@ -401,7 +406,62 @@ fn printing(session: &mut Session) -> Result<(), String> {
     session.capture("confirm-cancel")?;
     session.window.global::<Confirm>().invoke_execute();
     session.wait_until("print cancelled", |snapshot| snapshot.status.job.state == PrintState::Cancelled)?;
-    session.capture("print-cancelled")
+    wait_for_end_time(session)?;
+    session.capture("print-cancelled")?;
+    print_error(session)
+}
+
+/// The Layer tile opens the dialog of Mainsail's layer pause macros (the fake has them); its first button plans a
+/// pause at the next layer, and the fake pauses there. Another layout sends the command instead of tapping.
+fn pause_at_next_layer(session: &mut Session) -> Result<(), String> {
+    if session.has_reference_layout() {
+        let (x, y) = LAYER_TILE;
+        session.tap(x, y);
+        session.capture("layer-pause")?;
+        let (x, y) = NEXT_LAYER_BUTTON;
+        session.tap(x, y);
+    } else {
+        session.service.send(Command::PauseAtNextLayer);
+    }
+    session.wait_until("paused at the next layer", |snapshot| snapshot.status.job.state == PrintState::Paused)?;
+    session.pump(Duration::from_secs(1));
+    Ok(())
+}
+
+/// A tap on the nozzle temperature of the status bar opens the heaters; checked in the reference layout only.
+fn temperature_leads_to_heaters(session: &mut Session) -> Result<(), String> {
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
+    let (x, y) = STATUS_BAR_NOZZLE;
+    session.tap(x, y);
+    let navigation = session.window.global::<Navigation>();
+    if navigation.get_page() != Page::Temperature || navigation.get_heat_tab() != 0 {
+        return Err("a tap on the nozzle temperature did not open the heaters".into());
+    }
+    navigation.set_page(Page::Print);
+    Ok(())
+}
+
+/// The end of a job comes from the history, which the service reads once the job has ended.
+fn wait_for_end_time(session: &mut Session) -> Result<(), String> {
+    for _ in 0..40 {
+        if session.window.global::<Printer>().get_ended() != "-" {
+            return Ok(());
+        }
+        session.pump(Duration::from_millis(100));
+    }
+    Err("the end of the job did not arrive from the history".into())
+}
+
+/// A print that Klipper stops with an error (the fake's `FAKE_PRINT_ERROR`).
+fn print_error(session: &mut Session) -> Result<(), String> {
+    session.service.send(Command::StartPrint { filename: "benchy.gcode".into() });
+    session.wait_until("print running again", |snapshot| snapshot.status.job.state == PrintState::Printing)?;
+    session.service.send(Command::RunGcode { script: "FAKE_PRINT_ERROR".into() });
+    session.wait_until("print failed", |snapshot| snapshot.status.job.state == PrintState::Error)?;
+    wait_for_end_time(session)?;
+    session.capture("print-error")
 }
 
 /// Raises the tension in the fake's buffer until tangle prevention boosts the gear current, and takes it back after the

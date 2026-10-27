@@ -3,7 +3,7 @@
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use freakymate_core::files::ThumbnailImage;
-use freakymate_core::printer::{FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
+use freakymate_core::printer::{self, FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
 use freakymate_core::spoolman;
 use freakymate_core::system::ConsoleKind;
 use freakymate_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
@@ -329,21 +329,50 @@ async fn runs_print_job_and_loads_file_details() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::StartPrint { filename: "calibration_cube.gcode".into() });
+    let printing = wait_for(&mut channels, |snapshot| snapshot.status.job.current_layer.is_some()).await;
+    assert!(printer::layer_pause_offer(&printing.capabilities, &printing.status).is_some());
+    service.send(Command::PauseAtNextLayer);
+    let paused = wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Paused).await;
+    assert!(printer::interruption(&paused.status).is_some_and(|interruption| !interruption.failed));
+
+    service.send(Command::CancelPrint);
+    let cancelled = wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Cancelled).await;
+    let ended = timeout(WAIT_LIMIT, async {
+        loop {
+            if let Event::PrintHistory(history) = channels.events.recv().await.expect("service stopped") {
+                if let Some(end) = history.newest.and_then(|newest| newest.end_of(&cancelled.status.job)) {
+                    return end;
+                }
+            }
+        }
+    })
+    .await
+    .expect("history without the cancelled job");
+    assert!(ended > 0.0);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn loads_the_last_completed_print_of_each_file() {
     let endpoint = start_fake().await;
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
     wait_for(&mut channels, ready).await;
 
     service.query(Query::PrintHistory);
-    let Event::PrintHistory(last_prints) =
-        next_event(&mut channels, |event| matches!(event, Event::PrintHistory(_))).await
+    let Event::PrintHistory(history) = next_event(&mut channels, |event| matches!(event, Event::PrintHistory(_))).await
     else {
         unreachable!()
     };
 
     // The newer cancelled job of the benchy does not count.
-    assert_eq!(last_prints["benchy.gcode"].print_duration, 7_650.0);
-    assert!(!last_prints.contains_key("long_job.gcode"));
+    assert_eq!(history.last_prints["benchy.gcode"].print_duration, 7_650.0);
+    assert!(!history.last_prints.contains_key("long_job.gcode"));
+    assert_eq!(history.newest.map(|job| job.status).as_deref(), Some("cancelled"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

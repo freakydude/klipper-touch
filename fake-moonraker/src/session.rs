@@ -129,7 +129,7 @@ impl Session {
             }
             "server.files.list" => Ok(backend.catalog().list()),
             "server.files.metadata" => Ok(find_file(backend, params)?.metadata()),
-            "server.history.list" => Ok(backend.catalog().history()),
+            "server.history.list" => Ok(backend.history()),
             "server.files.thumbnails" => Ok(find_file(backend, params)?.thumbnails()),
             "server.spoolman.status" if backend.spoolman_enabled() => {
                 Ok(backend.with_spoolman(|spoolman| spoolman.status()))

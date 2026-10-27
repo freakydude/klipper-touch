@@ -255,7 +255,16 @@ export global Printer {
     in property <string> eta;
     in property <string> layers;
     in property <string> filament;
-    in property <string> job-message;
+    // When a finished job ended, from the job history; "-" if unknown.
+    in property <string> ended;
+    // What the sources state about a pause or an error, one fact per line; empty if nothing is stated.
+    in property <string> interruption-text;
+    // A pause at a layer can be planned with Mainsail's macros (only while the slicer reports the layers).
+    in property <bool> layer-pause-next;
+    in property <bool> layer-pause-at;
+    in property <int> current-layer;
+    // 0 if the slicer does not report the number of layers.
+    in property <int> total-layers;
     in property <image> job-thumbnail;
     in property <bool> has-job-thumbnail;
 
@@ -319,8 +328,6 @@ export global Printer {
     in property <int> mmu-tool: -1;
     in property <bool> mmu-paused;
     in property <bool> mmu-locked;
-    // Why the MMU paused the print, empty if it did not.
-    in property <string> mmu-reason;
     in property <bool> mmu-homed;
     in property <bool> mmu-has-buffer;
     // compressed | neutral | tension | inactive | disabled
@@ -467,6 +474,9 @@ export global Actions {
     callback pause-print();
     callback resume-print();
     callback cancel-print();
+    callback pause-at-next-layer();
+    callback pause-at-layer(int);
+    callback clear-layer-pause();
     callback emergency-stop();
     callback restart-klipper();
     callback firmware-restart();
@@ -580,6 +590,13 @@ export global Navigation {
     in-out property <float> history-aspect: 2;
     // The light panel at the light symbol of the status bar.
     in-out property <bool> light-open;
+
+    // A tap on a temperature reading leads to the heaters; a quiet shortcut, not styled as a button.
+    public function show-heaters() {
+        self.files-open = false;
+        self.heat-tab = 0;
+        self.page = Page.temperature;
+    }
 }
 
 // Confirmation dialog: pages set text and action, `execute` runs the action after OK.
