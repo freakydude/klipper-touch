@@ -1,6 +1,7 @@
 //! Headless application session: the real UI bindings on a software-rendered window, driven step by step.
 
 use crate::Options;
+use freakymate::display::{DESIGN_HEIGHT, DESIGN_WIDTH};
 use freakymate::network_controller::NetworkController;
 use freakymate::presenter::Presenter;
 use freakymate::settings_controller::SettingsController;
@@ -208,9 +209,13 @@ impl Session {
         self.pump(Duration::from_millis(30));
     }
 
-    /// The layout is the 800x480 one that fixed tap positions refer to: fitted to the display, or that size itself.
+    /// The layout is the 800x480 one that fixed tap positions refer to: the window has exactly that logical size, at
+    /// 800x480 itself or fitted from a display of the same shape. Other shapes leave more room on one axis, and what
+    /// is aligned to the right or the bottom moves.
     pub fn has_reference_layout(&self) -> bool {
-        self.options.fit || (self.options.width, self.options.height) == (800, 480)
+        let window = self.window.window();
+        let logical = window.size().to_logical(window.scale_factor());
+        (logical.width - DESIGN_WIDTH).abs() < 1.0 && (logical.height - DESIGN_HEIGHT).abs() < 1.0
     }
 
     pub fn show_page(&mut self, page: Page, name: &str) -> Result<(), String> {

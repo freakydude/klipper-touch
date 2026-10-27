@@ -47,7 +47,16 @@
       "cargo": {
         "args": ["build", "-p", "fake-moonraker"]
       },
-      "args": ["--port", "7125", "--time-scale", "10", "--profile", "happy-hare", "--gates", "8"]
+      "args": [
+        "--port",
+        "7125",
+        "--time-scale",
+        "10",
+        "--profile",
+        "happy-hare",
+        "--gates",
+        "8"
+      ]
     }
   ]
 }

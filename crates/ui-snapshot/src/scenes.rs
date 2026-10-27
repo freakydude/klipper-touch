@@ -285,8 +285,12 @@ const TAP_ROUNDS: usize = 10;
 /// A finger rests this long: several status updates arrive meanwhile, as the temperatures change all the time.
 const TAP_DURATION: Duration = Duration::from_millis(500);
 
-/// A tap that spans status updates must still count: the heater rows may not be rebuilt under the finger.
+/// A tap that spans status updates must still count: the heater rows may not be rebuilt under the finger. Checked
+/// in the reference layout only, where the button lies at a known place.
 fn taps(session: &mut Session) -> Result<(), String> {
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
     session.window.global::<Navigation>().set_page(Page::Temperature);
     let heating = |target| Command::SetHeaterTarget { heater: "extruder".into(), target };
     let target = |snapshot: &freakymate_core::Snapshot| snapshot.status.heater("extruder").map(|heater| heater.target);
@@ -312,23 +316,35 @@ fn taps(session: &mut Session) -> Result<(), String> {
 
 /// The Layer tile of the print page and the first button of the layer pause dialog (800x480, no fitting).
 const LAYER_TILE: (f32, f32) = (580.0, 133.0);
-const NEXT_LAYER_BUTTON: (f32, f32) = (440.0, 195.0);
+const NEXT_LAYER_BUTTON: (f32, f32) = (440.0, 210.0);
 /// The nozzle temperature of the status bar while a print runs and no message is shown (800x480, no fitting).
 const STATUS_BAR_NOZZLE: (f32, f32) = (440.0, 22.0);
+/// The Objects button of the paused print page, then in its dialog: the fake's BENCHY_1 on the bed map (centre
+/// 200/160 mm on a 300 mm bed, map at 96/128 with 268 px), the Exclude button and the close cross (800x480).
+const OBJECTS_BUTTON: (f32, f32) = (740.0, 204.0);
+const MAP_BENCHY_1: (f32, f32) = (275.0, 253.0);
+const EXCLUDE_BUTTON: (f32, f32) = (560.0, 432.0);
+const CLOSE_OBJECTS_BUTTON: (f32, f32) = (752.0, 92.0);
+/// The light symbol of the status bar while a print runs and a message is shown (800x480, no fitting).
+const STATUS_BAR_LIGHT: (f32, f32) = (641.0, 22.0);
 
 /// The command field of the console (800x480, no fitting).
 const COMMAND_FIELD: (f32, f32) = (480.0, 444.0);
 
-/// Keys of the on-screen keyboard (800x480, no fitting).
-const ON_SCREEN_Q: (f32, f32) = (126.0, 183.0);
-const ON_SCREEN_S: (f32, f32) = (196.0, 226.0);
-const ON_SCREEN_BACKSPACE: (f32, f32) = (629.0, 314.0);
-const ON_SCREEN_ENTER: (f32, f32) = (732.0, 314.0);
+/// Keys of the on-screen keyboard, whose rows fill the dialog (800x480, no fitting).
+const ON_SCREEN_Q: (f32, f32) = (128.0, 226.0);
+const ON_SCREEN_S: (f32, f32) = (197.0, 293.0);
+const ON_SCREEN_BACKSPACE: (f32, f32) = (628.0, 428.0);
+const ON_SCREEN_ENTER: (f32, f32) = (731.0, 428.0);
 
 /// The text entry edits like any text field: Backspace, Delete, Home, End, Shift and Ctrl are the keyboard's own
-/// business. The result is read from the command that the entry sends.
+/// business. The result is read from the command that the entry sends. Checked in the reference layout only, where
+/// the field and the keys lie at known places.
 fn typing(session: &mut Session) -> Result<(), String> {
     use slint::platform::Key;
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
     session.window.global::<Navigation>().set_page(Page::Console);
     session.pump(Duration::from_millis(300));
     let (x, y) = COMMAND_FIELD;
@@ -358,14 +374,32 @@ fn typing(session: &mut Session) -> Result<(), String> {
     }
     expect_console_command(session, "S")?;
 
-    // Escape closes without sending.
+    // Escape closes without sending, and a later Enter of the physical keyboard must not send the hidden text.
     session.tap(x, y);
     session.pump(Duration::from_millis(300));
     session.key("H");
     session.key(Key::Escape);
     session.pump(Duration::from_millis(300));
-    if session.window.global::<Printer>().get_console().iter().any(|line| line.is_command && line.text == "H") {
-        return Err("Escape sent the command instead of closing the entry".to_owned());
+    session.key(Key::Return);
+    expect_no_console_command(session, "H", "Escape, then Enter")?;
+
+    // The same after a tap on the status bar, which cancels the entry.
+    session.tap(x, y);
+    session.pump(Duration::from_millis(300));
+    session.key("J");
+    let (light_x, light_y) = STATUS_BAR_LIGHT;
+    session.tap(light_x, light_y);
+    session.window.global::<Navigation>().set_light_open(false);
+    session.pump(Duration::from_millis(300));
+    session.key(Key::Return);
+    expect_no_console_command(session, "J", "a tap on the status bar, then Enter")
+}
+
+/// A command that was typed into a closed entry must not reach the printer.
+fn expect_no_console_command(session: &mut Session, command: &str, after: &str) -> Result<(), String> {
+    session.pump(Duration::from_millis(500));
+    if session.window.global::<Printer>().get_console().iter().any(|line| line.is_command && line.text == command) {
+        return Err(format!("{after} sent the command {command} of the closed entry"));
     }
     Ok(())
 }
@@ -482,12 +516,25 @@ fn tangle_boost(session: &mut Session) -> Result<(), String> {
     session.wait_until("boost released", |snapshot| !boosting(snapshot))
 }
 
-/// Excludes one object of the print and checks that the Objects dialog data follows. Skipped without the module.
+/// Excludes one object of the print and checks that the Objects dialog data follows. In the reference layout it opens
+/// the dialog, selects the object on the bed map and taps Exclude; another layout sends the command. Skipped without
+/// the module.
 fn exclude_object(session: &mut Session) -> Result<(), String> {
     if session.presenter.snapshot().status.print_objects.is_empty() {
         return Ok(());
     }
-    session.service.send(Command::ExcludeObject { name: "BENCHY_1".into() });
+    if session.has_reference_layout() {
+        for (x, y) in [OBJECTS_BUTTON, MAP_BENCHY_1] {
+            session.tap(x, y);
+        }
+        session.capture("print-objects-map")?;
+        status_bar_cancels_the_dialog(session)?;
+        for (x, y) in [OBJECTS_BUTTON, MAP_BENCHY_1, EXCLUDE_BUTTON] {
+            session.tap(x, y);
+        }
+    } else {
+        session.service.send(Command::ExcludeObject { name: "BENCHY_1".into() });
+    }
     session.wait_until("object excluded", |snapshot| {
         snapshot.status.print_objects.iter().any(|object| object.name == "BENCHY_1" && object.excluded)
     })?;
@@ -501,12 +548,43 @@ fn exclude_object(session: &mut Session) -> Result<(), String> {
     if excluded != ["BENCHY_1"] {
         return Err(format!("Printer.print-objects shows excluded {excluded:?}, expected [\"BENCHY_1\"]"));
     }
-    session.capture("print-objects-excluded")
+    session.capture("print-objects-excluded")?;
+    if session.has_reference_layout() {
+        let (x, y) = CLOSE_OBJECTS_BUTTON;
+        session.tap(x, y);
+    }
+    Ok(())
 }
 
+/// A tap on the status bar cancels the open Objects dialog with BENCHY_1 selected: the light panel opens, and a tap
+/// where Exclude was reaches the print page instead.
+fn status_bar_cancels_the_dialog(session: &mut Session) -> Result<(), String> {
+    let (x, y) = STATUS_BAR_LIGHT;
+    session.tap(x, y);
+    let navigation = session.window.global::<Navigation>();
+    if !navigation.get_light_open() {
+        return Err("a tap on the light symbol did not open the light panel".into());
+    }
+    navigation.set_light_open(false);
+    let (x, y) = EXCLUDE_BUTTON;
+    session.tap(x, y);
+    session.pump(Duration::from_secs(1));
+    if session.presenter.snapshot().status.print_objects.iter().any(|object| object.excluded) {
+        return Err("the Objects dialog stayed open after a tap on the status bar".into());
+    }
+    Ok(())
+}
+
+/// A confirmation that is open when Klipper shuts down closes like a cancel.
 fn shutdown(session: &mut Session) -> Result<(), String> {
+    session.window.global::<Navigation>().set_page(Page::Print);
+    ask(session, "Cancel print", "The current print will be stopped and cannot be resumed.", "cancel-print", "");
     session.service.send(Command::EmergencyStop);
     session.wait_until("shutdown", |snapshot| snapshot.status.klippy_state == KlippyState::Shutdown)?;
+    session.pump(Duration::from_secs(1));
+    if session.window.global::<Confirm>().get_open() {
+        return Err("the confirmation stayed open after Klipper shut down".into());
+    }
     session.capture("klippy-shutdown")?;
     session.service.send(Command::FirmwareRestart);
     session.wait_until("ready again", |snapshot| snapshot.status.klippy_state == KlippyState::Ready)

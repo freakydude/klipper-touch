@@ -1,0 +1,73 @@
+// The bed seen from above with the objects of the print, Y upwards as in the slicer. The paths are computed for a view
+// box of the bed's size in mm (`Printer.bed-map`); Slint scales a path evenly, so the map must have the bed's shape.
+
+import { Theme } from "../theme.slint";
+import { Actions, Printer } from "../state.slint";
+
+component BedPath inherits Path {
+    viewbox-width: Printer.bed-map.width;
+    viewbox-height: Printer.bed-map.depth;
+}
+
+// Tapping selects the object under the finger or close to it (small parts are only a few pixels); `selected` is its
+// index in `Printer.print-objects` or -1.
+export component BedMap inherits Rectangle {
+    in-out property <int> selected: -1;
+    background: Theme.background;
+    border-width: 1px;
+    border-color: Theme.border;
+
+    BedPath {
+        width: root.width;
+        height: root.height;
+        commands: Printer.bed-map.grid;
+        fill: transparent;
+        stroke: Theme.surface-raised;
+        stroke-width: 1px;
+    }
+    for object in Printer.print-objects: BedPath {
+        width: root.width;
+        height: root.height;
+        commands: object.outline;
+        fill: object.excluded ? Theme.surface : object.printing ? Theme.accent.with-alpha(0.6) : Theme.surface-active;
+        stroke: object.excluded ? Theme.disabled-foreground : object.printing ? Theme.accent : Theme.muted;
+        stroke-width: 1.5px;
+    }
+    // Drawn last, so the frame stays visible where objects overlap.
+    if root.selected >= 0 && root.selected < Printer.print-objects.length: BedPath {
+        width: root.width;
+        height: root.height;
+        commands: Printer.print-objects[root.selected].outline;
+        fill: transparent;
+        stroke: Theme.foreground;
+        stroke-width: 3px;
+    }
+    TouchArea {
+        clicked => {
+            root.selected = Actions.print-object-at(self.mouse-x / self.width, self.mouse-y / self.height, Theme.touch / 2 / self.width);
+        }
+    }
+}
+
+component LegendEntry inherits HorizontalLayout {
+    in property <color> fill;
+    in property <color> stroke;
+    in property <string> text;
+    spacing: 6px;
+    Rectangle {
+        cross-axis-self-alignment: center;
+        width: 14px;
+        height: 14px;
+        background: root.fill;
+        border-width: 2px;
+        border-color: root.stroke;
+    }
+    Text { text: root.text; color: Theme.muted; font-size: Theme.font-small; vertical-alignment: center; }
+}
+
+export component BedMapLegend inherits HorizontalLayout {
+    spacing: 14px;
+    LegendEntry { fill: Theme.accent.with-alpha(0.6); stroke: Theme.accent; text: @tr("Printing"); }
+    LegendEntry { fill: Theme.surface; stroke: Theme.disabled-foreground; text: @tr("Excluded"); }
+    LegendEntry { fill: transparent; stroke: Theme.foreground; text: @tr("Selected"); }
+}

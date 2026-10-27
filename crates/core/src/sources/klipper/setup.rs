@@ -143,7 +143,7 @@ impl Setup {
             "firmware_retraction",
             Some(&["retract_length", "retract_speed", "unretract_extra_length", "unretract_speed"]),
         );
-        subscription.add("exclude_object", Some(&["objects", "excluded_objects"]));
+        subscription.add("exclude_object", Some(&["objects", "excluded_objects", "current_object"]));
         for heater in &self.extra_heaters {
             subscription.add(heater, None);
         }

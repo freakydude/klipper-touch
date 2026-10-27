@@ -1,7 +1,7 @@
 // Main window: status bar, navigation, current page and overlays.
 
 import { Theme } from "theme.slint";
-import { Actions, Confirm, Display, Navigation, Network, Page, Printer, SpoolPicker, StateIcons, UiSettings } from "state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Network, Page, Printer, SpoolPicker, StateIcons, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
 import { ConfirmDialog, MessagesFlyout, SpoolDialog } from "components/overlays.slint";
 import { HistoryDialog } from "components/history.slint";
@@ -19,32 +19,32 @@ import { NetworkPage } from "pages/network-page.slint";
 import { ConnectionPage } from "pages/connection.slint";
 
 export { Actions, Confirm, Navigation, Network, Page, Printer, SpoolPicker, UiSettings }
-export { ChartLabel, FilamentPathItem, FileItem, HeaterItem, SensorItem, FanItem, LedItem, LedEffectItem, TuningItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
+export { ChartLabel, FilamentPathItem, FileItem, HeaterItem, SensorItem, FanItem, LedItem, LedEffectItem, TuningItem, FilamentSensorItem, MmuGateItem, MmuSensorItem, SpoolItem, PrintObjectItem, BedMapItem, ConsoleItem, MessageItem, MacroItem, MacroParamItem, PowerItem, UpdateItem, PresetItem, WifiItem, WiredItem, HostInterfaceItem } from "state.slint";
 
 export component AppWindow inherits Window {
     title: "FreakyMate";
     preferred-width: 800px;
     preferred-height: 480px;
-    min-width: 640px;
-    min-height: 400px;
+    // The layout is made for 800x480 and needs that room: a window is never smaller, only larger. Fullscreen fits
+    // the layout to any display instead (`display.rs`).
+    min-width: 800px;
+    min-height: 480px;
     background: Theme.background;
     default-font-size: Theme.font-normal;
 
     // Pages that are useful even without a ready printer.
-    // Pages choose their compact layout from these (see `Display`).
-    init => {
-        Display.window-width = root.width;
-        Display.window-height = root.height;
-    }
-    changed width => { Display.window-width = root.width; }
-    changed height => { Display.window-height = root.height; }
-
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
         || Navigation.page == Page.network
         || ((Navigation.page == Page.console || Navigation.page == Page.updates) && Printer.connection == "connected");
     property <bool> network-visible: Navigation.page == Page.network;
+    property <bool> printer-ready: Printer.ready;
 
     changed network-visible => { Network.watch(self.network-visible); }
+    // Without Moonraker or Klipper the dialogs of the printer pages no longer apply; they close like a cancel. The
+    // pages that work offline keep theirs (Moonraker address, Wi-Fi password).
+    changed printer-ready => {
+        if (!self.printer-ready && !self.page-works-offline) { Dialogs.dismiss(); }
+    }
 
     VerticalLayout {
         StatusBar { }
@@ -64,8 +64,11 @@ export component AppWindow inherits Window {
                 if Navigation.page == Page.settings: SettingsPage { }
                 if Navigation.page == Page.network: NetworkPage { }
                 if !Printer.ready && !root.page-works-offline: ConnectionPage { }
-                // Over the page and the navigation, below the status bar: the emergency stop stays in reach.
+                // Dialogs cover only the content area: the status bar and the navigation stay usable, and a tap
+                // there cancels the dialog (`Dialogs.dismiss`).
                 HistoryDialog { }
+                SpoolDialog { }
+                ConfirmDialog { }
             }
         }
     }
@@ -79,8 +82,4 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height;
     }
-
-    SpoolDialog { }
-
-    ConfirmDialog { }
 }

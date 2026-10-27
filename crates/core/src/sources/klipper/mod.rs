@@ -19,7 +19,7 @@ mod status;
 pub mod tuning;
 
 pub use devices::{instance, is_led, main_light, white_channel, Fan, FanKind, Led, WhiteChannel};
-pub use exclude_object::PrintObject;
+pub use exclude_object::{object_at, PrintObject};
 pub use extruder::ExtruderState;
 pub use filament_sensors::FilamentSensor;
 pub use firmware_retraction::Retraction;
@@ -30,7 +30,7 @@ pub use macros::{
     details_from_settings, macro_script, offered_macros, MacroDetails, MacroField, MacroForm, MacroParam,
     MacroValueError, OfferedMacro,
 };
-pub use motion::{Axis, HomedAxes, Motion};
+pub use motion::{Axis, Bed, BedPoint, HomedAxes, Motion};
 pub use pending::PendingTargets;
 pub use setup::Setup;
 pub(in crate::sources) use status::KlipperParts;

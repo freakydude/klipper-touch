@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Display, Navigation, Printer } from "../state.slint";
+import { Actions, Confirm, Navigation, Printer } from "../state.slint";
 import { IconButton, IconLabel, ProgressBar, ScrollList, ValueTile } from "../components/controls.slint";
 import { ExcludeObjectsDialog, LayerPauseDialog } from "../components/overlays.slint";
 import { SpoolStrip } from "../components/spool-strip.slint";
@@ -128,21 +128,20 @@ component FileRow inherits Rectangle {
                     vertical-alignment: center;
                 }
             }
-            // The temperatures are the least important facts: a narrow display leaves them out.
             HorizontalLayout {
                 spacing: 14px;
                 if root.material != "": FileChip { icon: Icons.filament-spool; text: root.material; }
                 if root.nozzle != "": FileChip { icon: Icons.print-nozzle-diameter; text: root.nozzle; }
                 if root.time != "": FileChip { icon: Icons.print-duration; text: root.time; }
-                if root.extruder-temperature != "" && !Display.narrow: FileChip {
+                if root.extruder-temperature != "": FileChip {
                     icon: Icons.thermal-nozzle;
                     text: root.extruder-temperature;
                 }
-                if root.bed-temperature != "" && !Display.narrow: FileChip {
+                if root.bed-temperature != "": FileChip {
                     icon: Icons.thermal-bed;
                     text: root.bed-temperature;
                 }
-                if root.chamber-temperature != "" && !Display.narrow: FileChip {
+                if root.chamber-temperature != "": FileChip {
                     icon: Icons.thermal-chamber;
                     text: root.chamber-temperature;
                 }
@@ -222,8 +221,7 @@ export component FileBrowser inherits Rectangle {
 export component PrintPage inherits Rectangle {
     property <bool> has-job: Printer.filename != "";
     property <bool> finished: Printer.print-state == "complete" || Printer.print-state == "cancelled" || Printer.print-state == "error";
-    // The thumbnail column gives room to the figures on displays narrower than 720 px.
-    property <length> side-width: Display.narrow ? 150px : 220px;
+    property <length> side-width: 220px;
 
     HorizontalLayout {
         padding: Theme.padding;
@@ -278,7 +276,6 @@ export component PrintPage inherits Rectangle {
                     spacing: Theme.spacing;
                     ValueTile {
                         weight: 4;
-                        show-icon: !Display.narrow;
                         icon: Icons.print-duration;
                         label: @tr("Elapsed");
                         value: Printer.elapsed;
@@ -286,7 +283,6 @@ export component PrintPage inherits Rectangle {
                     // A tap plans a pause at a layer, if the printer has Mainsail's macros for it.
                     ValueTile {
                         weight: 5;
-                        show-icon: !Display.narrow;
                         icon: Icons.print-layers;
                         label: @tr("Layer");
                         value: Printer.layers;
@@ -299,21 +295,18 @@ export component PrintPage inherits Rectangle {
                     spacing: Theme.spacing;
                     if !root.finished: ValueTile {
                         weight: 4;
-                        show-icon: !Display.narrow;
                         icon: Icons.print-eta;
                         label: @tr("Remaining");
                         value: Printer.remaining;
                     }
                     if root.finished: ValueTile {
                         weight: 4;
-                        show-icon: !Display.narrow;
                         icon: Printer.print-state == "complete" ? Icons.print-complete : Printer.print-state == "cancelled" ? Icons.print-cancel : Icons.state-error;
                         label: Printer.print-state == "complete" ? @tr("Finished") : Printer.print-state == "cancelled" ? @tr("Cancelled") : @tr("Failed");
                         value: Printer.ended;
                     }
                     ValueTile {
                         weight: 5;
-                        show-icon: !Display.narrow;
                         icon: Icons.filament-spool;
                         label: @tr("Filament");
                         value: Printer.filament;
@@ -329,14 +322,12 @@ export component PrintPage inherits Rectangle {
                     spacing: Theme.spacing;
                     ValueTile {
                         weight: 4;
-                        show-icon: !Display.narrow;
                         icon: Icons.ui-info;
                         label: @tr("ETA");
                         value: Printer.eta;
                     }
                     ValueTile {
                         weight: 5;
-                        show-icon: !Display.narrow;
                         icon: Icons.motion-speed;
                         // Two short lines instead of one long value: the speed, and under the icon's label the flow.
                         label: @tr("Flow {} mm³/s", Printer.live-flow.to-fixed(1));

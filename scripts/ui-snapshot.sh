@@ -2,7 +2,8 @@
 # Renders the pages of the Slint UI headless as PNG against a freshly started fake Moonraker.
 # WSL2/Linux counterpart of ui-snapshot.ps1.
 # Usage (repo root): scripts/ui-snapshot.sh [-o <folder>] [-p voron] [-s 800x480] [-F] [-S pages,network] [-P 7125]
-# -F: no fit; the window of the given size without scaling the layout to 800x480 (as the app does by default).
+# -F: no fit; the window of the given size without scaling the layout to 800x480 (as a desktop window; at least
+#     800x480). Without -F the layout is fitted to the size like the app does in fullscreen.
 # Without -S all scenes except the slow 'idle' run. Exit code 0 on success; the PNG paths are printed.
 set -euo pipefail
 

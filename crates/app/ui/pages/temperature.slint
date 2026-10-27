@@ -2,16 +2,13 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Display, FanItem, HeaterItem, Navigation, Printer, SensorItem, UiSettings } from "../state.slint";
+import { Actions, FanItem, HeaterItem, Navigation, Printer, SensorItem, UiSettings } from "../state.slint";
 import { IconButton, ProgressBar, ScrollList, StepSelector, TouchSlider } from "../components/controls.slint";
 
 component HeaterRow inherits Rectangle {
     in property <HeaterItem> heater;
     in property <float> step;
-    in property <length> row-height: 60px;
-    // Narrow displays: slimmer target block and buttons.
-    in property <bool> compact;
-    height: root.row-height;
+    height: 60px;
     background: history-touch.pressed ? Theme.surface-raised : Theme.surface;
     border-radius: Theme.radius;
 
@@ -67,7 +64,7 @@ component HeaterRow inherits Rectangle {
         }
         VerticalLayout {
             alignment: center;
-            width: root.compact ? 64px : 80px;
+            width: 80px;
             Text {
                 text: @tr("Target");
                 color: Theme.muted;
@@ -83,19 +80,19 @@ component HeaterRow inherits Rectangle {
             }
         }
         IconButton {
-            width: root.compact ? 52px : 64px;
+            width: 64px;
             icon: Icons.ui-minus;
             enabled: root.heater.target > 0;
             clicked => { Actions.step-heater(root.heater.object, -root.step); }
         }
         IconButton {
-            width: root.compact ? 52px : 64px;
+            width: 64px;
             icon: Icons.ui-plus;
             enabled: root.heater.can-raise;
             clicked => { Actions.step-heater(root.heater.object, root.step); }
         }
         IconButton {
-            width: root.compact ? 52px : 64px;
+            width: 64px;
             icon: Icons.thermal-off;
             enabled: root.heater.target > 0;
             clicked => { Actions.set-heater(root.heater.object, 0); }
@@ -171,9 +168,6 @@ component FanRow inherits Rectangle {
 }
 
 component HeatersTab inherits Rectangle {
-    // Displays up to 400 px high (640x400) get tighter rows, so the step selector stays visible.
-    property <bool> compact: Display.compact;
-
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
@@ -188,8 +182,6 @@ component HeatersTab inherits Rectangle {
                 for heater in Printer.heaters: HeaterRow {
                     heater: heater;
                     step: UiSettings.temperature-step;
-                    row-height: root.compact ? 52px : 60px;
-                    compact: root.compact;
                 }
                 Rectangle { vertical-stretch: 1; }
                 // Under the heaters, so the presets can take the full height beside them.
@@ -209,23 +201,16 @@ component HeatersTab inherits Rectangle {
                 // The spool in use, if Spoolman knows its temperatures: heats to them.
                 if Printer.has-spool-preset: IconButton {
                     icon: Icons.filament-spool;
-                    icon-size: root.compact ? 18px : Theme.icon;
-                    min-height: root.compact ? 44px : Theme.touch;
                     text: Printer.spool-preset-text;
                     clicked => { Actions.apply-spool-preset(); }
                 }
                 for preset[index] in UiSettings.presets: IconButton {
                     icon: Icons.thermal-preset;
-                    // Compact: a smaller icon keeps the five buttons within the height of a 400 px display.
-                    icon-size: root.compact ? 18px : Theme.icon;
-                    min-height: root.compact ? 44px : Theme.touch;
                     text: preset.name + "  " + round(preset.extruder) + "/" + round(preset.bed);
                     clicked => { Actions.apply-preset(index); }
                 }
                 IconButton {
                     icon: Icons.thermal-cooling;
-                    icon-size: root.compact ? 18px : Theme.icon;
-                    min-height: root.compact ? 44px : Theme.touch;
                     text: @tr("Cool down");
                     kind: "accent";
                     clicked => { Actions.cool-down(); }
@@ -256,7 +241,7 @@ component FansTab inherits Rectangle {
 
 // Every temperature without a target, three per row; a tap shows the history.
 component SensorsTab inherits Rectangle {
-    property <int> columns: Display.narrow ? 2 : 3;
+    property <int> columns: 3;
     property <length> tile-height: 64px;
 
     list := ScrollList {

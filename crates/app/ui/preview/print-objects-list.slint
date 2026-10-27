@@ -1,0 +1,26 @@
+// Preview: objects of a running print whose slicer only named them (no CENTER or POLYGON): the list without a map.
+// Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { ExcludeObjectsDialog } from "../components/overlays.slint";
+import { Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component PrintObjectsListPreview inherits AppWindow {
+    ExcludeObjectsDialog {
+        open: true;
+        selected: 0;
+    }
+
+    init => {
+        Sample.printing();
+        Navigation.page = Page.print;
+        Printer.print-objects = [
+            { name: "BENCHY_0", printing: true },
+            { name: "BENCHY_1", excluded: true },
+            { name: "CALIBRATION_CUBE" },
+            { name: "SUPPORT_TOWER" },
+            { name: "SPACER_M3" },
+        ];
+    }
+}

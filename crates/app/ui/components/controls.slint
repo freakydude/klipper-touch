@@ -246,8 +246,6 @@ export component ValueTile inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <image> icon;
-    // A narrow display gives the room of the icon to the text.
-    in property <bool> show-icon: true;
     // Share of the width among tiles side by side (4 and 5: four to five).
     in property <float> weight: 1;
     // A tile that opens something on a tap shows a small muted icon at its right edge.
@@ -271,7 +269,7 @@ export component ValueTile inherits Rectangle {
     HorizontalLayout {
         padding: 6px;
         spacing: 8px;
-        if root.icon.width > 0 && root.show-icon: Image {
+        if root.icon.width > 0: Image {
             cross-axis-self-alignment: center;
             source: root.icon;
             colorize: Theme.muted;

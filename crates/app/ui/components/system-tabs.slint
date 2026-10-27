@@ -3,20 +3,19 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Display, Navigation, Page, Printer } from "../state.slint";
+import { Navigation, Page, Printer } from "../state.slint";
 import { IconButton } from "controls.slint";
 
 component SystemTab inherits IconButton {
     in property <Page> page;
-    // On small displays only the icon fits; the name stays for screen readers.
     in property <string> label;
     // Waiting items (updates), shown as a small badge so the label keeps its full width.
     in property <int> count;
     max-width: 190px;
-    icon-size: Display.compact ? Theme.icon : 20px;
+    icon-size: 20px;
     horizontal-stretch: 1;
     horizontal: true;
-    text: Display.compact ? "" : root.label;
+    text: root.label;
     accessible-label: root.label;
     checked: Navigation.page == root.page;
     clicked => { Navigation.page = root.page; }

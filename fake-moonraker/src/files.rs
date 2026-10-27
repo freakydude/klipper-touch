@@ -1,5 +1,6 @@
 //! Virtual G-code files with metadata and thumbnail.
 
+use crate::print_objects::Definitions;
 use serde_json::{json, Value};
 
 const THUMBNAIL_SIZE: u32 = 300;
@@ -57,6 +58,16 @@ impl GcodeFile {
             vec!["#E6261F", "#2E7D32"]
         } else {
             vec!["#E6261F"]
+        }
+    }
+
+    /// What the slicer defined for `exclude_object`: the cube was sliced with label objects off, the long job by a
+    /// slicer that only names them.
+    pub fn object_definitions(&self) -> Definitions {
+        match self.path.as_str() {
+            "calibration_cube.gcode" => Definitions::None,
+            "long_job.gcode" => Definitions::NamesOnly,
+            _ => Definitions::Located,
         }
     }
 

@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Navigation, Printer } from "../state.slint";
 import { IconButton } from "controls.slint";
+import { DialogTitle } from "dialog.slint";
 
 // A line of the chart. The view box is 1000 high and as wide as the drawing area's shape, because a path is scaled
 // evenly; the lines are computed for that shape (`Navigation.history-aspect`).
@@ -42,13 +43,8 @@ export component HistoryDialog inherits Rectangle {
                 width: 28px;
                 height: 28px;
             }
-            Text {
+            DialogTitle {
                 text: Printer.history-title;
-                color: Theme.foreground;
-                font-size: Theme.font-large;
-                font-weight: 600;
-                vertical-alignment: center;
-                overflow: elide;
             }
             Text {
                 horizontal-stretch: 1;

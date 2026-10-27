@@ -7,6 +7,7 @@ use crate::happy_hare::HappyHare;
 use crate::history::{Sample, TemperatureStore};
 use crate::layer_pause::LayerPause;
 use crate::machine::{MachineProfile, FILAMENT_SENSORS, MMU_FILAMENT_SENSORS};
+use crate::print_objects::{self, Definitions};
 use serde_json::{json, Map, Value};
 use std::time::Duration;
 
@@ -58,8 +59,6 @@ const AXIS_MINIMUM: [f64; 4] = [0.0; 4];
 const AXIS_MAXIMUM: [f64; 4] = [300.0, 300.0, 300.0, 0.0];
 const ALL_AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
 const EXTRUDER_INDEX: usize = 3;
-/// Objects of every simulated print; Klipper takes them from `EXCLUDE_OBJECT_DEFINE` in the file, upper-cased.
-const PRINT_OBJECTS: [&str; 3] = ["BENCHY_0", "BENCHY_1", "CALIBRATION_CUBE"];
 const SHUTDOWN_MESSAGE: &str = "Shutdown due to M112 command";
 /// Klipper's default `[idle_timeout] timeout`; afterwards heaters and motors are switched off.
 const IDLE_TIMEOUT_SECONDS: f64 = 600.0;
@@ -153,6 +152,8 @@ struct PrintJob {
     estimated_time: f64,
     layer_count: u32,
     filament_total: f64,
+    /// Klipper keeps the objects of the last file until the next one starts.
+    object_definitions: Definitions,
 }
 
 /// `[printer]` limits, changed by `SET_VELOCITY_LIMIT` until the next restart.
@@ -407,6 +408,7 @@ impl Printer {
             estimated_time: file.estimated_time,
             layer_count: file.layer_count,
             filament_total: file.filament_total(),
+            object_definitions: file.object_definitions(),
         });
         self.print_state = PrintState::Printing;
         Ok(())
@@ -474,9 +476,9 @@ impl Printer {
             objects.insert(
                 "exclude_object".to_owned(),
                 json!({
-                    "objects": PRINT_OBJECTS.iter().map(|name| json!({ "name": name })).collect::<Vec<_>>(),
+                    "objects": print_objects::objects(self.object_definitions()),
                     "excluded_objects": self.excluded_objects,
-                    "current_object": null,
+                    "current_object": self.current_object(),
                 }),
             );
         }
@@ -688,6 +690,19 @@ impl Printer {
             self.excluded_objects.push(name);
             self.excluded_objects.sort();
         }
+    }
+
+    /// Before the first print no file has defined objects.
+    fn object_definitions(&self) -> Definitions {
+        self.job.as_ref().map_or(Definitions::None, |job| job.object_definitions)
+    }
+
+    /// Klipper keeps the last object while the print is paused.
+    fn current_object(&self) -> Option<&'static str> {
+        if !self.print_state.is_active() {
+            return None;
+        }
+        print_objects::current(self.object_definitions(), self.layers().0?, &self.excluded_objects)
     }
 
     fn ensure_running(&self) -> Result<(), CommandError> {
@@ -1125,7 +1140,10 @@ mod tests {
     fn exclude_object_lists_objects_and_skips_them() {
         let mut printer = Printer::with_profile(1.0, MachineProfile::voron());
         assert!(names(&printer).contains(&"exclude_object".to_owned()));
-        assert_eq!(printer.status()["exclude_object"]["objects"].as_array().unwrap().len(), PRINT_OBJECTS.len());
+        assert_eq!(printer.status()["exclude_object"]["objects"], json!([]), "no file has defined objects yet");
+        assert_eq!(printer.status()["exclude_object"]["current_object"], Value::Null, "nothing printed in standby");
+        printer.start_print(&Catalog::demo().find("benchy.gcode").unwrap().clone()).unwrap();
+        assert_eq!(printer.status()["exclude_object"]["objects"].as_array().unwrap().len(), print_objects::count());
 
         run(&mut printer, "EXCLUDE_OBJECT NAME=benchy_1\nEXCLUDE_OBJECT NAME=BENCHY_1").unwrap();
         assert_eq!(printer.status()["exclude_object"]["excluded_objects"], json!(["BENCHY_1"]));
@@ -1136,6 +1154,24 @@ mod tests {
 
         run(&mut printer, "EXCLUDE_OBJECT").unwrap();
         assert_eq!(printer.status()["exclude_object"]["excluded_objects"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn a_print_reports_the_object_being_printed() {
+        let mut printer = Printer::with_profile(1.0, MachineProfile::voron());
+        let file = Catalog::demo().find("benchy.gcode").unwrap().clone();
+        printer.start_print(&file).unwrap();
+        run(&mut printer, "EXCLUDE_OBJECT NAME=BENCHY_0").unwrap();
+        let current = printer.status()["exclude_object"]["current_object"].clone();
+        assert!(current.is_string() && current != "BENCHY_0", "an excluded object is not printed: {current}");
+    }
+
+    #[test]
+    fn a_file_without_object_labels_defines_no_objects() {
+        let mut printer = Printer::with_profile(1.0, MachineProfile::voron());
+        printer.start_print(&Catalog::demo().find("calibration_cube.gcode").unwrap().clone()).unwrap();
+        assert_eq!(printer.status()["exclude_object"]["objects"], json!([]));
+        assert_eq!(printer.status()["exclude_object"]["current_object"], Value::Null);
     }
 
     #[test]

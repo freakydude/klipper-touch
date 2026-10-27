@@ -50,6 +50,36 @@ impl HomedAxes {
     }
 }
 
+/// A point on the bed in mm, in Klipper's coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BedPoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl BedPoint {
+    pub fn distance(self, other: Self) -> f64 {
+        (self.x - other.x).hypot(self.y - other.y)
+    }
+}
+
+/// The area the toolhead reaches in X and Y (`axis_minimum` to `axis_maximum`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Bed {
+    pub min: BedPoint,
+    pub max: BedPoint,
+}
+
+impl Bed {
+    pub fn width(&self) -> f64 {
+        self.max.x - self.min.x
+    }
+
+    pub fn depth(&self) -> f64 {
+        self.max.y - self.min.y
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Motion {
     pub position: [f64; 4],
@@ -68,6 +98,15 @@ pub struct Motion {
     pub extrude_factor: f64,
 }
 
+impl Motion {
+    /// The reachable area; `None` until Klipper reported limits that span one.
+    pub fn bed(&self) -> Option<Bed> {
+        let point = |axes: [f64; 4]| BedPoint { x: axes[Axis::X.index()], y: axes[Axis::Y.index()] };
+        let bed = Bed { min: point(self.axis_minimum), max: point(self.axis_maximum) };
+        (bed.width() > 0.0 && bed.depth() > 0.0).then_some(bed)
+    }
+}
+
 pub(super) fn read_motion(toolhead: &Value, motion_report: &Value, gcode_move: &Value) -> Motion {
     Motion {
         position: vector(toolhead, "position"),
@@ -84,5 +123,22 @@ pub(super) fn read_motion(toolhead: &Value, motion_report: &Value, gcode_move: &
         homing_origin: vector(gcode_move, "homing_origin"),
         speed_factor: number_or(gcode_move, "speed_factor", 1.0),
         extrude_factor: number_or(gcode_move, "extrude_factor", 1.0),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_bed_spans_the_x_and_y_limits() {
+        let motion = Motion {
+            axis_minimum: [-5.0, 0.0, -2.0, 0.0],
+            axis_maximum: [300.0, 310.0, 250.0, 0.0],
+            ..Motion::default()
+        };
+        let bed = motion.bed().expect("limits span an area");
+        assert_eq!((bed.width(), bed.depth()), (305.0, 310.0));
+        assert_eq!(Motion::default().bed(), None, "no limits reported yet");
     }
 }
