@@ -1,7 +1,7 @@
 // Main window: status bar, navigation, current page and overlays.
 
 import { Theme } from "theme.slint";
-import { Actions, Confirm, Dialogs, Display, Navigation, Network, Page, Printer, SpoolPicker, StateIcons, UiSettings } from "state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Network, Page, Printer, SpoolPicker, StateIcons, UiSettings } from "state.slint";
 import { NavRail, StatusBar } from "components/chrome.slint";
 import { ConfirmDialog, MessagesFlyout, SpoolDialog } from "components/overlays.slint";
 import { HistoryDialog } from "components/history.slint";
@@ -25,20 +25,14 @@ export component AppWindow inherits Window {
     title: "FreakyMate";
     preferred-width: 800px;
     preferred-height: 480px;
-    min-width: 640px;
-    min-height: 400px;
+    // The layout is made for 800x480 and needs that room: a window is never smaller, only larger. Fullscreen fits
+    // the layout to any display instead (`display.rs`).
+    min-width: 800px;
+    min-height: 480px;
     background: Theme.background;
     default-font-size: Theme.font-normal;
 
     // Pages that are useful even without a ready printer.
-    // Pages choose their compact layout from these (see `Display`).
-    init => {
-        Display.window-width = root.width;
-        Display.window-height = root.height;
-    }
-    changed width => { Display.window-width = root.width; }
-    changed height => { Display.window-height = root.height; }
-
     property <bool> page-works-offline: Navigation.page == Page.system || Navigation.page == Page.settings
         || Navigation.page == Page.network
         || ((Navigation.page == Page.console || Navigation.page == Page.updates) && Printer.connection == "connected");

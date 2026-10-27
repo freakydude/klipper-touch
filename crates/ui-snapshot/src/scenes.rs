@@ -285,8 +285,12 @@ const TAP_ROUNDS: usize = 10;
 /// A finger rests this long: several status updates arrive meanwhile, as the temperatures change all the time.
 const TAP_DURATION: Duration = Duration::from_millis(500);
 
-/// A tap that spans status updates must still count: the heater rows may not be rebuilt under the finger.
+/// A tap that spans status updates must still count: the heater rows may not be rebuilt under the finger. Checked
+/// in the reference layout only, where the button lies at a known place.
 fn taps(session: &mut Session) -> Result<(), String> {
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
     session.window.global::<Navigation>().set_page(Page::Temperature);
     let heating = |target| Command::SetHeaterTarget { heater: "extruder".into(), target };
     let target = |snapshot: &freakymate_core::Snapshot| snapshot.status.heater("extruder").map(|heater| heater.target);
@@ -334,9 +338,13 @@ const ON_SCREEN_BACKSPACE: (f32, f32) = (628.0, 428.0);
 const ON_SCREEN_ENTER: (f32, f32) = (731.0, 428.0);
 
 /// The text entry edits like any text field: Backspace, Delete, Home, End, Shift and Ctrl are the keyboard's own
-/// business. The result is read from the command that the entry sends.
+/// business. The result is read from the command that the entry sends. Checked in the reference layout only, where
+/// the field and the keys lie at known places.
 fn typing(session: &mut Session) -> Result<(), String> {
     use slint::platform::Key;
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
     session.window.global::<Navigation>().set_page(Page::Console);
     session.pump(Duration::from_millis(300));
     let (x, y) = COMMAND_FIELD;

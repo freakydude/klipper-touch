@@ -2,7 +2,8 @@
   Renders the pages of the Slint UI headless as PNG against a freshly started fake Moonraker.
   Usage (repo root): powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Profile voron] [-Size 800x480]
                      [-NoFit] [-Scenes pages,network,printing,shutdown,idle|all]
-  -NoFit: the window of the given size without scaling the layout to 800x480 (as the app does by default).
+  -NoFit: the window of the given size without scaling the layout to 800x480 (as a desktop window; at least 800x480).
+          Without it the layout is fitted to the size like the app does in fullscreen.
   Without -Scenes all scenes except the slow 'idle' run. Exit code 0 on success; the PNG paths are printed.
 #>
 param(

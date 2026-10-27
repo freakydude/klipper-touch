@@ -6,6 +6,7 @@
 mod scenes;
 mod session;
 
+use freakymate::display::{DESIGN_HEIGHT, DESIGN_WIDTH};
 use scenes::Scene;
 use session::Session;
 use std::path::PathBuf;
@@ -49,7 +50,19 @@ fn parse_options() -> Result<Options, String> {
             _ => return Err(format!("unknown option {flag}")),
         }
     }
+    check_unfitted_size(&options)?;
     Ok(options)
+}
+
+/// Like the app's window: without fitting, never smaller than the 800x480 the layout is made for.
+fn check_unfitted_size(options: &Options) -> Result<(), String> {
+    let too_small = options.width < DESIGN_WIDTH as u32 || options.height < DESIGN_HEIGHT as u32;
+    if !options.fit && too_small {
+        return Err(format!(
+            "--no-fit needs at least {DESIGN_WIDTH}x{DESIGN_HEIGHT}; smaller displays are only fitted (without --no-fit)"
+        ));
+    }
+    Ok(())
 }
 
 fn run() -> Result<(), String> {
@@ -66,5 +79,21 @@ fn main() -> ExitCode {
             eprintln!("ui-snapshot: {error}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn options(width: u32, height: u32, fit: bool) -> Options {
+        Options { moonraker: String::new(), out: PathBuf::new(), width, height, fit, scenes: Vec::new() }
+    }
+
+    #[test]
+    fn only_fitted_windows_may_be_smaller_than_the_layout() {
+        assert!(check_unfitted_size(&options(1024, 600, false)).is_ok(), "larger without fitting shows more room");
+        assert!(check_unfitted_size(&options(640, 400, false)).is_err());
+        assert!(check_unfitted_size(&options(480, 272, true)).is_ok(), "smaller is scaled down");
     }
 }

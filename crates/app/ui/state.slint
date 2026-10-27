@@ -564,16 +564,6 @@ export global Network {
     }
 }
 
-// Size of the window, set by the window itself. Pages read it to choose a compact layout; reading their own size
-// would loop, because their size comes from the layout that depends on that choice.
-export global Display {
-    in-out property <length> window-width;
-    in-out property <length> window-height;
-    // 640x400 and the like: tighter rows, fewer extra lines.
-    out property <bool> compact: self.window-height < 440px;
-    out property <bool> narrow: self.window-width < 720px;
-}
-
 // The dialog to pick a spool, weigh it, or assign it to a gate.
 export global SpoolPicker {
     in-out property <bool> open;

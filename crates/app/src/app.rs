@@ -123,9 +123,10 @@ impl Application {
 /// - Pointer: fullscreen is the touch-only kiosk mode, where a pointer would only be the cursor of a touch screen.
 ///   winit may show it again on focus, resize or pointer entry, and the window does not exist yet when the app
 ///   starts, so the state is re-applied on those events instead of once.
-/// - Scale: the layout is fitted to the real display whenever the window changes its size (see [`display`]). The
-///   scale of the system is not used: a compositor reports 1 for a touch screen, and the layout is made for 800x480.
-///   Whoever sets `SLINT_SCALE_FACTOR` chooses the scale by hand, and nothing is fitted then.
+/// - Scale: in fullscreen the layout is fitted to the real display whenever the size changes (see [`display`]); the
+///   scale of the system is not used there, a compositor reports 1 for a touch screen. A window keeps the scale of
+///   the system, so a larger window shows more room. Whoever sets `SLINT_SCALE_FACTOR` chooses the scale by hand,
+///   and nothing is fitted then.
 pub fn watch_window_events(window: &AppWindow) {
     let fit = std::env::var_os("SLINT_SCALE_FACTOR").is_none();
     let weak = window.as_weak();
@@ -139,7 +140,7 @@ pub fn watch_window_events(window: &AppWindow) {
                 let weak = weak.clone();
                 Timer::single_shot(Duration::ZERO, move || {
                     if let Some(window) = weak.upgrade() {
-                        display::apply_fit(window.window());
+                        scale_to_mode(window.window());
                     }
                 });
                 EventResult::Propagate
@@ -148,6 +149,18 @@ pub fn watch_window_events(window: &AppWindow) {
             _ => EventResult::Propagate,
         }
     });
+}
+
+/// Fullscreen fits the layout to the display; a window shows it at the scale of the system (see
+/// [`display::fits_to_display`]).
+fn scale_to_mode(window: &slint::Window) {
+    let system_scale = window.with_winit_window(|winit_window| winit_window.scale_factor() as f32).unwrap_or(1.0);
+    let size = window.size();
+    if display::fits_to_display(window.is_fullscreen(), size.width, size.height, system_scale) {
+        display::apply_fit(window);
+    } else {
+        display::apply_system_scale(window, system_scale);
+    }
 }
 
 /// Shows or hides the pointer; leaving fullscreen brings it back.

@@ -208,7 +208,7 @@ freakymate [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-ne
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
 Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
-driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off).
+driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off, also in fullscreen).
 Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
 
 ### Settings file
@@ -233,9 +233,10 @@ after saving.
 
 ### Displays
 
-The supported display is the BTT HDMI5 (800x480), where it has been run; the layout is made for it. Other resolutions show the same layout
-scaled up or down to fit, so a 7" 1024x600 display fills its screen and a 4.3" 480x272 display shows everything, only
-smaller. These are not tested yet. A 3.5" 480x320 display is too small to operate comfortably, and displays that hang on
+The supported display is the BTT HDMI5 (800x480), where it has been run; the layout is made for it. In fullscreen, other
+resolutions show the same layout scaled up or down to fit, so a 7" 1024x600 display fills its screen and a 4.3" 480x272
+display shows everything, only smaller. A window on a desktop is never smaller than 800x480; a larger one shows more
+room instead of scaling (where a compositor forces a smaller window, the layout is fitted as in fullscreen). These are not tested yet. A 3.5" 480x320 display is too small to operate comfortably, and displays that hang on
 the SPI bus may not work with the kiosk compositor at all. Layouts of their own for the 7" and 4.3" displays are planned.
 
 ### Network settings

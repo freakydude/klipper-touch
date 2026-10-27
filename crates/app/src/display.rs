@@ -1,5 +1,6 @@
 //! Fits the layout, which is made for 800x480, to the real display: until the pages respond to the screen size,
-//! every other resolution shows the same layout scaled up or down.
+//! fullscreen shows the same layout scaled up or down on every other resolution. A window keeps the scale of the
+//! system instead; it is never smaller than 800x480 (`AppWindow`), and a larger one shows more room.
 
 use slint::platform::WindowEvent;
 use slint::{LogicalSize, Window};
@@ -14,21 +15,40 @@ pub fn fit_scale(width: u32, height: u32) -> Option<f32> {
     (width > 0 && height > 0).then(|| (width as f32 / DESIGN_WIDTH).min(height as f32 / DESIGN_HEIGHT))
 }
 
-/// Scales the window to its current size. Does nothing at the design size, so the primary display is not touched.
+/// Fullscreen fits the layout to the display. A window keeps the scale of the system, unless it is smaller than the
+/// layout at that scale: a kiosk compositor such as cage sizes every window to its display, also without fullscreen
+/// (the setting can be switched off at runtime), and a 480x272 display would cut the pages off.
+pub fn fits_to_display(fullscreen: bool, width: u32, height: u32, system_scale: f32) -> bool {
+    fullscreen || (width as f32) < DESIGN_WIDTH * system_scale || (height as f32) < DESIGN_HEIGHT * system_scale
+}
+
+/// Scales the layout to the current size of the window (fullscreen). Does nothing at the design size, so the
+/// primary display is not touched.
 pub fn apply_fit(window: &Window) {
     let size = window.size();
-    let Some(scale) = fit_scale(size.width, size.height) else { return };
+    if let Some(scale) = fit_scale(size.width, size.height) {
+        apply_scale(window, scale);
+    }
+}
+
+/// Back to the scale of the system (a window, also after leaving fullscreen).
+pub fn apply_system_scale(window: &Window, system_scale: f32) {
+    apply_scale(window, system_scale);
+}
+
+fn apply_scale(window: &Window, scale: f32) {
+    let size = window.size();
     if (scale - window.scale_factor()).abs() < 0.001 {
         return;
     }
     let logical = LogicalSize::new(size.width as f32 / scale, size.height as f32 / scale);
     for event in [WindowEvent::ScaleFactorChanged { scale_factor: scale }, WindowEvent::Resized { size: logical }] {
         if let Err(error) = window.dispatch_event_with_result(event) {
-            log::warn!("cannot fit the display ({}x{}): {error}", size.width, size.height);
+            log::warn!("cannot scale the window ({}x{}): {error}", size.width, size.height);
             return;
         }
     }
-    log::info!("display {}x{} fitted with scale factor {scale:.3}", size.width, size.height);
+    log::info!("window {}x{} shown with scale factor {scale:.3}", size.width, size.height);
 }
 
 #[cfg(test)]
@@ -57,6 +77,15 @@ mod tests {
             assert!(width as f32 / scale >= DESIGN_WIDTH - 0.01, "{width}x{height}");
             assert!(height as f32 / scale >= DESIGN_HEIGHT - 0.01, "{width}x{height}");
         }
+    }
+
+    #[test]
+    fn only_fullscreen_or_a_window_below_the_layout_is_fitted() {
+        assert!(fits_to_display(true, 1024, 600, 1.0));
+        assert!(!fits_to_display(false, 1024, 600, 1.0), "a larger window shows more room");
+        assert!(!fits_to_display(false, 1600, 960, 2.0), "800x480 at the system's scale of 2");
+        assert!(fits_to_display(false, 480, 272, 1.0), "cage sizes the window to a small display");
+        assert!(fits_to_display(false, 1024, 600, 1.5), "smaller than the layout at the system's scale");
     }
 
     #[test]
