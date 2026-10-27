@@ -1,20 +1,18 @@
 //! UI-independent core of freakymate: Moonraker connection, printer state, commands and settings.
 //!
-//! The entry point is [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
+//! Layers, each using only the ones before it: [`moonraker`] is the transport and knows no printer objects;
+//! [`sources`] has one module per origin of data (Klipper, Moonraker's components, Happy Hare, Spoolman, ...);
+//! [`domain`] answers questions that need several sources; [`service`] only collects. The entry point is
+//! [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
 
 pub mod commands;
-pub mod estimates;
-pub mod files;
-pub mod history;
+pub mod domain;
 pub mod moonraker;
 pub mod network;
-pub mod printer;
 pub mod service;
 pub mod settings;
 pub mod sourced;
-pub mod spoolman;
-pub mod system;
-pub mod tuning;
+pub mod sources;
 
 pub use commands::Command;
 pub use moonraker::Endpoint;

@@ -2,10 +2,14 @@
 
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
-use freakymate_core::files::ThumbnailImage;
-use freakymate_core::printer::{self, FilamentHandling, GateAvailability, KlippyState, LoadedFilament, PrintState};
-use freakymate_core::spoolman;
-use freakymate_core::system::ConsoleKind;
+use freakymate_core::domain::filament::{self, FilamentHandling};
+use freakymate_core::domain::{pause, spools};
+use freakymate_core::sources::happy_hare::{GateAvailability, LoadedFilament};
+use freakymate_core::sources::klipper::tuning::TuningKey;
+use freakymate_core::sources::klipper::{Axis, FanKind, KlippyState, Leveling, PrintState, WhiteChannel};
+use freakymate_core::sources::moonraker_server::files::ThumbnailImage;
+use freakymate_core::sources::moonraker_server::gcode_store::ConsoleKind;
+use freakymate_core::sources::PrinterStatus;
 use freakymate_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -61,12 +65,13 @@ async fn connects_detects_capabilities_and_follows_state() {
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
 
     let snapshot = wait_for(&mut channels, ready).await;
-    assert!(snapshot.capabilities.quad_gantry_level);
-    assert!(snapshot.capabilities.has_macro("LOAD_FILAMENT"));
-    assert!(!snapshot.capabilities.has_macro("_PURGE_HELPER"));
-    let park = snapshot.capabilities.macro_details.get("PARK").expect("macro details are read when subscribing");
+    let klipper = &snapshot.sources.klipper;
+    assert_eq!(klipper.leveling, Some(Leveling::QuadGantry));
+    assert!(klipper.has_macro("LOAD_FILAMENT"));
+    assert!(!klipper.has_macro("_PURGE_HELPER"));
+    let park = klipper.macro_details.get("PARK").expect("macro details are read when subscribing");
     assert!(park.params.iter().any(|param| param.name == "Z"));
-    assert!(snapshot.capabilities.server.power);
+    assert!(snapshot.sources.moonraker.power);
     assert!(snapshot.status.heater("heater_generic chamber").is_some());
 
     service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: 200.0 });
@@ -78,7 +83,7 @@ async fn connects_detects_capabilities_and_follows_state() {
     .await;
     assert_eq!(snapshot.status.motion.position[0], 0.0);
 
-    service.send(Command::Jog { axis: freakymate_core::printer::Axis::X, distance: 25.0 });
+    service.send(Command::Jog { axis: Axis::X, distance: 25.0 });
     wait_for(&mut channels, |snapshot| snapshot.status.motion.position[0] == 25.0).await;
 }
 
@@ -88,7 +93,7 @@ async fn follows_happy_hare_gates_sensors_and_loading() {
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
 
     let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
-    assert_eq!(snapshot.capabilities.filament_handling(), FilamentHandling::Mmu);
+    assert_eq!(filament::handling(&snapshot.sources, &snapshot.status), FilamentHandling::Mmu);
     let mmu = snapshot.status.mmu.unwrap();
     assert_eq!((mmu.num_gates, mmu.filament), (4, LoadedFilament::Unloaded));
     assert!(mmu.is_supported());
@@ -193,7 +198,7 @@ async fn reads_the_spools_of_the_gates_from_spoolman() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
     let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
     let snapshot = wait_for(&mut channels, ready).await;
-    assert!(snapshot.capabilities.server.spoolman);
+    assert!(snapshot.sources.moonraker.spoolman);
 
     let Event::Spoolman(state) = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_))).await else {
         unreachable!()
@@ -224,7 +229,7 @@ async fn a_printer_without_spoolman_has_no_spoolman_component() {
     service.query(Query::Spoolman);
     service.query(Query::PowerDevices);
 
-    assert!(!snapshot.capabilities.server.spoolman);
+    assert!(!snapshot.sources.moonraker.spoolman);
     // The first event is that of the power devices: nothing was asked of a Spoolman that is not there.
     let first = next_event(&mut channels, |event| matches!(event, Event::Spoolman(_) | Event::PowerDevices(_))).await;
     assert!(matches!(first, Event::PowerDevices(_)));
@@ -248,8 +253,8 @@ async fn the_active_spool_is_set_and_reported_back() {
         }
     };
     assert_eq!(state.spools[&6].material, "PETG");
-    let lanes = spoolman::lanes(None, &state);
-    assert_eq!(spoolman::active_spool(&lanes).map(|spool| spool.id), Some(6));
+    let lanes = spools::lanes(&PrinterStatus::default(), &state);
+    assert_eq!(spools::active_spool(&lanes).map(|spool| spool.id), Some(6));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -336,10 +341,10 @@ async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
 
     service.send(Command::StartPrint { filename: "calibration_cube.gcode".into() });
     let printing = wait_for(&mut channels, |snapshot| snapshot.status.job.current_layer.is_some()).await;
-    assert!(printer::layer_pause_offer(&printing.capabilities, &printing.status).is_some());
+    assert!(pause::layer_pause_offer(&printing.sources, &printing.status).is_some());
     service.send(Command::PauseAtNextLayer);
     let paused = wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Paused).await;
-    assert!(printer::interruption(&paused.status).is_some_and(|interruption| !interruption.failed));
+    assert!(pause::interruption(&paused.status).is_some_and(|interruption| !interruption.failed));
 
     service.send(Command::CancelPrint);
     let cancelled = wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Cancelled).await;
@@ -461,20 +466,17 @@ async fn reports_disconnected_when_server_is_missing() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
-    use freakymate_core::printer::FanKind;
-    use freakymate_core::tuning::TuningKey;
-
     let endpoint = start_fake().await;
     let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
     let snapshot = wait_for(&mut channels, ready).await;
 
-    let capabilities = &snapshot.capabilities;
-    assert!(capabilities.fans.iter().any(|fan| fan == "fan_generic nevermore"));
-    assert_eq!(capabilities.main_light(), Some("neopixel chamber"));
-    assert_eq!(capabilities.white_channel("neopixel chamber"), freakymate_core::printer::WhiteChannel::All);
-    assert_eq!(capabilities.white_channel("neopixel status"), freakymate_core::printer::WhiteChannel::None);
-    assert!(capabilities.led_effects.iter().any(|effect| effect == "led_effect rainbow"));
-    assert_eq!(capabilities.tuning.get(TuningKey::MaxAccel), Some(3000.0));
+    let klipper = &snapshot.sources.klipper;
+    assert!(klipper.fans.iter().any(|fan| fan == "fan_generic nevermore"));
+    assert_eq!(klipper.main_light(), Some("neopixel chamber"));
+    assert_eq!(klipper.white_channel("neopixel chamber"), WhiteChannel::All);
+    assert_eq!(klipper.white_channel("neopixel status"), WhiteChannel::None);
+    assert!(snapshot.sources.led_effects.iter().any(|effect| effect == "led_effect rainbow"));
+    assert_eq!(klipper.tuning.get(TuningKey::MaxAccel), Some(3000.0));
     assert!(snapshot
         .status
         .sensors

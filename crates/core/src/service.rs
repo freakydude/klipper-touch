@@ -4,14 +4,17 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
-use crate::files::{self, FileEntry, FileMetadata, PrintHistory, ThumbnailImage};
-use crate::history::{self, TemperatureSeries};
 use crate::moonraker::{CallError, Connection, Endpoint, Notification};
-use crate::printer::{
-    self, Capabilities, KlippyState, ObjectStore, PendingTargets, PrintState, PrinterStatus, ServerComponents,
-};
-use crate::spoolman::{self, Spool, SpoolmanState};
-use crate::system::{self, ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
+use crate::sources::klipper::{KlippyState, PendingTargets, PrintState};
+use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, PrintHistory, ThumbnailImage};
+use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
+use crate::sources::moonraker_server::machine::{self, HostInterface};
+use crate::sources::moonraker_server::power::{self, PowerDevice};
+use crate::sources::moonraker_server::temperature_store::{self, TemperatureSeries};
+use crate::sources::moonraker_server::update_manager::{self, UpdateInfo};
+use crate::sources::moonraker_server::{server_info, ServerComponents};
+use crate::sources::spoolman::{self, Spool, SpoolmanState};
+use crate::sources::{ObjectStore, PrinterStatus, Sources};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -46,7 +49,8 @@ pub struct Snapshot {
     pub endpoint: String,
     pub connection: ConnectionState,
     pub status: PrinterStatus,
-    pub capabilities: Capabilities,
+    /// What this printer has; detected again with every subscription.
+    pub sources: Sources,
 }
 
 /// One-off requests for data that is not part of the running subscription.
@@ -226,7 +230,8 @@ struct Session<'a> {
     endpoint: Endpoint,
     outputs: &'a Outputs,
     store: ObjectStore,
-    capabilities: Capabilities,
+    sources: Sources,
+    /// From `server.info`, known before Klipper is ready; part of [`Sources`] once subscribed.
     components: ServerComponents,
     klippy_ready: bool,
     job_filename: String,
@@ -247,7 +252,7 @@ impl<'a> Session<'a> {
             endpoint,
             outputs,
             store: ObjectStore::default(),
-            capabilities: Capabilities::default(),
+            sources: Sources::default(),
             components: ServerComponents::default(),
             klippy_ready: false,
             job_filename: String::new(),
@@ -308,7 +313,7 @@ impl<'a> Session<'a> {
     }
 
     async fn refresh_klippy(&mut self) -> Result<(), CallError> {
-        let info = system::parse_server_info(&self.connection.call("server.info", None).await?);
+        let info = server_info::parse_server_info(&self.connection.call("server.info", None).await?);
         self.components = ServerComponents::from_names(info.components.iter().map(String::as_str));
         let state =
             if info.klippy_connected { KlippyState::parse(&info.klippy_state) } else { KlippyState::Disconnected };
@@ -320,7 +325,7 @@ impl<'a> Session<'a> {
         Ok(())
     }
 
-    /// Determines capabilities and subscribes to the matching objects.
+    /// Detects the sources and subscribes to their objects.
     async fn subscribe(&mut self) -> Result<(), CallError> {
         let listing = self.connection.call("printer.objects.list", None).await?;
         let available: Vec<String> = listing
@@ -328,12 +333,11 @@ impl<'a> Session<'a> {
             .and_then(Value::as_array)
             .map(|names| names.iter().filter_map(Value::as_str).map(str::to_owned).collect())
             .unwrap_or_default();
-        let mut capabilities = Capabilities::from_objects(available.iter().map(String::as_str));
-        capabilities.server = self.components.clone();
-        let parameters = printer::subscription(&available, &capabilities);
+        let mut sources = Sources::detect(&available, self.components.clone());
+        let parameters = sources.subscription(&available);
         let result = self.connection.call("printer.objects.subscribe", Some(parameters)).await?;
-        capabilities.apply_settings(result.pointer("/status/configfile/settings"));
-        self.capabilities = capabilities;
+        sources.apply_settings(result.pointer("/status/configfile/settings"));
+        self.sources = sources;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
         self.klippy_ready = true;
         self.publish();
@@ -389,7 +393,7 @@ impl<'a> Session<'a> {
             "notify_history_changed" => self.answer(Query::PrintHistory),
             "notify_active_spool_set" | "notify_spoolman_status_changed" => self.answer(Query::Spoolman),
             "notify_update_refreshed" => {
-                self.outputs.event(Event::Updates(system::parse_update_status(
+                self.outputs.event(Event::Updates(update_manager::parse_update_status(
                     notification.params.get(0).unwrap_or(&Value::Null),
                 )));
             }
@@ -431,7 +435,7 @@ impl<'a> Session<'a> {
             endpoint: self.endpoint.display(),
             connection: ConnectionState::Connected,
             status,
-            capabilities: self.capabilities.clone(),
+            sources: self.sources.clone(),
         });
     }
 
@@ -439,7 +443,7 @@ impl<'a> Session<'a> {
     fn execute(&mut self, command: Command) {
         let status = self.current_status();
         let description = command.describe();
-        let commands = match command.resolve(&self.capabilities, &status) {
+        let commands = match command.resolve(&self.sources, &status) {
             Ok(commands) => commands,
             Err(message) => {
                 self.outputs.event(Event::CommandFailed { command: description, message });
@@ -579,20 +583,20 @@ async fn fetch(
             vec![Event::SpoolList(spoolman::parse_spool_list(&spools))]
         }
         Query::PowerDevices => {
-            vec![Event::PowerDevices(system::parse_power_devices(&call("machine.device_power.devices", None).await?))]
+            vec![Event::PowerDevices(power::parse_power_devices(&call("machine.device_power.devices", None).await?))]
         }
         Query::Updates => {
-            vec![Event::Updates(system::parse_update_status(&call("machine.update.status", None).await?))]
+            vec![Event::Updates(update_manager::parse_update_status(&call("machine.update.status", None).await?))]
         }
-        Query::ConsoleHistory => vec![Event::ConsoleHistory(system::parse_gcode_store(
+        Query::ConsoleHistory => vec![Event::ConsoleHistory(gcode_store::parse_gcode_store(
             &call("server.gcode_store", Some(json!({ "count": CONSOLE_HISTORY }))).await?,
         ))],
         Query::HostNetwork => {
-            vec![Event::HostNetwork(system::parse_host_network(&call("machine.system_info", None).await?))]
+            vec![Event::HostNetwork(machine::parse_host_network(&call("machine.system_info", None).await?))]
         }
         Query::TemperatureHistory => {
             let store = call("server.temperature_store", Some(json!({ "include_monitors": false }))).await?;
-            vec![Event::TemperatureHistory(history::parse_temperature_store(&store))]
+            vec![Event::TemperatureHistory(temperature_store::parse_temperature_store(&store))]
         }
     };
     Ok(events)
@@ -612,7 +616,7 @@ fn console_line(kind: ConsoleKind, message: &str) -> ConsoleLine {
 /// The spools of the gates, without duplicates.
 fn gate_spool_ids(status: &PrinterStatus) -> Vec<u32> {
     let mut ids: Vec<u32> =
-        status.mmu.iter().flat_map(|mmu| mmu.gates.iter()).filter_map(|gate| gate.spool_id).collect();
+        status.happy_hare().iter().flat_map(|mmu| mmu.gates.iter()).filter_map(|gate| gate.spool_id).collect();
     ids.sort_unstable();
     ids.dedup();
     ids

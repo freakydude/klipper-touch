@@ -4,6 +4,7 @@
 //! checked against a real single-gate machine with a proportional sync-feedback buffer and no encoder.
 
 use super::objects::ObjectStore;
+use super::subscription::Subscription;
 use crate::sourced::{prefer_measured, Sourced};
 use serde_json::Value;
 
@@ -263,6 +264,23 @@ impl MmuStatus {
     pub fn is_supported(&self) -> bool {
         parse_version(&self.version).is_some_and(|version| version >= MIN_VERSION)
     }
+
+    /// Happy Hare has the say (loading, the reason of a pause, the lanes, its own sensors) only while it is enabled
+    /// and supported; otherwise the printer counts as one without it.
+    pub fn is_in_charge(&self) -> bool {
+        self.enabled && self.is_supported()
+    }
+
+    /// Enabled, but older than the oldest supported version: worth a notice instead of its view.
+    pub fn is_too_old(&self) -> bool {
+        self.enabled && !self.is_supported()
+    }
+}
+
+/// All fields: the filament view needs gates, sensors, buffer and FlowGuard, and Happy Hare adds fields over time.
+pub(super) fn subscribe(subscription: &mut Subscription) {
+    subscription.add("mmu", None);
+    subscription.add("mmu_machine", None);
 }
 
 /// `None` without Happy Hare (no `mmu` object).

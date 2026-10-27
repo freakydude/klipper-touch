@@ -1,7 +1,7 @@
 # Architecture
 
 Goal: a lean, native touch UI for Klipper that runs directly on the printer host. The operator's workflows shape the UI
-(see `docs/UseCases and Dependencies.drawio`, page "Workflows"); the printer's capabilities only decide whether a step is
+(see `docs/UseCases and Dependencies.drawio`, page "Workflows"); what the printer has only decides whether a step is
 offered.
 
 ## Building blocks
@@ -17,13 +17,12 @@ flowchart LR
         V[view.rs / format.rs<br/>pure derivations]
     end
     subgraph core [crates/core – freakymate-core]
-        SVC[service.rs<br/>PrinterService]
+        SVC[service.rs<br/>PrinterService, only collects]
         CMD[commands.rs<br/>Command → Call]
-        PR[printer/*<br/>objects, status, capabilities]
+        DOM[domain/*<br/>questions across sources]
+        SRC[sources/*<br/>one module per origin]
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
         SET[settings.rs<br/>JSON file]
-        FS[files.rs / system.rs]
-        EST[estimates.rs / sourced.rs<br/>derived values with their source]
         NET[network/*<br/>NetworkService]
     end
     M[(Moonraker / Klipper)]
@@ -33,11 +32,10 @@ flowchart LR
     UI -- callbacks --> A --> SVC
     SVC -- Snapshot / Event --> P --> UI
     P --> V
+    P --> DOM
     S --> SET
-    SVC --> CMD
-    SVC --> PR
-    SVC --> FS
-    P --> EST
+    SVC --> CMD --> DOM --> SRC
+    SVC --> SRC
     SVC --> MR --> M
     F -. replaces in tests .-> M
     N --> NET --> NM
@@ -45,31 +43,52 @@ flowchart LR
 
 | Crate                | Responsibility                                                                                    | Depends on                               |
 | -------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `crates/core`        | Connection, protocol, printer state, capabilities, commands, settings. No UI code.                | tokio, tokio-tungstenite, reqwest, serde |
+| `crates/core`        | Connection, the sources of the printer, questions across them, commands, settings. No UI code.    | tokio, tokio-tungstenite, reqwest, serde |
 | `crates/app`         | Slint UI and its binding to the core; binary `freakymate` (the only shipped program).          | core, slint                              |
 | `crates/ui-snapshot` | Development tool: renders the UI headless to PNG against a running (fake) Moonraker, in scenes.   | app, core                                |
 | `crates/icon-index`  | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
 | `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`).  | axum, tokio                              |
 
+## Core layers (`crates/core/src`)
+
+Each layer only uses the ones before it. The program is one binary: the modules only structure the source code,
+nothing is loaded at runtime or can be switched off. What is detected is used.
+
+| Layer       | Folder                                  | What it does                                                                     |
+| ----------- | --------------------------------------- | -------------------------------------------------------------------------------- |
+| Transport   | `moonraker/`                            | JSON-RPC over WebSocket; knows no printer objects.                               |
+| Sources     | `sources/<origin>`                      | One module per origin: detect, subscribe, read the state, know the commands.     |
+| Domain      | `domain/`                               | Questions that need several sources; each answered in one place, with its order. |
+| Service     | `service.rs`, `commands.rs`             | Collects, publishes `Snapshot`s and `Event`s, resolves and sends commands.       |
+
+Sources: `klipper/` (Klipper's own objects, configuration, macros, tuning values), `moonraker_server/` (files, job
+history, power, update manager, temperature and console stores, host information), `happy_hare.rs`, `spoolman.rs`,
+`led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,
+`UNLOAD_FILAMENT`). `Sources` (`sources/mod.rs`) holds what was detected, each optional source as `Option` or an empty
+list, its variety as data (gates, sensors, LEDs). `PrinterStatus` is the state of all printer objects, Klipper's and
+those of its plugins. Happy Hare counts only while it is enabled and at least version 4.1
+(`PrinterStatus::happy_hare`); every rule that depends on it asks there.
+
+Domain: `filament.rs` (what Load and Unload run, which filament sensors belong to the printer), `pause.rs` (what is
+known about a pause, planning a pause at a layer), `spools.rs` (lanes, hints before a print), `estimates.rs` (print
+time, weight, layers, flow; measured before estimated, see `sourced.rs`).
+
 ## Data flow
 
 1. `PrinterService::start` runs a loop on the Tokio runtime: connect, `server.connection.identify`, `server.info`, and
-   once `ready` `printer.objects.list` → `Capabilities` → `printer.objects.subscribe`. The parameters of the macros
-   are read once from `configfile.settings` at that point (`Capabilities::macro_details`); the configuration only
-   changes with a restart, which subscribes again.
+   once `ready` `printer.objects.list` → `Sources::detect` → `printer.objects.subscribe` with the objects every source
+   adds (`Sources::subscription`). The parameters of the macros are read once from `configfile.settings` at that point
+   (`Sources::apply_settings`); the configuration only changes with a restart, which subscribes again.
 2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view
-   (heaters, motion, job, objects to exclude, and Happy Hare in `printer/mmu.rs`: gates, sensors, buffer, FlowGuard).
-   `Capabilities::filament_handling` decides where Load and Unload come from: Happy Hare, else the macros
-   `LOAD_FILAMENT`/`UNLOAD_FILAMENT`, else nothing.
-   Every new state goes to the UI as a `Snapshot` through a `watch` channel.
+   (heaters, motion, job, objects to exclude, and Happy Hare in `sources/happy_hare.rs`: gates, sensors, buffer,
+   FlowGuard). Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
    copies pixels. The temperature history comes from Moonraker's `server.temperature_store` when a chart opens
-   (`history.rs`, drawn by `app/src/chart.rs` and `history_view.rs`); fans, LEDs and effects are read in
-   `printer/devices.rs`, the expert values in `tuning.rs`. Spoolman
-   (`spoolman.rs`) is read through Moonraker's proxy: its state and the spools of the gates every minute and when
-   Moonraker reports a change; the picker list on demand. The `lanes` (a gate each with MMU, otherwise the one active
-   spool) are what the screens and the hints before a print are built from.
+   (drawn by `app/src/chart.rs` and `history_view.rs`). Spoolman is read through Moonraker's proxy: its state and the
+   spools of the gates every minute and when Moonraker reports a change; the picker list on demand. The lanes
+   (`domain::spools::lanes`: a gate each while Happy Hare has the say, otherwise the one active spool) are what the
+   screens and the hints before a print are built from.
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
    `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` translates the
    result into G-code or Moonraker methods; moves are clamped to the axis range. Heater targets that were sent but not
@@ -118,14 +137,15 @@ flowchart LR
 
 ## Extending
 
-- **New command**: variant in `Command` + translation in `to_call` (or, if the printer's capabilities decide what it
+- **New command**: variant in `Command` + translation in `to_call` (or, if what the printer has decides what it
   means, an intent resolved in `Command::resolve`) + test; callback in `state.slint` (`Actions`),
   wiring in `actions.rs`, control on the page.
-- **New capability**: detection in `Capabilities::add_object` (or `ServerComponents`), subscription in `subscription.rs`,
-  field in `PrinterStatus`, property in `Printer` and assignment in `presenter.rs`.
-- **New derived value** (from several sources, e.g. a measurement and a slicer estimate): the rule goes into the core
-  (`estimates.rs`, or next to the status reader), returns a `Sourced` value that names its source, and gets a test per
-  source. `view.rs` only formats it (a prediction gets a `~`).
+- **New source** (a plugin, a Moonraker component, a macro convention): its own module in `sources/` with detection
+  (a field in `Sources`, `Option` or a list), its objects in `Sources::subscription`, its reader and tests; property
+  in `Printer` and assignment in `presenter.rs`. An existing source grows inside its module.
+- **New question across sources** or **derived value** (e.g. a measurement and a slicer estimate): one function in
+  `domain/`, which decides the order of the sources, returns a `Sourced` value where it names its source, and gets a
+  test per source. `view.rs` only formats it (a prediction gets a `~`).
 - **New page**: `pages/<name>.slint`, entry in `Page`, `NavRail` and `app.slint`; check with `ui-snapshot`.
 - **Extend the fake**: method in `fake-moonraker/src/session.rs`, G-code in `gcode.rs`/`printer.rs`, plus a test.
 

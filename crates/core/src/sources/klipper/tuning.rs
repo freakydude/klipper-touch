@@ -2,7 +2,7 @@
 //! configured one and the G-code that sets it. Commands from Klipper's G-Codes reference (`M221`,
 //! `SET_VELOCITY_LIMIT`, `SET_PRESSURE_ADVANCE`, `SET_RETRACTION`), status fields from its Status Reference.
 
-use crate::printer::PrinterStatus;
+use crate::sources::PrinterStatus;
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,7 +195,7 @@ pub fn values(status: &PrinterStatus, config: &TuningConfig) -> Vec<TuningValue>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::printer::Retraction;
+    use crate::sources::klipper::Retraction;
     use serde_json::json;
 
     #[test]

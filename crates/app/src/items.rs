@@ -5,10 +5,16 @@ use crate::{
     ConsoleItem, FanItem, FilamentPathItem, HeaterItem, HostInterfaceItem, LedEffectItem, LedItem, PowerItem,
     SensorItem, SpoolItem, TuningItem, UpdateItem,
 };
-use freakymate_core::printer::{Fan, FilamentPath, Heater, Led, LedEffect, PathSensor, TemperatureSensor};
-use freakymate_core::spoolman::{self, Lane, Spool};
-use freakymate_core::system::{ConsoleKind, ConsoleLine, HostInterface, PowerDevice, UpdateInfo};
-use freakymate_core::tuning::TuningValue;
+use freakymate_core::domain::spools::{self, Lane};
+use freakymate_core::sources::happy_hare::{FilamentPath, PathSensor};
+use freakymate_core::sources::klipper::tuning::TuningValue;
+use freakymate_core::sources::klipper::{Fan, Heater, Led, TemperatureSensor};
+use freakymate_core::sources::led_effect::LedEffect;
+use freakymate_core::sources::moonraker_server::gcode_store::{ConsoleKind, ConsoleLine};
+use freakymate_core::sources::moonraker_server::machine::HostInterface;
+use freakymate_core::sources::moonraker_server::power::PowerDevice;
+use freakymate_core::sources::moonraker_server::update_manager::UpdateInfo;
+use freakymate_core::sources::spoolman::Spool;
 use freakymate_core::ConnectionState;
 use slint::{Model, SharedString, VecModel};
 
@@ -37,7 +43,7 @@ pub(crate) fn replace_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, 
 /// The picker rows: spools in a lane first, then the most recently used, each with its place.
 pub(crate) fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
     let inserted: Vec<u32> = lanes.iter().filter_map(|lane| lane.spool_id).collect();
-    spoolman::picker_order(spools.to_vec(), &inserted)
+    spools::picker_order(spools.to_vec(), &inserted)
         .iter()
         .map(|spool| {
             let lane = lanes.iter().find(|lane| lane.spool_id == Some(spool.id));
@@ -79,7 +85,7 @@ pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>, has_history: b
         "heater_bed" => spool.bed_temp,
         _ => None,
     });
-    let spool_hint = spoolman::temperature_hint(heater.target, recommended)
+    let spool_hint = spools::temperature_hint(heater.target, recommended)
         .map_or_else(SharedString::new, |degrees| format!("Spool {degrees:.0}°").into());
     HeaterItem {
         spool_hint,

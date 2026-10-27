@@ -3,8 +3,8 @@
 //! example stepper drivers) have no history.
 
 use crate::{chart, AppWindow, ChartLabel, Navigation, Printer};
-use freakymate_core::history::TemperatureSeries;
-use freakymate_core::printer::PrinterStatus;
+use freakymate_core::sources::moonraker_server::temperature_store::TemperatureSeries;
+use freakymate_core::sources::PrinterStatus;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -142,7 +142,7 @@ fn current_text(status: &PrinterStatus, object: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use freakymate_core::printer::{Heater, TemperatureSensor};
+    use freakymate_core::sources::klipper::{Heater, TemperatureSensor};
 
     #[test]
     fn the_current_value_names_the_target_only_when_heating() {

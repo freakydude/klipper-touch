@@ -1,10 +1,9 @@
-//! Fans, LEDs and LED effects: what they report and which of them a person can switch.
+//! Fans and LEDs: what they report and which of them a person can switch.
 //!
-//! Field names follow Klipper's Status Reference (`speed`, `rpm`, `color_data`) and the led_effect plugin
-//! (`enabled`, `klipper-led_effect/src/led_effect.py`); the plugin is optional.
+//! Field names follow Klipper's Status Reference (`speed`, `rpm`, `color_data`).
 
-use super::objects::ObjectStore;
 use super::status::label;
+use crate::sources::objects::ObjectStore;
 use serde_json::Value;
 
 /// LED drivers of Klipper; all of them report `color_data` and take `SET_LED`.
@@ -58,14 +57,6 @@ pub struct Led {
     pub label: String,
     /// The brightest channel of all chips, 0 to 1; 0 is off.
     pub level: f64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LedEffect {
-    /// The effect's name, as `SET_LED_EFFECT EFFECT=` takes it.
-    pub name: String,
-    pub label: String,
-    pub enabled: bool,
 }
 
 pub fn is_led(object: &str) -> bool {
@@ -148,21 +139,6 @@ pub(super) fn read_leds(store: &ObjectStore) -> Vec<Led> {
         .collect()
 }
 
-pub(super) fn read_led_effects(store: &ObjectStore) -> Vec<LedEffect> {
-    store
-        .names()
-        .filter(|name| name.starts_with("led_effect "))
-        .filter_map(|name| {
-            let value = store.object(name)?;
-            Some(LedEffect {
-                name: instance(name).to_owned(),
-                label: label(name),
-                enabled: value.get("enabled").and_then(Value::as_bool).unwrap_or_default(),
-            })
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,12 +184,6 @@ mod tests {
         assert_eq!(leds.len(), 2);
         assert_eq!((leds[0].label.as_str(), leds[0].level), ("Status", 0.0));
         assert_eq!((leds[1].label.as_str(), leds[1].level), ("Chamber", 0.75));
-    }
-
-    #[test]
-    fn effects_report_whether_they_run() {
-        let effects = read_led_effects(&store(json!({ "led_effect rainbow": { "enabled": true } })));
-        assert_eq!(effects, [LedEffect { name: "rainbow".into(), label: "Rainbow".into(), enabled: true }]);
     }
 
     #[test]

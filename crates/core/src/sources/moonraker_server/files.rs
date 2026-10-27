@@ -1,7 +1,7 @@
 //! G-code files, their metadata and thumbnails.
 
-use crate::printer::{PrintJob, PrintState};
-use crate::spoolman::Spool;
+use crate::sources::klipper::{PrintJob, PrintState};
+use crate::sources::spoolman::Spool;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;

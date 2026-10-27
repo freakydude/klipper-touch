@@ -1,10 +1,10 @@
 //! Operator commands for the printer and their translation into Moonraker calls.
 
-use crate::printer::{
-    instance, Axis, Capabilities, FanKind, FilamentHandling, Motion, PrinterStatus, WhiteChannel, PAUSE_AT_LAYER_MACRO,
-    PAUSE_NEXT_LAYER_MACRO,
-};
-use crate::tuning::TuningKey;
+use crate::domain::filament::{self, FilamentHandling};
+use crate::sources::klipper::tuning::TuningKey;
+use crate::sources::klipper::{self, instance, Axis, FanKind, Leveling, Motion, WhiteChannel};
+use crate::sources::macro_conventions::{LOAD_FILAMENT_MACRO, UNLOAD_FILAMENT_MACRO};
+use crate::sources::{PrinterStatus, Sources};
 use serde_json::{json, Value};
 
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
@@ -21,7 +21,7 @@ pub enum Command {
     PausePrint,
     ResumePrint,
     CancelPrint,
-    /// Plans a pause at the next layer change with Mainsail's macro, see [`crate::printer::layer_pause_offer`].
+    /// Plans a pause at the next layer change with Mainsail's macro, see [`crate::domain::pause::layer_pause_offer`].
     PauseAtNextLayer,
     /// Plans a pause when the print reaches `layer`.
     PauseAtLayer {
@@ -50,7 +50,7 @@ pub enum Command {
         heater: String,
         target: f64,
     },
-    /// Raises or lowers the target by `step` (with sign) from the target shown now, see [`crate::printer::Heater::stepped_target`].
+    /// Raises or lowers the target by `step` (with sign) from the target shown now, see [`crate::sources::klipper::Heater::stepped_target`].
     StepHeater {
         heater: String,
         step: f64,
@@ -72,7 +72,7 @@ pub enum Command {
         led: String,
         level: f64,
     },
-    /// Switches the main light (see [`Capabilities::main_light`]) on or off.
+    /// Switches the main light (see [`klipper::Setup::main_light`]) on or off.
     ToggleLight,
     /// Colour channels from 0 to 1 (`SET_LED`).
     SetLed {
@@ -215,9 +215,9 @@ const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
 /// White light: the white channel where every chip has one, the same level on every colour where none has, and both
 /// for a mixed chain, so its RGB chips light up too.
-fn light(capabilities: &Capabilities, led: &str, level: f64) -> Command {
+fn light(klipper: &klipper::Setup, led: &str, level: f64) -> Command {
     let level = level.clamp(0.0, 1.0);
-    let (colour, white) = match capabilities.white_channel(led) {
+    let (colour, white) = match klipper.white_channel(led) {
         WhiteChannel::All => (0.0, level),
         WhiteChannel::Some => (level, level),
         WhiteChannel::None => (level, 0.0),
@@ -225,13 +225,9 @@ fn light(capabilities: &Capabilities, led: &str, level: f64) -> Command {
     Command::SetLed { led: led.to_owned(), red: colour, green: colour, blue: colour, white }
 }
 
-/// A call of one of Mainsail's layer pause macros with documented parameters only; nothing is assumed about what the
-/// macro does inside.
-fn layer_pause(capabilities: &Capabilities, name: &str, parameters: &str) -> Result<Command, String> {
-    if !capabilities.has_macro(name) {
-        return Err(NO_LAYER_PAUSE.to_owned());
-    }
-    Ok(Command::RunGcode { script: format!("{name} {parameters}") })
+/// A call of one of Mainsail's layer pause macros, see [`crate::sources::mainsail_config`].
+fn layer_pause(script: Option<String>) -> Result<Vec<Command>, String> {
+    script.map(|script| vec![Command::RunGcode { script }]).ok_or_else(|| NO_LAYER_PAUSE.to_owned())
 }
 
 /// `M106` for the part fan, `SET_FAN_SPEED` for a generic fan; the others cannot be set.
@@ -246,27 +242,30 @@ fn fan_gcode(fan: &str, speed: f64) -> Option<String> {
 impl Command {
     /// Turns an intent into the commands this printer needs; every other command stays as it is. `status` shows the
     /// heater targets including those sent but not yet reported, so steps build on each other.
-    pub fn resolve(self, capabilities: &Capabilities, status: &PrinterStatus) -> Result<Vec<Command>, String> {
+    pub fn resolve(self, sources: &Sources, status: &PrinterStatus) -> Result<Vec<Command>, String> {
+        let klipper = &sources.klipper;
         let heater_target = |heater: &str, target: f64| Command::SetHeaterTarget { heater: heater.to_owned(), target };
         let commands = match self {
-            Self::Level if capabilities.quad_gantry_level => vec![Self::QuadGantryLevel],
-            Self::Level if capabilities.z_tilt => vec![Self::ZTiltAdjust],
-            Self::Level => return Err(NO_LEVELING.to_owned()),
-            Self::ApplyZOffset if capabilities.probe => vec![Self::ApplyZOffsetToProbe],
+            Self::Level => match klipper.leveling {
+                Some(Leveling::QuadGantry) => vec![Self::QuadGantryLevel],
+                Some(Leveling::ZTilt) => vec![Self::ZTiltAdjust],
+                None => return Err(NO_LEVELING.to_owned()),
+            },
+            Self::ApplyZOffset if klipper.probe => vec![Self::ApplyZOffsetToProbe],
             Self::ApplyZOffset => vec![Self::ApplyZOffsetToEndstop],
             Self::ApplyPreset { extruder, bed } => {
                 let mut commands = vec![heater_target("extruder", extruder)];
-                if capabilities.heater_bed {
+                if status.heater("heater_bed").is_some() {
                     commands.push(heater_target("heater_bed", bed));
                 }
                 commands
             }
             Self::CoolDown => status.heaters.iter().map(|heater| heater_target(&heater.object, 0.0)).collect(),
-            Self::SetLight { led, level } => vec![light(capabilities, &led, level)],
+            Self::SetLight { led, level } => vec![light(klipper, &led, level)],
             Self::ToggleLight => {
-                let led = capabilities.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
+                let led = klipper.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
                 let lit = status.leds.iter().any(|candidate| candidate.object == led && candidate.level > 0.0);
-                vec![light(capabilities, led, if lit { 0.0 } else { 1.0 })]
+                vec![light(klipper, led, if lit { 0.0 } else { 1.0 })]
             }
             Self::StepTuning { key, direction } => {
                 let current = key.current(status).ok_or_else(|| format!("this printer has no {}", key.id()))?;
@@ -274,38 +273,37 @@ impl Command {
             }
             Self::ResetTuning { key } => {
                 let value =
-                    capabilities.tuning.get(key).ok_or_else(|| format!("{} is not in the configuration", key.id()))?;
+                    klipper.tuning.get(key).ok_or_else(|| format!("{} is not in the configuration", key.id()))?;
                 vec![Self::SetTuning { key, value }]
             }
             Self::StepHeater { heater, step } => {
                 let current = status.heater(&heater).ok_or_else(|| format!("unknown heater {heater}"))?;
                 vec![heater_target(&heater, current.stepped_target(step))]
             }
-            Self::LoadFilament => match capabilities.filament_handling() {
+            Self::LoadFilament => match filament::handling(sources, status) {
                 FilamentHandling::Mmu => vec![Self::MmuLoad],
-                FilamentHandling::Macros { load: true, .. } => vec![Self::RunMacro { name: "LOAD_FILAMENT".into() }],
+                FilamentHandling::Macros(macros) if macros.load => {
+                    vec![Self::RunMacro { name: LOAD_FILAMENT_MACRO.into() }]
+                }
                 _ => return Err(NO_LOAD_WAY.to_owned()),
             },
-            Self::UnloadFilament => match capabilities.filament_handling() {
+            Self::UnloadFilament => match filament::handling(sources, status) {
                 FilamentHandling::Mmu => vec![Self::MmuUnload],
-                FilamentHandling::Macros { unload: true, .. } => {
-                    vec![Self::RunMacro { name: "UNLOAD_FILAMENT".into() }]
+                FilamentHandling::Macros(macros) if macros.unload => {
+                    vec![Self::RunMacro { name: UNLOAD_FILAMENT_MACRO.into() }]
                 }
                 _ => return Err(NO_UNLOAD_WAY.to_owned()),
             },
-            Self::PauseAtNextLayer => vec![layer_pause(capabilities, PAUSE_NEXT_LAYER_MACRO, "ENABLE=1")?],
+            Self::PauseAtNextLayer => layer_pause(sources.layer_pause.and_then(|macros| macros.pause_next_layer()))?,
             Self::PauseAtLayer { layer } => {
-                vec![layer_pause(capabilities, PAUSE_AT_LAYER_MACRO, &format!("ENABLE=1 LAYER={layer}"))?]
+                layer_pause(sources.layer_pause.and_then(|macros| macros.pause_at_layer(layer)))?
             }
             Self::ClearLayerPause => {
-                let commands: Vec<Command> = [PAUSE_NEXT_LAYER_MACRO, PAUSE_AT_LAYER_MACRO]
-                    .into_iter()
-                    .filter_map(|name| layer_pause(capabilities, name, "ENABLE=0").ok())
-                    .collect();
-                if commands.is_empty() {
+                let scripts = sources.layer_pause.map(|macros| macros.clear()).unwrap_or_default();
+                if scripts.is_empty() {
                     return Err(NO_LAYER_PAUSE.to_owned());
                 }
-                commands
+                scripts.into_iter().map(|script| Self::RunGcode { script }).collect()
             }
             Self::RunGcode { script } => match script.trim() {
                 "" => Vec::new(),
@@ -587,19 +585,20 @@ mod tests {
         assert_eq!(Command::EmergencyStop.to_call(&motion).unwrap().method, "printer.emergency_stop");
     }
 
-    fn printer(objects: &[&str]) -> Capabilities {
-        Capabilities::from_objects(objects.iter().copied())
+    fn printer(objects: &[&str]) -> Sources {
+        let objects: Vec<String> = objects.iter().map(|name| (*name).to_owned()).collect();
+        Sources::detect(&objects, Default::default())
     }
 
     fn status_with_targets(targets: &[(&str, f64)]) -> PrinterStatus {
         PrinterStatus {
             heaters: targets
                 .iter()
-                .map(|(object, target)| crate::printer::Heater {
+                .map(|(object, target)| crate::sources::klipper::Heater {
                     object: (*object).to_owned(),
                     target: *target,
                     min_temp: 10.0,
-                    ..crate::printer::Heater::default()
+                    ..crate::sources::klipper::Heater::default()
                 })
                 .collect(),
             ..PrinterStatus::default()
@@ -655,11 +654,14 @@ mod tests {
     fn a_preset_heats_the_bed_only_if_there_is_one() {
         let preset = Command::ApplyPreset { extruder: 210.0, bed: 60.0 };
 
+        let with_bed = status_with_targets(&[("extruder", 0.0), ("heater_bed", 0.0)]);
+        let without_bed = status_with_targets(&[("extruder", 0.0)]);
+
         assert_eq!(
-            resolved(preset.clone(), &["extruder", "heater_bed"]),
+            preset.clone().resolve(&printer(&[]), &with_bed),
             Ok(vec![set("extruder", 210.0), set("heater_bed", 60.0)])
         );
-        assert_eq!(resolved(preset, &["extruder"]), Ok(vec![set("extruder", 210.0)]));
+        assert_eq!(preset.resolve(&printer(&[]), &without_bed), Ok(vec![set("extruder", 210.0)]));
     }
 
     #[test]
@@ -688,9 +690,18 @@ mod tests {
     #[test]
     fn loading_prefers_happy_hare_then_the_macros() {
         let macro_named = |name: &str| Command::RunMacro { name: name.into() };
+        let happy_hare = PrinterStatus {
+            mmu: Some(crate::sources::happy_hare::MmuStatus {
+                version: "4.1.0".into(),
+                enabled: true,
+                ..Default::default()
+            }),
+            ..PrinterStatus::default()
+        };
+        let with_happy_hare = |command: Command| command.resolve(&printer(&["gcode_macro LOAD_FILAMENT"]), &happy_hare);
 
-        assert_eq!(resolved(Command::LoadFilament, &["mmu", "gcode_macro LOAD_FILAMENT"]), Ok(vec![Command::MmuLoad]));
-        assert_eq!(resolved(Command::UnloadFilament, &["mmu"]), Ok(vec![Command::MmuUnload]));
+        assert_eq!(with_happy_hare(Command::LoadFilament), Ok(vec![Command::MmuLoad]));
+        assert_eq!(with_happy_hare(Command::UnloadFilament), Ok(vec![Command::MmuUnload]));
         assert_eq!(
             resolved(Command::LoadFilament, &["gcode_macro LOAD_FILAMENT"]),
             Ok(vec![macro_named("LOAD_FILAMENT")])
@@ -750,24 +761,26 @@ mod tests {
 
     #[test]
     fn light_uses_white_where_there_is_one_and_toggles_the_main_light() {
-        let mut capabilities = printer(&["neopixel sb", "neopixel chamber"]);
-        capabilities.led_white =
+        let mut sources = printer(&["neopixel sb", "neopixel chamber"]);
+        sources.klipper.led_white =
             vec![("neopixel chamber".into(), WhiteChannel::All), ("neopixel sb".into(), WhiteChannel::Some)];
         let mut status = PrinterStatus {
-            leds: vec![crate::printer::Led { object: "neopixel chamber".into(), label: "Chamber".into(), level: 0.0 }],
+            leds: vec![crate::sources::klipper::Led {
+                object: "neopixel chamber".into(),
+                label: "Chamber".into(),
+                level: 0.0,
+            }],
             ..PrinterStatus::default()
         };
 
-        let on = Command::ToggleLight.resolve(&capabilities, &status).unwrap();
+        let on = Command::ToggleLight.resolve(&sources, &status).unwrap();
         assert_eq!(script(on[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=1.00 SYNC=0");
         status.leds[0].level = 0.5;
-        let off = Command::ToggleLight.resolve(&capabilities, &status).unwrap();
+        let off = Command::ToggleLight.resolve(&sources, &status).unwrap();
         assert_eq!(script(off[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=0.00 SYNC=0");
-        let mixed =
-            Command::SetLight { led: "neopixel sb".into(), level: 0.5 }.resolve(&capabilities, &status).unwrap();
+        let mixed = Command::SetLight { led: "neopixel sb".into(), level: 0.5 }.resolve(&sources, &status).unwrap();
         assert_eq!(script(mixed[0].clone()), "SET_LED LED=sb RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.50 SYNC=0");
-        let rgb =
-            Command::SetLight { led: "neopixel status".into(), level: 0.5 }.resolve(&capabilities, &status).unwrap();
+        let rgb = Command::SetLight { led: "neopixel status".into(), level: 0.5 }.resolve(&sources, &status).unwrap();
         assert_eq!(script(rgb[0].clone()), "SET_LED LED=status RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.00 SYNC=0");
         assert!(Command::ToggleLight.resolve(&printer(&[]), &status).is_err());
     }
@@ -786,19 +799,18 @@ mod tests {
 
     #[test]
     fn tuning_steps_from_the_current_value_and_resets_to_the_configuration() {
-        let mut capabilities = printer(&[]);
-        capabilities.apply_settings(Some(&json!({ "printer": { "max_accel": 5000.0 } })));
+        let mut sources = printer(&[]);
+        sources.apply_settings(Some(&json!({ "printer": { "max_accel": 5000.0 } })));
         let mut status = PrinterStatus::default();
         status.motion.max_accel = 3000.0;
 
-        let step =
-            Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 }.resolve(&capabilities, &status).unwrap();
+        let step = Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 }.resolve(&sources, &status).unwrap();
         assert_eq!(step, [Command::SetTuning { key: TuningKey::MaxAccel, value: 3500.0 }]);
-        let reset = Command::ResetTuning { key: TuningKey::MaxAccel }.resolve(&capabilities, &status).unwrap();
+        let reset = Command::ResetTuning { key: TuningKey::MaxAccel }.resolve(&sources, &status).unwrap();
         assert_eq!(script(reset[0].clone()), "SET_VELOCITY_LIMIT ACCEL=5000");
-        assert!(Command::ResetTuning { key: TuningKey::SmoothTime }.resolve(&capabilities, &status).is_err());
+        assert!(Command::ResetTuning { key: TuningKey::SmoothTime }.resolve(&sources, &status).is_err());
         assert!(Command::StepTuning { key: TuningKey::RetractLength, direction: 1.0 }
-            .resolve(&capabilities, &status)
+            .resolve(&sources, &status)
             .is_err());
     }
 }

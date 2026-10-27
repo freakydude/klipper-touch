@@ -13,15 +13,17 @@ use crate::{
     Printer, SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
 };
 use chrono::Local;
-use freakymate_core::estimates;
-use freakymate_core::files::{FileCatalog, FileEntry, FileMetadata, FinishedJob, PrintHistory, ThumbnailImage};
-use freakymate_core::printer::{
-    self as core_printer, is_mmu_klipper_sensor, offered_macros, Capabilities, FilamentHandling, MacroDetails,
-    MacroForm, MmuGate, MmuStatus,
+use freakymate_core::domain::filament::{self, FilamentHandling};
+use freakymate_core::domain::spools::{self, Lane};
+use freakymate_core::domain::{estimates, pause};
+use freakymate_core::sources::happy_hare::{MmuGate, MmuStatus};
+use freakymate_core::sources::klipper::{offered_macros, tuning, KlippyState, Leveling, MacroDetails, MacroForm};
+use freakymate_core::sources::moonraker_server::files::{
+    FileCatalog, FileEntry, FileMetadata, FinishedJob, PrintHistory, ThumbnailImage,
 };
-use freakymate_core::spoolman::{self, Lane, Spool, SpoolmanState};
-use freakymate_core::system::{ConsoleKind, ConsoleLine};
-use freakymate_core::tuning;
+use freakymate_core::sources::moonraker_server::gcode_store::{ConsoleKind, ConsoleLine};
+use freakymate_core::sources::spoolman::{Spool, SpoolmanState};
+use freakymate_core::sources::PrinterStatus;
 use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::{Cell, RefCell};
@@ -218,10 +220,6 @@ impl Presenter {
         self.cache.borrow().snapshot.clone()
     }
 
-    pub fn capabilities(&self) -> Capabilities {
-        self.cache.borrow().snapshot.capabilities.clone()
-    }
-
     /// Offers only lengths Klipper accepts; a selected length beyond them falls back to the longest one.
     fn set_extrude_lengths(&self, window: &AppWindow, lengths: Vec<f64>) {
         if *self.extrude_lengths.borrow() == lengths {
@@ -242,7 +240,7 @@ impl Presenter {
         let printer = window.global::<Printer>();
         let status = &snapshot.status;
         let connected = snapshot.connection == ConnectionState::Connected;
-        let ready = connected && status.klippy_state == freakymate_core::printer::KlippyState::Ready;
+        let ready = connected && status.klippy_state == KlippyState::Ready;
 
         printer.set_connection(connection_name(snapshot.connection).into());
         printer.set_klippy_state(status.klippy_state.as_str().into());
@@ -254,9 +252,9 @@ impl Presenter {
         printer.set_activity(status.activity.as_str().into());
         printer.set_filename(status.job.filename.as_str().into());
         printer.set_progress(status.job.progress as f32);
-        let interruption = core_printer::interruption(status);
+        let interruption = pause::interruption(status);
         printer.set_interruption_text(interruption.as_ref().map(view::interruption_text).unwrap_or_default().into());
-        let layer_pause = core_printer::layer_pause_offer(&snapshot.capabilities, status);
+        let layer_pause = pause::layer_pause_offer(&snapshot.sources, status);
         printer.set_layer_pause_next(layer_pause.is_some_and(|offer| offer.next_layer));
         printer.set_layer_pause_at(layer_pause.is_some_and(|offer| offer.at_layer));
         printer.set_current_layer(layer_pause.map_or(0, |offer| offer.current_layer as i32));
@@ -285,7 +283,8 @@ impl Presenter {
         printer.set_has_bed(bed.is_some());
         printer.set_bed_temperature(bed.map_or(0.0, |heater| heater.temperature) as f32);
         printer.set_bed_target(bed.map_or(0.0, |heater| heater.target) as f32);
-        let main_light = snapshot.capabilities.main_light();
+        let klipper = &snapshot.sources.klipper;
+        let main_light = klipper.main_light();
         let main_led = status.leds.iter().find(|led| Some(led.object.as_str()) == main_light);
         printer.set_has_light(main_led.is_some());
         printer.set_light_name(main_led.map(|led| led.label.as_str()).unwrap_or_default().into());
@@ -293,10 +292,7 @@ impl Presenter {
         replace_rows(&self.fans, status.fans.iter().map(fan_item).collect());
         replace_rows(&self.leds, status.leds.iter().map(led_item).collect());
         replace_rows(&self.led_effects, status.led_effects.iter().map(led_effect_item).collect());
-        replace_rows(
-            &self.tuning,
-            tuning::values(status, &snapshot.capabilities.tuning).iter().map(tuning_item).collect(),
-        );
+        replace_rows(&self.tuning, tuning::values(status, &klipper.tuning).iter().map(tuning_item).collect());
         printer.set_save_config_pending(status.save_config_pending);
         printer.set_leveling_state(match status.leveling_applied {
             Some(true) => "applied".into(),
@@ -305,7 +301,7 @@ impl Presenter {
         });
 
         let lanes = self.lanes(snapshot);
-        let active_spool = spoolman::active_spool(&lanes).cloned();
+        let active_spool = spools::active_spool(&lanes).cloned();
         replace_rows(
             &self.heaters,
             status
@@ -325,14 +321,9 @@ impl Presenter {
         if !ready {
             self.history_requested.set(false);
         }
-        let has_mmu = status.mmu.as_ref().is_some_and(|mmu| mmu.enabled && mmu.is_supported());
         replace_rows(
             &self.filament_sensors,
-            status
-                .filament_sensors
-                .iter()
-                // With Happy Hare its gate and buffer sensors belong to the MMU tab; this card keeps the common ones.
-                .filter(|sensor| !(has_mmu && is_mmu_klipper_sensor(&sensor.object)))
+            filament::printer_sensors(status)
                 .map(|sensor| FilamentSensorItem {
                     label: sensor.label.as_str().into(),
                     enabled: sensor.enabled,
@@ -349,18 +340,20 @@ impl Presenter {
                 .collect(),
         );
 
-        let capabilities = &snapshot.capabilities;
-        printer.set_can_quad_gantry_level(capabilities.quad_gantry_level);
-        printer.set_can_z_tilt(capabilities.z_tilt);
-        printer.set_has_probe(capabilities.probe);
-        let handling = capabilities.filament_handling();
-        printer.set_has_load_macro(matches!(handling, FilamentHandling::Macros { load: true, .. }));
-        printer.set_has_unload_macro(matches!(handling, FilamentHandling::Macros { unload: true, .. }));
-        printer.set_has_power(capabilities.server.power);
-        printer.set_has_update_manager(capabilities.server.update_manager);
-        self.set_macro_details(&capabilities.macro_details);
-        self.set_macros(&capabilities.macros, snapshot.connection == ConnectionState::Connected);
-        self.set_mmu(status.mmu.as_ref(), &lanes);
+        printer.set_can_quad_gantry_level(klipper.leveling == Some(Leveling::QuadGantry));
+        printer.set_can_z_tilt(klipper.leveling == Some(Leveling::ZTilt));
+        printer.set_has_probe(klipper.probe);
+        let macros = match filament::handling(&snapshot.sources, status) {
+            FilamentHandling::Macros(macros) => Some(macros),
+            FilamentHandling::Mmu | FilamentHandling::None => None,
+        };
+        printer.set_has_load_macro(macros.is_some_and(|macros| macros.load));
+        printer.set_has_unload_macro(macros.is_some_and(|macros| macros.unload));
+        printer.set_has_power(snapshot.sources.moonraker.power);
+        printer.set_has_update_manager(snapshot.sources.moonraker.update_manager);
+        self.set_macro_details(&klipper.macro_details);
+        self.set_macros(&klipper.macros, snapshot.connection == ConnectionState::Connected);
+        self.set_mmu(status, &lanes);
         self.set_spool_views(&printer, snapshot, active_spool.as_ref());
 
         let previous_job =
@@ -492,16 +485,14 @@ impl Presenter {
         *self.macros_loaded.borrow_mut() = Some(Box::new(handler));
     }
 
-    /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
-    /// Happy Hare on the Filament page. Only version 4.1 or newer is shown; an older one gets a notice instead.
-    fn set_mmu(&self, mmu: Option<&MmuStatus>, lanes: &[Lane]) {
+    /// Happy Hare on the Filament page while it has the say; an enabled one that is too old gets a notice instead.
+    fn set_mmu(&self, status: &PrinterStatus, lanes: &[Lane]) {
         let Some(window) = self.window.upgrade() else { return };
         let printer = window.global::<Printer>();
-        let enabled = mmu.filter(|mmu| mmu.enabled);
-        let supported = enabled.filter(|mmu| mmu.is_supported());
-        printer.set_has_mmu(supported.is_some());
-        printer.set_mmu_unsupported(enabled.is_some() && supported.is_none());
-        let Some(mmu) = supported else {
+        let in_charge = status.happy_hare();
+        printer.set_has_mmu(in_charge.is_some());
+        printer.set_mmu_unsupported(status.mmu.as_ref().is_some_and(MmuStatus::is_too_old));
+        let Some(mmu) = in_charge else {
             replace_rows(&self.mmu_gates, Vec::new());
             replace_rows(&self.mmu_sensors, Vec::new());
             return;
@@ -570,6 +561,7 @@ impl Presenter {
         printer.set_mmu_flow_rate(mmu.flow_rate.map_or(-1.0, |rate| rate.value as f32));
     }
 
+    /// Stores the printer's macros. An empty list while disconnected must not count as "all macros vanished".
     fn set_macros(&self, macros: &[String], connected: bool) {
         if self.all_macros.borrow().as_slice() == macros {
             return;
@@ -700,15 +692,13 @@ impl Presenter {
         self.status.refresh();
     }
 
-    /// The lanes of the printer: a gate each with MMU, else the one active spool.
     fn lanes(&self, snapshot: &Snapshot) -> Vec<Lane> {
-        let mmu = snapshot.status.mmu.as_ref().filter(|mmu| mmu.is_supported());
-        spoolman::lanes(mmu, &self.cache.borrow().spoolman)
+        spools::lanes(&snapshot.status, &self.cache.borrow().spoolman)
     }
 
     /// The spool in use on the page of the print and on the temperature page, and Spoolman's state.
     fn set_spool_views(&self, printer: &Printer, snapshot: &Snapshot, active: Option<&Spool>) {
-        let configured = snapshot.capabilities.server.spoolman;
+        let configured = snapshot.sources.moonraker.spoolman;
         let (offline, pending) = {
             let cache = self.cache.borrow();
             (configured && cache.spoolman_known && !cache.spoolman.connected, cache.spoolman.pending_reports)
@@ -781,7 +771,7 @@ impl Presenter {
     pub fn apply_spool_preset(&self) {
         let snapshot = self.snapshot();
         let lanes = self.lanes(&snapshot);
-        let Some(spool) = spoolman::active_spool(&lanes) else { return };
+        let Some(spool) = spools::active_spool(&lanes) else { return };
         let Some(extruder) = spool.extruder_temp else { return };
         let bed =
             spool.bed_temp.or_else(|| snapshot.status.heater("heater_bed").map(|heater| heater.target)).unwrap_or(0.0);
@@ -794,9 +784,8 @@ impl Presenter {
         let lanes = self.lanes(&snapshot);
         let cache = self.cache.borrow();
         let Some(metadata) = cache.catalog.metadata(path) else { return String::new() };
-        let tool_to_gate = snapshot.status.mmu.as_ref().map(|mmu| mmu.tool_to_gate.clone()).unwrap_or_default();
         let show_tool = lanes.iter().any(|lane| lane.gate.is_some());
-        let lines: Vec<String> = spoolman::print_hints(metadata, &lanes, &tool_to_gate)
+        let lines: Vec<String> = spools::print_hints(metadata, &snapshot.status, &lanes)
             .iter()
             .map(|hint| format!("• {}", view::print_hint_text(hint, show_tool)))
             .collect();

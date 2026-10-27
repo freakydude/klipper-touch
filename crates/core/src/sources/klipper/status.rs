@@ -1,8 +1,7 @@
-//! Typed view of the printer state, read from the [`ObjectStore`].
+//! Typed view of what Klipper reports, read from the [`ObjectStore`].
 
-use super::devices::{self, Fan, Led, LedEffect};
-use super::mmu::{self, MmuStatus};
-use super::objects::ObjectStore;
+use super::devices::{self, Fan, Led};
+use crate::sources::objects::ObjectStore;
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -282,37 +281,27 @@ pub struct PrintObject {
     pub excluded: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct PrinterStatus {
+/// The parts of the state that Klipper itself reports, read from its objects.
+pub(in crate::sources) struct KlipperParts {
     pub klippy_state: KlippyState,
     pub klippy_message: String,
-    /// Macros from the configuration, keyed by upper-case name.
     pub activity: Activity,
     pub job: PrintJob,
     pub motion: Motion,
     pub extruder: ExtruderState,
-    /// Extruder first, then bed, then additional heaters in object order.
     pub heaters: Vec<Heater>,
     pub sensors: Vec<TemperatureSensor>,
-    /// Part fan first, then the other fans; see [`Fan`].
     pub fans: Vec<Fan>,
     pub leds: Vec<Led>,
-    /// Effects of the optional led_effect plugin.
-    pub led_effects: Vec<LedEffect>,
-    /// `None` without `[firmware_retraction]`.
     pub retraction: Option<Retraction>,
     pub save_config_pending: bool,
-    /// `Some(applied)` if quad gantry level or Z tilt is present.
     pub leveling_applied: Option<bool>,
     pub filament_sensors: Vec<FilamentSensor>,
-    /// Objects of the print with their exclude state; empty without the `exclude_object` module.
     pub print_objects: Vec<PrintObject>,
-    /// Happy Hare; `None` without the `mmu` object.
-    pub mmu: Option<MmuStatus>,
 }
 
-impl PrinterStatus {
-    pub fn from_store(store: &ObjectStore) -> Self {
+impl KlipperParts {
+    pub(in crate::sources) fn read(store: &ObjectStore) -> Self {
         let object = |name: &str| store.object(name).unwrap_or(&Value::Null);
         let webhooks = object("webhooks");
         Self {
@@ -326,7 +315,6 @@ impl PrinterStatus {
             sensors: read_sensors(store),
             fans: devices::read_fans(store),
             leds: devices::read_leds(store),
-            led_effects: devices::read_led_effects(store),
             retraction: store.object("firmware_retraction").map(read_retraction),
             save_config_pending: flag(object("configfile"), "save_config_pending"),
             leveling_applied: store
@@ -335,12 +323,7 @@ impl PrinterStatus {
                 .map(|leveling| flag(leveling, "applied")),
             filament_sensors: read_filament_sensors(store),
             print_objects: read_print_objects(object("exclude_object")),
-            mmu: mmu::read_mmu(store),
         }
-    }
-
-    pub fn heater(&self, object: &str) -> Option<&Heater> {
-        self.heaters.iter().find(|heater| heater.object == object)
     }
 }
 
@@ -543,6 +526,7 @@ fn vector(object: &Value, field: &str) -> [f64; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sources::PrinterStatus;
     use serde_json::json;
 
     fn store(status: Value) -> ObjectStore {
