@@ -186,6 +186,13 @@ pub fn bind(
     });
     let script_presenter = presenter.clone();
     actions.on_macro_form_script(move || script_presenter.macro_form_script().into());
+    let map_presenter = presenter.clone();
+    actions.on_print_object_at(move |x_share, y_share, reach_share| {
+        map_presenter
+            .print_object_at(f64::from(x_share), f64::from(y_share), f64::from(reach_share))
+            .and_then(|index| i32::try_from(index).ok())
+            .unwrap_or(-1)
+    });
     let seen_presenter = presenter.clone();
     actions.on_messages_seen(move || seen_presenter.mark_messages_seen());
     let clear_presenter = presenter.clone();

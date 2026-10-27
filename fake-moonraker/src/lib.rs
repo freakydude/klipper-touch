@@ -9,6 +9,7 @@ pub mod history;
 pub mod host;
 pub mod layer_pause;
 pub mod machine;
+pub mod print_objects;
 pub mod printer;
 pub mod server;
 pub mod session;

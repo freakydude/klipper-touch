@@ -5,12 +5,13 @@ use crate::items::{
     color_bar, connection_name, console_items, fan_item, filament_path_item, heater_item, host_interface_item,
     led_effect_item, led_item, power_item, replace_rows, sensor_item, spool_rows, tuning_item, update_item,
 };
+use crate::objects_view::ObjectsView;
 use crate::status_log::{self, info_display_time, StatusLog};
-use crate::{format, thumbnail, view};
+use crate::{bed_map, format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FanItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, LedEffectItem,
-    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, PrintObjectItem,
-    Printer, SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
+    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, Printer,
+    SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
 };
 use chrono::Local;
 use freakymate_core::domain::filament::{self, FilamentHandling};
@@ -111,7 +112,7 @@ pub struct Presenter {
     /// The lengths the Filament page offers, set again only when the configuration changes them.
     extrude_lengths: RefCell<Vec<f64>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
-    print_objects: Rc<VecModel<PrintObjectItem>>,
+    print_objects: ObjectsView,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
     mmu_sensors: Rc<VecModel<MmuSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
@@ -150,7 +151,7 @@ impl Presenter {
             hide_temperature_reports: Cell::new(true),
             extrude_lengths: RefCell::default(),
             filament_sensors: Rc::default(),
-            print_objects: Rc::default(),
+            print_objects: ObjectsView::default(),
             mmu_gates: Rc::default(),
             mmu_sensors: Rc::default(),
             macros: Rc::default(),
@@ -178,7 +179,7 @@ impl Presenter {
         printer.set_led_effects(ModelRc::from(presenter.led_effects.clone()));
         printer.set_tuning(ModelRc::from(presenter.tuning.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
-        printer.set_print_objects(ModelRc::from(presenter.print_objects.clone()));
+        presenter.print_objects.bind(&printer);
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
         printer.set_mmu_sensors(ModelRc::from(presenter.mmu_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
@@ -218,6 +219,14 @@ impl Presenter {
 
     pub fn snapshot(&self) -> Snapshot {
         self.cache.borrow().snapshot.clone()
+    }
+
+    /// The index of the print object under a tap on the bed map, see [`bed_map::object_at_tap`].
+    pub fn print_object_at(&self, x_share: f64, y_share: f64, reach_share: f64) -> Option<usize> {
+        let cache = self.cache.borrow();
+        let status = &cache.snapshot.status;
+        let bed = status.motion.bed()?;
+        bed_map::object_at_tap(&status.print_objects, bed, x_share, y_share, reach_share)
     }
 
     /// Offers only lengths Klipper accepts; a selected length beyond them falls back to the longest one.
@@ -330,14 +339,7 @@ impl Presenter {
                 })
                 .collect(),
         );
-        replace_rows(
-            &self.print_objects,
-            status
-                .print_objects
-                .iter()
-                .map(|object| PrintObjectItem { name: object.name.as_str().into(), excluded: object.excluded })
-                .collect(),
-        );
+        self.print_objects.show(&printer, &status.print_objects, status.motion.bed());
 
         printer.set_can_quad_gantry_level(klipper.leveling == Some(Leveling::QuadGantry));
         printer.set_can_z_tilt(klipper.leveling == Some(Leveling::ZTilt));

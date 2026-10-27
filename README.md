@@ -29,7 +29,7 @@ is the BTT HDMI5 (5", 800x480, landscape).
 
 ## Features
 
-- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects;
+- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects (on a map of the bed if the slicer defines their outlines);
   file browser with thumbnails, filament, nozzle and print time of each file.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
 - **Thermal**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), presets; − and +

@@ -2,7 +2,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Page, Printer, StateIcons } from "../state.slint";
 
 // A temperature of the status bar; a tap leads to the heaters without looking like a button.
 component TemperatureReading inherits Rectangle {
@@ -13,7 +13,10 @@ component TemperatureReading inherits Rectangle {
     preferred-width: reading.preferred-width;
 
     TouchArea {
-        clicked => { Navigation.show-heaters(); }
+        clicked => {
+            Dialogs.dismiss();
+            Navigation.show-heaters();
+        }
     }
 
     reading := HorizontalLayout {
@@ -85,6 +88,7 @@ export component StatusBar inherits Rectangle {
             accessible-label: Printer.status-message;
             status-touch := TouchArea {
                 clicked => {
+                    Dialogs.dismiss();
                     Navigation.messages-open = true;
                     Actions.messages-seen();
                 }
@@ -117,7 +121,10 @@ export component StatusBar inherits Rectangle {
             accessible-role: button;
             accessible-label: @tr("Light");
             light-touch := TouchArea {
-                clicked => { Navigation.light-open = !Navigation.light-open; }
+                clicked => {
+                    Dialogs.dismiss();
+                    Navigation.light-open = !Navigation.light-open;
+                }
             }
             Image {
                 source: Icons.accessory-light;
@@ -143,6 +150,7 @@ export component StatusBar inherits Rectangle {
                 accessible-label: @tr("Emergency stop");
                 stop-touch := TouchArea {
                     clicked => {
+                        Dialogs.dismiss();
                         Confirm.ask(@tr("Emergency stop"), @tr("Stops all motors and heaters immediately. Klipper must be restarted afterwards."), "emergency-stop", "", true);
                     }
                 }
@@ -178,7 +186,7 @@ component NavItem inherits Rectangle {
         clicked => {
             // The Tune page opens with the basics; the expert tab is one tap away.
             if (root.page == Page.tune) { Navigation.tune-tab = 0; }
-            if (Navigation.history-open) { Actions.close-history(); }
+            Dialogs.dismiss();
             Navigation.page = root.page;
         }
     }

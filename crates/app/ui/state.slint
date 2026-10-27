@@ -144,6 +144,18 @@ export struct MmuSensorItem {
 export struct PrintObjectItem {
     name: string,
     excluded: bool,
+    // Klipper prints it right now.
+    printing: bool,
+    // Outline on the bed map as path commands in the view box of `BedMapItem`; empty without the map.
+    outline: string,
+}
+
+// View box of the bed map: the bed in mm, Y upwards; `grid` as path commands.
+export struct BedMapItem {
+    shown: bool,
+    width: float,
+    depth: float,
+    grid: string,
 }
 
 // Texts of a file row; an empty text is a fact the file does not have.
@@ -314,6 +326,8 @@ export global Printer {
     in property <[FilamentSensorItem]> filament-sensors;
     // Objects of the running print; excluded ones cannot be printed again.
     in property <[PrintObjectItem]> print-objects;
+    // The bed the objects lie on; not shown if the slicer did not tell where they are.
+    in property <BedMapItem> bed-map;
     // Happy Hare (4.1 or newer). Without it the Filament page has no MMU tab.
     in property <bool> has-mmu;
     in property <bool> mmu-unsupported;
@@ -461,6 +475,9 @@ export global Actions {
     callback unload-filament();
     callback run-macro(string);
     callback exclude-object(string);
+    // The index of the print object under a tap on the bed map, or -1: position and the finger's reach as shares of
+    // the map's width and height, from the top left.
+    callback print-object-at(float, float, float) -> int;
     callback mmu-select-gate(int);
     callback mmu-load();
     callback mmu-unload();
@@ -623,7 +640,6 @@ export global Confirm {
         if (self.action == "cancel-print") { Actions.cancel-print(); }
         if (self.action == "emergency-stop") { Actions.emergency-stop(); }
         if (self.action == "run-macro") { Actions.run-macro(self.argument); }
-        if (self.action == "exclude-object") { Actions.exclude-object(self.argument); }
         if (self.action == "mmu-eject") { Actions.mmu-eject(); }
         if (self.action == "save-config") { Actions.save-config(); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
@@ -639,6 +655,20 @@ export global Confirm {
         if (self.action == "forget-network") { Network.forget(self.argument); }
         if (self.action == "wifi-off") { Network.set-wifi-enabled(false); }
         if (self.action == "wired-off") { Network.set-wired(self.argument, false); }
+    }
+}
+
+// Dialogs lie in the content area, beside the navigation and below the status bar. A tap there cancels every open
+// dialog before the button does its own work (Frank, 2026-10-27): `dismiss` closes the dialogs of the window, and
+// the dialogs of the pages close when `dismissals` changes.
+export global Dialogs {
+    out property <int> dismissals;
+
+    public function dismiss() {
+        Confirm.open = false;
+        SpoolPicker.open = false;
+        if (Navigation.history-open) { Actions.close-history(); }
+        self.dismissals += 1;
     }
 }
 

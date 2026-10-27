@@ -1,0 +1,44 @@
+// The look every dialog shares. Where a dialog sits and how large it is, each dialog decides itself; its content is
+// a layout with `padding: Theme.dialog-padding` and `spacing: Theme.spacing`. Dialogs and flyouts close with the
+// cross in their header; the buttons at the bottom are only for actions (Frank, 2026-10-27).
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { IconButton } from "controls.slint";
+
+// Surface with an outline, red for dangerous actions.
+export component DialogPanel inherits Rectangle {
+    in property <bool> danger;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: root.danger ? Theme.danger : Theme.border;
+}
+
+export component DialogTitle inherits Text {
+    color: Theme.foreground;
+    font-size: Theme.font-large;
+    font-weight: 700;
+    vertical-alignment: center;
+    overflow: elide;
+}
+
+// Title, optional extras between title and cross (the children), and the cross that closes.
+export component DialogHeader inherits HorizontalLayout {
+    in property <string> title;
+    callback close;
+    height: Theme.touch;
+    spacing: Theme.spacing;
+
+    DialogTitle {
+        horizontal-stretch: 1;
+        text: root.title;
+    }
+    @children
+    IconButton {
+        width: Theme.touch;
+        icon: Icons.ui-close;
+        accessible-label: @tr("Close");
+        clicked => { root.close(); }
+    }
+}

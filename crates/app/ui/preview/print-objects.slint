@@ -1,4 +1,5 @@
-// Preview: objects of a running print in the exclude dialog, one of them already excluded. Open in the Slint preview or render with scripts/ui-preview.sh.
+// Preview: objects of a running print on the bed map, one printing, one excluded, a small one with a long name
+// selected. Open in the Slint preview or render with scripts/ui-preview.sh.
 
 import { AppWindow } from "../app.slint";
 import { ExcludeObjectsDialog } from "../components/overlays.slint";
@@ -8,16 +9,23 @@ import { Sample } from "sample.slint";
 export component PrintObjectsPreview inherits AppWindow {
     ExcludeObjectsDialog {
         open: true;
+        selected: 3;
     }
 
     init => {
         Sample.printing();
         Navigation.page = Page.print;
+        Printer.bed-map = {
+            shown: true,
+            width: 300,
+            depth: 300,
+            grid: "M 50 300 L 50 0 M 100 300 L 100 0 M 150 300 L 150 0 M 200 300 L 200 0 M 250 300 L 250 0 M 0 250 L 300 250 M 0 200 L 300 200 M 0 150 L 300 150 M 0 100 L 300 100 M 0 50 L 300 50",
+        };
         Printer.print-objects = [
-            { name: "BENCHY_0", excluded: false },
-            { name: "BENCHY_1", excluded: true },
-            { name: "CALIBRATION_CUBE", excluded: false },
-            { name: "SUPPORT_TOWER", excluded: false },
+            { name: "BENCHY_0", printing: true, outline: "M 70 155 L 112 155 L 124 150 L 130 140 L 124 130 L 112 125 L 70 125 Z" },
+            { name: "BENCHY_1", excluded: true, outline: "M 170 155 L 212 155 L 224 150 L 230 140 L 224 130 L 212 125 L 170 125 Z" },
+            { name: "CALIBRATION_CUBE", outline: "M 140 230 L 160 230 L 160 210 L 140 210 Z" },
+            { name: "BODY1_ID_0_COPY_2_SPACER_M3_WITH_A_LONG_NAME", outline: "M 228 222 L 232 222 L 232 218 L 228 218 Z" },
         ];
     }
 }

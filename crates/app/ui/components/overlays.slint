@@ -2,8 +2,10 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker } from "../state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Page, PrintObjectItem, Printer, SpoolPicker } from "../state.slint";
 import { ColorBar, FlyoutPanel, IconButton, ScrollList } from "controls.slint";
+import { BedMap, BedMapLegend } from "bed-map.slint";
+import { DialogHeader, DialogPanel } from "dialog.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
 component Scrim inherits Rectangle {
@@ -16,23 +18,17 @@ component Scrim inherits Rectangle {
 export component ConfirmDialog inherits Scrim {
     visible: Confirm.open;
 
-    Rectangle {
+    DialogPanel {
         width: min(parent.width - 80px, 480px);
         height: min(parent.height - 24px, 270px);
-        background: Theme.surface;
-        border-radius: Theme.radius;
-        border-width: 1px;
-        border-color: Confirm.danger ? Theme.danger : Theme.border;
+        danger: Confirm.danger;
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
-            Text {
-                text: Confirm.title;
-                color: Theme.foreground;
-                font-size: Theme.font-large;
-                font-weight: 700;
-                overflow: elide;
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: Confirm.title;
+                close => { Confirm.open = false; }
             }
 
             Text {
@@ -43,22 +39,13 @@ export component ConfirmDialog inherits Scrim {
                 vertical-stretch: 1;
             }
 
-            HorizontalLayout {
-                spacing: 12px;
-                IconButton {
-                    icon: Icons.ui-back;
-                    text: @tr("Back");
-                    horizontal: true;
-                    clicked => { Confirm.open = false; }
-                }
-
-                IconButton {
-                    icon: Confirm.danger ? Icons.ui-warning : Icons.ui-check;
-                    text: @tr("Confirm");
-                    kind: Confirm.danger ? "danger" : "accent";
-                    horizontal: true;
-                    clicked => { Confirm.execute(); }
-                }
+            IconButton {
+                height: Theme.touch;
+                icon: Confirm.danger ? Icons.ui-warning : Icons.ui-check;
+                text: @tr("Confirm");
+                kind: Confirm.danger ? "danger" : "accent";
+                horizontal: true;
+                clicked => { Confirm.execute(); }
             }
         }
     }
@@ -76,21 +63,9 @@ export component MessagesFlyout inherits Rectangle {
         VerticalLayout {
             padding: 10px;
             spacing: 8px;
-            HorizontalLayout {
-                height: Theme.touch;
-                Text {
-                    horizontal-stretch: 1;
-                    text: @tr("Messages");
-                    color: Theme.foreground;
-                    font-size: Theme.font-large;
-                    vertical-alignment: center;
-                }
-                IconButton {
-                    width: Theme.touch;
-                    icon: Icons.ui-close;
-                    accessible-label: @tr("Close");
-                    clicked => { Navigation.messages-open = false; }
-                }
+            DialogHeader {
+                title: @tr("Messages");
+                close => { Navigation.messages-open = false; }
             }
 
             messages-list := ScrollList {
@@ -170,11 +145,14 @@ export component MessagesFlyout inherits Rectangle {
 component Key inherits Rectangle {
     in property <string> label;
     in property <image> icon;
+    // Orange like every confirming button (enter).
+    in property <bool> accent;
     callback pressed;
     min-width: 40px;
     horizontal-stretch: 1;
     border-radius: 6px;
-    background: key-touch.pressed ? Theme.accent : Theme.surface-raised;
+    background: root.accent ? (key-touch.pressed ? Theme.accent-pressed : Theme.accent)
+        : (key-touch.pressed ? Theme.accent : Theme.surface-raised);
     accessible-role: button;
     accessible-label: root.label;
 
@@ -229,7 +207,9 @@ export component OnScreenKeyboard inherits VerticalLayout {
 
     for row in (root.symbols ? root.symbol-rows : root.upper ? root.upper-rows : root.lower-rows): HorizontalLayout {
         spacing: 4px;
-        height: 40px;
+        // The rows share the height of the dialog, so the keys get as large as the screen allows.
+        min-height: 40px;
+        vertical-stretch: 1;
         for key in row: Key {
             label: key;
             pressed => { root.typed(key); }
@@ -237,7 +217,9 @@ export component OnScreenKeyboard inherits VerticalLayout {
     }
     HorizontalLayout {
         spacing: 4px;
-        height: 40px;
+        // The rows share the height of the dialog, so the keys get as large as the screen allows.
+        min-height: 40px;
+        vertical-stretch: 1;
         Key {
             label: root.upper ? "abc" : "ABC";
             horizontal-stretch: 2;
@@ -279,6 +261,7 @@ export component OnScreenKeyboard inherits VerticalLayout {
         Key {
             label: "enter";
             icon: Icons.ui-check;
+            accent: true;
             horizontal-stretch: 2;
             pressed => { root.enter(); }
         }
@@ -295,11 +278,17 @@ export component TextEntryDialog inherits Scrim {
     in-out property <bool> open;
     callback accepted(string);
     property <bool> reveal;
+    // A tap on the status bar or the navigation cancels the entry.
+    property <int> dismissals: Dialogs.dismissals;
     visible: root.open;
 
     function close() {
         root.reveal = false;
         root.open = false;
+    }
+
+    changed dismissals => {
+        root.close();
     }
 
     changed open => {
@@ -321,21 +310,20 @@ export component TextEntryDialog inherits Scrim {
             reject
         }
 
-        Rectangle {
+        DialogPanel {
             x: 8px;
             y: 8px;
             width: parent.width - 16px;
             height: parent.height - 16px;
-            background: Theme.surface;
-            border-radius: Theme.radius;
 
             VerticalLayout {
-                padding: 10px;
-                spacing: 8px;
+                padding: Theme.dialog-padding;
+                spacing: Theme.spacing;
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: Theme.spacing;
                     // As high as the buttons in it, so they keep the gap to the keys.
                     height: Theme.touch;
+                    // The name of the field, not a title: the keyboard needs the room.
                     Text {
                         text: root.title;
                         color: Theme.muted;
@@ -408,33 +396,30 @@ export component TextEntryDialog inherits Scrim {
 export component MacroFormDialog inherits Scrim {
     in-out property <bool> open;
     property <int> edit-index: -1;
+    // A tap on the status bar or the navigation cancels the form.
+    property <int> dismissals: Dialogs.dismissals;
     visible: root.open;
 
-    Rectangle {
+    changed dismissals => {
+        root.open = false;
+    }
+
+    DialogPanel {
         x: 8px;
         y: 8px;
         width: parent.width - 16px;
         height: parent.height - 16px;
-        background: Theme.surface;
-        border-radius: Theme.radius;
 
         VerticalLayout {
-            padding: 10px;
-            spacing: 8px;
-            HorizontalLayout {
-                spacing: 8px;
-                height: 48px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: Printer.macro-form-name;
-                    color: Theme.foreground;
-                    font-size: Theme.font-large;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: Printer.macro-form-name;
+                close => { root.open = false; }
             }
 
-            // Each parameter is an input field: its name on the left, the value (or the Klipper default in grey) on the right.
+            // Each parameter is an input field: its name on the left, the value (or the Klipper default in grey) on the
+            // right. The names share one column width, so the fields line up.
             params-list := ScrollList {
                 vertical-stretch: 1;
                 content-height: Printer.macro-form.length * (Theme.touch + Theme.spacing);
@@ -448,9 +433,11 @@ export component MacroFormDialog inherits Scrim {
                     HorizontalLayout {
                         padding-left: 14px;
                         padding-right: 8px;
+                        padding-top: 7px;
+                        padding-bottom: 7px;
                         spacing: 12px;
                         Text {
-                            horizontal-stretch: 1;
+                            width: min(220px, params-list.row-width * 0.3);
                             text: param.name;
                             color: Theme.foreground;
                             font-size: Theme.font-normal;
@@ -459,7 +446,7 @@ export component MacroFormDialog inherits Scrim {
                             overflow: elide;
                         }
                         Rectangle {
-                            horizontal-stretch: 2;
+                            horizontal-stretch: 1;
                             background: Theme.background;
                             border-radius: 6px;
                             border-width: 1px;
@@ -488,22 +475,16 @@ export component MacroFormDialog inherits Scrim {
                 }
             }
 
-            HorizontalLayout {
-                spacing: Theme.spacing;
+            IconButton {
                 height: Theme.touch;
-                IconButton {
-                    text: @tr("Cancel");
-                    clicked => { root.open = false; }
-                }
-                IconButton {
-                    text: @tr("Run");
-                    icon: Icons.ui-check;
-                    kind: "accent";
-                    // Running is the confirmation: the user has just seen every parameter.
-                    clicked => {
-                        Actions.run-macro(Actions.macro-form-script());
-                        root.open = false;
-                    }
+                text: @tr("Run");
+                icon: Icons.ui-check;
+                kind: "accent";
+                horizontal: true;
+                // Running is the confirmation: the user has just seen every parameter.
+                clicked => {
+                    Actions.run-macro(Actions.macro-form-script());
+                    root.open = false;
                 }
             }
         }
@@ -514,63 +495,88 @@ export component MacroFormDialog inherits Scrim {
     }
 }
 
-// Objects of the running print. Tapping one asks first; an excluded object cannot be printed again.
+// Objects of the running print: on a map of the bed if the slicer told where they lie, and always as a list (the way
+// to objects that overlap or have no place). Tapping only selects; "Exclude" then skips the object for the rest of
+// the print, which replaces a confirmation. Names are shown as Klipper reports them and may wrap.
 export component ExcludeObjectsDialog inherits Scrim {
     in-out property <bool> open;
+    in-out property <int> selected: -1;
+    property <bool> has-selection: root.selected >= 0 && root.selected < Printer.print-objects.length;
+    property <PrintObjectItem> chosen: Printer.print-objects[root.selected];
+    // Room for the map: the dialog without its margin, padding, title and buttons; the list keeps the rest.
+    property <length> map-room-height: root.height - 16px - 2 * Theme.dialog-padding - 2 * Theme.touch - 2 * Theme.spacing;
+    property <length> map-width: min(root.map-room-height * Printer.bed-map.width / Printer.bed-map.depth, (root.width - 16px - 2 * Theme.dialog-padding) * 0.55);
+    // A tap on the status bar or the navigation closes the dialog without excluding anything.
+    property <int> dismissals: Dialogs.dismissals;
     visible: root.open;
+    changed open => {
+        root.selected = -1;
+    }
+    changed dismissals => {
+        root.open = false;
+    }
 
-    Rectangle {
+    DialogPanel {
         x: 8px;
         y: 8px;
         width: parent.width - 16px;
         height: parent.height - 16px;
-        background: Theme.surface;
-        border-radius: Theme.radius;
 
         VerticalLayout {
-            padding: 10px;
-            spacing: 8px;
-            Text {
-                height: 48px;
-                text: @tr("Exclude objects");
-                color: Theme.foreground;
-                font-size: Theme.font-large;
-                vertical-alignment: center;
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: @tr("Exclude objects");
+                close => { root.open = false; }
             }
-            objects-list := ScrollList {
+            HorizontalLayout {
                 vertical-stretch: 1;
-                content-height: Printer.print-objects.length * (Theme.touch + Theme.spacing);
-                for item[index] in Printer.print-objects: Rectangle {
-                    x: 8px;
-                    y: index * (Theme.touch + Theme.spacing);
-                    width: objects-list.row-width - 16px;
-                    height: Theme.touch;
-                    background: item.excluded ? Theme.background : Theme.surface-raised;
-                    border-radius: Theme.radius;
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        spacing: 12px;
-                        Text {
-                            horizontal-stretch: 1;
-                            text: item.name;
-                            color: item.excluded ? Theme.disabled-foreground : Theme.foreground;
-                            font-size: Theme.font-normal;
-                            vertical-alignment: center;
-                            overflow: elide;
-                        }
-                        Text {
-                            text: item.excluded ? @tr("Excluded") : "";
-                            color: Theme.muted;
-                            font-size: Theme.font-small;
-                            vertical-alignment: center;
-                        }
+                spacing: Theme.spacing;
+                // Wrapper: the map keeps the bed's shape at the top of the column.
+                if Printer.bed-map.shown: Rectangle {
+                    width: root.map-width;
+                    BedMap {
+                        y: 0;
+                        width: parent.width;
+                        height: parent.width * Printer.bed-map.depth / Printer.bed-map.width;
+                        selected <=> root.selected;
                     }
-                    TouchArea {
-                        enabled: !item.excluded;
-                        clicked => {
-                            Confirm.ask(@tr("Exclude object"), item.name, "exclude-object", item.name, false);
-                            root.open = false;
+                }
+                objects-list := ScrollList {
+                    vertical-stretch: 1;
+                    content-height: Printer.print-objects.length * (Theme.touch + Theme.spacing);
+                    for item[index] in Printer.print-objects: Rectangle {
+                        x: 8px;
+                        y: index * (Theme.touch + Theme.spacing);
+                        width: objects-list.row-width - 16px;
+                        height: Theme.touch;
+                        background: item.excluded ? Theme.background : Theme.surface-raised;
+                        border-radius: Theme.radius;
+                        border-width: index == root.selected ? 2px : 0px;
+                        border-color: Theme.foreground;
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 12px;
+                            // Long names wrap onto a second line instead of being cut short.
+                            Text {
+                                horizontal-stretch: 1;
+                                text: item.name;
+                                color: item.excluded ? Theme.disabled-foreground : Theme.foreground;
+                                font-size: Theme.font-normal;
+                                vertical-alignment: center;
+                                wrap: char-wrap;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: item.excluded ? @tr("Excluded") : item.printing ? @tr("Printing") : "";
+                                color: item.printing && !item.excluded ? Theme.accent : Theme.muted;
+                                font-size: Theme.font-small;
+                                vertical-alignment: center;
+                            }
+                        }
+                        TouchArea {
+                            clicked => { root.selected = index; }
                         }
                     }
                 }
@@ -578,9 +584,16 @@ export component ExcludeObjectsDialog inherits Scrim {
             HorizontalLayout {
                 spacing: Theme.spacing;
                 height: Theme.touch;
+                if Printer.bed-map.shown: BedMapLegend {
+                    width: root.map-width;
+                }
                 IconButton {
-                    text: @tr("Close");
-                    clicked => { root.open = false; }
+                    text: @tr("Exclude");
+                    icon: Icons.print-exclude-object;
+                    horizontal: true;
+                    kind: "danger";
+                    enabled: Printer.is-printing && root.has-selection && !root.chosen.excluded;
+                    clicked => { Actions.exclude-object(root.chosen.name); }
                 }
             }
         }
@@ -595,7 +608,13 @@ export component LayerPauseDialog inherits Scrim {
     property <int> first-layer: Printer.current-layer + 1;
     // Without a reported total the layer has no upper limit.
     property <int> last-layer: Printer.total-layers > 0 ? Printer.total-layers : 999999;
+    // A tap on the status bar or the navigation closes the dialog without planning a pause.
+    property <int> dismissals: Dialogs.dismissals;
     visible: root.shown && (Printer.layer-pause-next || Printer.layer-pause-at);
+
+    changed dismissals => {
+        root.shown = false;
+    }
 
     public function open() {
         root.layer = min(root.first-layer, root.last-layer);
@@ -606,21 +625,18 @@ export component LayerPauseDialog inherits Scrim {
         root.layer = max(min(root.first-layer, root.last-layer), min(root.last-layer, root.layer + delta));
     }
 
-    Rectangle {
+    DialogPanel {
         width: min(parent.width - 16px, 520px);
         height: content.preferred-height;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: Theme.surface;
-        border-radius: Theme.radius;
 
         content := VerticalLayout {
-            padding: 12px;
+            padding: Theme.dialog-padding;
             spacing: Theme.spacing;
-            Text {
-                text: @tr("Pause at a layer");
-                color: Theme.foreground;
-                font-size: Theme.font-large;
+            DialogHeader {
+                title: @tr("Pause at a layer");
+                close => { root.shown = false; }
             }
             Text {
                 text: Printer.total-layers > 0 ? @tr("Now at layer {} of {}", Printer.current-layer, Printer.total-layers) : @tr("Now at layer {}", Printer.current-layer);
@@ -674,22 +690,13 @@ export component LayerPauseDialog inherits Scrim {
                     root.shown = false;
                 }
             }
-            HorizontalLayout {
-                spacing: Theme.spacing;
-                IconButton {
-                    icon: Icons.ui-delete;
-                    text: @tr("Clear planned pause");
-                    horizontal: true;
-                    clicked => {
-                        Actions.clear-layer-pause();
-                        root.shown = false;
-                    }
-                }
-                IconButton {
-                    icon: Icons.ui-close;
-                    text: @tr("Close");
-                    horizontal: true;
-                    clicked => { root.shown = false; }
+            IconButton {
+                icon: Icons.ui-delete;
+                text: @tr("Clear planned pause");
+                horizontal: true;
+                clicked => {
+                    Actions.clear-layer-pause();
+                    root.shown = false;
                 }
             }
         }
@@ -706,39 +713,23 @@ export component SpoolDialog inherits Scrim {
         root.selected = self.visible ? SpoolPicker.current : -1;
     }
 
-    Rectangle {
+    DialogPanel {
         x: 8px;
         y: 8px;
         width: parent.width - 16px;
         height: parent.height - 16px;
-        background: Theme.surface;
-        border-radius: Theme.radius;
 
         VerticalLayout {
-            padding: 10px;
-            spacing: 8px;
-            HorizontalLayout {
-                height: Theme.touch;
-                spacing: 10px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: SpoolPicker.gate >= 0 ? @tr("Spool for gate {}", SpoolPicker.gate) : @tr("Spool in use");
-                    color: Theme.foreground;
-                    font-size: Theme.font-large;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: SpoolPicker.gate >= 0 ? @tr("Spool for gate {}", SpoolPicker.gate) : @tr("Spool in use");
+                close => { SpoolPicker.open = false; }
                 if Printer.spoolman-offline: Text {
                     text: Printer.spoolman-pending > 0 ? @tr("Spoolman offline, {} reports waiting", Printer.spoolman-pending) : @tr("Spoolman offline");
                     color: Theme.warning;
                     font-size: Theme.font-small;
                     vertical-alignment: center;
-                }
-                IconButton {
-                    width: Theme.touch;
-                    icon: Icons.ui-close;
-                    accessible-label: @tr("Close");
-                    clicked => { SpoolPicker.open = false; }
                 }
             }
             spools-list := ScrollList {
