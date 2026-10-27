@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer, SpoolPicker } from "../state.slint";
-import { ColorBar, IconButton, ScrollList } from "controls.slint";
+import { ColorBar, FlyoutPanel, IconButton, ScrollList } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
 component Scrim inherits Rectangle {
@@ -64,22 +64,14 @@ export component ConfirmDialog inherits Scrim {
     }
 }
 
-// Flyout below the status bar with all errors and informations, newest first. Tapping outside closes it.
+// Flyout below the status bar with all errors and informations, newest first. Not modal: the page beside it stays
+// usable; only the close button, "Discard all" and "Console" close it.
 export component MessagesFlyout inherits Rectangle {
-    TouchArea {
-        width: parent.width;
-        height: parent.height;
-        clicked => { Navigation.messages-open = false; }
-    }
-
-    Rectangle {
+    FlyoutPanel {
         x: root.width - self.width - 8px;
         y: 52px;
         width: min(560px, root.width - 16px);
         height: root.height - 60px;
-        // Slightly see-through, so it is clear that the flyout lies over the page.
-        background: Theme.surface.with-alpha(Theme.flyout-opacity);
-        border-radius: Theme.radius;
 
         VerticalLayout {
             padding: 10px;
@@ -152,7 +144,11 @@ export component MessagesFlyout inherits Rectangle {
                     icon-size: 20px;
                     horizontal: true;
                     min-height: 44px;
-                    clicked => { Actions.messages-clear(); }
+                    // Nothing is left to read: the flyout closes with it.
+                    clicked => {
+                        Actions.messages-clear();
+                        Navigation.messages-open = false;
+                    }
                 }
                 IconButton {
                     text: @tr("Console");
@@ -652,18 +648,16 @@ export component SpoolDialog inherits Scrim {
                         padding-left: 10px;
                         padding-right: 12px;
                         spacing: 10px;
-                        VerticalLayout {
-                            alignment: center;
-                            ColorBar {
-                                width: 14px;
-                                height: 34px;
-                                vertical: true;
-                                first: spool.color;
-                                second: spool.color-2;
-                                third: spool.color-3;
-                                count: spool.color-count;
-                                longitudinal: spool.longitudinal;
-                            }
+                        ColorBar {
+                            cross-axis-self-alignment: center;
+                            width: 14px;
+                            height: 34px;
+                            vertical: true;
+                            first: spool.color;
+                            second: spool.color-2;
+                            third: spool.color-3;
+                            count: spool.color-count;
+                            longitudinal: spool.longitudinal;
                         }
                         VerticalLayout {
                             alignment: center;

@@ -16,18 +16,16 @@ export component SpoolStrip inherits Rectangle {
         padding: 6px;
         padding-left: 10px;
         spacing: 10px;
-        VerticalLayout {
-            alignment: center;
-            ColorBar {
-                width: 14px;
-                height: 34px;
-                vertical: true;
-                first: Printer.spool-color;
-                second: Printer.spool-color-2;
-                third: Printer.spool-color-3;
-                count: Printer.spool-color-count;
-                longitudinal: Printer.spool-longitudinal;
-            }
+        ColorBar {
+            cross-axis-self-alignment: center;
+            width: 14px;
+            height: 34px;
+            vertical: true;
+            first: Printer.spool-color;
+            second: Printer.spool-color-2;
+            third: Printer.spool-color-3;
+            count: Printer.spool-color-count;
+            longitudinal: Printer.spool-longitudinal;
         }
         VerticalLayout {
             alignment: center;
@@ -46,14 +44,12 @@ export component SpoolStrip inherits Rectangle {
                 overflow: elide;
             }
         }
-        VerticalLayout {
-            alignment: center;
-            Image {
-                source: Icons.filament-spool;
-                colorize: Theme.muted;
-                width: 22px;
-                height: 22px;
-            }
+        Image {
+            cross-axis-self-alignment: center;
+            source: Icons.filament-spool;
+            colorize: Theme.muted;
+            width: 22px;
+            height: 22px;
         }
     }
     TouchArea {

@@ -4,7 +4,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Display, Navigation, Printer, UiSettings } from "../state.slint";
-import { Card, IconButton, ScrollList } from "../components/controls.slint";
+import { Card, IconButton, ScrollList, ToggleRow } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 import { SystemTabs } from "../components/system-tabs.slint";
 
@@ -46,27 +46,19 @@ export component SettingsPage inherits Rectangle {
                     icon: Icons.system-brightness;
                     VerticalLayout {
                         spacing: Theme.spacing;
-                        IconButton {
-                            min-height: 44px;
-                            icon: UiSettings.fullscreen ? Icons.ui-check : Icons.ui-minus;
+                        ToggleRow {
                             text: @tr("Fullscreen");
-                            horizontal: true;
-                            align-start: true;
                             checked: UiSettings.fullscreen;
-                            clicked => {
+                            toggled => {
                                 UiSettings.fullscreen = !UiSettings.fullscreen;
                                 UiSettings.fullscreen-toggled(UiSettings.fullscreen);
                             }
                         }
                         // Like Mainsail: the temperature reports of M109/M190 fill the console while a heater warms up.
-                        IconButton {
-                            min-height: 44px;
-                            icon: UiSettings.hide-temperature-reports ? Icons.ui-check : Icons.ui-minus;
+                        ToggleRow {
                             text: @tr("Hide temperatures");
-                            horizontal: true;
-                            align-start: true;
                             checked: UiSettings.hide-temperature-reports;
-                            clicked => {
+                            toggled => {
                                 UiSettings.hide-temperature-reports = !UiSettings.hide-temperature-reports;
                                 UiSettings.hide-temperature-reports-toggled(UiSettings.hide-temperature-reports);
                             }
@@ -90,16 +82,13 @@ export component SettingsPage inherits Rectangle {
                 macro-list := ScrollList {
                     vertical-stretch: 1;
                     content-height: Printer.macro-items.length * (Theme.touch + Theme.spacing);
-                    for macro[index] in Printer.macro-items: IconButton {
+                    for macro[index] in Printer.macro-items: ToggleRow {
                         y: index * (Theme.touch + Theme.spacing);
                         width: macro-list.row-width;
                         height: Theme.touch;
-                        horizontal: true;
-                        align-start: true;
-                        icon: macro.visible ? Icons.ui-check : Icons.ui-minus;
                         text: macro.name;
                         checked: macro.visible;
-                        clicked => { Actions.set-macro-visible(macro.name, !macro.visible); }
+                        toggled => { Actions.set-macro-visible(macro.name, !macro.visible); }
                     }
                 }
                 if Printer.macro-items.length == 0: Text {

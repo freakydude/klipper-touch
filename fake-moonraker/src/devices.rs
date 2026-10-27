@@ -10,7 +10,6 @@ const HOTEND_FAN_RPM: f64 = 7200.0;
 const BOARD_FAN_RPM: f64 = 3100.0;
 /// The hotend fan of Klipper runs from this nozzle temperature on (`heater_temp` default).
 const HOTEND_FAN_TEMPERATURE: f64 = 50.0;
-const HOST_TEMPERATURE: f64 = 51.4;
 /// Stepper drivers only report a temperature while they are enabled.
 const DRIVER_TEMPERATURES: [(&str, f64); 3] = [("stepper_x", 36.5), ("stepper_y", 37.2), ("stepper_z", 33.9)];
 const EFFECTS: [&str; 2] = ["rainbow", "critical_error"];
@@ -101,7 +100,6 @@ impl Devices {
         for (name, enabled) in EFFECTS.iter().zip(self.effects) {
             objects.insert(format!("led_effect {name}"), json!({ "enabled": enabled }));
         }
-        objects.insert("temperature_host host".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
         for (stepper, temperature) in DRIVER_TEMPERATURES {
             let temperature = inputs.steppers_enabled.then_some(temperature);
             objects.insert(format!("tmc2240 {stepper}"), json!({ "temperature": temperature }));

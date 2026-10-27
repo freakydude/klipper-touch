@@ -4,7 +4,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, LedItem, Navigation, Printer } from "../state.slint";
-import { IconButton, ScrollList, TouchSlider } from "controls.slint";
+import { FlyoutPanel, IconButton, ScrollList, ToggleRow, TouchSlider } from "controls.slint";
 
 // On and off, and the brightness of white light.
 component LedRow inherits Rectangle {
@@ -18,11 +18,11 @@ component LedRow inherits Rectangle {
         padding-left: 10px;
         spacing: Theme.spacing;
         Image {
+            cross-axis-self-alignment: center;
             source: Icons.accessory-light;
             colorize: root.led.level > 0 ? Theme.warning : Theme.muted;
             width: 28px;
             height: 28px;
-            y: (parent.height - self.height) / 2;
         }
         VerticalLayout {
             alignment: center;
@@ -42,6 +42,7 @@ component LedRow inherits Rectangle {
             clicked => { Actions.set-light(root.led.object, 0); }
         }
         light-slider := TouchSlider {
+            cross-axis-self-alignment: center;
             horizontal-stretch: 1;
             value: root.led.level;
             changed(level) => { Actions.set-light(root.led.object, level); }
@@ -58,24 +59,13 @@ component LedRow inherits Rectangle {
 export component LightPanel inherits Rectangle {
     property <length> row-step: 64px;
 
-    // A tap beside the panel closes it.
-    TouchArea {
-        width: parent.width;
-        height: parent.height;
-        clicked => { Navigation.light-open = false; }
-    }
-
-    Rectangle {
+    // Not modal: the page beside the panel stays usable; the close button or the light symbol closes it.
+    FlyoutPanel {
         x: root.width - self.width - 8px;
         y: 52px;
         width: min(620px, root.width - 16px);
         height: min(root.height - 60px, 64px + 2 * Theme.padding + Theme.spacing
             + (Printer.leds.length + (Printer.led-effects.length > 0 ? 1 : 0)) * root.row-step);
-        // Slightly see-through, so it is clear that the panel lies over the page.
-        background: Theme.surface.with-alpha(Theme.flyout-opacity);
-        border-radius: Theme.radius;
-        // Taps inside stay inside.
-        TouchArea { }
 
         VerticalLayout {
             padding: Theme.padding;
@@ -84,12 +74,11 @@ export component LightPanel inherits Rectangle {
                 spacing: Theme.spacing;
                 height: Theme.touch;
                 // The main light as a switch: highlighted while it is on.
-                if Printer.has-light: IconButton {
-                    horizontal: true;
+                if Printer.has-light: ToggleRow {
                     icon: Icons.accessory-light;
-                    text: Printer.light-name + ": " + (Printer.light-on ? @tr("on") : @tr("off"));
+                    text: Printer.light-name;
                     checked: Printer.light-on;
-                    clicked => { Actions.toggle-light(); }
+                    toggled => { Actions.toggle-light(); }
                 }
                 IconButton {
                     width: Theme.touch;
@@ -111,13 +100,15 @@ export component LightPanel inherits Rectangle {
                     y: Printer.leds.length * root.row-step;
                     width: list.row-width;
                     height: root.row-step - Theme.spacing;
+                    // Same inset as the LED rows, so the symbols stand in one column.
+                    padding-left: 10px;
                     spacing: Theme.spacing;
                     Image {
+                        cross-axis-self-alignment: center;
                         source: Icons.accessory-led-strip;
                         colorize: Theme.muted;
                         width: 28px;
                         height: 28px;
-                        y: (parent.height - self.height) / 2;
                     }
                     for effect in Printer.led-effects: IconButton {
                         text: effect.label;

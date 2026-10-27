@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Navigation, Page, Printer } from "../state.slint";
-import { Card, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ToggleRow } from "../components/controls.slint";
 import { SystemTabs } from "../components/system-tabs.slint";
 
 export component SystemPage inherits Rectangle {
@@ -92,29 +92,16 @@ export component SystemPage inherits Rectangle {
             if Printer.has-power: Card {
                 title: @tr("Power devices");
                 icon: Icons.accessory-power-device;
-                for device in Printer.power-devices: HorizontalLayout {
-                    spacing: Theme.spacing;
+                for device in Printer.power-devices: ToggleRow {
                     height: 52px;
-                    IconLabel {
-                        horizontal-stretch: 1;
-                        icon: device.on ? Icons.accessory-power-device : Icons.ui-minus;
-                        text: device.name;
-                        color: device.on ? Theme.foreground : Theme.muted;
-                    }
-                    IconButton {
-                        width: 96px;
-                        // Fits the row, so the buttons of two devices do not touch.
-                        min-height: 44px;
-                        text: device.on ? @tr("On") : @tr("Off");
-                        checked: device.on;
-                        kind: device.on ? "accent" : "normal";
-                        enabled: !(device.locked && Printer.is-printing);
-                        clicked => {
-                            if (device.on) {
-                                Confirm.ask(@tr("Switch off"), device.name, "power-off", device.name, true);
-                            } else {
-                                Actions.set-power(device.name, true);
-                            }
+                    text: device.name;
+                    checked: device.on;
+                    enabled: !(device.locked && Printer.is-printing);
+                    toggled => {
+                        if (device.on) {
+                            Confirm.ask(@tr("Switch off"), device.name, "power-off", device.name, true);
+                        } else {
+                            Actions.set-power(device.name, true);
                         }
                     }
                 }

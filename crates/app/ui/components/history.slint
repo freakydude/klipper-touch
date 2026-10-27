@@ -18,10 +18,7 @@ component Legend inherits HorizontalLayout {
     in property <color> color;
     in property <string> text;
     spacing: 6px;
-    VerticalLayout {
-        alignment: center;
-        Rectangle { width: 16px; height: 3px; background: root.color; }
-    }
+    Rectangle { cross-axis-self-alignment: center; width: 16px; height: 3px; background: root.color; }
     Text { text: root.text; color: Theme.muted; font-size: Theme.font-small; vertical-alignment: center; }
 }
 
@@ -39,11 +36,11 @@ export component HistoryDialog inherits Rectangle {
             spacing: Theme.spacing;
             height: Theme.touch;
             Image {
+                cross-axis-self-alignment: center;
                 source: Icons.nav-history;
                 colorize: Theme.muted;
                 width: 28px;
                 height: 28px;
-                y: (parent.height - self.height) / 2;
             }
             Text {
                 text: Printer.history-title;

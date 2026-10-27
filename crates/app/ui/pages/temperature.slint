@@ -25,14 +25,12 @@ component HeaterRow inherits Rectangle {
         padding: 4px;
         padding-left: 10px;
         spacing: Theme.spacing;
-        VerticalLayout {
-            alignment: center;
-            Image {
-                source: root.heater.object == "heater_bed" ? Icons.thermal-bed : root.heater.object == "extruder" ? Icons.thermal-nozzle : Icons.thermal-chamber;
-                colorize: root.heater.target > 0 ? Theme.accent : Theme.muted;
-                width: 28px;
-                height: 28px;
-            }
+        Image {
+            cross-axis-self-alignment: center;
+            source: root.heater.object == "heater_bed" ? Icons.thermal-bed : root.heater.object == "extruder" ? Icons.thermal-nozzle : Icons.thermal-chamber;
+            colorize: root.heater.target > 0 ? Theme.accent : Theme.muted;
+            width: 28px;
+            height: 28px;
         }
         VerticalLayout {
             alignment: center;
@@ -46,6 +44,7 @@ component HeaterRow inherits Rectangle {
                     overflow: elide;
                 }
                 if root.heater.has-history: Image {
+                    cross-axis-self-alignment: center;
                     source: Icons.nav-history;
                     colorize: Theme.muted;
                     width: 14px;
@@ -116,11 +115,11 @@ component FanRow inherits Rectangle {
         padding-left: 10px;
         spacing: Theme.spacing;
         Image {
+            cross-axis-self-alignment: center;
             source: Icons.thermal-fan;
             colorize: root.fan.speed > 0 ? Theme.accent : Theme.muted;
             width: 28px;
             height: 28px;
-            y: (parent.height - self.height) / 2;
         }
         VerticalLayout {
             alignment: center;
@@ -141,6 +140,7 @@ component FanRow inherits Rectangle {
             clicked => { Actions.set-fan(root.fan.object, 0); }
         }
         fan-slider := TouchSlider {
+            cross-axis-self-alignment: center;
             horizontal-stretch: 1;
             visible: root.fan.controllable;
             value: root.fan.speed;
@@ -153,10 +153,11 @@ component FanRow inherits Rectangle {
             clicked => { Actions.set-fan(root.fan.object, 100); }
         }
         // Klipper switches heater and controller fans itself: only how fast they run.
-        if !root.fan.controllable: VerticalLayout {
-            alignment: center;
+        if !root.fan.controllable: ProgressBar {
+            cross-axis-self-alignment: center;
             horizontal-stretch: 1;
-            ProgressBar { progress: root.fan.speed / 100; bar-color: Theme.info; }
+            progress: root.fan.speed / 100;
+            bar-color: Theme.info;
         }
         if !root.fan.controllable: Text {
             width: 64px;

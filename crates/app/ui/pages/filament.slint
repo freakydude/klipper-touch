@@ -109,7 +109,7 @@ component ExtruderTab inherits Rectangle {
 
         StepSelector {
             label: @tr("Length");
-            values: [5, 10, 25, 50, 100];
+            values: Printer.extrude-lengths;
             unit: " mm";
             selected <=> UiSettings.extrude-length;
             changed => { UiSettings.steps-changed(); }

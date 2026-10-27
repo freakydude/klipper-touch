@@ -229,13 +229,11 @@ export component PrintPage inherits Rectangle {
                     font-weight: 700;
                     vertical-alignment: center;
                 }
-                VerticalLayout {
-                    alignment: center;
+                ProgressBar {
+                    cross-axis-self-alignment: center;
                     horizontal-stretch: 1;
-                    ProgressBar {
-                        progress: Printer.progress;
-                        bar-color: Printer.print-state == "paused" ? Theme.warning : Printer.print-state == "error" ? Theme.danger : Theme.accent;
-                    }
+                    progress: Printer.progress;
+                    bar-color: Printer.print-state == "paused" ? Theme.warning : Printer.print-state == "error" ? Theme.danger : Theme.accent;
                 }
             }
             // Left the times, right the figures of the job. The times are short, the figures need room: 4 to 5.

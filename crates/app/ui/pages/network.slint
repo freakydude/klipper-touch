@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, HostInterfaceItem, Network, Printer, WifiItem, WiredItem } from "../state.slint";
-import { Card, IconButton, IconLabel, ScrollList } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList, ToggleRow } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 
 // One network: tap to connect; buttons to disconnect (active) or remove (saved).
@@ -29,14 +29,12 @@ component WifiRow inherits Rectangle {
         padding-left: 10px;
         padding: root.inset;
         spacing: 8px;
-        VerticalLayout {
-            alignment: center;
-            Image {
-                source: !root.network.in-range ? Icons.network-wifi-saved : root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
-                colorize: root.network.active ? Theme.accent : root.network.in-range ? Theme.foreground : Theme.muted;
-                width: 24px;
-                height: 24px;
-            }
+        Image {
+            cross-axis-self-alignment: center;
+            source: !root.network.in-range ? Icons.network-wifi-saved : root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
+            colorize: root.network.active ? Theme.accent : root.network.in-range ? Theme.foreground : Theme.muted;
+            width: 24px;
+            height: 24px;
         }
         VerticalLayout {
             alignment: center;
@@ -58,14 +56,12 @@ component WifiRow inherits Rectangle {
                 overflow: elide;
             }
         }
-        if root.network.secured && root.network.in-range: VerticalLayout {
-            alignment: center;
-            Image {
-                source: Icons.ui-lock;
-                colorize: Theme.muted;
-                width: 18px;
-                height: 18px;
-            }
+        if root.network.secured && root.network.in-range: Image {
+            cross-axis-self-alignment: center;
+            source: Icons.ui-lock;
+            colorize: Theme.muted;
+            width: 18px;
+            height: 18px;
         }
         if root.network.active: IconButton {
             width: Theme.touch;
@@ -101,12 +97,12 @@ component WifiCard inherits Card {
     HorizontalLayout {
         spacing: Theme.spacing;
         height: 52px;
-        IconButton {
+        ToggleRow {
+            horizontal-stretch: 1;
             icon: Network.wifi-enabled ? Icons.system-network : Icons.network-wifi-off;
-            text: Network.wifi-enabled ? @tr("Wi-Fi on") : @tr("Wi-Fi off");
-            horizontal: root.wide;
+            text: @tr("Wi-Fi");
             checked: Network.wifi-enabled;
-            clicked => {
+            toggled => {
                 if (Network.wifi-enabled) {
                     Confirm.ask(@tr("Switch off Wi-Fi"), Printer.is-printing
                         ? @tr("A print is running. Without Wi-Fi this printer may no longer be reachable over the network.")
