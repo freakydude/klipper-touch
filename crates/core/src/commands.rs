@@ -175,6 +175,17 @@ pub enum Command {
     MmuHome,
     MmuRecover,
     MmuUnlock,
+    MmuMotorsOff,
+    MmuCheckGates {
+        gates: mmu::Gates,
+    },
+    /// Grabs filament pushed into a gate and parks it there.
+    MmuPreload {
+        gate: usize,
+    },
+    MmuServo {
+        position: mmu::ServoCommand,
+    },
     /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record.
     AssignGateSpool {
         gate: usize,
@@ -362,6 +373,10 @@ impl Command {
             Self::MmuHome => run_gcode(mmu::HOME),
             Self::MmuRecover => run_gcode(mmu::RECOVER),
             Self::MmuUnlock => run_gcode(mmu::UNLOCK),
+            Self::MmuMotorsOff => run_gcode(mmu::MOTORS_OFF),
+            Self::MmuCheckGates { gates } => run_gcode(mmu::check_gates(*gates)),
+            Self::MmuPreload { gate } => run_gcode(mmu::preload(*gate)),
+            Self::MmuServo { position } => run_gcode(mmu::servo(*position)),
             Self::AssignGateSpool { gate, spool_id } => run_gcode(mmu::assign_gate_spool(*gate, *spool_id)),
             // Moonraker's components
             Self::SetActiveSpool { spool_id } => spoolman::set_active_spool(*spool_id),
@@ -449,6 +464,7 @@ mod tests {
 
         assert_eq!(script(Command::Jog { axis: Axis::Z, distance: 0.1 }), "G90\nG1 Z5.1 F600");
         assert_eq!(script(Command::MmuEject { gate: Some(1) }), "MMU_EJECT GATE=1");
+        assert_eq!(script(Command::MmuCheckGates { gates: mmu::Gates::All }), "MMU_CHECK_GATE ALL=1");
         assert_eq!(
             script(Command::SetLedEffect { effect: "rainbow".into(), on: false }),
             "SET_LED_EFFECT EFFECT=rainbow STOP=1"

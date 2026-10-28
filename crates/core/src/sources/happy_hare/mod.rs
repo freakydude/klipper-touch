@@ -59,6 +59,27 @@ impl LoadedFilament {
     }
 }
 
+/// Position of the selector servo (`mmu.selector.servo`, `mmu_linear_servo_selector.py`): up releases the filament,
+/// down grips it, move holds it while the selector moves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServoPosition {
+    Up,
+    Down,
+    Move,
+    Unknown,
+}
+
+impl ServoPosition {
+    fn parse(text: &str) -> Self {
+        match text {
+            "Up" => Self::Up,
+            "Down" => Self::Down,
+            "Move" => Self::Move,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MmuGate {
     pub index: usize,
@@ -230,6 +251,8 @@ pub struct MmuStatus {
     pub homed: bool,
     pub paused: bool,
     pub locked: bool,
+    /// Only selectors with a servo report it; `None` for the others.
+    pub servo: Option<ServoPosition>,
     pub gates: Vec<MmuGate>,
     /// Gate of each tool (`ttg_map`).
     pub tool_to_gate: Vec<usize>,
@@ -314,6 +337,11 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
         homed: flag(mmu, "is_homed"),
         paused: flag(mmu, "is_paused"),
         locked: flag(mmu, "is_locked"),
+        servo: mmu
+            .get("selector")
+            .and_then(|selector| selector.get("servo"))
+            .and_then(Value::as_str)
+            .map(ServoPosition::parse),
         gates: read_gates(mmu, num_gates),
         tool_to_gate: mmu
             .get("ttg_map")
@@ -519,6 +547,19 @@ mod tests {
         assert_eq!(mmu.sync_feedback, Some(SyncFeedback { state: SyncFeedbackState::Inactive, bias: -1.0 }));
         let flowguard = mmu.flowguard.unwrap();
         assert!(flowguard.enabled && !flowguard.active);
+        assert_eq!(mmu.servo, None);
+    }
+
+    #[test]
+    fn a_servo_selector_reports_its_position() {
+        // `mmu.selector` of an ERCF with `LinearServoSelector` (Happy Hare 4.1.0, 2026-10-28).
+        let servo = |selector: Value| read_mmu(&store(json!({ "mmu": { "selector": selector } }))).unwrap().servo;
+
+        assert_eq!(servo(json!({ "has_bypass": true, "servo": "Up" })), Some(ServoPosition::Up));
+        assert_eq!(servo(json!({ "servo": "Down" })), Some(ServoPosition::Down));
+        assert_eq!(servo(json!({ "servo": "Move" })), Some(ServoPosition::Move));
+        assert_eq!(servo(json!({ "servo": "Unknown" })), Some(ServoPosition::Unknown));
+        assert_eq!(servo(json!({ "has_bypass": false })), None);
     }
 
     #[test]

@@ -6,6 +6,22 @@ pub const UNLOAD: &str = "MMU_UNLOAD";
 pub const HOME: &str = "MMU_HOME";
 pub const RECOVER: &str = "MMU_RECOVER";
 pub const UNLOCK: &str = "MMU_UNLOCK";
+/// Turns off the motors and servos of the MMU so it can be moved by hand; the selector loses its home.
+pub const MOTORS_OFF: &str = "MMU_MOTORS_OFF";
+
+/// Gates a command acts on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gates {
+    All,
+    One(usize),
+}
+
+/// Servo positions `MMU_SERVO POS=` takes that the UI offers: up releases the filament, down grips it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServoCommand {
+    Up,
+    Down,
+}
 
 pub fn select_gate(gate: usize) -> String {
     format!("MMU_SELECT GATE={gate}")
@@ -17,6 +33,28 @@ pub fn eject(gate: Option<usize>) -> String {
         Some(gate) => format!("MMU_EJECT GATE={gate}"),
         None => "MMU_EJECT".to_owned(),
     }
+}
+
+/// Inspects gates and marks them available or empty; Happy Hare unloads loaded filament first, unless only its gate
+/// is checked (`mmu_check_gate.py`).
+pub fn check_gates(gates: Gates) -> String {
+    match gates {
+        Gates::All => "MMU_CHECK_GATE ALL=1".to_owned(),
+        Gates::One(gate) => format!("MMU_CHECK_GATE GATE={gate}"),
+    }
+}
+
+/// Grabs filament pushed into a gate and parks it there; Happy Hare refuses while printing.
+pub fn preload(gate: usize) -> String {
+    format!("MMU_PRELOAD GATE={gate}")
+}
+
+pub fn servo(position: ServoCommand) -> String {
+    let position = match position {
+        ServoCommand::Up => "up",
+        ServoCommand::Down => "down",
+    };
+    format!("MMU_SERVO POS={position}")
 }
 
 /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record (`SPOOLID=-1`).
@@ -33,6 +71,19 @@ mod tests {
         assert_eq!(select_gate(3), "MMU_SELECT GATE=3");
         assert_eq!(eject(None), "MMU_EJECT");
         assert_eq!(eject(Some(1)), "MMU_EJECT GATE=1");
+        assert_eq!(preload(2), "MMU_PRELOAD GATE=2");
+    }
+
+    #[test]
+    fn gates_are_checked_one_by_one_or_all_at_once() {
+        assert_eq!(check_gates(Gates::One(4)), "MMU_CHECK_GATE GATE=4");
+        assert_eq!(check_gates(Gates::All), "MMU_CHECK_GATE ALL=1");
+    }
+
+    #[test]
+    fn the_servo_takes_the_documented_positions() {
+        assert_eq!(servo(ServoCommand::Up), "MMU_SERVO POS=up");
+        assert_eq!(servo(ServoCommand::Down), "MMU_SERVO POS=down");
     }
 
     #[test]

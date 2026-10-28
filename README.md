@@ -78,6 +78,9 @@ Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip 
   tangle prevention at work, or triggered with its reason;
 - the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
 
+A **Service** tab next to it holds what is rarely needed: check or preload each gate, check all gates, home, recover,
+unlock, motors off and, on selectors with a servo, servo up and down.
+
 | ![MMU tab](docs/screenshots/mmu.png) | ![FlowGuard line while tangle prevention raises the gear current](docs/screenshots/print-tangle-boost.png) |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | The MMU tab: gates, sensors, buffer  | The print page while tangle prevention raises the gear current (the FlowGuard line turns yellow)       |

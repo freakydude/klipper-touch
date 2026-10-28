@@ -144,6 +144,21 @@ pub enum MmuCommand {
         gate: Option<usize>,
         force: bool,
     },
+    /// Turns off the motors; the selector loses its home.
+    MotorsOff,
+    /// `MMU_CHECK_GATE`: one gate, every gate (`ALL=1`) or, without either, the selected one.
+    CheckGate {
+        gate: Option<usize>,
+        all: bool,
+    },
+    /// `MMU_PRELOAD`: parks filament pushed into a gate; without `gate` the selected one.
+    Preload {
+        gate: Option<usize>,
+    },
+    /// `MMU_SERVO POS=`; without a position Happy Hare only reports it.
+    Servo {
+        position: Option<ServoPosition>,
+    },
     /// `MMU_GATE_MAP GATE= SPOOLID=`: the Spoolman spool of a gate, a negative id for none.
     GateMap {
         gate: usize,
@@ -162,6 +177,27 @@ pub enum MmuCommand {
     },
 }
 
+/// Positions of `MMU_SERVO POS=` (`mmu_linear_servo_selector.py`); `off` only cuts the power of the servo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServoPosition {
+    Up,
+    Down,
+    Move,
+    Off,
+}
+
+impl ServoPosition {
+    fn parse(text: &str) -> Result<Self, CommandError> {
+        match text.to_ascii_lowercase().as_str() {
+            "up" => Ok(Self::Up),
+            "down" => Ok(Self::Down),
+            "move" => Ok(Self::Move),
+            "off" => Ok(Self::Off),
+            _ => Err(CommandError::new(format!("Invalid POS {text}"))),
+        }
+    }
+}
+
 impl MmuCommand {
     pub fn gcode_name(&self) -> &'static str {
         match self {
@@ -171,6 +207,10 @@ impl MmuCommand {
             MmuCommand::Load => "MMU_LOAD",
             MmuCommand::Unload => "MMU_UNLOAD",
             MmuCommand::Eject { .. } => "MMU_EJECT",
+            MmuCommand::MotorsOff => "MMU_MOTORS_OFF",
+            MmuCommand::CheckGate { .. } => "MMU_CHECK_GATE",
+            MmuCommand::Preload { .. } => "MMU_PRELOAD",
+            MmuCommand::Servo { .. } => "MMU_SERVO",
             MmuCommand::GateMap { .. } => "MMU_GATE_MAP",
             MmuCommand::FakeTangle { .. } => "FAKE_MMU_TANGLE",
             MmuCommand::FakeFilament { .. } => "FAKE_MMU_FILAMENT",
@@ -318,6 +358,15 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "FAKE_MMU_TANGLE" => {
             Ok(Command::Mmu(MmuCommand::FakeTangle { boosting: required_index(&args, "BOOST")? != 0 }))
         }
+        "MMU_MOTORS_OFF" => Ok(Command::Mmu(MmuCommand::MotorsOff)),
+        "MMU_CHECK_GATE" => Ok(Command::Mmu(MmuCommand::CheckGate {
+            gate: named_index(&args, "GATE")?,
+            all: named_index(&args, "ALL")?.is_some_and(|value| value != 0),
+        })),
+        "MMU_PRELOAD" => Ok(Command::Mmu(MmuCommand::Preload { gate: named_index(&args, "GATE")? })),
+        "MMU_SERVO" => Ok(Command::Mmu(MmuCommand::Servo {
+            position: named_text(&args, "POS").as_deref().map(ServoPosition::parse).transpose()?,
+        })),
         "MMU_EJECT" => Ok(Command::Mmu(MmuCommand::Eject {
             gate: named_index(&args, "GATE")?,
             force: named_index(&args, "FORCE")?.is_some_and(|value| value != 0),
@@ -517,6 +566,28 @@ mod tests {
                 Command::Mmu(MmuCommand::Unload),
             ]
         );
+    }
+
+    #[test]
+    fn parses_the_service_commands_of_happy_hare() {
+        let commands = parse_script(
+            "MMU_MOTORS_OFF\nMMU_CHECK_GATE\nMMU_CHECK_GATE GATE=3\nMMU_CHECK_GATE ALL=1\nMMU_PRELOAD GATE=2\nMMU_SERVO POS=down\nMMU_SERVO",
+        )
+        .unwrap();
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::Mmu(MmuCommand::MotorsOff),
+                Command::Mmu(MmuCommand::CheckGate { gate: None, all: false }),
+                Command::Mmu(MmuCommand::CheckGate { gate: Some(3), all: false }),
+                Command::Mmu(MmuCommand::CheckGate { gate: None, all: true }),
+                Command::Mmu(MmuCommand::Preload { gate: Some(2) }),
+                Command::Mmu(MmuCommand::Servo { position: Some(ServoPosition::Down) }),
+                Command::Mmu(MmuCommand::Servo { position: None }),
+            ]
+        );
+        assert_eq!(parse_script("MMU_SERVO POS=sideways").unwrap_err().message(), "Invalid POS sideways");
     }
 
     #[test]

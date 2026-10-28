@@ -1,8 +1,9 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use freakymate::{Confirm, Navigation, Page, Printer, SpoolPicker};
+use freakymate::{Actions, Confirm, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
+use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Activity, CalibrationMode, KlippyState, PrintState, TestZ};
 use freakymate_core::{Command, ConnectionState, Query};
@@ -151,11 +152,52 @@ fn pages(session: &mut Session) -> Result<(), String> {
         if page == Page::Filament && session.presenter.snapshot().status.mmu.is_some() {
             session.window.global::<Navigation>().set_filament_tab(1);
             session.show_page(Page::Filament, "filament-mmu")?;
+            mmu_service(session)?;
             session.window.global::<Navigation>().set_filament_tab(0);
         }
     }
     messages(session)?;
     command_running(session)
+}
+
+/// Where a tap lands on the row of gate 2 of the service tab in the 800x480 layout: on its name, away from the buttons.
+const SERVICE_GATE_2_ROW: (f32, f32) = (150.0, 268.0);
+
+/// Service tab of the MMU, first as it starts, then after the buttons for the servo and the motors went through the
+/// app to the fake: the servo is down and Home stands out again. Homes the MMU and lifts the servo afterwards; in the
+/// 800x480 layout a tap on the row of gate 2 then selects it, with the frame above the row's buttons.
+fn mmu_service(session: &mut Session) -> Result<(), String> {
+    session.window.global::<Navigation>().set_filament_tab(2);
+    session.show_page(Page::Filament, "filament-mmu-service")?;
+    {
+        let actions = session.window.global::<Actions>();
+        actions.invoke_mmu_servo_down();
+        actions.invoke_mmu_motors_off();
+    }
+    session.wait_until("servo down and MMU not homed", |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| !mmu.homed && mmu.servo == Some(ServoPosition::Down))
+    })?;
+    session.show_page(Page::Filament, "filament-mmu-service-motors-off")?;
+    if session.window.global::<Printer>().get_mmu_servo() != "down" {
+        return Err("the service tab does not show the servo down".into());
+    }
+    {
+        let actions = session.window.global::<Actions>();
+        actions.invoke_mmu_home();
+        actions.invoke_mmu_servo_up();
+    }
+    session.wait_until("MMU homed with the servo up", |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed && mmu.servo == Some(ServoPosition::Up))
+    })?;
+    if !session.has_reference_layout() {
+        return Ok(());
+    }
+    let (x, y) = SERVICE_GATE_2_ROW;
+    session.tap(x, y);
+    session.wait_until("gate 2 selected by a tap on its row", |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 2)
+    })?;
+    session.show_page(Page::Filament, "filament-mmu-service-selected")
 }
 
 /// A command that waits long for its answer: the status bar shows the turning wheel and the command until the answer

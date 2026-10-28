@@ -3,6 +3,7 @@
 use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::{Actions, AppWindow};
+use freakymate_core::sources::happy_hare::commands::{Gates, ServoCommand};
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Axis, TestZ};
 use freakymate_core::{Command, PrinterService, Query};
@@ -128,6 +129,20 @@ pub fn bind(
     actions.on_mmu_eject(send(|| Command::MmuEject { gate: None }));
     actions.on_mmu_recover(send(|| Command::MmuRecover));
     actions.on_mmu_unlock(send(|| Command::MmuUnlock));
+    actions.on_mmu_motors_off(send(|| Command::MmuMotorsOff));
+    actions.on_mmu_check_all_gates(send(|| Command::MmuCheckGates { gates: Gates::All }));
+    actions.on_mmu_check_gate(with(service, |service, gate: i32| {
+        if let Ok(gate) = usize::try_from(gate) {
+            service.send(Command::MmuCheckGates { gates: Gates::One(gate) });
+        }
+    }));
+    actions.on_mmu_preload(with(service, |service, gate: i32| {
+        if let Ok(gate) = usize::try_from(gate) {
+            service.send(Command::MmuPreload { gate });
+        }
+    }));
+    actions.on_mmu_servo_up(send(|| Command::MmuServo { position: ServoCommand::Up }));
+    actions.on_mmu_servo_down(send(|| Command::MmuServo { position: ServoCommand::Down }));
     actions.on_run_gcode(with(service, |service, script: slint::SharedString| {
         service.send(Command::RunGcode { script: script.into() })
     }));

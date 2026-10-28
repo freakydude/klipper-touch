@@ -4,7 +4,8 @@ use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use freakymate_core::domain::filament::{self, FilamentHandling};
 use freakymate_core::domain::{job_end, pause, spools};
-use freakymate_core::sources::happy_hare::{GateAvailability, LoadedFilament};
+use freakymate_core::sources::happy_hare::commands::{Gates, ServoCommand};
+use freakymate_core::sources::happy_hare::{GateAvailability, LoadedFilament, ServoPosition};
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Axis, FanKind, KlippyState, Leveling, PrintState, WhiteChannel};
 use freakymate_core::sources::moonraker_server::files::ThumbnailImage;
@@ -128,6 +129,27 @@ async fn follows_happy_hare_gates_sensors_and_loading() {
     })
     .await;
     assert_eq!(snapshot.status.mmu.unwrap().gate, 1);
+}
+
+/// The service commands: a preload fills the empty gate, a check of all gates keeps it, the servo goes down and the
+/// motors off take the home.
+#[tokio::test(flavor = "multi_thread")]
+async fn runs_the_service_commands_of_happy_hare() {
+    let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
+    assert_eq!(snapshot.status.mmu.unwrap().servo, Some(ServoPosition::Up));
+
+    service.send(Command::MmuHome);
+    service.send(Command::MmuPreload { gate: 3 });
+    service.send(Command::MmuCheckGates { gates: Gates::All });
+    service.send(Command::MmuServo { position: ServoCommand::Down });
+    service.send(Command::MmuMotorsOff);
+    let snapshot = wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.servo == Some(ServoPosition::Down) && !mmu.homed)
+    })
+    .await;
+    assert!(snapshot.status.mmu.unwrap().gates.iter().all(|gate| gate.availability == GateAvailability::Available));
 }
 
 /// Commands sent one after another must reach the printer in that order; a heater target is absolute, so a

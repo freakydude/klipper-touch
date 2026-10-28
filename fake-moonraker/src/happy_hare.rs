@@ -3,7 +3,7 @@
 //! Field names follow the Happy Hare v4 reference "Printer Variables". Operations run without
 //! elapsed time: `action` is always `Idle`, loading and unloading complete immediately.
 
-use crate::gcode::{CommandError, MmuCommand};
+use crate::gcode::{CommandError, MmuCommand, ServoPosition};
 use serde_json::{json, Map, Value};
 
 const VERSION: &str = "4.1.0";
@@ -19,6 +19,10 @@ const FILAMENT_POSITION_TOOLHEAD_SENSOR: i32 = 8;
 /// Millimetres from the gate to the nozzle, for `filament_position`.
 const PATH_LENGTH: f64 = 1712.4;
 const UNIT_NAME: &str = "unit0";
+/// `mmu.selector.servo` (`mmu_linear_servo_selector.py`).
+const SERVO_UP: &str = "Up";
+const SERVO_DOWN: &str = "Down";
+const SERVO_MOVE: &str = "Move";
 
 pub(crate) struct Spool {
     pub(crate) name: &'static str,
@@ -103,6 +107,8 @@ pub struct HappyHare {
     gate_spool: Vec<Option<u32>>,
     /// The filament pulls hard on the buffer: tension at the stop and tangle prevention raises the gear current.
     boosting: bool,
+    /// `mmu.selector.servo` of a linear selector with a servo, as on an ERCF.
+    servo: &'static str,
 }
 
 impl HappyHare {
@@ -128,10 +134,12 @@ impl HappyHare {
             gate_status,
             gate_spool,
             boosting: false,
+            servo: SERVO_UP,
         }
     }
 
-    pub fn apply(&mut self, command: MmuCommand) -> Result<(), CommandError> {
+    /// `print_state` as in `print_stats`; some commands refuse while printing.
+    pub fn apply(&mut self, command: MmuCommand, print_state: &str) -> Result<(), CommandError> {
         match command {
             MmuCommand::Home => {
                 self.homed = true;
@@ -142,6 +150,16 @@ impl HappyHare {
             MmuCommand::Load => self.load(),
             MmuCommand::Unload => self.unload(),
             MmuCommand::Eject { gate, force } => self.eject(gate, force),
+            MmuCommand::MotorsOff => {
+                self.homed = false;
+                Ok(())
+            }
+            MmuCommand::CheckGate { gate, all } => self.check_gates(gate, all),
+            MmuCommand::Preload { gate } => self.preload(gate, print_state == "printing"),
+            MmuCommand::Servo { position } => {
+                self.move_servo(position);
+                Ok(())
+            }
             MmuCommand::GateMap { gate, spool_id } => self.gate_map(gate, spool_id),
             MmuCommand::FakeFilament { position, direction } => {
                 self.held_position = Some(position);
@@ -222,6 +240,52 @@ impl HappyHare {
         self.set_loaded(false);
         self.gate_status[target] = GATE_EMPTY;
         Ok(())
+    }
+
+    /// Like `MMU_CHECK_GATE` (`mmu_check_gate.py`): a loaded gate counts as available without a check; for the others
+    /// loaded filament is unloaded first and loaded again afterwards. The fake has no sensors, so a checked gate keeps
+    /// what it had: empty stays empty, everything else becomes available.
+    fn check_gates(&mut self, gate: Option<usize>, all: bool) -> Result<(), CommandError> {
+        self.require_homed()?;
+        let gates: Vec<usize> = match (gate, all) {
+            (_, true) => (0..self.gates).collect(),
+            (Some(gate), false) => vec![gate],
+            (None, false) => {
+                vec![usize::try_from(self.gate).map_err(|_| CommandError::new("Current gate is invalid"))?]
+            }
+        };
+        for gate in gates {
+            self.check_gate(gate)?;
+            if self.gate_status[gate] != GATE_EMPTY {
+                self.gate_status[gate] = GATE_AVAILABLE;
+            }
+        }
+        Ok(())
+    }
+
+    /// Like `MMU_PRELOAD` (`mmu_preload.py`): parks filament pushed into the gate, so the gate has filament again.
+    fn preload(&mut self, gate: Option<usize>, printing: bool) -> Result<(), CommandError> {
+        if printing {
+            return Err(CommandError::new("Operation not possible. Printer is actively printing"));
+        }
+        let current = usize::try_from(self.gate).ok();
+        let target = gate.or(current).ok_or_else(|| CommandError::new("No gate selected"))?;
+        self.check_gate(target)?;
+        if self.loaded && Some(target) == current {
+            return Err(CommandError::new("Operation not possible. Filament is loaded"));
+        }
+        self.gate_status[target] = GATE_AVAILABLE;
+        Ok(())
+    }
+
+    /// `off` only cuts the power of the servo and keeps its position.
+    fn move_servo(&mut self, position: Option<ServoPosition>) {
+        self.servo = match position {
+            Some(ServoPosition::Up) => SERVO_UP,
+            Some(ServoPosition::Down) => SERVO_DOWN,
+            Some(ServoPosition::Move) => SERVO_MOVE,
+            Some(ServoPosition::Off) | None => self.servo,
+        };
     }
 
     fn unload(&mut self) -> Result<(), CommandError> {
@@ -364,6 +428,7 @@ impl HappyHare {
             "spoolman_support": "push",
             "pending_spool_id": -1,
             "encoder": null,
+            "selector": { "has_bypass": false, "servo": self.servo },
         });
         let (Some(fields), Value::Object(buffer)) = (mmu.as_object_mut(), self.buffer_fields(printing)) else {
             unreachable!("both are JSON objects")
@@ -442,7 +507,7 @@ impl HappyHare {
                 "version": "1.1sb",
                 "num_gates": self.gates,
                 "first_gate": 0,
-                "selector_type": "LinearSelector",
+                "selector_type": "LinearServoSelector",
                 "is_homed": self.homed,
                 "has_bypass": false,
                 "can_crossload": false,
@@ -457,9 +522,11 @@ impl HappyHare {
 mod tests {
     use super::*;
 
+    const IDLE: &str = "standby";
+
     fn homed(gates: usize) -> HappyHare {
         let mut hare = HappyHare::new(gates);
-        hare.apply(MmuCommand::Home).unwrap();
+        hare.apply(MmuCommand::Home, IDLE).unwrap();
         hare
     }
 
@@ -491,7 +558,7 @@ mod tests {
         let mut hare = HappyHare::new(4);
 
         for command in [MmuCommand::Select { gate: 1 }, MmuCommand::ChangeTool { tool: 1 }, MmuCommand::Load] {
-            assert_eq!(hare.apply(command).unwrap_err().message(), "MMU is not homed");
+            assert_eq!(hare.apply(command, IDLE).unwrap_err().message(), "MMU is not homed");
         }
     }
 
@@ -499,7 +566,7 @@ mod tests {
     fn select_sets_gate_and_mapped_tool() {
         let mut hare = homed(4);
 
-        hare.apply(MmuCommand::Select { gate: 2 }).unwrap();
+        hare.apply(MmuCommand::Select { gate: 2 }, IDLE).unwrap();
 
         let status = mmu(&hare);
         assert_eq!(status["gate"], 2);
@@ -514,8 +581,8 @@ mod tests {
     fn change_tool_loads_filament_and_counts() {
         let mut hare = homed(4);
 
-        hare.apply(MmuCommand::ChangeTool { tool: 1 }).unwrap();
-        hare.apply(MmuCommand::ChangeTool { tool: 2 }).unwrap();
+        hare.apply(MmuCommand::ChangeTool { tool: 1 }, IDLE).unwrap();
+        hare.apply(MmuCommand::ChangeTool { tool: 2 }, IDLE).unwrap();
 
         let status = mmu(&hare);
         assert_eq!(status["tool"], 2);
@@ -529,7 +596,7 @@ mod tests {
     fn empty_gate_cannot_be_used() {
         let mut hare = homed(4);
 
-        let error = hare.apply(MmuCommand::ChangeTool { tool: 3 }).unwrap_err();
+        let error = hare.apply(MmuCommand::ChangeTool { tool: 3 }, IDLE).unwrap_err();
 
         assert_eq!(error.message(), "Gate 3 is empty");
         assert_eq!(mmu(&hare)["filament"], "Unloaded");
@@ -539,16 +606,19 @@ mod tests {
     fn unknown_tool_and_gate_are_rejected() {
         let mut hare = homed(4);
 
-        assert_eq!(hare.apply(MmuCommand::ChangeTool { tool: 9 }).unwrap_err().message(), "Tool T9 does not exist");
-        assert_eq!(hare.apply(MmuCommand::Select { gate: 9 }).unwrap_err().message(), "Gate 9 does not exist");
+        assert_eq!(
+            hare.apply(MmuCommand::ChangeTool { tool: 9 }, IDLE).unwrap_err().message(),
+            "Tool T9 does not exist"
+        );
+        assert_eq!(hare.apply(MmuCommand::Select { gate: 9 }, IDLE).unwrap_err().message(), "Gate 9 does not exist");
     }
 
     #[test]
     fn gate_cannot_change_while_loaded() {
         let mut hare = homed(4);
-        hare.apply(MmuCommand::ChangeTool { tool: 0 }).unwrap();
+        hare.apply(MmuCommand::ChangeTool { tool: 0 }, IDLE).unwrap();
 
-        let error = hare.apply(MmuCommand::Select { gate: 1 }).unwrap_err();
+        let error = hare.apply(MmuCommand::Select { gate: 1 }, IDLE).unwrap_err();
 
         assert_eq!(error.message(), "Cannot change gate while filament is loaded");
     }
@@ -556,30 +626,30 @@ mod tests {
     #[test]
     fn unload_keeps_the_gate_selected() {
         let mut hare = homed(4);
-        hare.apply(MmuCommand::ChangeTool { tool: 1 }).unwrap();
+        hare.apply(MmuCommand::ChangeTool { tool: 1 }, IDLE).unwrap();
 
-        hare.apply(MmuCommand::Unload).unwrap();
+        hare.apply(MmuCommand::Unload, IDLE).unwrap();
 
         let status = mmu(&hare);
         assert_eq!(status["filament"], "Unloaded");
         assert_eq!(status["gate"], 1);
-        assert!(hare.apply(MmuCommand::Unload).is_err());
+        assert!(hare.apply(MmuCommand::Unload, IDLE).is_err());
     }
 
     #[test]
     fn eject_unloads_first_and_then_empties_the_gate() {
         let mut hare = homed(4);
-        hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
-        hare.apply(MmuCommand::Load).unwrap();
+        hare.apply(MmuCommand::Select { gate: 1 }, IDLE).unwrap();
+        hare.apply(MmuCommand::Load, IDLE).unwrap();
 
-        hare.apply(MmuCommand::Eject { gate: None, force: false }).unwrap();
+        hare.apply(MmuCommand::Eject { gate: None, force: false }, IDLE).unwrap();
         assert_eq!(mmu(&hare)["filament"], "Unloaded");
         assert_eq!(mmu(&hare)["gate_status"][1], GATE_AVAILABLE);
 
-        hare.apply(MmuCommand::Eject { gate: None, force: false }).unwrap();
+        hare.apply(MmuCommand::Eject { gate: None, force: false }, IDLE).unwrap();
         assert_eq!(mmu(&hare)["gate_status"][1], GATE_EMPTY);
         assert_eq!(
-            hare.apply(MmuCommand::Eject { gate: Some(9), force: false }).unwrap_err().message(),
+            hare.apply(MmuCommand::Eject { gate: Some(9), force: false }, IDLE).unwrap_err().message(),
             "Gate 9 does not exist"
         );
     }
@@ -589,15 +659,15 @@ mod tests {
         let mut hare = homed(4);
         assert_eq!(mmu(&hare)["gate_spool_id"], json!([1, 7, 8, -1]));
 
-        hare.apply(MmuCommand::GateMap { gate: 1, spool_id: Some(4) }).unwrap();
-        hare.apply(MmuCommand::GateMap { gate: 0, spool_id: Some(-1) }).unwrap();
+        hare.apply(MmuCommand::GateMap { gate: 1, spool_id: Some(4) }, IDLE).unwrap();
+        hare.apply(MmuCommand::GateMap { gate: 0, spool_id: Some(-1) }, IDLE).unwrap();
 
         let status = mmu(&hare);
         assert_eq!(status["gate_spool_id"], json!([-1, 4, 8, -1]));
         // Spool 4 is the black ABS: Happy Hare takes material and temperature from Spoolman.
         assert_eq!(status["gate_material"][1], "ABS");
         assert_eq!(status["spoolman_support"], "push");
-        assert!(hare.apply(MmuCommand::GateMap { gate: 9, spool_id: Some(1) }).is_err());
+        assert!(hare.apply(MmuCommand::GateMap { gate: 9, spool_id: Some(1) }, IDLE).is_err());
     }
 
     #[test]
@@ -605,7 +675,7 @@ mod tests {
         let mut hare = homed(4);
         assert_eq!(hare.selected_spool(), None);
 
-        hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
+        hare.apply(MmuCommand::Select { gate: 1 }, IDLE).unwrap();
 
         assert_eq!(hare.selected_spool(), Some(7));
     }
@@ -614,11 +684,60 @@ mod tests {
     fn load_needs_a_selected_gate() {
         let mut hare = homed(4);
 
-        assert_eq!(hare.apply(MmuCommand::Load).unwrap_err().message(), "No gate selected");
+        assert_eq!(hare.apply(MmuCommand::Load, IDLE).unwrap_err().message(), "No gate selected");
 
-        hare.apply(MmuCommand::Select { gate: 1 }).unwrap();
-        hare.apply(MmuCommand::Load).unwrap();
+        hare.apply(MmuCommand::Select { gate: 1 }, IDLE).unwrap();
+        hare.apply(MmuCommand::Load, IDLE).unwrap();
         assert_eq!(mmu(&hare)["filament"], "Loaded");
+    }
+
+    #[test]
+    fn motors_off_loses_the_home() {
+        let mut hare = homed(4);
+
+        hare.apply(MmuCommand::MotorsOff, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["is_homed"], false);
+    }
+
+    #[test]
+    fn a_check_marks_gates_with_filament_available() {
+        let mut hare = homed(4);
+        hare.gate_status = vec![-1, 1, 2, GATE_EMPTY];
+
+        hare.apply(MmuCommand::CheckGate { gate: Some(0), all: false }, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["gate_status"], json!([1, 1, 2, 0]));
+
+        hare.apply(MmuCommand::CheckGate { gate: None, all: true }, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["gate_status"], json!([1, 1, 1, 0]));
+        assert_eq!(
+            hare.apply(MmuCommand::CheckGate { gate: None, all: false }, IDLE).unwrap_err().message(),
+            "Current gate is invalid"
+        );
+    }
+
+    #[test]
+    fn a_preload_fills_an_empty_gate_but_not_while_printing() {
+        let mut hare = homed(4);
+
+        assert!(hare.apply(MmuCommand::Preload { gate: Some(3) }, "printing").is_err());
+        hare.apply(MmuCommand::Preload { gate: Some(3) }, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["gate_status"][3], GATE_AVAILABLE);
+
+        hare.apply(MmuCommand::ChangeTool { tool: 1 }, IDLE).unwrap();
+        assert_eq!(
+            hare.apply(MmuCommand::Preload { gate: None }, IDLE).unwrap_err().message(),
+            "Operation not possible. Filament is loaded"
+        );
+    }
+
+    #[test]
+    fn the_servo_moves_and_keeps_its_position_when_switched_off() {
+        let mut hare = homed(4);
+        assert_eq!(mmu(&hare)["selector"]["servo"], SERVO_UP);
+
+        hare.apply(MmuCommand::Servo { position: Some(ServoPosition::Down) }, IDLE).unwrap();
+        hare.apply(MmuCommand::Servo { position: Some(ServoPosition::Off) }, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["selector"]["servo"], SERVO_DOWN);
     }
 
     #[test]
@@ -645,7 +764,7 @@ mod tests {
     #[test]
     fn the_boost_shows_only_while_printing() {
         let mut hare = homed(4);
-        hare.apply(MmuCommand::FakeTangle { boosting: true }).unwrap();
+        hare.apply(MmuCommand::FakeTangle { boosting: true }, IDLE).unwrap();
 
         let printing = hare.status("printing")["mmu"].clone();
         assert_eq!(printing["tangle_prevention"]["boosted"], true);
@@ -657,15 +776,15 @@ mod tests {
     #[test]
     fn the_way_of_the_filament_follows_loads_and_can_be_held_midway() {
         let mut hare = homed(4);
-        hare.apply(MmuCommand::Select { gate: 0 }).unwrap();
-        hare.apply(MmuCommand::Load).unwrap();
+        hare.apply(MmuCommand::Select { gate: 0 }, IDLE).unwrap();
+        hare.apply(MmuCommand::Load, IDLE).unwrap();
         assert_eq!(
             (mmu(&hare)["filament_pos"].clone(), mmu(&hare)["filament_direction"].clone()),
             (json!(10), json!(1))
         );
         assert_eq!(mmu(&hare)["sensors"]["toolhead"], true);
 
-        hare.apply(MmuCommand::FakeFilament { position: 3, direction: 1 }).unwrap();
+        hare.apply(MmuCommand::FakeFilament { position: 3, direction: 1 }, IDLE).unwrap();
         let midway = mmu(&hare);
         assert_eq!(midway["filament_pos"], 3);
         assert!((midway["bowden_progress"].as_f64().unwrap() - 66.67).abs() < 0.1);
@@ -674,7 +793,7 @@ mod tests {
             (json!(true), json!(false))
         );
 
-        hare.apply(MmuCommand::Unload).unwrap();
+        hare.apply(MmuCommand::Unload, IDLE).unwrap();
         assert_eq!(
             (mmu(&hare)["filament_pos"].clone(), mmu(&hare)["filament_direction"].clone()),
             (json!(0), json!(-1))
