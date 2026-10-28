@@ -8,7 +8,7 @@
 #>
 param(
     [string]$OutDir = (Join-Path $env:TEMP 'kt-ui-snapshots'),
-    [ValidateSet('basic', 'voron', 'happy-hare')][string]$Profile = 'voron',
+    [ValidateSet('basic', 'voron', 'happy-hare', 'ercf')][string]$Profile = 'voron',
     [string]$Size = '800x480',
     [string]$Scenes = '',
     [switch]$NoFit,

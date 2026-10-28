@@ -51,7 +51,7 @@ flowchart LR
 | `crates/app`         | Binding of the UI to the core; binary `freakymate` (the only shipped program).                    | core, ui, slint                          |
 | `crates/ui-snapshot` | Development tool: renders the UI headless to PNG against a running (fake) Moonraker, in scenes.   | app, core                                |
 | `crates/icon-index`  | Checks `assets/icons` and generates `crates/ui/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
-| `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`).  | axum, tokio                              |
+| `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`, `ercf`).  | axum, tokio                              |
 
 ## Core layers (`crates/core/src`)
 

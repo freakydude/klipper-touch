@@ -1,7 +1,7 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use freakymate::{Actions, Confirm, Navigation, Page, Printer, SpoolPicker};
+use freakymate::{Actions, Confirm, MmuDialogs, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
@@ -154,6 +154,7 @@ fn pages(session: &mut Session) -> Result<(), String> {
             session.window.global::<Navigation>().set_filament_tab(1);
             session.show_page(Page::Filament, "filament-mmu")?;
             mmu_service(session)?;
+            mmu_gate(session)?;
             session.window.global::<Navigation>().set_filament_tab(0);
         }
     }
@@ -161,14 +162,15 @@ fn pages(session: &mut Session) -> Result<(), String> {
     command_running(session)
 }
 
-/// Where a tap lands on the row of gate 2 of the service tab in the 800x480 layout: on its name, away from the buttons.
-const SERVICE_GATE_2_ROW: (f32, f32) = (150.0, 268.0);
+/// Where taps land in the 800x480 layout: the tile of gate 2 on the MMU tab, and the button "Select" of the gate
+/// dialog.
+const GATE_2_TILE: (f32, f32) = (450.0, 190.0);
+const GATE_DIALOG_SELECT: (f32, f32) = (172.0, 230.0);
 
-/// Service tab of the MMU, first as it starts, then after the buttons for the servo and the motors went through the
-/// app to the fake: the servo is down and Home stands out again. Homes the MMU and lifts the servo afterwards; in the
-/// 800x480 layout a tap on the row of gate 2 then selects it, with the frame above the row's buttons.
+/// Service dialog of the MMU, first as it opens, then after the buttons for the servo and the motors went through
+/// the app to the fake: the servo is down and Home stands out again. Homes the MMU and lifts the servo afterwards.
 fn mmu_service(session: &mut Session) -> Result<(), String> {
-    session.window.global::<Navigation>().set_filament_tab(2);
+    session.window.global::<MmuDialogs>().set_service_open(true);
     session.show_page(Page::Filament, "filament-mmu-service")?;
     {
         let actions = session.window.global::<Actions>();
@@ -180,7 +182,7 @@ fn mmu_service(session: &mut Session) -> Result<(), String> {
     })?;
     session.show_page(Page::Filament, "filament-mmu-service-motors-off")?;
     if session.window.global::<Printer>().get_mmu_servo() != "down" {
-        return Err("the service tab does not show the servo down".into());
+        return Err("the service dialog does not show the servo down".into());
     }
     {
         let actions = session.window.global::<Actions>();
@@ -190,15 +192,49 @@ fn mmu_service(session: &mut Session) -> Result<(), String> {
     session.wait_until("MMU homed with the servo up", |snapshot| {
         snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.homed && mmu.servo == Some(ServoPosition::Up))
     })?;
-    if !session.has_reference_layout() {
+    session.window.global::<MmuDialogs>().set_service_open(false);
+    Ok(())
+}
+
+/// Dialog of a gate. In the 800x480 layout a tap on the tile of gate 2 opens it without moving the selector, and its
+/// button "Select" selects the gate and closes it. Without Spoolman (profile `ercf`) material and colour go to
+/// Happy Hare's gate map and the dialog marks what Happy Hare reports back.
+fn mmu_gate(session: &mut Session) -> Result<(), String> {
+    let selected_gate = |session: &Session| session.presenter.snapshot().status.mmu.map_or(-1, |mmu| mmu.gate);
+    if session.has_reference_layout() {
+        let before = selected_gate(session);
+        let (x, y) = GATE_2_TILE;
+        session.tap(x, y);
+        session.pump(Duration::from_millis(500));
+        if session.window.global::<MmuDialogs>().get_gate() != 2 || selected_gate(session) != before {
+            return Err("a tap on the tile of gate 2 does not open its dialog, or it moves the selector".into());
+        }
+        session.show_page(Page::Filament, "filament-mmu-gate")?;
+        let (x, y) = GATE_DIALOG_SELECT;
+        session.tap(x, y);
+        session.wait_until("gate 2 selected in its dialog", |snapshot| {
+            snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 2)
+        })?;
+        if session.window.global::<MmuDialogs>().get_gate() != -1 {
+            return Err("the gate dialog stays open after Select".into());
+        }
+    }
+    if session.window.global::<Printer>().get_has_spoolman() {
         return Ok(());
     }
-    let (x, y) = SERVICE_GATE_2_ROW;
-    session.tap(x, y);
-    session.wait_until("gate 2 selected by a tap on its row", |snapshot| {
-        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 2)
+    session.window.global::<MmuDialogs>().set_gate(1);
+    {
+        let actions = session.window.global::<Actions>();
+        actions.invoke_set_gate_material(1, "PETG".into());
+        actions.invoke_set_gate_color(1, slint::Color::from_rgb_u8(0xff, 0x80, 0x00));
+    }
+    session.wait_until("PETG in orange in gate 1", |snapshot| {
+        let gate = snapshot.status.mmu.as_ref().and_then(|mmu| mmu.gates.get(1).cloned()).unwrap_or_default();
+        gate.material == "PETG" && gate.color == Some([0xff, 0x80, 0x00])
     })?;
-    session.show_page(Page::Filament, "filament-mmu-service-selected")
+    session.show_page(Page::Filament, "filament-mmu-gate-local")?;
+    session.window.global::<MmuDialogs>().set_gate(-1);
+    Ok(())
 }
 
 /// A command that waits long for its answer: the status bar shows the turning wheel and the command until the answer

@@ -300,6 +300,12 @@ impl MmuStatus {
     pub fn is_too_old(&self) -> bool {
         self.enabled && !self.is_supported()
     }
+
+    /// Material and colour of a gate can be set in Happy Hare, unless it takes them from Spoolman
+    /// (`spoolman_support: pull`; `mmu_gate_map.py` refuses them then).
+    pub fn gate_map_is_local(&self) -> bool {
+        self.spoolman_support != "pull"
+    }
 }
 
 /// All fields: the filament view needs gates, sensors, buffer and FlowGuard, and Happy Hare adds fields over time.

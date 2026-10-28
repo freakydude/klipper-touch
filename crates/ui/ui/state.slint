@@ -533,9 +533,11 @@ export global Actions {
     callback print-object-at(float, float, float) -> int;
     callback mmu-select-gate(int);
     callback mmu-load();
+    // Selects the gate and loads it.
+    callback mmu-load-gate(int);
     callback mmu-unload();
     callback mmu-home();
-    callback mmu-eject();
+    callback mmu-eject(int);
     callback mmu-recover();
     callback mmu-unlock();
     callback mmu-motors-off();
@@ -544,6 +546,9 @@ export global Actions {
     callback mmu-preload(int);
     callback mmu-servo-up();
     callback mmu-servo-down();
+    // Material or colour of a gate in Happy Hare's gate map, for printers without Spoolman.
+    callback set-gate-material(int, string);
+    callback set-gate-color(int, color);
     callback run-gcode(string);
     callback refresh-files();
     callback start-print(string);
@@ -639,11 +644,17 @@ export global SpoolPicker {
     }
 }
 
+// The dialogs of the MMU tab: the gate a tap opened (-1 for none) and the service commands of the MMU.
+export global MmuDialogs {
+    in-out property <int> gate: -1;
+    in-out property <bool> service-open;
+}
+
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
     in-out property <bool> messages-open;
-    // Filament page: 0 = extruder, 1 = MMU, 2 = MMU service
+    // Filament page: 0 = extruder, 1 = MMU
     in-out property <int> filament-tab;
     // First page of four gates that the MMU tab shows, counted from 0.
     in-out property <int> mmu-page;
@@ -691,7 +702,7 @@ export global Confirm {
         if (self.action == "cancel-print") { Actions.cancel-print(); }
         if (self.action == "emergency-stop") { Actions.emergency-stop(); }
         if (self.action == "run-macro") { Actions.run-macro(self.argument); }
-        if (self.action == "mmu-eject") { Actions.mmu-eject(); }
+        if (self.action == "mmu-eject") { Actions.mmu-eject(self.argument.to-float()); }
         if (self.action == "mmu-motors-off") { Actions.mmu-motors-off(); }
         if (self.action == "mmu-check-gate") { Actions.mmu-check-gate(self.argument.to-float()); }
         if (self.action == "mmu-check-all-gates") { Actions.mmu-check-all-gates(); }
@@ -721,6 +732,8 @@ export global Dialogs {
     public function dismiss() {
         Confirm.open = false;
         SpoolPicker.open = false;
+        MmuDialogs.gate = -1;
+        MmuDialogs.service-open = false;
         if (Navigation.history-open) { Actions.close-history(); }
         // Closing the dialog of a calibration mode leaves the mode (Frank, 2026-10-28).
         if (Printer.ready && Printer.calibration-mode != "") { Actions.abort-calibration(); }

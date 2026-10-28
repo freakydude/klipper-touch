@@ -5,15 +5,7 @@ import { Icons } from "../icons.slint";
 import { Actions, Confirm, Dialogs, Navigation, Page, PrintObjectItem, Printer, SpoolPicker } from "../state.slint";
 import { ColorBar, FlyoutPanel, IconButton, ScrollList } from "controls.slint";
 import { BedMap, BedMapLegend } from "bed-map.slint";
-import { DialogHeader, DialogPanel } from "dialog.slint";
-
-// Dimming background that intercepts input meant for elements underneath.
-component Scrim inherits Rectangle {
-    background: #000000b0;
-    TouchArea { }
-
-    @children
-}
+import { DialogHeader, DialogPanel, Scrim } from "dialog.slint";
 
 export component ConfirmDialog inherits Scrim {
     visible: Confirm.open;

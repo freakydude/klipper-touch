@@ -6,7 +6,7 @@ import { Actions, Navigation, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, IconLabel, StepSelector, TabBar, TabButton } from "../components/controls.slint";
 import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuTab } from "mmu.slint";
-import { MmuServiceTab } from "mmu-service.slint";
+import { GateDialog, MmuServiceDialog } from "mmu-dialogs.slint";
 
 component ExtruderTab inherits Rectangle {
     VerticalLayout {
@@ -127,11 +127,11 @@ component ExtruderTab inherits Rectangle {
     }
 }
 
-// Extruder by hand and, with Happy Hare, the MMU with its gates and its service commands.
+// Extruder by hand and, with Happy Hare, the MMU with its gates; the dialogs of a gate and of the MMU's service
+// commands cover the whole page.
 export component FilamentPage inherits Rectangle {
     property <bool> mmu-tab: Printer.has-mmu && Navigation.filament-tab == 1;
-    property <bool> service-tab: Printer.has-mmu && Navigation.filament-tab == 2;
-    property <bool> extruder-tab: !root.mmu-tab && !root.service-tab;
+    property <bool> extruder-tab: !root.mmu-tab;
 
     VerticalLayout {
         if Printer.has-mmu: TabBar {
@@ -147,12 +147,6 @@ export component FilamentPage inherits Rectangle {
                 checked: root.mmu-tab;
                 clicked => { Navigation.filament-tab = 1; }
             }
-            TabButton {
-                icon: Icons.mmu-maintenance;
-                text: @tr("Service");
-                checked: root.service-tab;
-                clicked => { Navigation.filament-tab = 2; }
-            }
             Text {
                 horizontal-stretch: 1;
                 text: !root.extruder-tab && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
@@ -165,12 +159,12 @@ export component FilamentPage inherits Rectangle {
         if root.mmu-tab: MmuTab {
             vertical-stretch: 1;
         }
-        if root.service-tab: MmuServiceTab {
-            vertical-stretch: 1;
-        }
         if root.extruder-tab: ExtruderTab {
             vertical-stretch: 1;
         }
     }
+
+    if root.mmu-tab: GateDialog { }
+    if root.mmu-tab: MmuServiceDialog { }
 }
 

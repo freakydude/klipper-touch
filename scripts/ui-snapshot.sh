@@ -28,8 +28,8 @@ while getopts "o:p:s:S:P:Fh" option; do
 done
 
 case $profile in
-    basic | voron | happy-hare) ;;
-    *) echo "profile must be basic, voron or happy-hare" >&2; exit 2 ;;
+    basic | voron | happy-hare | ercf) ;;
+    *) echo "profile must be basic, voron, happy-hare or ercf" >&2; exit 2 ;;
 esac
 
 cd "$root"

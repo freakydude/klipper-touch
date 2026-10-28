@@ -240,7 +240,7 @@ impl Printer {
         Self {
             time_scale,
             profile,
-            mmu: profile.mmu_gates.map(HappyHare::new),
+            mmu: profile.mmu_gates.map(|gates| HappyHare::new(gates, profile.spoolman)),
             klippy: KlippyState::Ready,
             extruder: Heater::cold(),
             bed: Heater::cold(),

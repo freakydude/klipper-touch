@@ -16,7 +16,7 @@ use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 ///
 /// Some commands state an intent (`Level`, `ApplyPreset`, `CoolDown`, `StepHeater`, `ApplyZOffset`, `LoadFilament`,
-/// `UnloadFilament`, the layer pauses, `CalibrateZ` and the commands within a calibration mode); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
+/// `UnloadFilament`, the layer pauses, `CalibrateZ`, `SetGateFilament` and the commands within a calibration mode); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
 /// [`Command::to_call`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -170,6 +170,10 @@ pub enum Command {
         gate: usize,
     },
     MmuLoad,
+    /// Selects a gate and loads it.
+    MmuLoadGate {
+        gate: usize,
+    },
     MmuUnload,
     /// Ejects the filament of a gate completely; without `gate` the selected one.
     MmuEject {
@@ -193,6 +197,12 @@ pub enum Command {
     AssignGateSpool {
         gate: usize,
         spool_id: Option<u32>,
+    },
+    /// Sets material or colour of a gate in Happy Hare's gate map (without Spoolman); `None` keeps the value.
+    SetGateFilament {
+        gate: usize,
+        material: Option<String>,
+        color: Option<[u8; 3]>,
     },
     // Spoolman
     /// The spool Moonraker tracks the filament use of; `None` for none.
@@ -234,6 +244,9 @@ const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNL
 const NO_LIGHT: &str = "this printer has no LED";
 const NO_Z_CALIBRATION: &str = "this printer has neither a probe nor a Z endstop with position_endstop";
 const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
+const NO_MMU: &str = "this printer has no MMU";
+const GATE_MAP_FROM_SPOOLMAN: &str =
+    "Happy Hare takes material and colour of the gates from Spoolman (spoolman_support: pull)";
 
 /// `level` on a light: white light with the channels a Klipper LED has (see [`Setup::white_light`]), the brightness
 /// of a WLED strip.
@@ -330,6 +343,14 @@ impl Command {
                 }
                 scripts.into_iter().map(|script| Self::RunGcode { script }).collect()
             }
+            Self::SetGateFilament { gate, material, color } => {
+                let mmu = status.mmu.as_ref().ok_or_else(|| NO_MMU.to_owned())?;
+                if !mmu.gate_map_is_local() {
+                    return Err(GATE_MAP_FROM_SPOOLMAN.to_owned());
+                }
+                let temperature = mmu.gates.get(gate).ok_or_else(|| format!("gate {gate} does not exist"))?.temperature;
+                vec![Self::RunGcode { script: mmu::set_gate_filament(gate, material.as_deref(), color, temperature)? }]
+            }
             Self::RunGcode { script } => match script.trim() {
                 "" => Vec::new(),
                 trimmed => vec![Self::RunGcode { script: trimmed.to_owned() }],
@@ -387,6 +408,7 @@ impl Command {
             Self::SetLedEffect { effect, on } => run_gcode(led_effect::set_effect(effect, *on)),
             Self::MmuSelectGate { gate } => run_gcode(mmu::select_gate(*gate)),
             Self::MmuLoad => run_gcode(mmu::LOAD),
+            Self::MmuLoadGate { gate } => run_gcode(mmu::load_gate(*gate)),
             Self::MmuUnload => run_gcode(mmu::UNLOAD),
             Self::MmuEject { gate } => run_gcode(mmu::eject(*gate)),
             Self::MmuHome => run_gcode(mmu::HOME),
@@ -422,7 +444,8 @@ impl Command {
             | Self::UnloadFilament
             | Self::PauseAtNextLayer
             | Self::PauseAtLayer { .. }
-            | Self::ClearLayerPause => return None,
+            | Self::ClearLayerPause
+            | Self::SetGateFilament { .. } => return None,
         };
         Some(call)
     }
@@ -668,6 +691,32 @@ mod tests {
         );
         assert!(resolved(Command::LoadFilament, &["gcode_macro UNLOAD_FILAMENT"]).is_err());
         assert!(resolved(Command::UnloadFilament, &["extruder"]).is_err());
+    }
+
+    #[test]
+    fn a_gate_is_loaded_after_selecting_it_in_the_same_script() {
+        assert_eq!(script(Command::MmuLoadGate { gate: 2 }), "MMU_SELECT GATE=2\nMMU_LOAD");
+    }
+
+    #[test]
+    fn the_filament_of_a_gate_is_set_unless_happy_hare_takes_it_from_spoolman() {
+        let with_support = |spoolman_support: &str| PrinterStatus {
+            mmu: Some(crate::sources::happy_hare::MmuStatus {
+                spoolman_support: spoolman_support.into(),
+                gates: vec![crate::sources::happy_hare::MmuGate { temperature: Some(215.0), ..Default::default() }],
+                ..Default::default()
+            }),
+            ..PrinterStatus::default()
+        };
+        let red = |gate| Command::SetGateFilament { gate, material: None, color: Some([255, 0, 0]) };
+
+        assert_eq!(
+            red(0).resolve(&printer(&[]), &with_support("off")),
+            Ok(vec![Command::RunGcode { script: "MMU_GATE_MAP GATE=0 COLOR=ff0000 TEMP=215".into() }])
+        );
+        assert!(red(0).resolve(&printer(&[]), &with_support("pull")).is_err());
+        assert!(red(1).resolve(&printer(&[]), &with_support("off")).is_err());
+        assert!(red(0).resolve(&printer(&[]), &PrinterStatus::default()).is_err());
     }
 
     #[test]
