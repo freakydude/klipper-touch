@@ -392,7 +392,8 @@ impl Printer {
             Command::Mmu(command) => self.apply_mmu(command)?,
             Command::LayerPause(command) => self.layer_pause.apply(command),
             Command::FakePrintError => self.fail_print()?,
-            Command::Help | Command::Ignored => {}
+            // The session delays the answer of a dwell; the printer itself does nothing.
+            Command::Help | Command::Dwell(_) | Command::Ignored => {}
         }
         Ok(())
     }

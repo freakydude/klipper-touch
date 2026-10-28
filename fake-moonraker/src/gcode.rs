@@ -78,6 +78,8 @@ pub enum Command {
     SaveConfig,
     QuadGantryLevel,
     Help,
+    /// `G4 P<milliseconds>`: waits; the fake answers the script only afterwards, like Klipper.
+    Dwell(std::time::Duration),
     Mmu(MmuCommand),
     /// Mainsail's layer pause macros.
     LayerPause(LayerPauseCommand),
@@ -217,6 +219,9 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
 
     match name.as_str() {
         "G28" => Ok(Command::Home(parse_axes(&args))),
+        "G4" => Ok(Command::Dwell(std::time::Duration::from_millis(
+            letter_value(&args, 'P')?.unwrap_or(0.0).max(0.0) as u64
+        ))),
         "M104" => Ok(Command::SetExtruderTarget(letter_value(&args, 'S')?.unwrap_or(0.0))),
         "M140" => Ok(Command::SetBedTarget(letter_value(&args, 'S')?.unwrap_or(0.0))),
         "M106" => Ok(Command::SetFanSpeed(fan_speed(&args)?)),
@@ -536,6 +541,11 @@ mod tests {
     #[test]
     fn parses_help() {
         assert_eq!(parse_script("help").unwrap(), vec![Command::Help]);
+    }
+
+    #[test]
+    fn dwell_waits_the_given_milliseconds() {
+        assert_eq!(parse_script("G4 P1500").unwrap(), vec![Command::Dwell(std::time::Duration::from_millis(1500))]);
     }
 
     #[test]

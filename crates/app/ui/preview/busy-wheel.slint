@@ -1,0 +1,110 @@
+// Preview: the busy indicator for long-running commands. A film strip of one cycle (fixed phases), the colours,
+// the sizes and an example next to a command. Live animation: slint-viewer crates/app/ui/preview/busy-wheel.slint
+
+import { Theme } from "../theme.slint";
+import { Card } from "../components/controls.slint";
+import { BusyWheel } from "../components/busy-wheel.slint";
+
+component Moment inherits VerticalLayout {
+    in property <float> phase;
+    spacing: Theme.spacing-tight;
+    BusyWheel {
+        phase: root.phase;
+        width: 56px;
+        height: 56px;
+    }
+
+    Text {
+        text: Math.round(root.phase * 100) + " %";
+        color: Theme.muted;
+        font-size: Theme.font-small;
+        horizontal-alignment: center;
+    }
+}
+
+export component BusyWheelPreview inherits Window {
+    width: 800px;
+    height: 600px;
+    background: Theme.background;
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+        Card {
+            title: "One cycle: the wheel turns by 60°, the drop grows and falls";
+            HorizontalLayout {
+                padding: Theme.padding;
+                padding-top: 40px;
+                spacing: Theme.spacing;
+                for phase in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95] : Moment {
+                    phase: phase;
+                }
+            }
+        }
+
+        Card {
+            title: "Colours and sizes";
+            HorizontalLayout {
+                padding: Theme.padding;
+                padding-top: 40px;
+                spacing: 2 * Theme.spacing;
+                alignment: start;
+                BusyWheel {
+                    phase: 0.3;
+                    width: 112px;
+                    height: 112px;
+                }
+
+                BusyWheel {
+                    phase: 0.3;
+                    wheel-color: #d7262f;
+                    width: 112px;
+                    height: 112px;
+                }
+
+                BusyWheel {
+                    phase: 0.3;
+                    wheel-color: Theme.muted;
+                    width: 112px;
+                    height: 112px;
+                }
+
+                BusyWheel {
+                    phase: 0.3;
+                    width: 48px;
+                    height: 48px;
+                    cross-axis-self-alignment: center;
+                }
+
+                BusyWheel {
+                    phase: 0.3;
+                    width: Theme.icon;
+                    height: Theme.icon;
+                    cross-axis-self-alignment: center;
+                }
+            }
+        }
+
+        Card {
+            title: "Next to a command";
+            HorizontalLayout {
+                padding: Theme.padding;
+                padding-top: 40px;
+                spacing: Theme.spacing;
+                alignment: start;
+                BusyWheel {
+                    phase: 0.75;
+                    width: 40px;
+                    height: 40px;
+                    cross-axis-self-alignment: center;
+                }
+
+                Text {
+                    text: "QUAD_GANTRY_LEVEL …";
+                    color: Theme.foreground;
+                    font-size: Theme.font-normal;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

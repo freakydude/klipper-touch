@@ -194,6 +194,26 @@ async fn intents_the_printer_cannot_carry_out_are_reported() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_command_that_waits_long_for_its_answer_is_reported_as_running_until_it_has_one() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    // Quick commands never show up as running.
+    service.send(Command::SetHeaterTarget { heater: "extruder".into(), target: 100.0 });
+    service.send(Command::RunGcode { script: "G4 P1500\nM104 S0".into() });
+    let running = next_event(&mut channels, |event| {
+        matches!(event, Event::CommandRunning { .. } | Event::CommandFinished { .. })
+    })
+    .await;
+    let Event::CommandRunning { id, command } = running else { panic!("expected a running command, got {running:?}") };
+    assert_eq!(command, "G4 P1500");
+
+    let finished = next_event(&mut channels, |event| matches!(event, Event::CommandFinished { .. })).await;
+    assert_eq!(finished, Event::CommandFinished { id });
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn reads_the_spools_of_the_gates_from_spoolman() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
     let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);

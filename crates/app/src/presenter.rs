@@ -131,6 +131,8 @@ pub struct Presenter {
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
     host_interfaces: Rc<VecModel<HostInterfaceItem>>,
+    /// Commands from here that wait long for their answer, oldest first (`Event::CommandRunning`).
+    running_commands: RefCell<Vec<(u64, String)>>,
     status: Rc<StatusView>,
     status_timer: Timer,
 }
@@ -171,6 +173,7 @@ impl Presenter {
             power_devices: Rc::default(),
             updates: Rc::default(),
             host_interfaces: Rc::default(),
+            running_commands: RefCell::default(),
             status: Rc::new(StatusView { window: window.as_weak(), log: RefCell::default(), messages: Rc::default() }),
             status_timer: Timer::default(),
         });
@@ -466,7 +469,22 @@ impl Presenter {
                 let id = self.status.log.borrow_mut().add_command_failure(&shown, &message, now_seconds());
                 self.show_message(id, &shown, true);
             }
+            Event::CommandRunning { id, command } => {
+                self.running_commands.borrow_mut().push((id, command));
+                self.show_running_command();
+            }
+            Event::CommandFinished { id } => {
+                self.running_commands.borrow_mut().retain(|(running, _)| *running != id);
+                self.show_running_command();
+            }
         }
+    }
+
+    /// The status bar shows the newest command that is still waiting for its answer.
+    fn show_running_command(&self) {
+        let Some(window) = self.window.upgrade() else { return };
+        let newest = self.running_commands.borrow().last().map(|(_, command)| command.clone()).unwrap_or_default();
+        window.global::<Printer>().set_running_command(newest.into());
     }
 
     /// Applies the hidden macros from the settings.

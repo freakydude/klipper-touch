@@ -154,7 +154,24 @@ fn pages(session: &mut Session) -> Result<(), String> {
             session.window.global::<Navigation>().set_filament_tab(0);
         }
     }
-    messages(session)
+    messages(session)?;
+    command_running(session)
+}
+
+/// A command that waits long for its answer: the status bar shows the turning wheel and the command until the answer
+/// is there. The fake answers `G4` only after the dwell.
+fn command_running(session: &mut Session) -> Result<(), String> {
+    session.service.send(Command::RunGcode { script: "G4 P2500".into() });
+    session.pump(Duration::from_millis(1300));
+    if session.window.global::<Printer>().get_running_command() != "G4 P2500" {
+        return Err("the status bar does not show the running command".into());
+    }
+    session.show_page(Page::Print, "command-running")?;
+    session.pump(Duration::from_millis(1500));
+    if !session.window.global::<Printer>().get_running_command().is_empty() {
+        return Err("the status bar still shows the command after its answer".into());
+    }
+    Ok(())
 }
 
 /// The filament path during a load: the fake holds the filament in the bowden, then lets it go back to the gate.

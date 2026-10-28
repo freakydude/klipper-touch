@@ -76,14 +76,30 @@ async fn run_session(mut socket: WebSocket, state: AppState, connection_id: u64)
     let mut session = Session::new(connection_id);
     let mut status_ticker = tokio::time::interval(state.status_interval);
     let mut notifications = state.backend.notifications();
+    // Replies that wait for a dwell; the session keeps answering other requests meanwhile.
+    let (delayed_tx, mut delayed) = tokio::sync::mpsc::unbounded_channel::<String>();
 
     loop {
         let outgoing = tokio::select! {
             incoming = socket.recv() => match incoming {
-                Some(Ok(Message::Text(text))) => session.handle_text(&state.backend, text.as_str()),
+                Some(Ok(Message::Text(text))) => {
+                    let reply = session.handle_text(&state.backend, text.as_str());
+                    match (reply, session.take_reply_delay()) {
+                        (Some(reply), Some(delay)) => {
+                            let delayed_tx = delayed_tx.clone();
+                            tokio::spawn(async move {
+                                tokio::time::sleep(delay).await;
+                                let _ = delayed_tx.send(reply);
+                            });
+                            None
+                        }
+                        (reply, _) => reply,
+                    }
+                }
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
                 Some(Ok(_)) => None,
             },
+            Some(reply) = delayed.recv() => Some(reply),
             _ = status_ticker.tick() => session.status_notification(&state.backend),
             notification = notifications.recv() => match notification {
                 Ok(message) => Some(message),

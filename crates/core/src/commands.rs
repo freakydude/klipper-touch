@@ -402,6 +402,7 @@ impl Command {
         match self {
             Self::RunMacro { name } => name.clone(),
             Self::RunGcode { script } => script.lines().next().unwrap_or_default().to_owned(),
+            Self::Upgrade { name } => format!("Upgrade {name}"),
             other => format!("{other:?}").split([' ', '{']).next().unwrap_or_default().to_owned(),
         }
     }
@@ -664,6 +665,7 @@ mod tests {
         assert_eq!(Command::PausePrint.describe(), "PausePrint");
         assert_eq!(Command::Jog { axis: Axis::X, distance: 1.0 }.describe(), "Jog");
         assert_eq!(Command::RunMacro { name: "PARK".into() }.describe(), "PARK");
+        assert_eq!(Command::Upgrade { name: "klipper".into() }.describe(), "Upgrade klipper");
     }
 
     #[test]
