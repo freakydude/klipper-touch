@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Checks the development setup in WSL2 with Arch Linux and installs slint-viewer for the UI previews.
-# WSL2 counterpart of setup.ps1. Installs nothing system-wide (no sudo): missing packages are printed as pacman commands.
-# Usage (repo root): scripts/setup-wsl.sh
+# Checks the development setup on Arch Linux (native or in WSL2) and installs slint-viewer for the UI previews.
+# Linux counterpart of setup.ps1. Installs nothing system-wide (no sudo): missing packages are printed as pacman commands.
+# Usage (repo root): scripts/setup-linux.sh
 set -uo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -53,6 +53,19 @@ case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) echo "hint    add ~/.local/bin to PATH (e.g. in ~/.bashrc)" ;;
 esac
+
+# Optional build cache, configured per user in ~/.cargo/config.toml (see README, "Faster builds").
+if ! command -v sccache > /dev/null; then
+    echo "hint    optional sccache not installed  ->  sudo pacman -S --needed sccache"
+elif ! grep -qs sccache "$HOME/.cargo/config.toml"; then
+    echo "hint    sccache installed but not used in ~/.cargo/config.toml"
+else
+    echo "ok      sccache (~/.cargo/config.toml)"
+fi
+
+if grep -qsi microsoft /proc/version && [[ $root == /mnt/* ]]; then
+    echo "hint    repo is on the Windows file system ($root); builds are much faster under ~ in WSL2"
+fi
 
 if [[ $missing -eq 0 ]]; then
     echo "Done. Next: scripts/ui-preview.sh, scripts/ui-snapshot.sh, cargo run -p freakymate"

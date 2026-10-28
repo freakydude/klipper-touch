@@ -328,7 +328,7 @@ cargo run -p icon-index                                  # after changing icons 
 
 Scripts exist in two variants with the same behaviour:
 
-- `scripts/*.sh` (bash) for WSL2 with Arch Linux, the main development environment. `scripts/setup-wsl.sh` checks the environment.
+- `scripts/*.sh` (bash) for Arch Linux, native or in WSL2, the main development environment. `scripts/setup-linux.sh` checks the environment.
 - `scripts/*.ps1` (PowerShell) for Windows without admin rights. `scripts\setup.ps1` prepares the GNU toolchain there, see [docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ### Tools
@@ -341,6 +341,26 @@ Scripts exist in two variants with the same behaviour:
 | Slint extension for VS Code (optional)                                                 | live preview of `crates/app/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
 
 To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.
+
+### Faster builds (optional, Linux)
+
+[`sccache`](https://github.com/mozilla/sccache) caches compiled crates across `cargo clean`, branches and checkouts
+on Arch Linux, native or in WSL2. It skips incremental builds, so it mainly saves rebuilding the dependencies (Slint
+above all). It is configured per user, not in the repo, so CI and machines without it are unaffected;
+`scripts/setup-linux.sh` reports whether it is set up.
+
+```bash
+sudo pacman -S --needed sccache
+```
+
+`~/.cargo/config.toml`:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+`sccache --show-stats` shows the cache hits. In WSL2, keep the repo in the Linux file system (e.g. under `~`), not under `/mnt/c`.
 
 ### Development builds and releases
 

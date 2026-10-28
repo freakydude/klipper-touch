@@ -64,9 +64,9 @@
       "problemMatcher": []
     },
     {
-      "label": "setup check (WSL2, bash)",
+      "label": "setup check (Linux/WSL2, bash)",
       "type": "shell",
-      "command": "scripts/setup-wsl.sh",
+      "command": "scripts/setup-linux.sh",
       "problemMatcher": []
     },
     {
