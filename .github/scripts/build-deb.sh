@@ -25,6 +25,7 @@ install -D -m 0755 "$artifact/freakymate" "$root/usr/bin/freakymate"
 install -D -m 0644 "$repo/scripts/debian/freakymate@.service" "$root/lib/systemd/system/freakymate@.service"
 install -D -m 0644 "$repo/scripts/polkit/50-freakymate.rules" "$root/usr/share/polkit-1/rules.d/50-freakymate.rules"
 install -D -m 0644 "$repo/LICENSE" "$root/usr/share/doc/freakymate/copyright"
+install -D -m 0644 "$artifact/THIRD-PARTY-LICENSES.html" "$root/usr/share/doc/freakymate/THIRD-PARTY-LICENSES.html"
 install -D -m 0644 "$repo/scripts/debian/freakymate.desktop" "$root/usr/share/applications/freakymate.desktop"
 install -D -m 0644 "$repo/assets/logo/freakymate.svg" "$root/usr/share/icons/hicolor/scalable/apps/freakymate.svg"
 for size in 16 24 32; do
