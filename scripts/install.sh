@@ -106,6 +106,10 @@ if [ ! -f "$MOONRAKER_CONF" ]; then
 else
   if [ -f "$ALLOWED_SERVICES" ]; then
     if ! grep -qx "$NAME" "$ALLOWED_SERVICES"; then
+      # Without a trailing newline the name would be glued onto the last service.
+      if [ -s "$ALLOWED_SERVICES" ] && [ -n "$(tail -c 1 "$ALLOWED_SERVICES")" ]; then
+        echo >> "$ALLOWED_SERVICES"
+      fi
       echo "$NAME" >> "$ALLOWED_SERVICES"
     fi
   else

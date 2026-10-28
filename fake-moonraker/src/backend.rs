@@ -5,6 +5,7 @@ use crate::host::Host;
 use crate::machine::MachineProfile;
 use crate::printer::Printer;
 use crate::spoolman::Spoolman;
+use crate::wled::Wled;
 use serde_json::{json, Value};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -17,6 +18,9 @@ pub struct Backend {
     host: Mutex<Host>,
     spoolman: Mutex<Spoolman>,
     spoolman_enabled: bool,
+    wled: Mutex<Wled>,
+    /// Moonraker's `wled` component, with the extra devices of the profile.
+    wled_enabled: bool,
     catalog: Catalog,
     /// Jobs that ended while the fake runs, newest first; the history lists them before the demo jobs.
     ended_jobs: Mutex<Vec<Value>>,
@@ -35,6 +39,8 @@ impl Backend {
             host: Mutex::new(Host::default()),
             spoolman: Mutex::new(Spoolman::default()),
             spoolman_enabled: profile.spoolman,
+            wled: Mutex::new(Wled::default()),
+            wled_enabled: profile.devices,
             catalog: Catalog::demo(),
             ended_jobs: Mutex::new(Vec::new()),
             started: Instant::now(),
@@ -69,6 +75,15 @@ impl Backend {
 
     pub fn spoolman_enabled(&self) -> bool {
         self.spoolman_enabled
+    }
+
+    pub fn wled_enabled(&self) -> bool {
+        self.wled_enabled
+    }
+
+    pub fn with_wled<R>(&self, action: impl FnOnce(&mut Wled) -> R) -> R {
+        let mut wled = self.wled.lock().expect("wled lock poisoned");
+        action(&mut wled)
     }
 
     pub fn with_spoolman<R>(&self, action: impl FnOnce(&mut Spoolman) -> R) -> R {

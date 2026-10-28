@@ -3,7 +3,7 @@
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use freakymate_core::domain::filament::{self, FilamentHandling};
-use freakymate_core::domain::{job_end, pause, spools};
+use freakymate_core::domain::{job_end, light, pause, spools};
 use freakymate_core::sources::happy_hare::commands::{Gates, ServoCommand};
 use freakymate_core::sources::happy_hare::{GateAvailability, LoadedFilament, ServoPosition};
 use freakymate_core::sources::klipper::tuning::TuningKey;
@@ -514,7 +514,8 @@ async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
 
     let klipper = &snapshot.sources.klipper;
     assert!(klipper.fans.iter().any(|fan| fan == "fan_generic nevermore"));
-    assert_eq!(klipper.main_light(), Some("neopixel chamber"));
+    assert_eq!(light::main_light(&snapshot.sources), Some("neopixel chamber"));
+    assert_eq!(snapshot.sources.wled_strips, ["wled enclosure"]);
     assert_eq!(klipper.white_channel("neopixel chamber"), WhiteChannel::All);
     assert_eq!(klipper.white_channel("neopixel status"), WhiteChannel::None);
     assert!(snapshot.sources.led_effects.iter().any(|effect| effect == "led_effect rainbow"));
@@ -530,12 +531,18 @@ async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
     service.send(Command::SetFanSpeed { fan: "fan_generic exhaust".into(), speed: 0.5 });
     service.send(Command::SetLedEffect { effect: "rainbow".into(), on: true });
     service.send(Command::StepTuning { key: TuningKey::MaxAccel, direction: 1.0 });
+    service.send(Command::SetLight { led: "wled enclosure".into(), level: 0.5 });
     let changed = wait_for(&mut channels, |snapshot| {
-        let light_off = snapshot.status.leds.iter().any(|led| led.object == "neopixel chamber" && led.level == 0.0);
+        let light_off = snapshot.status.leds.iter().any(|led| led.object == "neopixel chamber" && !led.on);
+        let strip_dimmed = snapshot
+            .status
+            .leds
+            .iter()
+            .any(|led| led.object == "wled enclosure" && led.on && led.level == Some(128.0 / 255.0));
         let exhaust =
             snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.rpm == Some(1400.0));
         let effect = snapshot.status.led_effects.iter().any(|effect| effect.name == "rainbow" && effect.enabled);
-        light_off && exhaust && effect && snapshot.status.motion.max_accel == 3500.0
+        light_off && strip_dimmed && exhaust && effect && snapshot.status.motion.max_accel == 3500.0
     })
     .await;
     assert_eq!(changed.status.motion.max_accel, 3500.0);

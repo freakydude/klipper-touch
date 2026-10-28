@@ -6,7 +6,7 @@ import { Icons } from "../icons.slint";
 import { Actions, LedItem, Navigation, Printer } from "../state.slint";
 import { FlyoutPanel, IconButton, ScrollList, ToggleRow, TouchSlider } from "controls.slint";
 
-// On and off, and the brightness of white light.
+// On and off, and the brightness: white light on a Klipper LED, the brightness of a WLED strip.
 component LedRow inherits Rectangle {
     in property <LedItem> led;
     height: 60px;
@@ -20,7 +20,7 @@ component LedRow inherits Rectangle {
         Image {
             cross-axis-self-alignment: center;
             source: Icons.accessory-light;
-            colorize: root.led.level > 0 ? Theme.warning : Theme.muted;
+            colorize: root.led.on ? Theme.warning : Theme.muted;
             width: 28px;
             height: 28px;
         }
@@ -29,7 +29,8 @@ component LedRow inherits Rectangle {
             width: 170px;
             Text { text: root.led.label; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
             Text {
-                text: root.led.level > 0 ? round(light-slider.shown) + " %" : @tr("off");
+                // Moonraker does not know a WLED strip's brightness after a preset; then only "on" is certain.
+                text: !root.led.on ? @tr("off") : root.led.level-known ? round(light-slider.shown) + " %" : @tr("on");
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
                 font-weight: 600;
@@ -38,7 +39,7 @@ component LedRow inherits Rectangle {
         IconButton {
             width: 64px;
             text: @tr("Off");
-            checked: root.led.level <= 0;
+            checked: !root.led.on;
             clicked => { Actions.set-light(root.led.object, 0); }
         }
         light-slider := TouchSlider {
@@ -50,7 +51,7 @@ component LedRow inherits Rectangle {
         IconButton {
             width: 64px;
             text: "100%";
-            checked: root.led.level > 99;
+            checked: root.led.on && root.led.level > 99;
             clicked => { Actions.set-light(root.led.object, 100); }
         }
     }

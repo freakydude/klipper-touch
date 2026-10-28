@@ -146,6 +146,8 @@ impl Session {
             }
             "server.spoolman.post_spool_id" if backend.spoolman_enabled() => set_active_spool(backend, params),
             "server.spoolman.proxy" if backend.spoolman_enabled() => Ok(spoolman_proxy(backend, params)),
+            "machine.wled.strips" if backend.wled_enabled() => Ok(backend.with_wled(|wled| wled.strips())),
+            "machine.wled.post_strip" if backend.wled_enabled() => post_strip(backend, params),
             _ => Err(RpcError::new(METHOD_NOT_FOUND, format!("Method not found: {method}"))),
         }
     }
@@ -242,6 +244,9 @@ fn server_info(backend: &Backend) -> Value {
     if backend.spoolman_enabled() {
         components.push("spoolman");
     }
+    if backend.wled_enabled() {
+        components.push("wled");
+    }
     json!({
         "klippy_connected": true,
         "klippy_state": state,
@@ -276,6 +281,13 @@ fn set_power(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
         backend.notify("notify_power_changed", json!([status]));
     }
     Ok(result)
+}
+
+fn post_strip(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+    let strip = required_str(params, "strip")?;
+    let action = required_str(params, "action")?;
+    let brightness = params.get("brightness").and_then(Value::as_i64).unwrap_or(-1);
+    backend.with_wled(|wled| wled.post_strip(strip, action, brightness)).map_err(RpcError::invalid_params)
 }
 
 fn start_print(backend: &Backend, params: &Value) -> Result<Value, RpcError> {

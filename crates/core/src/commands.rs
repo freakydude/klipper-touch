@@ -2,12 +2,14 @@
 //! concrete command. What a source is told (G-code, Moonraker methods) is known by the source itself.
 
 use crate::domain::filament::{self, FilamentHandling};
+use crate::domain::light;
 use crate::moonraker::Call;
 use crate::sources::happy_hare::commands as mmu;
 use crate::sources::klipper::commands::{self as klipper, run_gcode};
 use crate::sources::klipper::tuning::TuningKey;
 use crate::sources::klipper::{Axis, CalibrationMode, Leveling, Motion, Setup, TestZ};
 use crate::sources::macro_conventions::{LOAD_FILAMENT_MACRO, UNLOAD_FILAMENT_MACRO};
+use crate::sources::moonraker_server::wled::{self, StripAction};
 use crate::sources::moonraker_server::{machine, power, update_manager};
 use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
 
@@ -71,12 +73,13 @@ pub enum Command {
         fan: String,
         speed: f64,
     },
-    /// White light at `level` (0 to 1, 0 is off): the white channel if the LED has one, else all colours.
+    /// Light at `level` (0 to 1, 0 is off): on a Klipper LED white light, with the white channel if the LED has one,
+    /// else all colours; on a WLED strip its brightness.
     SetLight {
         led: String,
         level: f64,
     },
-    /// Switches the main light (see [`Setup::main_light`]) on or off.
+    /// Switches the main light (see [`light::main_light`]) on or off.
     ToggleLight,
     /// Colour channels from 0 to 1 (`SET_LED`).
     SetLed {
@@ -209,6 +212,10 @@ pub enum Command {
         device: String,
         on: bool,
     },
+    SetWledStrip {
+        strip: String,
+        action: StripAction,
+    },
     RestartService {
         service: String,
     },
@@ -228,8 +235,13 @@ const NO_LIGHT: &str = "this printer has no LED";
 const NO_Z_CALIBRATION: &str = "this printer has neither a probe nor a Z endstop with position_endstop";
 const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
-/// White light at `level` with the channels this LED has, see [`Setup::white_light`].
-fn light(setup: &Setup, led: &str, level: f64) -> Command {
+/// `level` on a light: white light with the channels a Klipper LED has (see [`Setup::white_light`]), the brightness
+/// of a WLED strip.
+fn light(setup: &Setup, status: &PrinterStatus, led: &str, level: f64) -> Command {
+    if let Some(strip) = wled::strip_name(led) {
+        let on = status.leds.iter().any(|candidate| candidate.object == led && candidate.on);
+        return Command::SetWledStrip { strip: strip.to_owned(), action: StripAction::light(on, level) };
+    }
     let [red, green, blue, white] = setup.white_light(led, level);
     Command::SetLed { led: led.to_owned(), red, green, blue, white }
 }
@@ -268,11 +280,18 @@ impl Command {
                 commands
             }
             Self::CoolDown => status.heaters.iter().map(|heater| heater_target(&heater.object, 0.0)).collect(),
-            Self::SetLight { led, level } => vec![light(setup, &led, level)],
+            Self::SetLight { led, level } => vec![light(setup, status, &led, level)],
             Self::ToggleLight => {
-                let led = setup.main_light().ok_or_else(|| NO_LIGHT.to_owned())?;
-                let lit = setup.main_led(&status.leds).is_some_and(|main| main.level > 0.0);
-                vec![light(setup, led, if lit { 0.0 } else { 1.0 })]
+                let led = light::main_light(sources).ok_or_else(|| NO_LIGHT.to_owned())?;
+                let lit = light::main_led(sources, &status.leds).is_some_and(|main| main.on);
+                // A WLED strip comes back with its initial preset rather than at full brightness.
+                match wled::strip_name(led) {
+                    Some(strip) => vec![Self::SetWledStrip {
+                        strip: strip.to_owned(),
+                        action: if lit { StripAction::Off } else { StripAction::On },
+                    }],
+                    None => vec![light(setup, status, led, if lit { 0.0 } else { 1.0 })],
+                }
             }
             Self::StepTuning { key, direction } => {
                 let current = key.current(status).ok_or_else(|| format!("this printer has no {}", key.id()))?;
@@ -382,6 +401,7 @@ impl Command {
             Self::SetActiveSpool { spool_id } => spoolman::set_active_spool(*spool_id),
             Self::MeasureSpool { spool_id, weight } => spoolman::measure_spool(*spool_id, *weight),
             Self::SetPowerDevice { device, on } => power::switch_device(device, *on),
+            Self::SetWledStrip { strip, action } => wled::post_strip(strip, *action),
             Self::RestartService { service } => machine::restart_service(service),
             Self::RebootHost => machine::reboot(),
             Self::ShutdownHost => machine::shutdown(),
@@ -693,14 +713,15 @@ mod tests {
             leds: vec![crate::sources::klipper::Led {
                 object: "neopixel chamber".into(),
                 label: "Chamber".into(),
-                level: 0.0,
+                on: false,
+                level: Some(0.0),
             }],
             ..PrinterStatus::default()
         };
 
         let on = Command::ToggleLight.resolve(&sources, &status).unwrap();
         assert_eq!(script(on[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=1.00 SYNC=0");
-        status.leds[0].level = 0.5;
+        status.leds[0].on = true;
         let off = Command::ToggleLight.resolve(&sources, &status).unwrap();
         assert_eq!(script(off[0].clone()), "SET_LED LED=chamber RED=0.00 GREEN=0.00 BLUE=0.00 WHITE=0.00 SYNC=0");
         let mixed = Command::SetLight { led: "neopixel sb".into(), level: 0.5 }.resolve(&sources, &status).unwrap();
@@ -708,6 +729,27 @@ mod tests {
         let rgb = Command::SetLight { led: "neopixel status".into(), level: 0.5 }.resolve(&sources, &status).unwrap();
         assert_eq!(script(rgb[0].clone()), "SET_LED LED=status RED=0.50 GREEN=0.50 BLUE=0.50 WHITE=0.00 SYNC=0");
         assert!(Command::ToggleLight.resolve(&printer(&[]), &status).is_err());
+    }
+
+    #[test]
+    fn a_wled_strip_is_switched_and_dimmed_by_moonraker() {
+        let mut sources = printer(&["neopixel sb"]);
+        sources.wled_strips = vec!["wled chamber".into()];
+        let strip = wled::WledStrip { name: "chamber".into(), on: false, brightness: None };
+        let mut status = PrinterStatus { leds: vec![strip.led()], ..PrinterStatus::default() };
+        let resolve = |command: Command, status: &PrinterStatus| command.resolve(&sources, status).unwrap();
+        let wled = |action| vec![Command::SetWledStrip { strip: "chamber".into(), action }];
+        let dim = Command::SetLight { led: "wled chamber".into(), level: 0.5 };
+
+        assert_eq!(resolve(Command::ToggleLight, &status), wled(StripAction::On));
+        assert_eq!(resolve(dim.clone(), &status), wled(StripAction::OnAt(0.5)));
+        status.leds[0].on = true;
+        assert_eq!(resolve(Command::ToggleLight, &status), wled(StripAction::Off));
+        assert_eq!(resolve(dim, &status), wled(StripAction::Dim(0.5)));
+        let call = Command::SetWledStrip { strip: "chamber".into(), action: StripAction::Off }
+            .to_call(&Motion::default())
+            .unwrap();
+        assert_eq!(call.method, "machine.wled.post_strip");
     }
 
     #[test]

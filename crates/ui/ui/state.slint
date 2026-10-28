@@ -44,7 +44,9 @@ export struct FanItem {
 export struct LedItem {
     object: string,
     label: string,
-    // Brightness of the brightest channel, 0 to 100.
+    on: bool,
+    // Brightness from 0 to 100, of a Klipper LED its brightest channel; unknown for a WLED strip after a preset.
+    level-known: bool,
     level: float,
 }
 
