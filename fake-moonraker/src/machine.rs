@@ -85,6 +85,11 @@ impl MachineProfile {
             bed_screws: false,
         }
     }
+
+    /// Happy Hare without Moonraker's Spoolman: material and colour of the gates live in Happy Hare's gate map.
+    pub fn ercf(gates: usize) -> Self {
+        Self { spoolman: false, ..Self::happy_hare(gates) }
+    }
 }
 
 impl Default for MachineProfile {

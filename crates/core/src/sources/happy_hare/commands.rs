@@ -57,9 +57,41 @@ pub fn servo(position: ServoCommand) -> String {
     format!("MMU_SERVO POS={position}")
 }
 
+/// Selects a gate and loads it in one script, so both run in this order.
+pub fn load_gate(gate: usize) -> String {
+    format!("{}\n{LOAD}", select_gate(gate))
+}
+
 /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record (`SPOOLID=-1`).
 pub fn assign_gate_spool(gate: usize, spool_id: Option<u32>) -> String {
     format!("MMU_GATE_MAP GATE={gate} SPOOLID={}", spool_id.map_or(-1, i64::from))
+}
+
+/// Sets material or colour of a gate in Happy Hare's gate map; `None` keeps what the gate has. Without `TEMP` Happy
+/// Hare puts the temperature of the gate back to `default_extruder_temp` (`mmu_gate_map.py`), so the current one goes
+/// along. The material is one word of letters, digits and `+-_.`, as G-code parameters cannot hold spaces.
+pub fn set_gate_filament(
+    gate: usize,
+    material: Option<&str>,
+    color: Option<[u8; 3]>,
+    temperature: Option<f64>,
+) -> Result<String, String> {
+    let mut script = format!("MMU_GATE_MAP GATE={gate}");
+    if let Some(material) = material {
+        let valid = !material.is_empty()
+            && material.chars().all(|letter| letter.is_ascii_alphanumeric() || "+-_.".contains(letter));
+        if !valid {
+            return Err(format!("invalid material '{material}'"));
+        }
+        script += &format!(" MATERIAL={material}");
+    }
+    if let Some([red, green, blue]) = color {
+        script += &format!(" COLOR={red:02x}{green:02x}{blue:02x}");
+    }
+    if let Some(temperature) = temperature {
+        script += &format!(" TEMP={}", temperature.round());
+    }
+    Ok(script)
 }
 
 #[cfg(test)]
@@ -90,5 +122,24 @@ mod tests {
     fn a_gate_spool_is_set_or_taken_out() {
         assert_eq!(assign_gate_spool(2, Some(18)), "MMU_GATE_MAP GATE=2 SPOOLID=18");
         assert_eq!(assign_gate_spool(2, None), "MMU_GATE_MAP GATE=2 SPOOLID=-1");
+    }
+
+    #[test]
+    fn a_gate_is_selected_and_loaded_in_one_script() {
+        assert_eq!(load_gate(3), "MMU_SELECT GATE=3\nMMU_LOAD");
+    }
+
+    #[test]
+    fn material_and_colour_of_a_gate_keep_its_temperature() {
+        assert_eq!(
+            set_gate_filament(1, Some("PETG"), None, Some(235.0)).as_deref(),
+            Ok("MMU_GATE_MAP GATE=1 MATERIAL=PETG TEMP=235")
+        );
+        assert_eq!(
+            set_gate_filament(0, None, Some([255, 128, 0]), None).as_deref(),
+            Ok("MMU_GATE_MAP GATE=0 COLOR=ff8000")
+        );
+        assert!(set_gate_filament(0, Some("PLA TEMP=300"), None, None).is_err());
+        assert!(set_gate_filament(0, Some(""), None, None).is_err());
     }
 }

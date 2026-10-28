@@ -69,8 +69,8 @@ Functions only appear when the printer has them (capabilities from `printer.obje
 
 Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip on the print page show:
 
-- the gates (four at a time): status, material, colour and mapped tool; load, unload, eject and home the selected gate,
-  recover and unlock after a pause;
+- the gates (four at a time): status, material, colour and mapped tool; load and unload the selected gate, home, recover
+  and unlock after a pause;
 - the way of the filament of the selected gate, from the gate through the bowden and the extruder to the nozzle,
   filled in the colours of the spool as far as Happy Hare reports it (`filament_pos`), with the sensors on the way,
   the direction and the distance; on the print page as a slim line;
@@ -78,8 +78,11 @@ Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip 
   tangle prevention at work, or triggered with its reason;
 - the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
 
-A **Service** tab next to it holds what is rarely needed: check or preload each gate, check all gates, home, recover,
-unlock, motors off and, on selectors with a servo, servo up and down.
+A tap on a gate opens what can be done with it: select, load, preload, check or eject it, and pick its spool. Without
+Spoolman the dialog sets material and colour of the gate in Happy Hare's gate map instead, from a set of common
+materials and colours. A tap on a gate never moves the selector by itself. The **Service** button opens what is rarely
+needed for the MMU as a whole: home, recover, unlock, motors off, check all gates and, on selectors with a servo, servo
+up and down.
 
 | ![MMU tab](docs/screenshots/mmu.png) | ![FlowGuard line while tangle prevention raises the gear current](docs/screenshots/print-tangle-boost.png) |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -296,8 +299,8 @@ cargo run -p freakymate -- -m http://127.0.0.1:7125                       # the 
 
 | Fake option    | Meaning                                                                          |
 | -------------- | -------------------------------------------------------------------------------- |
-| `--profile`    | `basic`, `voron` (default) or `happy-hare`, see below                            |
-| `--gates`      | number of MMU gates, 1 to 16 (default 4; only with `happy-hare`)                 |
+| `--profile`    | `basic`, `voron` (default), `happy-hare` or `ercf`, see below                    |
+| `--gates`      | number of MMU gates, 1 to 16 (default 4; only with `happy-hare` and `ercf`)      |
 | `--port`       | port to listen on (default 7125; only one fake can run per port)                 |
 | `--time-scale` | simulation speed (default 10): heating and printing run that many times faster   |
 
@@ -306,6 +309,7 @@ cargo run -p freakymate -- -m http://127.0.0.1:7125                       # the 
 | `basic`      | a plain printer: nozzle, bed, fans, no optional modules                                                                    |
 | `voron`      | adds Quad Gantry Level, a chamber heater, filament sensors, `exclude_object` and Spoolman                                  |
 | `happy-hare` | adds a Happy Hare MMU with a proportional sync-feedback buffer and FlowGuard, spools in the gates, and Spoolman            |
+| `ercf`       | like `happy-hare`, but without Spoolman: material and colour of the gates live in Happy Hare's gate map                    |
 
 `FAKE_MMU_TANGLE BOOST=1` (G-code, simulator only) lets tangle prevention boost the gear current during a print. In VS Code
 the tasks and debug configurations "run: fake-moonraker", "run: freakymate (fake Moonraker)" and their Happy Hare

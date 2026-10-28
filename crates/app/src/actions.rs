@@ -124,9 +124,18 @@ pub fn bind(
         }
     }));
     actions.on_mmu_load(send(|| Command::MmuLoad));
+    actions.on_mmu_load_gate(with(service, |service, gate: i32| {
+        if let Ok(gate) = usize::try_from(gate) {
+            service.send(Command::MmuLoadGate { gate });
+        }
+    }));
     actions.on_mmu_unload(send(|| Command::MmuUnload));
     actions.on_mmu_home(send(|| Command::MmuHome));
-    actions.on_mmu_eject(send(|| Command::MmuEject { gate: None }));
+    actions.on_mmu_eject(with(service, |service, gate: i32| {
+        if let Ok(gate) = usize::try_from(gate) {
+            service.send(Command::MmuEject { gate: Some(gate) });
+        }
+    }));
     actions.on_mmu_recover(send(|| Command::MmuRecover));
     actions.on_mmu_unlock(send(|| Command::MmuUnlock));
     actions.on_mmu_motors_off(send(|| Command::MmuMotorsOff));
@@ -143,6 +152,19 @@ pub fn bind(
     }));
     actions.on_mmu_servo_up(send(|| Command::MmuServo { position: ServoCommand::Up }));
     actions.on_mmu_servo_down(send(|| Command::MmuServo { position: ServoCommand::Down }));
+    let material_service = service.clone();
+    actions.on_set_gate_material(move |gate, material| {
+        if let Ok(gate) = usize::try_from(gate) {
+            material_service.send(Command::SetGateFilament { gate, material: Some(material.into()), color: None });
+        }
+    });
+    let color_service = service.clone();
+    actions.on_set_gate_color(move |gate, color| {
+        if let Ok(gate) = usize::try_from(gate) {
+            let color = Some([color.red(), color.green(), color.blue()]);
+            color_service.send(Command::SetGateFilament { gate, material: None, color });
+        }
+    });
     actions.on_run_gcode(with(service, |service, script: slint::SharedString| {
         service.send(Command::RunGcode { script: script.into() })
     }));

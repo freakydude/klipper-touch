@@ -1,0 +1,17 @@
+// Preview: service dialog of an ERCF with a servo selector, not homed after the motors were off. Open in the Slint preview or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { MmuDialogs, Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component FilamentMmuServiceDialogPreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Navigation.page = Page.filament;
+        Navigation.filament-tab = 1;
+        Printer.mmu-homed = false;
+        Printer.mmu-servo = "up";
+        Printer.mmu-action = "Homing";
+        MmuDialogs.service-open = true;
+    }
+}

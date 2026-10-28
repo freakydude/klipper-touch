@@ -6,6 +6,14 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { IconButton } from "controls.slint";
 
+// Dimming background that intercepts input meant for elements underneath.
+export component Scrim inherits Rectangle {
+    background: #000000b0;
+    TouchArea { }
+
+    @children
+}
+
 // Surface with an outline, red for dangerous actions.
 export component DialogPanel inherits Rectangle {
     in property <bool> danger;

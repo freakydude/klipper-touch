@@ -127,7 +127,7 @@ pub enum DeviceCommand {
     StopLedEffects,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MmuCommand {
     Home,
     Select {
@@ -159,10 +159,14 @@ pub enum MmuCommand {
     Servo {
         position: Option<ServoPosition>,
     },
-    /// `MMU_GATE_MAP GATE= SPOOLID=`: the Spoolman spool of a gate, a negative id for none.
+    /// `MMU_GATE_MAP GATE= SPOOLID= MATERIAL= COLOR= TEMP=`: the Spoolman spool of a gate (a negative id for none)
+    /// and what Happy Hare keeps of its filament; a missing parameter keeps the value.
     GateMap {
         gate: usize,
         spool_id: Option<i64>,
+        material: Option<String>,
+        color: Option<String>,
+        temperature: Option<i32>,
     },
     /// Not a Happy Hare command: lets a test or the snapshot tool raise the tension that makes tangle prevention
     /// boost the gear current (`FAKE_MMU_TANGLE BOOST=0|1`).
@@ -348,6 +352,9 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "MMU_GATE_MAP" => Ok(Command::Mmu(MmuCommand::GateMap {
             gate: required_index(&args, "GATE")?,
             spool_id: named_value(&args, "SPOOLID")?.map(|id| id as i64),
+            material: named_text(&args, "MATERIAL").map(|material| material.to_ascii_uppercase()),
+            color: named_text(&args, "COLOR").map(|color| color.to_ascii_lowercase()),
+            temperature: named_value(&args, "TEMP")?.map(|degrees| degrees.round() as i32),
         })),
         "FAKE_MMU_FILAMENT" => Ok(Command::Mmu(MmuCommand::FakeFilament {
             position: named_value(&args, "POS")?
@@ -557,8 +564,20 @@ mod tests {
             commands,
             vec![
                 Command::Mmu(MmuCommand::Home),
-                Command::Mmu(MmuCommand::GateMap { gate: 1, spool_id: Some(8) }),
-                Command::Mmu(MmuCommand::GateMap { gate: 2, spool_id: Some(-1) }),
+                Command::Mmu(MmuCommand::GateMap {
+                    gate: 1,
+                    spool_id: Some(8),
+                    material: None,
+                    color: None,
+                    temperature: None
+                }),
+                Command::Mmu(MmuCommand::GateMap {
+                    gate: 2,
+                    spool_id: Some(-1),
+                    material: None,
+                    color: None,
+                    temperature: None
+                }),
                 Command::Mmu(MmuCommand::Select { gate: 2 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 1 }),
                 Command::Mmu(MmuCommand::ChangeTool { tool: 3 }),
@@ -588,6 +607,20 @@ mod tests {
             ]
         );
         assert_eq!(parse_script("MMU_SERVO POS=sideways").unwrap_err().message(), "Invalid POS sideways");
+    }
+
+    #[test]
+    fn the_gate_map_takes_material_colour_and_temperature_like_happy_hare() {
+        assert_eq!(
+            parse_script("MMU_GATE_MAP GATE=1 MATERIAL=petg COLOR=FF8000 TEMP=235").unwrap(),
+            vec![Command::Mmu(MmuCommand::GateMap {
+                gate: 1,
+                spool_id: None,
+                material: Some("PETG".into()),
+                color: Some("ff8000".into()),
+                temperature: Some(235),
+            })]
+        );
     }
 
     #[test]

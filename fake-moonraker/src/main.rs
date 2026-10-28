@@ -8,12 +8,13 @@ const DEFAULT_PORT: u16 = 7125;
 const DEFAULT_TIME_SCALE: f64 = 10.0;
 const DEFAULT_MMU_GATES: usize = 4;
 const USAGE: &str =
-    "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare] [--gates <1-16>]";
+    "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare|ercf] [--gates <1-16>]";
 
 enum Profile {
     Basic,
     Voron,
     HappyHare,
+    Ercf,
 }
 
 struct Options {
@@ -29,6 +30,7 @@ impl Options {
             Profile::Basic => MachineProfile::basic(),
             Profile::Voron => MachineProfile::voron(),
             Profile::HappyHare => MachineProfile::happy_hare(self.gates),
+            Profile::Ercf => MachineProfile::ercf(self.gates),
         }
     }
 }
@@ -59,6 +61,7 @@ fn parse_profile(value: &str) -> Result<Profile, String> {
         "basic" => Ok(Profile::Basic),
         "voron" => Ok(Profile::Voron),
         "happy-hare" => Ok(Profile::HappyHare),
+        "ercf" => Ok(Profile::Ercf),
         _ => Err(format!("unknown profile '{value}'")),
     }
 }

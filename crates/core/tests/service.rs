@@ -152,6 +152,28 @@ async fn runs_the_service_commands_of_happy_hare() {
     assert!(snapshot.status.mmu.unwrap().gates.iter().all(|gate| gate.availability == GateAvailability::Available));
 }
 
+/// The commands of the gate dialog without Spoolman: material and colour go into Happy Hare's gate map and keep the
+/// gate's temperature, and a gate is selected and loaded in one go.
+#[tokio::test(flavor = "multi_thread")]
+async fn sets_the_filament_of_a_gate_and_loads_it() {
+    let endpoint = start_fake_with(MachineProfile::ercf(4)).await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
+    let temperature = snapshot.status.mmu.unwrap().gates[1].temperature;
+
+    service.send(Command::MmuHome);
+    service.send(Command::SetGateFilament { gate: 1, material: Some("PETG".into()), color: None });
+    service.send(Command::SetGateFilament { gate: 1, material: None, color: Some([0xff, 0x80, 0x00]) });
+    service.send(Command::MmuLoadGate { gate: 1 });
+    let snapshot = wait_for(&mut channels, |snapshot| {
+        snapshot.status.mmu.as_ref().is_some_and(|mmu| mmu.gate == 1 && mmu.filament == LoadedFilament::Loaded)
+    })
+    .await;
+    let gate = &snapshot.status.mmu.unwrap().gates[1];
+    assert_eq!((gate.material.as_str(), gate.color), ("PETG", Some([0xff, 0x80, 0x00])));
+    assert_eq!(gate.temperature, temperature);
+}
+
 /// Commands sent one after another must reach the printer in that order; a heater target is absolute, so a
 /// swapped pair would leave the printer on the older value.
 #[tokio::test(flavor = "multi_thread")]
