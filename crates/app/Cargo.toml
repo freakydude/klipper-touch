@@ -41,3 +41,4 @@ thiserror.workspace = true
 
 [build-dependencies]
 slint-build = "1.18.1"
+embed-resource = "3.0.12"

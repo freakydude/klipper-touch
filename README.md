@@ -1,3 +1,5 @@
+<img src="assets/logo/freakymate.svg" alt="FreakyMate logo" width="96" align="right">
+
 # FreakyMate
 
 **A touch screen for Klipper, with Happy Hare and Spoolman built in.**
@@ -203,8 +205,8 @@ Besides the Moonraker route there are plain packages, for example to try it on a
   ```
 
 - **Windowed mode on a desktop** (Linux PC, Raspberry Pi OS with desktop, Windows): the program opens as a normal window
-  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `freakymate` from a
-  terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
+  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start FreakyMate from the
+  application menu or with `freakymate` in a terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
   `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
   Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
 
