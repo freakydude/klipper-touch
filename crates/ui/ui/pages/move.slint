@@ -31,93 +31,98 @@ component AxisValue inherits HorizontalLayout {
 component MoveTab inherits Rectangle {
     property <float> step: UiSettings.move-step;
 
-    VerticalLayout {
+    // The step row sits under the jog cards only, so the right column with three touch buttons gets the full height.
+    HorizontalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
-        HorizontalLayout {
+        VerticalLayout {
             spacing: Theme.spacing;
-            vertical-stretch: 1;
 
-            Card {
-                title: @tr("X / Y");
-                icon: Icons.motion-position;
-                horizontal-stretch: 2;
-                GridLayout {
-                    spacing: Theme.spacing;
-                    vertical-stretch: 1;
-                    Row {
-                        Rectangle { }
-                        IconButton { icon: Icons.motion-y-plus; text: "Y+"; enabled: Printer.homed-y; clicked => { Actions.jog("y", root.step); } }
-                        Rectangle { }
-                    }
-                    Row {
-                        IconButton { icon: Icons.motion-x-minus; text: "X-"; enabled: Printer.homed-x; clicked => { Actions.jog("x", -root.step); } }
-                        IconButton { icon: Icons.motion-home-xy; text: @tr("Home XY"); checked: Printer.homed-xy; clicked => { Actions.home(true, true, false); } }
-                        IconButton { icon: Icons.motion-x-plus; text: "X+"; enabled: Printer.homed-x; clicked => { Actions.jog("x", root.step); } }
-                    }
-                    Row {
-                        Rectangle { }
-                        IconButton { icon: Icons.motion-y-minus; text: "Y-"; enabled: Printer.homed-y; clicked => { Actions.jog("y", -root.step); } }
-                        Rectangle { }
-                    }
-                }
-            }
-
-            Card {
-                title: "Z";
-                width: 120px;
-                VerticalLayout {
-                    spacing: Theme.spacing;
-                    vertical-stretch: 1;
-                    IconButton { icon: Icons.motion-z-plus; text: "Z+"; vertical-stretch: 1; enabled: Printer.homed-z; clicked => { Actions.jog("z", root.step); } }
-                    IconButton { icon: Icons.motion-home-z; text: @tr("Home Z"); vertical-stretch: 1; checked: Printer.homed-z; clicked => { Actions.home(false, false, true); } }
-                    IconButton { icon: Icons.motion-z-minus; text: "Z-"; vertical-stretch: 1; enabled: Printer.homed-z; clicked => { Actions.jog("z", -root.step); } }
-                }
-            }
-
-            VerticalLayout {
-                width: 150px;
+            HorizontalLayout {
                 spacing: Theme.spacing;
+                vertical-stretch: 1;
+
                 Card {
-                    title: @tr("Position");
-                    AxisValue { axis: "X"; value: Printer.position-x; homed: Printer.homed-x; }
-                    AxisValue { axis: "Y"; value: Printer.position-y; homed: Printer.homed-y; }
-                    AxisValue { axis: "Z"; value: Printer.position-z; homed: Printer.homed-z; }
+                    title: @tr("X / Y");
+                    icon: Icons.motion-position;
+                    horizontal-stretch: 2;
+                    GridLayout {
+                        spacing: Theme.spacing;
+                        vertical-stretch: 1;
+                        Row {
+                            Rectangle { }
+                            IconButton { icon: Icons.motion-y-plus; text: "Y+"; enabled: Printer.homed-y; clicked => { Actions.jog("y", root.step); } }
+                            Rectangle { }
+                        }
+                        Row {
+                            IconButton { icon: Icons.motion-x-minus; text: "X-"; enabled: Printer.homed-x; clicked => { Actions.jog("x", -root.step); } }
+                            IconButton { icon: Icons.motion-home-xy; text: @tr("Home XY"); checked: Printer.homed-xy; clicked => { Actions.home(true, true, false); } }
+                            IconButton { icon: Icons.motion-x-plus; text: "X+"; enabled: Printer.homed-x; clicked => { Actions.jog("x", root.step); } }
+                        }
+                        Row {
+                            Rectangle { }
+                            IconButton { icon: Icons.motion-y-minus; text: "Y-"; enabled: Printer.homed-y; clicked => { Actions.jog("y", -root.step); } }
+                            Rectangle { }
+                        }
+                    }
                 }
-                IconButton {
-                    icon: Icons.motion-home;
-                    text: @tr("Home all");
-                    horizontal: true;
-                    align-start: true;
-                    kind: "accent";
-                    clicked => { Actions.home(true, true, true); }
+
+                Card {
+                    title: "Z";
+                    width: 120px;
+                    VerticalLayout {
+                        spacing: Theme.spacing;
+                        vertical-stretch: 1;
+                        IconButton { icon: Icons.motion-z-plus; text: "Z+"; vertical-stretch: 1; enabled: Printer.homed-z; clicked => { Actions.jog("z", root.step); } }
+                        IconButton { icon: Icons.motion-home-z; text: @tr("Home Z"); vertical-stretch: 1; checked: Printer.homed-z; clicked => { Actions.home(false, false, true); } }
+                        IconButton { icon: Icons.motion-z-minus; text: "Z-"; vertical-stretch: 1; enabled: Printer.homed-z; clicked => { Actions.jog("z", -root.step); } }
+                    }
                 }
-                if Printer.can-quad-gantry-level || Printer.can-z-tilt: IconButton {
-                    icon: Icons.calibration-gantry-level;
-                    text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
-                    horizontal: true;
-                    align-start: true;
-                    checked: Printer.leveling-state == "applied";
-                    clicked => { Actions.level(); }
-                }
-                IconButton {
-                    icon: Icons.motion-steppers-off;
-                    text: @tr("Motors off");
-                    horizontal: true;
-                    align-start: true;
-                    clicked => { Confirm.ask(@tr("Motors off"), @tr("The axes lose their reference and must be homed again."), "disable-motors", "", false); }
-                }
-                Rectangle { vertical-stretch: 1; }
+            }
+
+            StepSelector {
+                label: @tr("Step");
+                values: [0.1, 1, 10, 50, 100];
+                unit: " mm";
+                selected <=> UiSettings.move-step;
+                changed => { UiSettings.steps-changed(); }
             }
         }
 
-        StepSelector {
-            label: @tr("Step");
-            values: [0.1, 1, 10, 50, 100];
-            unit: " mm";
-            selected <=> UiSettings.move-step;
-            changed => { UiSettings.steps-changed(); }
+        VerticalLayout {
+            width: 150px;
+            spacing: Theme.spacing;
+            Card {
+                title: @tr("Position");
+                AxisValue { axis: "X"; value: Printer.position-x; homed: Printer.homed-x; }
+                AxisValue { axis: "Y"; value: Printer.position-y; homed: Printer.homed-y; }
+                AxisValue { axis: "Z"; value: Printer.position-z; homed: Printer.homed-z; }
+            }
+            IconButton {
+                icon: Icons.motion-home;
+                text: @tr("Home all");
+                horizontal: true;
+                align-start: true;
+                kind: "accent";
+                clicked => { Actions.home(true, true, true); }
+            }
+            if Printer.can-quad-gantry-level || Printer.can-z-tilt: IconButton {
+                icon: Icons.calibration-gantry-level;
+                text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
+                horizontal: true;
+                align-start: true;
+                checked: Printer.leveling-state == "applied";
+                clicked => { Actions.level(); }
+            }
+            IconButton {
+                icon: Icons.motion-steppers-off;
+                text: @tr("Motors off");
+                horizontal: true;
+                align-start: true;
+                clicked => { Confirm.ask(@tr("Motors off"), @tr("The axes lose their reference and must be homed again."), "disable-motors", "", false); }
+            }
+            Rectangle { vertical-stretch: 1; }
         }
     }
 }
