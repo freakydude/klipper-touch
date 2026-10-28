@@ -37,6 +37,8 @@ pub struct Sources {
     pub layer_pause: Option<LayerPauseMacros>,
     /// The macros `LOAD_FILAMENT` and `UNLOAD_FILAMENT`.
     pub filament_macros: Option<FilamentMacros>,
+    /// Moonraker's WLED strips as light objects (`wled <strip>`), see [`moonraker_server::wled`].
+    pub wled_strips: Vec<String>,
 }
 
 impl Sources {
@@ -47,6 +49,7 @@ impl Sources {
             layer_pause: LayerPauseMacros::detect(&klipper),
             filament_macros: FilamentMacros::detect(&klipper),
             led_effects: led_effect::detect(names()),
+            wled_strips: Vec::new(),
             moonraker,
             klipper,
         }

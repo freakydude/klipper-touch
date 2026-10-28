@@ -172,7 +172,13 @@ pub(crate) fn fan_item(fan: &Fan) -> FanItem {
 }
 
 pub(crate) fn led_item(led: &Led) -> LedItem {
-    LedItem { object: led.object.as_str().into(), label: led.label.as_str().into(), level: (led.level * 100.0) as f32 }
+    LedItem {
+        object: led.object.as_str().into(),
+        label: led.label.as_str().into(),
+        on: led.on,
+        level_known: led.level.is_some(),
+        level: (led.level.unwrap_or_default() * 100.0) as f32,
+    }
 }
 
 pub(crate) fn led_effect_item(effect: &LedEffect) -> LedEffectItem {

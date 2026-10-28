@@ -6,6 +6,7 @@ use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Activity, CalibrationMode, KlippyState, PrintState, TestZ};
+use freakymate_core::sources::moonraker_server::wled::{self, StripAction};
 use freakymate_core::{Command, ConnectionState, Query};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
@@ -259,6 +260,11 @@ fn heat_tabs(session: &mut Session) -> Result<(), String> {
     }
     session.window.global::<Navigation>().set_heat_tab(0);
     if !status.leds.is_empty() {
+        // A WLED strip switched on with its preset: on, with the brightness unknown.
+        for strip in session.presenter.snapshot().sources.wled_strips.iter().filter_map(|led| wled::strip_name(led)) {
+            session.service.send(Command::SetWledStrip { strip: strip.to_owned(), action: StripAction::On });
+        }
+        session.pump(Duration::from_millis(500));
         session.window.global::<Navigation>().set_light_open(true);
         session.capture("light-panel")?;
         session.window.global::<Navigation>().set_light_open(false);

@@ -68,14 +68,15 @@ nothing is loaded at runtime or can be switched off. What is detected is used.
 Sources: `klipper/` (Klipper's own objects, one module per kind: `job`, `motion`, `extruder`, `heaters`, `devices`
 (fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`, `calibration` (bed mesh, bed screws, Z height, the modes Klipper waits in, pending `SAVE_CONFIG` items); `status.rs` puts them together,
 `setup.rs` detects what is there; plus configuration, macros, tuning values), `moonraker_server/` (files, job
-history, power, update manager, temperature and console stores, host information), `happy_hare/`, `spoolman.rs`,
+history, power, update manager, temperature and console stores, host information, WLED strips), `happy_hare/`, `spoolman.rs`,
 `led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,
 `UNLOAD_FILAMENT`). `Sources` (`sources/mod.rs`) holds what was detected, each optional source as `Option` or an empty
 list, its variety as data (gates, sensors, LEDs). `PrinterStatus` is the state of all printer objects, Klipper's and
 those of its plugins. Happy Hare counts only while it is enabled and at least version 4.1
 (`PrinterStatus::happy_hare`); every rule that depends on it asks there. Each source also knows what it is told:
 Klipper's methods and G-code in `klipper/commands.rs`, Happy Hare's in `happy_hare/commands.rs`, the others beside
-their reader (`led_effect.rs`, `spoolman.rs`, `moonraker_server/power.rs`, `machine.rs`, `update_manager.rs`). G-code
+their reader (`led_effect.rs`, `spoolman.rs`, `moonraker_server/power.rs`, `machine.rs`, `update_manager.rs`,
+`wled.rs`). G-code
 of every source reaches Klipper through `klipper::commands::run_gcode`.
 
 Domain: `filament.rs` (what Load and Unload run, which filament sensors belong to the printer), `pause.rs` (what is
@@ -92,7 +93,9 @@ history).
    (`Sources::apply_settings`); the configuration only changes with a restart, which subscribes again.
 2. `notify_status_update` is merged into the `ObjectStore`; `PrinterStatus::from_store` provides the typed view
    (heaters, motion, job, objects to exclude, and Happy Hare in `sources/happy_hare/`: gates, sensors, buffer,
-   FlowGuard). Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
+   FlowGuard). Moonraker's WLED strips join the LEDs as `wled <strip>`: read when subscribing, every 5 s (Moonraker
+   does not report changes) and from the answer of each command to a strip; `domain/light.rs` picks the main light
+   among all of them. Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
    copies pixels. The temperature history comes from Moonraker's `server.temperature_store` when a chart opens

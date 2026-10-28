@@ -22,7 +22,7 @@ pub mod tuning;
 pub use calibration::{
     BedMeshState, CalibrationMode, CalibrationSetup, CalibrationState, PendingSection, ScrewAdjustment, TestZ,
 };
-pub use devices::{instance, is_led, main_light, white_channel, Fan, FanKind, Led, WhiteChannel};
+pub use devices::{instance, is_led, white_channel, Fan, FanKind, Led, WhiteChannel};
 pub use exclude_object::{object_at, PrintObject};
 pub use extruder::ExtruderState;
 pub use filament_sensors::FilamentSensor;

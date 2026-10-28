@@ -29,7 +29,10 @@ export global Sample {
             { object: "fan_generic exhaust", label: "Exhaust", kind: "generic", controllable: true, speed: 60, rpm: "1680 rpm" },
             { object: "heater_fan hotend", label: "Hotend", kind: "heater", controllable: false, speed: 100, rpm: "7200 rpm" },
         ];
-        Printer.leds = [{ object: "neopixel chamber", label: "Chamber", level: 80 }];
+        Printer.leds = [
+            { object: "neopixel chamber", label: "Chamber", on: true, level-known: true, level: 80 },
+            { object: "wled enclosure", label: "Enclosure", on: true, level-known: false, level: 0 },
+        ];
         Printer.led-effects = [{ name: "rainbow", label: "Rainbow", enabled: false }];
         Printer.has-light = true;
         Printer.light-name = "Chamber";

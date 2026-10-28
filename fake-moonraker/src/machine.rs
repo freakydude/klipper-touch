@@ -9,7 +9,8 @@ pub struct MachineProfile {
     pub exclude_object: bool,
     /// Moonraker's `spoolman` component with a few spools.
     pub spoolman: bool,
-    /// Extra fans, LEDs with the led_effect plugin, more temperature sensors and firmware retraction.
+    /// Extra fans, LEDs with the led_effect plugin, a WLED strip of Moonraker, more temperature sensors and firmware
+    /// retraction.
     pub devices: bool,
     /// Number of filament sensors, taken from the front of the list of the profile (`FILAMENT_SENSORS` or `MMU_FILAMENT_SENSORS`).
     pub filament_sensors: usize,

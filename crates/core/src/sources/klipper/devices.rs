@@ -8,8 +8,6 @@ use serde_json::Value;
 
 /// LED drivers of Klipper; all of them report `color_data` and take `SET_LED`.
 const LED_KINDS: [&str; 5] = ["led", "neopixel", "dotstar", "pca9533", "pca9632"];
-/// Names that mark the light of the build chamber, for the switch in the status bar.
-const LIGHT_NAMES: [&str; 4] = ["chamber", "case", "light", "enclosure"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FanKind {
@@ -51,25 +49,19 @@ pub struct Fan {
     pub rpm: Option<f64>,
 }
 
+/// A light the person can dim: a Klipper LED or, from Moonraker, a WLED strip.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Led {
     pub object: String,
     pub label: String,
-    /// The brightest channel of all chips, 0 to 1; 0 is off.
-    pub level: f64,
+    pub on: bool,
+    /// Brightness from 0 to 1, for a Klipper LED its brightest channel; `None` if unknown (a WLED strip after a
+    /// preset).
+    pub level: Option<f64>,
 }
 
 pub fn is_led(object: &str) -> bool {
     object.split_once(' ').is_some_and(|(kind, _)| LED_KINDS.contains(&kind))
-}
-
-/// The LED for the light switch in the status bar: one named like a chamber or case light, else the first.
-pub fn main_light(leds: &[String]) -> Option<&str> {
-    let named = leds.iter().find(|led| {
-        let name = led.split_once(' ').map_or(led.as_str(), |(_, name)| name).to_ascii_lowercase();
-        LIGHT_NAMES.iter().any(|light| name.contains(light))
-    });
-    named.or(leds.first()).map(String::as_str)
 }
 
 /// Which chips of an LED chain have a white channel.
@@ -149,7 +141,8 @@ pub(super) fn read_leds(store: &ObjectStore) -> Vec<Led> {
             let chips = store.object(name)?.get("color_data")?.as_array()?;
             let level =
                 chips.iter().filter_map(Value::as_array).flatten().filter_map(Value::as_f64).fold(0.0_f64, f64::max);
-            Some(Led { object: name.to_owned(), label: label(name), level: level.clamp(0.0, 1.0) })
+            let level = level.clamp(0.0, 1.0);
+            Some(Led { object: name.to_owned(), label: label(name), on: level > 0.0, level: Some(level) })
         })
         .collect()
 }
@@ -197,16 +190,8 @@ mod tests {
         })));
 
         assert_eq!(leds.len(), 2);
-        assert_eq!((leds[0].label.as_str(), leds[0].level), ("Status", 0.0));
-        assert_eq!((leds[1].label.as_str(), leds[1].level), ("Chamber", 0.75));
-    }
-
-    #[test]
-    fn the_chamber_light_is_preferred_for_the_status_bar() {
-        let leds = ["neopixel sb".to_owned(), "neopixel chamber".to_owned()];
-        assert_eq!(main_light(&leds), Some("neopixel chamber"));
-        assert_eq!(main_light(&leds[..1]), Some("neopixel sb"));
-        assert_eq!(main_light(&[]), None);
+        assert_eq!((leds[0].label.as_str(), leds[0].on, leds[0].level), ("Status", false, Some(0.0)));
+        assert_eq!((leds[1].label.as_str(), leds[1].on, leds[1].level), ("Chamber", true, Some(0.75)));
     }
 
     #[test]

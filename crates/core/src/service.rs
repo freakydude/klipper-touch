@@ -13,6 +13,7 @@ use crate::sources::moonraker_server::machine::{self, HostInterface};
 use crate::sources::moonraker_server::power::{self, PowerDevice};
 use crate::sources::moonraker_server::temperature_store::{self, TemperatureSeries};
 use crate::sources::moonraker_server::update_manager::{self, UpdateInfo};
+use crate::sources::moonraker_server::wled::{self, WledStrip};
 use crate::sources::moonraker_server::{server_info, ServerComponents};
 use crate::sources::spoolman::{self, Spool, SpoolmanState};
 use crate::sources::{ObjectStore, PrinterStatus, Sources};
@@ -33,6 +34,8 @@ const CONSOLE_HISTORY: u32 = 100;
 const PRINT_HISTORY_LIMIT: u32 = 300;
 /// Moonraker reports the active spool and the connection itself; the weights of the spools it does not, so they are read again now and then.
 const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
+/// Moonraker does not report WLED changes, and Mainsail or a macro may switch a strip too.
+const WLED_POLL_INTERVAL: Duration = Duration::from_secs(5);
 /// Spools for the picker: the most recently used ones.
 const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "freakymate";
@@ -186,8 +189,9 @@ async fn run(
         publish_connection(&outputs, &endpoint, ConnectionState::Connecting);
         let end = match Connection::open(&endpoint.websocket_url()).await {
             Ok((connection, notifications)) => {
-                let session = Session::new(connection, http.clone(), endpoint.clone(), &outputs);
-                session.run(notifications, &mut requests).await
+                let (wled_answers, wled_answers_rx) = mpsc::unbounded_channel();
+                let session = Session::new(connection, http.clone(), endpoint.clone(), &outputs, wled_answers);
+                session.run(notifications, wled_answers_rx, &mut requests).await
             }
             Err(error) => {
                 log::info!("cannot connect to {}: {error}", endpoint.websocket_url());
@@ -257,10 +261,20 @@ struct Session<'a> {
     spoolman_gate_spools: Option<Vec<u32>>,
     /// Limits the file details in flight, so a long file list does not flood Moonraker.
     file_details: Arc<Semaphore>,
+    /// Moonraker's WLED strips; part of the snapshot's lights.
+    wled: Vec<WledStrip>,
+    /// The answers of the commands to a WLED strip, which carry its new state.
+    wled_answers: mpsc::UnboundedSender<Vec<WledStrip>>,
 }
 
 impl<'a> Session<'a> {
-    fn new(connection: Connection, http: reqwest::Client, endpoint: Endpoint, outputs: &'a Outputs) -> Self {
+    fn new(
+        connection: Connection,
+        http: reqwest::Client,
+        endpoint: Endpoint,
+        outputs: &'a Outputs,
+        wled_answers: mpsc::UnboundedSender<Vec<WledStrip>>,
+    ) -> Self {
         Self {
             connection,
             http,
@@ -275,12 +289,15 @@ impl<'a> Session<'a> {
             pending_targets: PendingTargets::default(),
             spoolman_gate_spools: None,
             file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
+            wled: Vec::new(),
+            wled_answers,
         }
     }
 
     async fn run(
         mut self,
         mut notifications: mpsc::UnboundedReceiver<Notification>,
+        mut wled_answers: mpsc::UnboundedReceiver<Vec<WledStrip>>,
         requests: &mut mpsc::UnboundedReceiver<Request>,
     ) -> SessionEnd {
         if let Err(error) = self.introduce().await {
@@ -290,6 +307,7 @@ impl<'a> Session<'a> {
         self.publish();
         let mut klippy_poll = tokio::time::interval(KLIPPY_POLL_INTERVAL);
         let mut spoolman_poll = tokio::time::interval(SPOOLMAN_POLL_INTERVAL);
+        let mut wled_poll = tokio::time::interval(WLED_POLL_INTERVAL);
         loop {
             tokio::select! {
                 notification = notifications.recv() => match notification {
@@ -305,6 +323,11 @@ impl<'a> Session<'a> {
                 },
                 _ = spoolman_poll.tick(), if self.klippy_ready && self.components.spoolman => {
                     self.answer(Query::Spoolman);
+                }
+                Some(strips) = wled_answers.recv() => self.update_wled(strips),
+                _ = wled_poll.tick(), if self.klippy_ready && !self.wled.is_empty() => {
+                    let strips = self.fetch_wled().await;
+                    self.update_wled(strips);
                 }
                 _ = klippy_poll.tick(), if !self.klippy_ready => {
                     if let Err(error) = self.refresh_klippy().await {
@@ -352,11 +375,42 @@ impl<'a> Session<'a> {
         let parameters = sources.subscription(&available);
         let result = self.connection.call("printer.objects.subscribe", Some(parameters)).await?;
         sources.apply_settings(result.pointer("/status/configfile/settings"));
+        self.wled = self.fetch_wled().await;
+        sources.wled_strips = self.wled.iter().map(WledStrip::object).collect();
         self.sources = sources;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
         self.klippy_ready = true;
         self.publish();
         Ok(())
+    }
+
+    /// Moonraker's WLED strips; none without its `wled` component or when it cannot be asked.
+    async fn fetch_wled(&self) -> Vec<WledStrip> {
+        if !self.components.wled {
+            return Vec::new();
+        }
+        match self.connection.call("machine.wled.strips", None).await {
+            Ok(result) => wled::parse_strip_list(&result),
+            Err(error) => {
+                log::info!("WLED strips unavailable: {error}");
+                Vec::new()
+            }
+        }
+    }
+
+    /// Takes the state of known strips; the strips themselves only change with Moonraker's configuration, which
+    /// ends the connection.
+    fn update_wled(&mut self, strips: Vec<WledStrip>) {
+        let mut changed = false;
+        for strip in strips {
+            if let Some(known) = self.wled.iter_mut().find(|known| known.name == strip.name) {
+                changed |= *known != strip;
+                *known = strip;
+            }
+        }
+        if changed {
+            self.publish();
+        }
     }
 
     /// Sets the Klippy state without a subscription, e.g. on shutdown or while Klipper starts.
@@ -420,6 +474,7 @@ impl<'a> Session<'a> {
     fn current_status(&mut self) -> PrinterStatus {
         let mut status = PrinterStatus::from_store(&self.store);
         self.pending_targets.apply(&mut status.heaters, Instant::now());
+        status.leds.extend(self.wled.iter().map(WledStrip::led));
         status
     }
 
@@ -495,6 +550,7 @@ impl<'a> Session<'a> {
             _ => false,
         };
         let spools_change = command.changes_spools();
+        let wled_answers = matches!(command, Command::SetWledStrip { .. }).then(|| self.wled_answers.clone());
         let label = running_label(&call, &command);
         let spool_events = self.outputs.events.clone();
         let running_events = self.outputs.events.clone();
@@ -514,7 +570,11 @@ impl<'a> Session<'a> {
                         Ok(_) if spools_change => {
                             let _ = spool_events.send(Event::SpoolmanChanged);
                         }
-                        Ok(_) => {}
+                        Ok(answer) => {
+                            if let (Some(sender), Some(strips)) = (wled_answers, answer.as_object()) {
+                                let _ = sender.send(wled::parse_strips(strips));
+                            }
+                        }
                         Err(error) => failed(error),
                     }
                 });

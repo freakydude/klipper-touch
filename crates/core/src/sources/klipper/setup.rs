@@ -2,7 +2,7 @@
 //! only changes with a restart, which subscribes again).
 
 use super::calibration::{self, CalibrationSetup};
-use super::devices::{self, FanKind, Led, WhiteChannel};
+use super::devices::{self, FanKind, WhiteChannel};
 use super::filament_sensors::is_filament_sensor;
 use super::leveling::Leveling;
 use super::macros::{self, MacroDetails};
@@ -83,17 +83,6 @@ impl Setup {
 
     pub fn white_channel(&self, led: &str) -> WhiteChannel {
         self.led_white.iter().find(|(candidate, _)| candidate == led).map(|(_, white)| *white).unwrap_or_default()
-    }
-
-    /// The LED the light switch of the status bar turns on and off.
-    pub fn main_light(&self) -> Option<&str> {
-        devices::main_light(&self.leds)
-    }
-
-    /// The state of the main light among the reported LEDs; `None` if there is none or it reports nothing yet.
-    pub fn main_led<'a>(&self, leds: &'a [Led]) -> Option<&'a Led> {
-        let main_light = self.main_light()?;
-        leds.iter().find(|led| led.object == main_light)
     }
 
     /// Channel levels `[red, green, blue, white]` for white light at `level` (0 to 1) on `led`, see
