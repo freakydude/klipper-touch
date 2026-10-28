@@ -354,6 +354,8 @@ export global Printer {
     in property <bool> mmu-paused;
     in property <bool> mmu-locked;
     in property <bool> mmu-homed;
+    // Position of the selector servo: up, down, move or unknown; empty when the selector has no servo.
+    in property <string> mmu-servo;
     in property <bool> mmu-has-buffer;
     // compressed | neutral | tension | inactive | disabled
     in property <string> mmu-buffer-state;
@@ -534,6 +536,12 @@ export global Actions {
     callback mmu-eject();
     callback mmu-recover();
     callback mmu-unlock();
+    callback mmu-motors-off();
+    callback mmu-check-gate(int);
+    callback mmu-check-all-gates();
+    callback mmu-preload(int);
+    callback mmu-servo-up();
+    callback mmu-servo-down();
     callback run-gcode(string);
     callback refresh-files();
     callback start-print(string);
@@ -633,7 +641,7 @@ export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
     in-out property <bool> messages-open;
-    // Filament page: 0 = extruder, 1 = MMU
+    // Filament page: 0 = extruder, 1 = MMU, 2 = MMU service
     in-out property <int> filament-tab;
     // First page of four gates that the MMU tab shows, counted from 0.
     in-out property <int> mmu-page;
@@ -682,6 +690,9 @@ export global Confirm {
         if (self.action == "emergency-stop") { Actions.emergency-stop(); }
         if (self.action == "run-macro") { Actions.run-macro(self.argument); }
         if (self.action == "mmu-eject") { Actions.mmu-eject(); }
+        if (self.action == "mmu-motors-off") { Actions.mmu-motors-off(); }
+        if (self.action == "mmu-check-gate") { Actions.mmu-check-gate(self.argument.to-float()); }
+        if (self.action == "mmu-check-all-gates") { Actions.mmu-check-all-gates(); }
         if (self.action == "save-config") { Actions.save-config(); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }

@@ -8,7 +8,7 @@ use freakymate_core::domain::job_end;
 use freakymate_core::domain::pause::{Interruption, InterruptionFact};
 use freakymate_core::domain::spools::PrintHint;
 use freakymate_core::sources::happy_hare::{
-    path_sensor_names, FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, SyncFeedbackState,
+    path_sensor_names, FlowGuardState, GateAvailability, LoadedFilament, MmuSensor, ServoPosition, SyncFeedbackState,
 };
 use freakymate_core::sources::klipper::tuning::TuningRange;
 use freakymate_core::sources::klipper::{FanKind, PrintJob, PrintState};
@@ -262,6 +262,17 @@ pub fn mmu_filament(filament: LoadedFilament) -> &'static str {
         LoadedFilament::Loaded => "loaded",
         LoadedFilament::Unloaded => "unloaded",
         LoadedFilament::Unknown => "unknown",
+    }
+}
+
+/// Empty when the selector has no servo.
+pub fn mmu_servo(servo: Option<ServoPosition>) -> &'static str {
+    match servo {
+        None => "",
+        Some(ServoPosition::Up) => "up",
+        Some(ServoPosition::Down) => "down",
+        Some(ServoPosition::Move) => "move",
+        Some(ServoPosition::Unknown) => "unknown",
     }
 }
 
@@ -539,6 +550,10 @@ mod tests {
             ]
             .map(mmu_flowguard_state),
             ["off", "triggered", "boosting", "monitoring", "ready"]
+        );
+        assert_eq!(
+            [None, Some(ServoPosition::Up), Some(ServoPosition::Down), Some(ServoPosition::Unknown)].map(mmu_servo),
+            ["", "up", "down", "unknown"]
         );
     }
 

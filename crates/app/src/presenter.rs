@@ -570,6 +570,7 @@ impl Presenter {
         printer.set_mmu_paused(mmu.paused);
         printer.set_mmu_locked(mmu.locked);
         printer.set_mmu_homed(mmu.homed);
+        printer.set_mmu_servo(view::mmu_servo(mmu.servo).into());
         printer.set_mmu_has_buffer(has_buffer);
         let feedback = mmu.sync_feedback.unwrap_or_default();
         printer.set_mmu_buffer_state(view::mmu_buffer_state(feedback.state).into());

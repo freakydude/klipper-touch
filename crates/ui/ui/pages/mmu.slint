@@ -21,6 +21,23 @@ export global MmuTexts {
         if (state == "monitoring") { return @tr("FlowGuard monitoring"); }
         return @tr("FlowGuard ready");
     }
+    pure public function availability(availability: string) -> string {
+        if (availability == "available") { return @tr("Available"); }
+        if (availability == "buffered") { return @tr("Buffered"); }
+        if (availability == "empty") { return @tr("Empty"); }
+        return @tr("Unknown");
+    }
+}
+
+// Whether a gate has filament, as an icon with a word; shared by the MMU tab and the service tab.
+export component GateAvailabilityLabel inherits IconLabel {
+    in property <string> availability;
+    property <bool> has-filament: root.availability == "available" || root.availability == "buffered";
+
+    icon: root.has-filament ? Icons.mmu-gate-available : root.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
+    text: MmuTexts.availability(root.availability);
+    color: root.has-filament ? Theme.success : root.availability == "empty" ? Theme.warning : Theme.muted;
+    font-size: Theme.font-small;
 }
 
 component GateTile inherits Rectangle {
@@ -29,14 +46,6 @@ component GateTile inherits Rectangle {
 
     property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
     property <bool> shows-spool: Printer.has-spoolman && root.has-filament;
-    property <color> status-color: root.has-filament ? Theme.success : root.gate.availability == "empty" ? Theme.warning : Theme.muted;
-
-    pure function availability-text() -> string {
-        if (root.gate.availability == "available") { return @tr("Available"); }
-        if (root.gate.availability == "buffered") { return @tr("Buffered"); }
-        if (root.gate.availability == "empty") { return @tr("Empty"); }
-        return @tr("Unknown");
-    }
 
     border-radius: Theme.radius;
     background: tile-touch.pressed ? Theme.surface-active : Theme.surface-raised;
@@ -109,11 +118,8 @@ component GateTile inherits Rectangle {
             }
         }
         Rectangle { vertical-stretch: 1; }
-        IconLabel {
-            icon: root.has-filament ? Icons.mmu-gate-available : root.gate.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
-            text: root.availability-text();
-            color: root.status-color;
-            font-size: Theme.font-small;
+        GateAvailabilityLabel {
+            availability: root.gate.availability;
         }
     }
 }

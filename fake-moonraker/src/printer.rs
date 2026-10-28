@@ -682,7 +682,7 @@ impl Printer {
 
     fn apply_mmu(&mut self, command: MmuCommand) -> Result<(), CommandError> {
         match self.mmu.as_mut() {
-            Some(mmu) => mmu.apply(command),
+            Some(mmu) => mmu.apply(command, self.print_state.as_str()),
             None => Err(CommandError::new(format!("Unknown command:\"{}\"", command.gcode_name()))),
         }
     }
