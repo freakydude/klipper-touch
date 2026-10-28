@@ -1,4 +1,4 @@
-//! `cargo run -p icon-index` writes `crates/app/ui/icons.slint` and `assets/icons/overview.html`;
+//! `cargo run -p icon-index` writes `crates/ui/ui/icons.slint` and `assets/icons/overview.html`;
 //! with `--check` it only checks (exit code 1 on errors).
 
 use icon_index::{check_icons, load_icons, overview_html, repository_root, slint_index, Layout};
@@ -20,7 +20,7 @@ fn main() -> ExitCode {
     if check_only {
         let current = std::fs::read_to_string(&layout.slint_index).unwrap_or_default().replace("\r\n", "\n");
         if current != index {
-            problems.push("crates/app/ui/icons.slint is outdated (run: cargo run -p icon-index)".to_owned());
+            problems.push("crates/ui/ui/icons.slint is outdated (run: cargo run -p icon-index)".to_owned());
         }
     } else if let Err(error) = std::fs::write(&layout.slint_index, &index)
         .and_then(|()| std::fs::write(&layout.overview, overview_html(&icons)))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renders the UI previews in crates/app/ui/preview with slint-viewer, without building the app.
+# Renders the UI previews in crates/ui/ui/preview with slint-viewer, without building the app.
 # WSL2/Linux counterpart of ui-preview.ps1.
 # Usage (repo root): scripts/ui-preview.sh [-n print-printing,temperature] [-o <folder>]
 # Uses slint-viewer from PATH; otherwise compiles the version matching Cargo.lock into ~/.local/bin (first run only).
@@ -7,7 +7,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-preview_dir="$root/crates/app/ui/preview"
+preview_dir="$root/crates/ui/ui/preview"
 out_dir="${TMPDIR:-/tmp}/kt-ui-preview"
 names=()
 

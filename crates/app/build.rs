@@ -1,7 +1,6 @@
 use std::path::Path;
 
 fn main() {
-    slint_build::compile("ui/app.slint").expect("Slint UI must compile");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         embed_windows_icon();
     }

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/core",
+    "crates/ui",
     "crates/app",
     "crates/ui-snapshot",
     "crates/icon-index",
@@ -19,6 +20,7 @@ rust-version = "1.92"
 
 [workspace.dependencies]
 freakymate-core = { path = "crates/core" }
+freakymate-ui = { path = "crates/ui" }
 freakymate = { path = "crates/app" }
 fake-moonraker = { path = "fake-moonraker" }
 futures-util = { version = "0.3.34", default-features = false, features = [

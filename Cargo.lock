@@ -1510,9 +1510,9 @@ dependencies = [
  "embed-resource",
  "env_logger",
  "freakymate-core",
+ "freakymate-ui",
  "log",
  "slint",
- "slint-build",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -1533,6 +1533,14 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.30.0",
  "zbus",
+]
+
+[[package]]
+name = "freakymate-ui"
+version = "0.0.0"
+dependencies = [
+ "slint",
+ "slint-build",
 ]
 
 [[package]]

@@ -316,7 +316,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 scripts/verify.sh [--snapshot]                           # WSL2/Arch: all of the above plus previews and the skill check in one go
-scripts/ui-preview.sh                                    # renders crates/app/ui/preview/*.slint with sample data in seconds
+scripts/ui-preview.sh                                    # renders crates/ui/ui/preview/*.slint with sample data in seconds
 scripts/ui-snapshot.sh [-p happy-hare] [-s 1024x600] [-F] [-S pages,printing]   # starts the fake itself, renders the screens to PNG
 cargo run -p ui-snapshot -- --out shots --scenes all     # the same by hand (needs the fake running)
 cargo run -p icon-index                                  # after changing icons in assets/icons
@@ -338,7 +338,7 @@ Scripts exist in two variants with the same behaviour:
 | Rust (`rustup`)                                                                        | everything                                      | [rustup.rs](https://rustup.rs); `rust-toolchain.toml` selects the version                                               | `PATH`                                                                                 |
 | MinGW linker ([w64devkit](https://github.com/skeeto/w64devkit))                        | building on Windows without MSVC                | `scripts\setup.ps1` downloads it                                                                                        | `%USERPROFILE%\tools\w64devkit\bin`, added to the user `PATH` by the script            |
 | [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts/ui-preview.sh` (WSL2), `scripts\ui-preview.ps1` (Windows) | WSL2: the script compiles the version matching `slint` in `Cargo.lock` into `~/.local/bin` (`cargo install slint-viewer --version <same>`); Windows: the script downloads it | `slint-viewer` on `PATH` first, otherwise the script's install location |
-| Slint extension for VS Code (optional)                                                 | live preview of `crates/app/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
+| Slint extension for VS Code (optional)                                                 | live preview of `crates/ui/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
 
 To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.
 

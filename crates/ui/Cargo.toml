@@ -1,0 +1,16 @@
+[package]
+name = "freakymate-ui"
+description = "Slint UI of freakymate: the compiled ui/*.slint files, without app logic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+# Kept free of freakymate-core, so changes in the core do not recompile the large generated UI code.
+[dependencies]
+slint = { workspace = true, features = ["std", "compat-1-2"] }
+
+[build-dependencies]
+slint-build = "1.18.1"
