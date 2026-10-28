@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Navigation, Printer, UiSettings } from "../state.slint";
-import { Card, IconButton, IconLabel, StepSelector } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, StepSelector, TabBar, TabButton } from "../components/controls.slint";
 import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuTab } from "mmu.slint";
 
@@ -131,24 +131,16 @@ export component FilamentPage inherits Rectangle {
     property <bool> mmu-tab: Printer.has-mmu && Navigation.filament-tab == 1;
 
     VerticalLayout {
-        if Printer.has-mmu: HorizontalLayout {
-            padding: Theme.padding;
-            padding-bottom: 0px;
-            spacing: Theme.spacing;
-            height: Theme.touch + Theme.padding;
-            IconButton {
-                width: 150px;
+        if Printer.has-mmu: TabBar {
+            TabButton {
                 icon: Icons.filament-extrude;
                 text: @tr("Extruder");
-                horizontal: true;
                 checked: !root.mmu-tab;
                 clicked => { Navigation.filament-tab = 0; }
             }
-            IconButton {
-                width: 150px;
+            TabButton {
                 icon: Icons.mmu-unit;
                 text: @tr("MMU");
-                horizontal: true;
                 checked: root.mmu-tab;
                 clicked => { Navigation.filament-tab = 1; }
             }

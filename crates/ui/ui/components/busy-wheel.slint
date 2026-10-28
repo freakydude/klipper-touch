@@ -1,0 +1,80 @@
+// Busy indicator for long-running commands: the wheel of the app icon turns by 60° in one push, while a drop of
+// filament forms under the spool and falls, like hot filament from a nozzle. One cycle per `period`.
+// The wheel is drawn from 12 frames of 5° (assets/logo/busy), because the software renderer cannot rotate images.
+
+import { Theme } from "../theme.slint";
+
+export component BusyWheel {
+    // Animates only while true; otherwise the wheel rests and nothing is redrawn.
+    in property <bool> running: true;
+    // Position in the cycle, 0..1. Driven by the timer while running; a fixed value shows one moment (previews).
+    in property <float> phase: Math.mod(root.ticks * root.tick / root.period, 1);
+    in property <duration> period: 1.2s;
+    // 20 frames per second: one wheel frame per tick during the push (12 frames in 0.6 s), smooth enough for the
+    // drop. `animation-tick()` would redraw the window at the display rate.
+    property <duration> tick: 50ms;
+    property <int> ticks;
+    // Accent by default (Frank, 2026-10-28); the red of the app icon (#d7262f) or `Theme.muted` (grey, less
+    // prominent) where a place needs it.
+    in property <brush> wheel-color: Theme.accent;
+    in property <brush> filament-color: Theme.foreground;
+    width: 48px;
+    height: 48px;
+
+    // The first half of the cycle turns the wheel (eased in and out) and lets the drop grow; the second half lets it fall.
+    property <float> push: Math.clamp(root.phase * 2, 0, 1);
+    property <float> eased: root.push * root.push * (3 - 2 * root.push);
+    property <int> frame: Math.mod(Math.round(root.eased * 12), 12);
+    property <float> fall: Math.clamp(root.phase * 2 - 1, 0, 1);
+    // One unit of the 48x48 drawing.
+    property <length> unit: root.width / 48;
+    property <float> drop-radius: root.fall > 0 ? 2.2 : 2.2 * root.eased;
+    property <float> drop-y: 37.9 + root.drop-radius + 5.5 * root.fall * root.fall;
+    property <[image]> frames: [
+        @image-url("../../../../assets/logo/busy/busy-wheel-00.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-01.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-02.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-03.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-04.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-05.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-06.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-07.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-08.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-09.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-10.svg"),
+        @image-url("../../../../assets/logo/busy/busy-wheel-11.svg"),
+    ];
+
+    Timer {
+        interval: root.tick;
+        running: root.running;
+        // Wraps once per cycle, so the counter never grows without bound.
+        triggered => {
+            root.ticks = Math.mod(root.ticks + 1, Math.round(root.period / root.tick));
+        }
+    }
+
+    Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("../../../../assets/logo/busy/busy-spool.svg");
+        colorize: root.filament-color;
+    }
+
+    Image {
+        width: 100%;
+        height: 100%;
+        source: root.frames[root.frame];
+        colorize: root.wheel-color;
+    }
+
+    Rectangle {
+        x: (24 - root.drop-radius) * root.unit;
+        y: (root.drop-y - root.drop-radius) * root.unit;
+        width: 2 * root.drop-radius * root.unit;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.filament-color;
+        opacity: 1 - root.fall;
+    }
+}

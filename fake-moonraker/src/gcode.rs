@@ -1,5 +1,6 @@
 //! Parser for the G-code lines the UI sends via `printer.gcode.script`.
 
+use crate::calibration::{CalibrationCommand, TestZ};
 use crate::layer_pause::LayerPauseCommand;
 use std::fmt;
 
@@ -77,9 +78,13 @@ pub enum Command {
     SaveConfig,
     QuadGantryLevel,
     Help,
+    /// `G4 P<milliseconds>`: waits; the fake answers the script only afterwards, like Klipper.
+    Dwell(std::time::Duration),
     Mmu(MmuCommand),
     /// Mainsail's layer pause macros.
     LayerPause(LayerPauseCommand),
+    /// Probe, bed screws and bed mesh, and the commands within their helpers.
+    Calibration(CalibrationCommand),
     /// Ends the running print with an error, like Klipper after a move out of range (`FAKE_PRINT_ERROR`; not in
     /// Klipper).
     FakePrintError,
@@ -214,6 +219,9 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
 
     match name.as_str() {
         "G28" => Ok(Command::Home(parse_axes(&args))),
+        "G4" => Ok(Command::Dwell(std::time::Duration::from_millis(
+            letter_value(&args, 'P')?.unwrap_or(0.0).max(0.0) as u64
+        ))),
         "M104" => Ok(Command::SetExtruderTarget(letter_value(&args, 'S')?.unwrap_or(0.0))),
         "M140" => Ok(Command::SetBedTarget(letter_value(&args, 'S')?.unwrap_or(0.0))),
         "M106" => Ok(Command::SetFanSpeed(fan_speed(&args)?)),
@@ -277,6 +285,21 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             layer: named_index(&args, "LAYER")?.map(|layer| layer as u32),
         })),
         "FAKE_PRINT_ERROR" => Ok(Command::FakePrintError),
+        "PROBE_CALIBRATE" => Ok(Command::Calibration(CalibrationCommand::ProbeCalibrate)),
+        "MANUAL_PROBE" => Ok(Command::Calibration(CalibrationCommand::ManualProbe)),
+        "TESTZ" => Ok(Command::Calibration(CalibrationCommand::TestZ(TestZ::parse(&required_text(&args, "Z")?)?))),
+        "ACCEPT" => Ok(Command::Calibration(CalibrationCommand::Accept)),
+        "ADJUSTED" => Ok(Command::Calibration(CalibrationCommand::Adjusted)),
+        "ABORT" => Ok(Command::Calibration(CalibrationCommand::Abort)),
+        "BED_SCREWS_ADJUST" => Ok(Command::Calibration(CalibrationCommand::BedScrewsAdjust)),
+        "SCREWS_TILT_CALCULATE" => Ok(Command::Calibration(CalibrationCommand::ScrewsTiltCalculate)),
+        "BED_MESH_CALIBRATE" => {
+            Ok(Command::Calibration(CalibrationCommand::BedMeshCalibrate { profile: named_text(&args, "PROFILE") }))
+        }
+        // Only `LOAD` is simulated; `SAVE` and `REMOVE` are ignored.
+        "BED_MESH_PROFILE" => Ok(named_text(&args, "LOAD")
+            .map_or(Command::Ignored, |profile| Command::Calibration(CalibrationCommand::BedMeshLoad { profile }))),
+        "BED_MESH_CLEAR" => Ok(Command::Calibration(CalibrationCommand::BedMeshClear)),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" => Ok(Command::Mmu(MmuCommand::Select { gate: required_index(&args, "GATE")? })),
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
@@ -415,6 +438,23 @@ mod tests {
     }
 
     #[test]
+    fn parses_calibration_commands() {
+        let commands =
+            parse_script("TESTZ Z=-0.05\nTESTZ Z=++\nBED_MESH_PROFILE LOAD=hot\nBED_MESH_PROFILE SAVE=hot").unwrap();
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::Calibration(CalibrationCommand::TestZ(TestZ::By(-0.05))),
+                Command::Calibration(CalibrationCommand::TestZ(TestZ::Up { half: false })),
+                Command::Calibration(CalibrationCommand::BedMeshLoad { profile: "hot".into() }),
+                Command::Ignored,
+            ]
+        );
+        assert!(parse_script("TESTZ Z=up").is_err());
+    }
+
+    #[test]
     fn parses_tuning_commands() {
         let commands =
             parse_script("M220 S110\nM221 S95\nSET_PRESSURE_ADVANCE ADVANCE=0.05\nM83\nSET_HEATER_TEMPERATURE HEATER=chamber TARGET=40")
@@ -501,6 +541,11 @@ mod tests {
     #[test]
     fn parses_help() {
         assert_eq!(parse_script("help").unwrap(), vec![Command::Help]);
+    }
+
+    #[test]
+    fn dwell_waits_the_given_milliseconds() {
+        assert_eq!(parse_script("G4 P1500").unwrap(), vec![Command::Dwell(std::time::Duration::from_millis(1500))]);
     }
 
     #[test]

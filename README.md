@@ -1,3 +1,5 @@
+<img src="assets/logo/freakymate.svg" alt="FreakyMate logo" width="96" align="right">
+
 # FreakyMate
 
 **A touch screen for Klipper, with Happy Hare and Spoolman built in.**
@@ -118,13 +120,29 @@ built in. This is what I found in the KlipperScreen documentation (read in Octob
 I did not look into what the KlipperScreen Spoolman panel can do beyond its existence, so this row says nothing about
 the depth of either.
 
+## Release and pre-release
+
+The [releases page](https://github.com/freakydude/freakymate/releases) offers two kinds of builds:
+
+| Build           | What it is                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pre-release** | Always the current state of `main`. Every merged change replaces it, so it has the newest functions first.                                 |
+| **Release**     | From time to time I tag a state of `main` as release `vX.Y.0`, when a set of changes feels finished. Fewer updates, more time in use.       |
+
+Neither is an untested nightly: a change only reaches `main` through a reviewed pull request whose automated checks
+(tests, builds and packages for all targets) are green, and a release is a state that was the pre-release before.
+Beyond that, "tested" means tried by me on my own setup, and not very intensively yet. Nobody else has confirmed
+either build, so the caution above applies to both in full. Pick the release if you want few updates, the
+pre-release if you want to follow the development; the update channel below decides which one Moonraker installs.
+
 ## Install on the printer host
 
 This is the main use case: FreakyMate runs on the host of the printer (Raspberry Pi OS, Armbian or another
 Debian-based system with the display attached), starts fullscreen on the display at boot and updates itself through
 Moonraker's update manager, like Mainsail or Fluidd.
 
-1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases):
+1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases)
+   (release or pre-release, see above):
    `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
    Builds target Debian Bookworm and run on Bookworm and Trixie.
 2. Unpack and run the installer as your normal user (the one running Klipper and Moonraker):
@@ -154,7 +172,7 @@ The section written by the installer (add it yourself if `moonraker.conf` lives 
 ```ini
 [update_manager freakymate]
 type: zip
-channel: stable          # beta = also preview builds of main
+channel: stable          # beta = also the pre-release (current main)
 repo: freakydude/freakymate
 path: ~/freakymate
 managed_services: freakymate
@@ -163,8 +181,8 @@ system_dependencies: system-dependencies.json
 
 | Channel  | What you get                                                                                                                        |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `stable` | Releases `vX.Y.0` that I publish by hand when a set of changes feels finished. Few updates, the safer choice.                       |
-| `beta`   | In addition a preview build of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New things first, may be broken.    |
+| `stable` | Only releases `vX.Y.0`. Few updates, more time in use.                                                                              |
+| `beta`   | In addition the pre-release of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New functions first.               |
 
 To change the channel set `channel:` in that section and restart Moonraker (`sudo systemctl restart moonraker`). The
 installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing `channel`
@@ -187,8 +205,8 @@ Besides the Moonraker route there are plain packages, for example to try it on a
   ```
 
 - **Windowed mode on a desktop** (Linux PC, Raspberry Pi OS with desktop, Windows): the program opens as a normal window
-  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start `freakymate` from a
-  terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
+  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start FreakyMate from the
+  application menu or with `freakymate` in a terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
   `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
   Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
 
@@ -298,7 +316,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 scripts/verify.sh [--snapshot]                           # WSL2/Arch: all of the above plus previews and the skill check in one go
-scripts/ui-preview.sh                                    # renders crates/app/ui/preview/*.slint with sample data in seconds
+scripts/ui-preview.sh                                    # renders crates/ui/ui/preview/*.slint with sample data in seconds
 scripts/ui-snapshot.sh [-p happy-hare] [-s 1024x600] [-F] [-S pages,printing]   # starts the fake itself, renders the screens to PNG
 cargo run -p ui-snapshot -- --out shots --scenes all     # the same by hand (needs the fake running)
 cargo run -p icon-index                                  # after changing icons in assets/icons
@@ -310,7 +328,7 @@ cargo run -p icon-index                                  # after changing icons 
 
 Scripts exist in two variants with the same behaviour:
 
-- `scripts/*.sh` (bash) for WSL2 with Arch Linux, the main development environment. `scripts/setup-wsl.sh` checks the environment.
+- `scripts/*.sh` (bash) for Arch Linux, native or in WSL2, the main development environment. `scripts/setup-linux.sh` checks the environment.
 - `scripts/*.ps1` (PowerShell) for Windows without admin rights. `scripts\setup.ps1` prepares the GNU toolchain there, see [docs/windows-without-admin.md](docs/windows-without-admin.md).
 
 ### Tools
@@ -320,9 +338,29 @@ Scripts exist in two variants with the same behaviour:
 | Rust (`rustup`)                                                                        | everything                                      | [rustup.rs](https://rustup.rs); `rust-toolchain.toml` selects the version                                               | `PATH`                                                                                 |
 | MinGW linker ([w64devkit](https://github.com/skeeto/w64devkit))                        | building on Windows without MSVC                | `scripts\setup.ps1` downloads it                                                                                        | `%USERPROFILE%\tools\w64devkit\bin`, added to the user `PATH` by the script            |
 | [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts/ui-preview.sh` (WSL2), `scripts\ui-preview.ps1` (Windows) | WSL2: the script compiles the version matching `slint` in `Cargo.lock` into `~/.local/bin` (`cargo install slint-viewer --version <same>`); Windows: the script downloads it | `slint-viewer` on `PATH` first, otherwise the script's install location |
-| Slint extension for VS Code (optional)                                                 | live preview of `crates/app/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
+| Slint extension for VS Code (optional)                                                 | live preview of `crates/ui/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
 
 To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.
+
+### Faster builds (optional, Linux)
+
+[`sccache`](https://github.com/mozilla/sccache) caches compiled crates across `cargo clean`, branches and checkouts
+on Arch Linux, native or in WSL2. It skips incremental builds, so it mainly saves rebuilding the dependencies (Slint
+above all). It is configured per user, not in the repo, so CI and machines without it are unaffected;
+`scripts/setup-linux.sh` reports whether it is set up.
+
+```bash
+sudo pacman -S --needed sccache
+```
+
+`~/.cargo/config.toml`:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+`sccache --show-stats` shows the cache hits. In WSL2, keep the repo in the Linux file system (e.g. under `~`), not under `/mnt/c`.
 
 ### Development builds and releases
 
@@ -334,7 +372,9 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
 ### Contributing
 
 `main` is protected: changes go through a pull request, all CI checks must be green and the code owner
-(`.github/CODEOWNERS`) has to approve it. This is a hobby project, so replies may take a while.
+(`.github/CODEOWNERS`) has to approve it. Before the first pull request is merged, contributors agree to the
+[Contributor License Agreement](CLA.md) once (currently a draft). Details in [CONTRIBUTING.md](CONTRIBUTING.md). This is a hobby
+project, so replies may take a while.
 
 ### CI, versions and releases
 
@@ -354,6 +394,10 @@ The development tools are separate programs and never shipped: `fake-moonraker` 
 - Assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
   `scripts/debian`). Linux zips contain `freakymate`, `install.sh`, `uninstall.sh`,
   `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `freakymate.exe`.
+  Every zip and `.deb` also contains `LICENSE` and `THIRD-PARTY-LICENSES.html` (licenses of all compiled-in crates,
+  generated by `cargo about` from `about.toml` and `about.hbs`).
+- Licenses of dependencies: `cargo deny check licenses` in CI fails on any crate whose license is not in the allow
+  list of `deny.toml` (all compatible with GPL-3.0-or-later).
 
 ## Contact and support
 
@@ -372,4 +416,11 @@ promises, so answers may take a while. If you like it and want to say thanks, yo
 
 ## License
 
-GPL-3.0-or-later, see [LICENSE](LICENSE). Slint is used under its GPLv3 option.
+GPL-3.0-or-later, see [LICENSE](LICENSE). Slint is used under its GPLv3 option. The packages list the licenses of
+all dependencies in `THIRD-PARTY-LICENSES.html`.
+
+- **Use is free for everyone**, companies included, for example on your own printers or in a print farm.
+- **Building FreakyMate into a product** (preinstalled on printers, displays or kits) is possible under the GPL's
+  conditions. If they do not fit your plans, I am open to a commercial license: see [COMMERCIAL.md](COMMERCIAL.md).
+- **Name and logo** are not covered by the GPL; forks and products need their own name, see
+  [TRADEMARKS.md](TRADEMARKS.md).

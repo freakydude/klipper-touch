@@ -1,46 +1,23 @@
 // Tabs of the system pages: the machine (Klipper, host, power devices), updates, the host's network, the console
 // and the settings of this display. Each tab is a page of its own; the navigation rail keeps System marked on all of them.
 
-import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Navigation, Page, Printer } from "../state.slint";
-import { IconButton } from "controls.slint";
+import { TabBar, TabButton } from "controls.slint";
 
-component SystemTab inherits IconButton {
+component SystemTab inherits TabButton {
     in property <Page> page;
     in property <string> label;
-    // Waiting items (updates), shown as a small badge so the label keeps its full width.
-    in property <int> count;
-    max-width: 190px;
-    icon-size: 20px;
-    horizontal-stretch: 1;
-    horizontal: true;
+    // Five tabs share the width of the page.
+    min-width: 0px;
     text: root.label;
-    accessible-label: root.label;
     checked: Navigation.page == root.page;
     clicked => { Navigation.page = root.page; }
-
-    if root.count > 0: Rectangle {
-        x: parent.width - self.width - 6px;
-        y: 6px;
-        width: max(18px, count-text.preferred-width + 8px);
-        height: 18px;
-        border-radius: 9px;
-        background: Theme.accent;
-        count-text := Text {
-            text: root.count;
-            color: Theme.foreground;
-            font-size: Theme.font-small;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
 }
 
-export component SystemTabs inherits HorizontalLayout {
-    spacing: Theme.spacing;
-    height: Theme.touch;
+// The pages around it have their own padding.
+export component SystemTabs inherits TabBar {
+    inset: 0px;
     SystemTab { page: Page.system; icon: Icons.system-host; label: @tr("Machine"); }
     if Printer.has-update-manager: SystemTab {
         page: Page.updates;

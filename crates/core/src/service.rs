@@ -4,7 +4,7 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
-use crate::moonraker::{CallError, Connection, Endpoint, Notification};
+use crate::moonraker::{Call, CallError, Connection, Endpoint, Notification, PendingCall};
 use crate::sources::klipper::{KlippyState, PendingTargets, PrintState};
 use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
 use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
@@ -18,6 +18,7 @@ use crate::sources::spoolman::{self, Spool, SpoolmanState};
 use crate::sources::{ObjectStore, PrinterStatus, Sources};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, watch, Semaphore};
@@ -35,6 +36,10 @@ const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// Spools for the picker: the most recently used ones.
 const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "freakymate";
+/// A command whose answer takes longer is shown as running (busy indicator).
+const LONG_COMMAND: Duration = Duration::from_secs(1);
+/// Ids of running commands; unique across reconnections, where answers of an old connection may still arrive.
+static NEXT_COMMAND_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConnectionState {
@@ -99,6 +104,15 @@ pub enum Event {
     CommandFailed {
         command: String,
         message: String,
+    },
+    /// A command sent from here waits longer than `LONG_COMMAND` for its answer (homing, leveling, an update, ...).
+    CommandRunning {
+        id: u64,
+        command: String,
+    },
+    /// The command of an earlier `CommandRunning` has its answer, or failed.
+    CommandFinished {
+        id: u64,
     },
 }
 
@@ -481,7 +495,9 @@ impl<'a> Session<'a> {
             _ => false,
         };
         let spools_change = command.changes_spools();
+        let label = running_label(&call, &command);
         let spool_events = self.outputs.events.clone();
+        let running_events = self.outputs.events.clone();
         let events = self.outputs.events.clone();
         let failed = move |error: CallError| {
             let message = match error {
@@ -494,7 +510,7 @@ impl<'a> Session<'a> {
         match self.connection.start_call(call.method, call.params) {
             Ok(pending) => {
                 tokio::spawn(async move {
-                    match pending.response().await {
+                    match answer_or_report_running(pending, label, &running_events).await {
                         Ok(_) if spools_change => {
                             let _ = spool_events.send(Event::SpoolmanChanged);
                         }
@@ -607,6 +623,36 @@ async fn download(http: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> 
     let response = http.get(url).send().await.map_err(|error| error.to_string())?;
     let response = response.error_for_status().map_err(|error| error.to_string())?;
     Ok(response.bytes().await.map_err(|error| error.to_string())?.to_vec())
+}
+
+/// Waits for the answer of a call; if it takes longer than `LONG_COMMAND`, reports the command as running until then.
+async fn answer_or_report_running(
+    pending: PendingCall,
+    label: String,
+    events: &mpsc::UnboundedSender<Event>,
+) -> Result<Value, CallError> {
+    let response = pending.response();
+    tokio::pin!(response);
+    tokio::select! {
+        answer = &mut response => answer,
+        () = tokio::time::sleep(LONG_COMMAND) => {
+            let id = NEXT_COMMAND_ID.fetch_add(1, Ordering::Relaxed);
+            let _ = events.send(Event::CommandRunning { id, command: label });
+            let answer = response.await;
+            let _ = events.send(Event::CommandFinished { id });
+            answer
+        }
+    }
+}
+
+/// What a running command is called in the UI: the first line of a G-code script, as in the console, otherwise
+/// the command's short name.
+fn running_label(call: &Call, command: &Command) -> String {
+    let script = call.params.as_ref().and_then(|params| params.get("script")).and_then(Value::as_str);
+    match script.and_then(|script| script.lines().next()) {
+        Some(line) if call.method == "printer.gcode.script" => line.to_owned(),
+        _ => command.describe(),
+    }
 }
 
 fn console_line(kind: ConsoleKind, message: &str) -> ConsoleLine {

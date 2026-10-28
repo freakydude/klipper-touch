@@ -18,6 +18,7 @@ linuxkms = ["slint/backend-linuxkms-noseat"]
 
 [dependencies]
 freakymate-core.workspace = true
+freakymate-ui.workspace = true
 chrono = { version = "0.4", default-features = false, features = [
     "clock",
     "std",
@@ -40,4 +41,4 @@ tokio.workspace = true
 thiserror.workspace = true
 
 [build-dependencies]
-slint-build = "1.18.1"
+embed-resource = "3.0.12"

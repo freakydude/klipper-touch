@@ -1,13 +1,14 @@
 //! freakymate: touch UI for Klipper via Moonraker.
 //!
-//! Structure: `ui/*.slint` describes the UI, [`presenter`] writes the state from
+//! Structure: `freakymate-ui` (`crates/ui/ui/*.slint`) describes the UI, [`presenter`] writes the state from
 //! `freakymate-core` into it, [`actions`] forwards user input as commands.
 
-slint::include_modules!();
+pub use freakymate_ui::*;
 
 pub mod actions;
 pub mod app;
 mod bed_map;
+mod calibration_view;
 mod chart;
 pub mod display;
 pub mod format;

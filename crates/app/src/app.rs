@@ -67,6 +67,10 @@ impl Application {
 
         let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
         let window = AppWindow::new()?;
+        // Wayland and X11 desktops find the icon through the app id and `freakymate.desktop`, not the window icon.
+        if let Err(error) = slint::set_xdg_app_id("freakymate") {
+            log::warn!("cannot set the app id: {error}");
+        }
         let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
         let presenter = Presenter::new(&window, service.clone());
         let (network_service, network_channels) = NetworkService::start(runtime.handle(), options.network);

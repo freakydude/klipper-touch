@@ -1,5 +1,5 @@
 <#
-  Renders the UI previews in crates\app\ui\preview with slint-viewer, without building Rust code.
+  Renders the UI previews in crates\ui\ui\preview with slint-viewer, without building Rust code.
   Usage (repo root): powershell -File scripts\ui-preview.ps1 [-Name print-printing,temperature] [-OutDir <folder>]
   Downloads the slint-viewer matching the Slint version in Cargo.lock to %USERPROFILE%\tools on first use.
   Exit code 0 on success; the PNG paths are printed.
@@ -10,7 +10,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$previewDir = Join-Path $root 'crates\app\ui\preview'
+$previewDir = Join-Path $root 'crates\ui\ui\preview'
 
 function Get-SlintVersion {
     $lock = Get-Content (Join-Path $root 'Cargo.lock') -Raw

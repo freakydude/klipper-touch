@@ -8,8 +8,10 @@ offered.
 
 ```mermaid
 flowchart LR
-    subgraph app [crates/app – freakymate]
+    subgraph ui [crates/ui – freakymate-ui]
         UI[ui/*.slint<br/>pages, components, globals]
+    end
+    subgraph app [crates/app – freakymate]
         P[presenter.rs<br/>state → globals]
         A[actions.rs<br/>callbacks → Command]
         S[settings_controller.rs]
@@ -45,9 +47,10 @@ flowchart LR
 | Crate                | Responsibility                                                                                    | Depends on                               |
 | -------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `crates/core`        | Connection, the sources of the printer, questions across them, commands, settings. No UI code.    | tokio, tokio-tungstenite, reqwest, serde |
-| `crates/app`         | Slint UI and its binding to the core; binary `freakymate` (the only shipped program).          | core, slint                              |
+| `crates/ui`          | Slint UI (`ui/*.slint`) compiled to Rust. Kept free of the core, so core changes do not recompile it. | slint                                    |
+| `crates/app`         | Binding of the UI to the core; binary `freakymate` (the only shipped program).                    | core, ui, slint                          |
 | `crates/ui-snapshot` | Development tool: renders the UI headless to PNG against a running (fake) Moonraker, in scenes.   | app, core                                |
-| `crates/icon-index`  | Checks `assets/icons` and generates `crates/app/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
+| `crates/icon-index`  | Checks `assets/icons` and generates `crates/ui/ui/icons.slint` and `assets/icons/overview.html`. | –                                        |
 | `fake-moonraker`     | Simulated Moonraker/Klipper for development and tests (profiles `basic`, `voron`, `happy-hare`).  | axum, tokio                              |
 
 ## Core layers (`crates/core/src`)
@@ -63,7 +66,7 @@ nothing is loaded at runtime or can be switched off. What is detected is used.
 | Service     | `service.rs`, `commands.rs`             | Collects, publishes `Snapshot`s and `Event`s, resolves and sends commands.       |
 
 Sources: `klipper/` (Klipper's own objects, one module per kind: `job`, `motion`, `extruder`, `heaters`, `devices`
-(fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`; `status.rs` puts them together,
+(fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`, `calibration` (bed mesh, bed screws, Z height, the modes Klipper waits in, pending `SAVE_CONFIG` items); `status.rs` puts them together,
 `setup.rs` detects what is there; plus configuration, macros, tuning values), `moonraker_server/` (files, job
 history, power, update manager, temperature and console stores, host information), `happy_hare/`, `spoolman.rs`,
 `led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,
@@ -114,7 +117,7 @@ history).
    `NetworkController` only offers management when the backend is available **and** Moonraker is local
    (`Endpoint::is_local`); otherwise it shows the host interfaces from `machine.system_info` read-only.
 
-## UI (`crates/app/ui`)
+## UI (`crates/ui/ui`)
 
 - `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
 - `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
@@ -164,7 +167,7 @@ history).
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` (includes end-to-end tests of the
   service against the fake and the icon set check).
 - `scripts/ui-preview.sh [-n temperature]` (WSL2/Arch) or `powershell -File scripts\ui-preview.ps1 [-Name temperature]`
-  (Windows) renders the previews in `crates/app/ui/preview`
+  (Windows) renders the previews in `crates/ui/ui/preview`
   with `slint-viewer` in under a second each, without building Rust code. A preview is a small component that
   inherits `AppWindow` and fills the globals with sample data (`preview/sample.slint`); the same files open in the
   Slint live preview of VS Code. The app never imports this folder. Fastest way to check layouts; keep the sample

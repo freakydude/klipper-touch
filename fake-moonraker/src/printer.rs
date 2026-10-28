@@ -1,5 +1,6 @@
 //! Simulated printer: heaters, toolhead and print job.
 
+use crate::calibration::Calibration;
 use crate::devices::{DeviceInputs, Devices};
 use crate::files::GcodeFile;
 use crate::gcode::{Axis, Command, CommandError, DeviceCommand, MmuCommand, Move, RetractionChange, VelocityLimit};
@@ -207,7 +208,7 @@ pub struct Printer {
     devices: Option<Devices>,
     temperatures: TemperatureStore,
     z_offset: f64,
-    config_pending: bool,
+    calibration: Calibration,
     gantry_leveled: bool,
     print_state: PrintState,
     filename: String,
@@ -258,7 +259,7 @@ impl Printer {
             devices: profile.devices.then(Devices::default),
             temperatures: TemperatureStore::default(),
             z_offset: 0.0,
-            config_pending: false,
+            calibration: Calibration::new(profile.probe, profile.bed_mesh, profile.bed_screws),
             gantry_leveled: false,
             print_state: PrintState::Standby,
             filename: String::new(),
@@ -382,12 +383,17 @@ impl Printer {
             Command::Device(command) => self.apply_device(command)?,
             Command::SetHeaterTemperature { heater, target } => self.set_named_heater(&heater, target)?,
             Command::ExcludeObject { name } => self.exclude_object(&name),
-            Command::SaveConfig => self.config_pending = false,
+            Command::SaveConfig => self.calibration.save(),
+            Command::Calibration(command) => {
+                let homed = self.homed.iter().all(|homed| *homed);
+                self.calibration.apply(command, homed)?;
+            }
             Command::QuadGantryLevel => self.level_gantry()?,
             Command::Mmu(command) => self.apply_mmu(command)?,
             Command::LayerPause(command) => self.layer_pause.apply(command),
             Command::FakePrintError => self.fail_print()?,
-            Command::Help | Command::Ignored => {}
+            // The session delays the answer of a dwell; the printer itself does nothing.
+            Command::Help | Command::Dwell(_) | Command::Ignored => {}
         }
         Ok(())
     }
@@ -482,6 +488,7 @@ impl Printer {
                 }),
             );
         }
+        objects.extend(self.calibration.status());
         if let Some(mmu) = &self.mmu {
             objects.extend(mmu.status(self.print_state.as_str()));
         }
@@ -573,7 +580,8 @@ impl Printer {
         json!({
             "config": raw_config(&settings),
             "settings": settings,
-            "save_config_pending": self.config_pending,
+            "save_config_pending": self.calibration.has_pending(),
+            "save_config_pending_items": self.calibration.pending_json(),
         })
     }
 
@@ -625,6 +633,7 @@ impl Printer {
             }
             sections.insert(format!("gcode_macro {name}"), section);
         }
+        sections.extend(self.calibration.config_sections());
         if let Some(mmu) = &self.mmu {
             sections.extend(mmu.config_sections());
         }

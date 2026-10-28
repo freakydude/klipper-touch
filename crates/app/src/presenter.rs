@@ -1,5 +1,6 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::calibration_view::CalibrationView;
 use crate::history_view::HistoryView;
 use crate::items::{
     color_bar, connection_name, console_items, fan_item, filament_path_item, heater_item, host_interface_item,
@@ -113,6 +114,7 @@ pub struct Presenter {
     extrude_lengths: RefCell<Vec<f64>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: ObjectsView,
+    calibration: CalibrationView,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
     mmu_sensors: Rc<VecModel<MmuSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
@@ -129,6 +131,8 @@ pub struct Presenter {
     power_devices: Rc<VecModel<PowerItem>>,
     updates: Rc<VecModel<UpdateItem>>,
     host_interfaces: Rc<VecModel<HostInterfaceItem>>,
+    /// Commands from here that wait long for their answer, oldest first (`Event::CommandRunning`).
+    running_commands: RefCell<Vec<(u64, String)>>,
     status: Rc<StatusView>,
     status_timer: Timer,
 }
@@ -152,6 +156,7 @@ impl Presenter {
             extrude_lengths: RefCell::default(),
             filament_sensors: Rc::default(),
             print_objects: ObjectsView::default(),
+            calibration: CalibrationView::default(),
             mmu_gates: Rc::default(),
             mmu_sensors: Rc::default(),
             macros: Rc::default(),
@@ -168,6 +173,7 @@ impl Presenter {
             power_devices: Rc::default(),
             updates: Rc::default(),
             host_interfaces: Rc::default(),
+            running_commands: RefCell::default(),
             status: Rc::new(StatusView { window: window.as_weak(), log: RefCell::default(), messages: Rc::default() }),
             status_timer: Timer::default(),
         });
@@ -180,6 +186,7 @@ impl Presenter {
         printer.set_tuning(ModelRc::from(presenter.tuning.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         presenter.print_objects.bind(&printer);
+        presenter.calibration.bind(&printer);
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
         printer.set_mmu_sensors(ModelRc::from(presenter.mmu_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
@@ -344,6 +351,7 @@ impl Presenter {
         printer.set_can_quad_gantry_level(klipper.leveling == Some(Leveling::QuadGantry));
         printer.set_can_z_tilt(klipper.leveling == Some(Leveling::ZTilt));
         printer.set_has_probe(klipper.probe);
+        self.calibration.show(&printer, klipper, &status.calibration);
         let macros = match filament::handling(&snapshot.sources, status) {
             FilamentHandling::Macros(macros) => Some(macros),
             FilamentHandling::Mmu | FilamentHandling::None => None,
@@ -461,7 +469,22 @@ impl Presenter {
                 let id = self.status.log.borrow_mut().add_command_failure(&shown, &message, now_seconds());
                 self.show_message(id, &shown, true);
             }
+            Event::CommandRunning { id, command } => {
+                self.running_commands.borrow_mut().push((id, command));
+                self.show_running_command();
+            }
+            Event::CommandFinished { id } => {
+                self.running_commands.borrow_mut().retain(|(running, _)| *running != id);
+                self.show_running_command();
+            }
         }
+    }
+
+    /// The status bar shows the newest command that is still waiting for its answer.
+    fn show_running_command(&self) {
+        let Some(window) = self.window.upgrade() else { return };
+        let newest = self.running_commands.borrow().last().map(|(_, command)| command.clone()).unwrap_or_default();
+        window.global::<Printer>().set_running_command(newest.into());
     }
 
     /// Applies the hidden macros from the settings.

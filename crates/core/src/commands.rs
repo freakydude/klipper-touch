@@ -6,7 +6,7 @@ use crate::moonraker::Call;
 use crate::sources::happy_hare::commands as mmu;
 use crate::sources::klipper::commands::{self as klipper, run_gcode};
 use crate::sources::klipper::tuning::TuningKey;
-use crate::sources::klipper::{Axis, Leveling, Motion, Setup};
+use crate::sources::klipper::{Axis, CalibrationMode, Leveling, Motion, Setup, TestZ};
 use crate::sources::macro_conventions::{LOAD_FILAMENT_MACRO, UNLOAD_FILAMENT_MACRO};
 use crate::sources::moonraker_server::{machine, power, update_manager};
 use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
@@ -14,7 +14,7 @@ use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 ///
 /// Some commands state an intent (`Level`, `ApplyPreset`, `CoolDown`, `StepHeater`, `ApplyZOffset`, `LoadFilament`,
-/// `UnloadFilament`, the layer pauses); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
+/// `UnloadFilament`, the layer pauses, `CalibrateZ` and the commands within a calibration mode); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
 /// [`Command::to_call`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -118,6 +118,30 @@ pub enum Command {
         key: TuningKey,
     },
     SaveConfig,
+    // Calibration
+    CalibrateBedMesh,
+    LoadBedMesh {
+        profile: String,
+    },
+    ClearBedMesh,
+    /// Measures each bed screw with the probe; the result tells how far to turn them.
+    CalculateScrewsTilt,
+    /// Paper test at each bed screw; Klipper waits in its `bed_screws` mode.
+    AdjustBedScrews,
+    /// Paper test for the Z height: of the probe if there is one, else of the Z endstop (followed by `SaveConfig`).
+    CalibrateZ,
+    ProbeCalibrate,
+    ZEndstopCalibrate,
+    /// Within `manual_probe`; dropped if Klipper is not waiting there, since it knows the command only then.
+    TestZ {
+        step: TestZ,
+    },
+    /// Ends the waiting mode with the current height or screw; dropped if none waits.
+    AcceptCalibration,
+    /// Within `bed_screws`: the screw had to be turned, the round starts over.
+    ScrewAdjusted,
+    /// Leaves the waiting mode without a result; dropped if none waits.
+    AbortCalibration,
     // Extruder
     Extrude {
         length: f64,
@@ -190,6 +214,7 @@ const NO_LEVELING: &str = "this printer has neither quad gantry level nor Z tilt
 const NO_LOAD_WAY: &str = "no way to load filament: no Happy Hare and no LOAD_FILAMENT macro";
 const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNLOAD_FILAMENT macro";
 const NO_LIGHT: &str = "this printer has no LED";
+const NO_Z_CALIBRATION: &str = "this printer has neither a probe nor a Z endstop with position_endstop";
 const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
 
 /// White light at `level` with the channels this LED has, see [`Setup::white_light`].
@@ -208,6 +233,7 @@ impl Command {
     /// heater targets including those sent but not yet reported, so steps build on each other.
     pub fn resolve(self, sources: &Sources, status: &PrinterStatus) -> Result<Vec<Command>, String> {
         let setup = &sources.klipper;
+        let mode = status.calibration.mode.as_ref();
         let heater_target = |heater: &str, target: f64| Command::SetHeaterTarget { heater: heater.to_owned(), target };
         let commands = match self {
             Self::Level => match setup.leveling {
@@ -217,6 +243,12 @@ impl Command {
             },
             Self::ApplyZOffset if setup.probe => vec![Self::ApplyZOffsetToProbe],
             Self::ApplyZOffset => vec![Self::ApplyZOffsetToEndstop],
+            Self::CalibrateZ if setup.probe => vec![Self::ProbeCalibrate],
+            Self::CalibrateZ if setup.calibration.z_endstop => vec![Self::ZEndstopCalibrate],
+            Self::CalibrateZ => return Err(NO_Z_CALIBRATION.to_owned()),
+            Self::TestZ { .. } if !matches!(mode, Some(CalibrationMode::ManualProbe { .. })) => Vec::new(),
+            Self::ScrewAdjusted if !matches!(mode, Some(CalibrationMode::BedScrews { .. })) => Vec::new(),
+            Self::AcceptCalibration | Self::AbortCalibration if mode.is_none() => Vec::new(),
             Self::ApplyPreset { extruder, bed } => {
                 let mut commands = vec![heater_target("extruder", extruder)];
                 if status.heater("heater_bed").is_some() {
@@ -306,6 +338,17 @@ impl Command {
             Self::ApplyZOffsetToEndstop => run_gcode(klipper::APPLY_Z_OFFSET_TO_ENDSTOP),
             Self::SetSpeedFactor { percent } => run_gcode(klipper::speed_factor(*percent)),
             Self::SaveConfig => run_gcode(klipper::SAVE_CONFIG),
+            Self::CalibrateBedMesh => run_gcode(klipper::BED_MESH_CALIBRATE),
+            Self::LoadBedMesh { profile } => run_gcode(klipper::load_bed_mesh(profile)?),
+            Self::ClearBedMesh => run_gcode(klipper::BED_MESH_CLEAR),
+            Self::CalculateScrewsTilt => run_gcode(klipper::SCREWS_TILT_CALCULATE),
+            Self::AdjustBedScrews => run_gcode(klipper::BED_SCREWS_ADJUST),
+            Self::ProbeCalibrate => run_gcode(klipper::PROBE_CALIBRATE),
+            Self::ZEndstopCalibrate => run_gcode(klipper::Z_ENDSTOP_CALIBRATE),
+            Self::TestZ { step } => run_gcode(klipper::test_z(*step)),
+            Self::AcceptCalibration => run_gcode(klipper::ACCEPT),
+            Self::ScrewAdjusted => run_gcode(klipper::ADJUSTED),
+            Self::AbortCalibration => run_gcode(klipper::ABORT),
             Self::Extrude { length, speed } => run_gcode(klipper::extrude(*length, *speed)),
             Self::RunMacro { name } => run_gcode(name.clone()),
             Self::RunGcode { script } => run_gcode(script.clone()),
@@ -331,6 +374,7 @@ impl Command {
             Self::Upgrade { name } => update_manager::upgrade(name),
             // Intents are resolved before; none of them is a call of its own.
             Self::Level
+            | Self::CalibrateZ
             | Self::StepHeater { .. }
             | Self::ApplyPreset { .. }
             | Self::CoolDown
@@ -358,6 +402,7 @@ impl Command {
         match self {
             Self::RunMacro { name } => name.clone(),
             Self::RunGcode { script } => script.lines().next().unwrap_or_default().to_owned(),
+            Self::Upgrade { name } => format!("Upgrade {name}"),
             other => format!("{other:?}").split([' ', '{']).next().unwrap_or_default().to_owned(),
         }
     }
@@ -493,6 +538,39 @@ mod tests {
     }
 
     #[test]
+    fn the_z_height_is_calibrated_at_the_probe_else_at_the_endstop() {
+        assert_eq!(resolved(Command::CalibrateZ, &["probe"]), Ok(vec![Command::ProbeCalibrate]));
+        assert!(resolved(Command::CalibrateZ, &["extruder"]).is_err());
+        let mut sources = printer(&["extruder"]);
+        sources.klipper.calibration.z_endstop = true;
+        let resolved = Command::CalibrateZ.resolve(&sources, &PrinterStatus::default());
+        assert_eq!(resolved, Ok(vec![Command::ZEndstopCalibrate]));
+        assert_eq!(script(Command::ZEndstopCalibrate), "Z_ENDSTOP_CALIBRATE");
+    }
+
+    #[test]
+    fn mode_commands_reach_klipper_only_while_it_waits() {
+        let in_mode = |mode: Option<CalibrationMode>, command: Command| {
+            let mut status = PrinterStatus::default();
+            status.calibration.mode = mode;
+            command.resolve(&printer(&["probe"]), &status).map(|commands| commands.len())
+        };
+        let probing = || Some(CalibrationMode::ManualProbe { z: 1.0, lower: None, upper: None });
+        let screws =
+            || Some(CalibrationMode::BedScrews { screw: "front left".into(), fine: false, accepted: 0, screws: 4 });
+        let test_z = || Command::TestZ { step: TestZ::By(0.1) };
+
+        assert_eq!(in_mode(probing(), test_z()), Ok(1));
+        assert_eq!(in_mode(screws(), test_z()), Ok(0));
+        assert_eq!(in_mode(screws(), Command::ScrewAdjusted), Ok(1));
+        assert_eq!(in_mode(probing(), Command::ScrewAdjusted), Ok(0));
+        assert_eq!(in_mode(probing(), Command::AbortCalibration), Ok(1));
+        assert_eq!(in_mode(None, Command::AbortCalibration), Ok(0));
+        assert_eq!(in_mode(None, Command::AcceptCalibration), Ok(0));
+        assert_eq!(script(Command::AbortCalibration), "ABORT");
+    }
+
+    #[test]
     fn a_preset_heats_the_bed_only_if_there_is_one() {
         let preset = Command::ApplyPreset { extruder: 210.0, bed: 60.0 };
 
@@ -587,6 +665,7 @@ mod tests {
         assert_eq!(Command::PausePrint.describe(), "PausePrint");
         assert_eq!(Command::Jog { axis: Axis::X, distance: 1.0 }.describe(), "Jog");
         assert_eq!(Command::RunMacro { name: "PARK".into() }.describe(), "PARK");
+        assert_eq!(Command::Upgrade { name: "klipper".into() }.describe(), "Upgrade klipper");
     }
 
     #[test]

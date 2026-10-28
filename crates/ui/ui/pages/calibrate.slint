@@ -1,0 +1,190 @@
+// Calibrating the bed and the Z height, only with what the printer has. The cards follow Klipper's Bed_Level guide
+// from left to right: bed screws, levelling and Z height, bed mesh; saving is the confirmation at the bottom right.
+// Klipper runs each procedure; the modes it waits in open their own dialog.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, Printer, ScrewItem } from "../state.slint";
+import { Card, IconButton, ScrollList } from "../components/controls.slint";
+
+component ActionButton inherits IconButton {
+    height: Theme.touch;
+    horizontal: true;
+    align-start: true;
+}
+
+// Icon above the text: two of them fit side by side in a card.
+component CardButton inherits IconButton {
+    height: Theme.touch;
+    horizontal-stretch: 1;
+}
+
+component Note inherits Text {
+    color: Theme.muted;
+    font-size: Theme.font-small;
+    wrap: word-wrap;
+}
+
+component ScrewRow inherits HorizontalLayout {
+    in property <ScrewItem> screw;
+    spacing: Theme.spacing;
+    height: 26px;
+    Text {
+        horizontal-stretch: 1;
+        text: root.screw.name;
+        color: Theme.foreground;
+        font-size: Theme.font-normal;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Text {
+        text: root.screw.is-base ? @tr("base") : (root.screw.clockwise ? "CW " : "CCW ") + root.screw.turns;
+        color: root.screw.is-base ? Theme.muted : Theme.foreground;
+        font-size: Theme.font-normal;
+        font-weight: root.screw.is-base ? 400 : 700;
+        vertical-alignment: center;
+    }
+}
+
+component BedScrewsCard inherits Card {
+    title: @tr("Bed screws");
+    icon: Icons.calibration-bed-screws;
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        if Printer.has-screws-tilt: CardButton {
+            icon: Icons.calibration-probe;
+            text: @tr("Measure");
+            clicked => { Actions.calculate-screws-tilt(); }
+        }
+        if Printer.has-bed-screws: CardButton {
+            icon: Icons.calibration-bed-screws;
+            text: @tr("Paper test");
+            clicked => { Actions.adjust-bed-screws(); }
+        }
+    }
+    for screw in Printer.screw-results: ScrewRow { screw: screw; }
+    if Printer.screw-results.length > 0: Note {
+        text: @tr("Turns as on a clock: 01:15 is one and a quarter turns.");
+    }
+    Rectangle { vertical-stretch: 1; }
+}
+
+component LevelCard inherits Card {
+    title: @tr("Level and Z height");
+    icon: Icons.calibration-gantry-level;
+    ActionButton {
+        icon: Icons.motion-home;
+        text: @tr("Home all");
+        checked: Printer.homed-xy && Printer.homed-z;
+        clicked => { Actions.home(true, true, true); }
+    }
+    if Printer.can-quad-gantry-level || Printer.can-z-tilt: ActionButton {
+        icon: Icons.calibration-gantry-level;
+        text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
+        checked: Printer.leveling-state == "applied";
+        clicked => { Actions.level(); }
+    }
+    if Printer.z-calibration != "": ActionButton {
+        icon: Printer.z-calibration == "probe" ? Icons.calibration-probe : Icons.calibration-z-offset;
+        text: Printer.z-calibration == "probe" ? @tr("Probe Z offset") : @tr("Z endstop");
+        clicked => { Actions.calibrate-z(); }
+    }
+    Rectangle { vertical-stretch: 1; }
+}
+
+component BedMeshCard inherits Card {
+    property <length> row-step: Theme.touch + Theme.spacing;
+    title: @tr("Bed mesh");
+    icon: Icons.calibration-bed-mesh;
+    Text {
+        text: Printer.bed-mesh-active != "" ? Printer.bed-mesh-active : @tr("No mesh active");
+        color: Printer.bed-mesh-active != "" ? Theme.foreground : Theme.muted;
+        font-size: Theme.font-large;
+        overflow: elide;
+    }
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        CardButton {
+            icon: Icons.calibration-bed-mesh;
+            text: @tr("Measure");
+            clicked => { Actions.calibrate-bed-mesh(); }
+        }
+        CardButton {
+            icon: Icons.ui-delete;
+            text: @tr("Clear");
+            enabled: Printer.bed-mesh-active != "";
+            clicked => { Actions.clear-bed-mesh(); }
+        }
+    }
+    if Printer.bed-mesh-profiles.length > 0: Note {
+        text: @tr("Saved profiles:");
+    }
+    // Scrolls if there are more profiles than fit.
+    profiles := ScrollList {
+        vertical-stretch: 1;
+        content-height: Printer.bed-mesh-profiles.length * root.row-step;
+        for profile[index] in Printer.bed-mesh-profiles: ActionButton {
+            y: index * root.row-step;
+            width: profiles.row-width;
+            icon: Icons.print-load;
+            text: profile;
+            checked: profile == Printer.bed-mesh-active;
+            clicked => { Actions.load-bed-mesh(profile); }
+        }
+    }
+}
+
+export component CalibrateTab inherits Rectangle {
+    property <bool> has-screws: Printer.has-screws-tilt || Printer.has-bed-screws;
+
+    VerticalLayout {
+        padding: Theme.padding;
+        spacing: Theme.spacing;
+
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            vertical-stretch: 1;
+            // Shares of the width independent of the content, so the cards keep their size when results come.
+            if root.has-screws: BedScrewsCard {
+                preferred-width: 0px;
+                horizontal-stretch: 1.3;
+            }
+            LevelCard {
+                width: 210px;
+            }
+            if Printer.has-bed-mesh: BedMeshCard {
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+            }
+        }
+
+        // What SAVE_CONFIG would write, and the confirmation at the right like Start or Exclude.
+        HorizontalLayout {
+            spacing: Theme.spacing;
+            height: Theme.touch;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Note {
+                    text: Printer.save-config-pending ? Printer.pending-config : @tr("Nothing to save.");
+                    wrap: no-wrap;
+                    overflow: elide;
+                }
+                if Printer.save-config-pending: Note {
+                    text: @tr("Takes effect after Save config, which restarts Klipper.");
+                    wrap: no-wrap;
+                    overflow: elide;
+                }
+            }
+            IconButton {
+                width: 220px;
+                icon: Icons.ui-save;
+                text: @tr("Save config");
+                horizontal: true;
+                kind: "accent";
+                enabled: Printer.save-config-pending;
+                clicked => { Confirm.ask(@tr("Save config"), @tr("Klipper writes the configuration and restarts."), "save-config", "", false); }
+            }
+        }
+    }
+}

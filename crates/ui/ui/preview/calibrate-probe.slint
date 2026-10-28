@@ -1,0 +1,15 @@
+// Preview: the dialog of Klipper's manual probe (PROBE_CALIBRATE) after two TESTZ steps.
+
+import { AppWindow } from "../app.slint";
+import { Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component CalibrateProbePreview inherits AppWindow {
+    init => {
+        Sample.calibration();
+        Printer.calibration-mode = "manual-probe";
+        Printer.probe-z = "1.200";
+        Printer.probe-z-lower = "1.000";
+        Printer.probe-z-upper = "2.000";
+    }
+}

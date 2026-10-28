@@ -6,6 +6,7 @@ use crate::gcode::{self, CommandError};
 use crate::printer::Printer;
 use crate::subscription::Subscription;
 use serde_json::{json, Value};
+use std::time::Duration;
 
 const INVALID_REQUEST: i64 = -32600;
 const METHOD_NOT_FOUND: i64 = -32601;
@@ -42,11 +43,17 @@ impl From<CommandError> for RpcError {
 pub struct Session {
     connection_id: u64,
     subscription: Subscription,
+    reply_delay: Option<Duration>,
 }
 
 impl Session {
     pub fn new(connection_id: u64) -> Self {
-        Self { connection_id, subscription: Subscription::default() }
+        Self { connection_id, subscription: Subscription::default(), reply_delay: None }
+    }
+
+    /// How long the reply to the last message waits (a script with `G4`); the server sends it later.
+    pub fn take_reply_delay(&mut self) -> Option<Duration> {
+        self.reply_delay.take()
     }
 
     /// Handles an incoming message; `None` if no reply is due.
@@ -110,7 +117,10 @@ impl Session {
             "printer.objects.subscribe" => self.subscribe(backend, params),
             "printer.objects.list" => Ok(json!({ "objects": backend.object_names() })),
             "printer.objects.query" => query_objects(backend, params),
-            "printer.gcode.script" => run_script(backend, params),
+            "printer.gcode.script" => run_script(backend, params).map(|(reply, dwell)| {
+                self.reply_delay = Some(dwell).filter(|dwell| !dwell.is_zero());
+                reply
+            }),
             "printer.print.start" => start_print(backend, params),
             "printer.print.pause" => control_printer(backend, Printer::pause_print),
             "printer.print.resume" => control_printer(backend, Printer::resume_print),
@@ -166,23 +176,31 @@ const HELP_TEXT: &str = "Available commands:\n\
     SET_GCODE_OFFSET: Change the Z homing origin\n\
     HELP: Show this list";
 
-fn run_script(backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+/// Runs a script; also returns how long its dwells (`G4`) take.
+fn run_script(backend: &Backend, params: &Value) -> Result<(Value, Duration), RpcError> {
     let script = required_str(params, "script")?;
     backend.record_command(script);
     let outcome = gcode::parse_script(script).and_then(|commands| {
         let help = commands.contains(&gcode::Command::Help);
+        let dwell = commands
+            .iter()
+            .map(|command| match command {
+                gcode::Command::Dwell(duration) => *duration,
+                _ => Duration::ZERO,
+            })
+            .sum();
         backend.with_printer(|printer| commands.into_iter().try_for_each(|command| printer.apply(command)))?;
         if help {
             backend.respond(HELP_TEXT);
         }
-        Ok(())
+        Ok(dwell)
     });
     if let Err(error) = &outcome {
         backend.respond(&format!("!! {}", error.message()));
     }
-    outcome?;
+    let dwell = outcome?;
     follow_selected_gate(backend);
-    Ok(ok())
+    Ok((ok(), dwell))
 }
 
 /// Happy Hare makes the spool of the selected gate the active one in Moonraker.
@@ -351,6 +369,18 @@ mod tests {
         assert_eq!(reply["result"], "ok");
         assert_eq!(notification["method"], "notify_status_update");
         assert_eq!(notification["params"][0], json!({ "extruder": { "target": 100.0 } }));
+    }
+
+    #[test]
+    fn a_dwell_delays_the_reply_of_its_script() {
+        let (mut session, backend) = setup();
+
+        let reply = exchange(&mut session, &backend, call("printer.gcode.script", json!({ "script": "G4 P1200" })));
+
+        assert_eq!(reply["result"], "ok");
+        assert_eq!(session.take_reply_delay(), Some(Duration::from_millis(1200)));
+        exchange(&mut session, &backend, call("printer.gcode.script", json!({ "script": "M104 S100" })));
+        assert_eq!(session.take_reply_delay(), None);
     }
 
     #[test]

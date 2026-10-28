@@ -1,0 +1,31 @@
+# cargo-deny: CI runs `cargo deny check licenses` and fails on any crate whose license is not allowed here.
+# Only licenses compatible with GPL-3.0-or-later belong in the allow list (see CONTRIBUTING.md).
+
+[graph]
+# The release targets; dependencies of other platforms are never shipped.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "armv7-unknown-linux-gnueabihf",
+    "x86_64-pc-windows-msvc",
+]
+
+[licenses]
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=FreakyMate
+Comment=Touch screen for Klipper printers via Moonraker
+Exec=freakymate
+Icon=freakymate
+Terminal=false
+Categories=Utility;
+Keywords=Klipper;Moonraker;3D printer;Happy Hare;Spoolman;

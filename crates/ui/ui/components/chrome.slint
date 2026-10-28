@@ -3,6 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Dialogs, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { BusyWheel } from "busy-wheel.slint";
 
 // A temperature of the status bar; a tap leads to the heaters without looking like a button.
 component TemperatureReading inherits Rectangle {
@@ -49,7 +50,13 @@ export component StatusBar inherits Rectangle {
         HorizontalLayout {
             spacing: 6px;
             horizontal-stretch: 1;
-            Image {
+            // While a command waits long for its answer, the turning wheel and the command replace the summary.
+            if Printer.running-command != "": BusyWheel {
+                cross-axis-self-alignment: center;
+                width: 40px;
+                height: 40px;
+            }
+            if Printer.running-command == "": Image {
                 cross-axis-self-alignment: center;
                 source: StateIcons.summary();
                 colorize: Printer.ready ? Theme.foreground : Theme.warning;
@@ -57,7 +64,7 @@ export component StatusBar inherits Rectangle {
                 height: 24px;
             }
             Text {
-                text: StateIcons.summary-label();
+                text: Printer.running-command != "" ? Printer.running-command + " …" : StateIcons.summary-label();
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
                 vertical-alignment: center;

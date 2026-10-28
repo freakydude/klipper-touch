@@ -2,8 +2,8 @@
 
 use super::happy_hare::{self, MmuStatus};
 use super::klipper::{
-    Activity, ExtruderState, Fan, FilamentSensor, Heater, KlipperParts, KlippyState, Led, Motion, PrintJob,
-    PrintObject, Retraction, TemperatureSensor,
+    Activity, CalibrationState, ExtruderState, Fan, FilamentSensor, Heater, KlipperParts, KlippyState, Led, Motion,
+    PrintJob, PrintObject, Retraction, TemperatureSensor,
 };
 use super::led_effect::{self, LedEffect};
 use super::objects::ObjectStore;
@@ -29,6 +29,8 @@ pub struct PrinterStatus {
     pub save_config_pending: bool,
     /// `Some(applied)` if quad gantry level or Z tilt is present.
     pub leveling_applied: Option<bool>,
+    /// Bed mesh, screw results, interactive modes and what `SAVE_CONFIG` would write.
+    pub calibration: CalibrationState,
     pub filament_sensors: Vec<FilamentSensor>,
     /// Objects of the print with their exclude state; empty without the `exclude_object` module.
     pub print_objects: Vec<PrintObject>,
@@ -54,6 +56,7 @@ impl PrinterStatus {
             retraction: klipper.retraction,
             save_config_pending: klipper.save_config_pending,
             leveling_applied: klipper.leveling_applied,
+            calibration: klipper.calibration,
             filament_sensors: klipper.filament_sensors,
             print_objects: klipper.print_objects,
             mmu: happy_hare::read_mmu(store),

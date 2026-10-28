@@ -4,7 +4,7 @@ use crate::presenter::Presenter;
 use crate::settings_controller::SettingsController;
 use crate::{Actions, AppWindow};
 use freakymate_core::sources::klipper::tuning::TuningKey;
-use freakymate_core::sources::klipper::Axis;
+use freakymate_core::sources::klipper::{Axis, TestZ};
 use freakymate_core::{Command, PrinterService, Query};
 use slint::platform::WindowEvent;
 use slint::{ComponentHandle, SharedString};
@@ -83,6 +83,24 @@ pub fn bind(
     actions.on_reset_z_offset(send(|| Command::ResetZOffset));
     actions.on_apply_z_offset(send(|| Command::ApplyZOffset));
     actions.on_save_config(send(|| Command::SaveConfig));
+    actions.on_calibrate_bed_mesh(send(|| Command::CalibrateBedMesh));
+    actions.on_load_bed_mesh(with(service, |service, profile: SharedString| {
+        service.send(Command::LoadBedMesh { profile: profile.into() })
+    }));
+    actions.on_clear_bed_mesh(send(|| Command::ClearBedMesh));
+    actions.on_calculate_screws_tilt(send(|| Command::CalculateScrewsTilt));
+    actions.on_adjust_bed_screws(send(|| Command::AdjustBedScrews));
+    actions.on_calibrate_z(send(|| Command::CalibrateZ));
+    actions.on_test_z(with(service, |service, distance: f32| {
+        service.send(Command::TestZ { step: TestZ::By(round_offset(distance)) })
+    }));
+    actions.on_bisect_z(with(service, |service, direction: i32| {
+        let step = if direction > 0 { TestZ::BisectUp } else { TestZ::BisectDown };
+        service.send(Command::TestZ { step })
+    }));
+    actions.on_accept_calibration(send(|| Command::AcceptCalibration));
+    actions.on_screw_adjusted(send(|| Command::ScrewAdjusted));
+    actions.on_abort_calibration(send(|| Command::AbortCalibration));
     actions.on_set_speed_factor(with(service, |service, percent: f32| {
         service.send(Command::SetSpeedFactor { percent: f64::from(percent) })
     }));

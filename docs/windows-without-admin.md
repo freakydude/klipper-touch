@@ -3,7 +3,7 @@
 Developing freakymate on Windows without admin rights, without WSL/Docker, with rust-analyzer in VS Code.
 
 This document covers the Windows setup only (PowerShell scripts `scripts\*.ps1`). On WSL2 with Arch Linux, the
-bash counterparts apply instead: `scripts/setup-wsl.sh` checks the environment, `scripts/ui-preview.sh` and
+bash counterparts apply instead: `scripts/setup-linux.sh` checks the environment, `scripts/ui-preview.sh` and
 `scripts/ui-snapshot.sh` replace the PowerShell scripts. Nothing in this document applies there.
 
 ## Setup

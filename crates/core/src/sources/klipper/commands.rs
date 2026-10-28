@@ -1,7 +1,7 @@
 //! What Klipper is told: its methods behind Moonraker's `printer.*` and its own G-code. G-code of the plugins and
 //! macros reaches Klipper through [`run_gcode`] as well.
 
-use super::{instance, Axis, FanKind, Motion};
+use super::{instance, Axis, FanKind, Motion, TestZ};
 use crate::moonraker::Call;
 use serde_json::json;
 
@@ -16,6 +16,16 @@ pub const RESET_Z_OFFSET: &str = "SET_GCODE_OFFSET Z=0 MOVE=1";
 pub const APPLY_Z_OFFSET_TO_PROBE: &str = "Z_OFFSET_APPLY_PROBE";
 pub const APPLY_Z_OFFSET_TO_ENDSTOP: &str = "Z_OFFSET_APPLY_ENDSTOP";
 pub const SAVE_CONFIG: &str = "SAVE_CONFIG";
+pub const BED_MESH_CALIBRATE: &str = "BED_MESH_CALIBRATE";
+pub const BED_MESH_CLEAR: &str = "BED_MESH_CLEAR";
+pub const SCREWS_TILT_CALCULATE: &str = "SCREWS_TILT_CALCULATE";
+pub const BED_SCREWS_ADJUST: &str = "BED_SCREWS_ADJUST";
+pub const PROBE_CALIBRATE: &str = "PROBE_CALIBRATE";
+pub const Z_ENDSTOP_CALIBRATE: &str = "Z_ENDSTOP_CALIBRATE";
+/// Klipper registers these only while `manual_probe` or `bed_screws` waits.
+pub const ACCEPT: &str = "ACCEPT";
+pub const ADJUSTED: &str = "ADJUSTED";
+pub const ABORT: &str = "ABORT";
 
 /// Runs a G-code script, Klipper's own or that of a plugin or macro.
 pub fn run_gcode(script: impl Into<String>) -> Call {
@@ -129,6 +139,19 @@ pub fn exclude_object(name: &str) -> Option<String> {
     (!name.is_empty() && !name.contains(char::is_whitespace)).then(|| format!("EXCLUDE_OBJECT NAME={name}"))
 }
 
+/// Klipper splits parameters at whitespace, so a profile name with a space cannot be loaded this way.
+pub fn load_bed_mesh(profile: &str) -> Option<String> {
+    (!profile.is_empty() && !profile.contains(char::is_whitespace)).then(|| format!("BED_MESH_PROFILE LOAD={profile}"))
+}
+
+pub fn test_z(step: TestZ) -> String {
+    match step {
+        TestZ::By(distance) => format!("TESTZ Z={}", number(distance)),
+        TestZ::BisectUp => "TESTZ Z=+".to_owned(),
+        TestZ::BisectDown => "TESTZ Z=-".to_owned(),
+    }
+}
+
 /// Number without redundant decimal places, the way Klipper likes it.
 fn number(value: f64) -> String {
     let rounded = (value * 10_000.0).round() / 10_000.0;
@@ -203,6 +226,10 @@ mod tests {
     #[test]
     fn tuning_and_extrusion_gcode() {
         assert_eq!(adjust_z_offset(-0.005), "SET_GCODE_OFFSET Z_ADJUST=-0.005 MOVE=1");
+        assert_eq!(test_z(TestZ::By(-0.05)), "TESTZ Z=-0.05");
+        assert_eq!(test_z(TestZ::BisectUp), "TESTZ Z=+");
+        assert_eq!(load_bed_mesh("default").as_deref(), Some("BED_MESH_PROFILE LOAD=default"));
+        assert_eq!(load_bed_mesh("my mesh"), None);
         assert_eq!(speed_factor(110.0), "M220 S110");
         assert_eq!(speed_factor(0.0), "M220 S1");
         assert_eq!(extrude(-10.0, 5.0), "M83\nG1 E-10 F300");
