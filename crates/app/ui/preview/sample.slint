@@ -91,6 +91,30 @@ export global Sample {
         UiSettings.presets = [{ name: "PLA", extruder: 215, bed: 60 }, { name: "PETG", extruder: 240, bed: 80 }];
     }
 
+    // A bed slinger like a Sidewinder X2 on the Calibrate tab: probe, both screw tools, three mesh profiles (one more
+    // than fit, so the list scrolls), screws measured and a probe offset waiting for SAVE_CONFIG.
+    public function calibration() {
+        self.ready-printer();
+        Navigation.page = Page.move;
+        Navigation.move-tab = 1;
+        Printer.can-quad-gantry-level = false;
+        Printer.has-probe = true;
+        Printer.z-calibration = "probe";
+        Printer.has-bed-mesh = true;
+        Printer.has-screws-tilt = true;
+        Printer.has-bed-screws = true;
+        Printer.bed-mesh-active = "default";
+        Printer.bed-mesh-profiles = ["default", "hot-bed-100", "pei-textured"];
+        Printer.screw-results = [
+            { name: "back left", turns: "00:00", clockwise: true, is-base: true },
+            { name: "front left", turns: "00:18", clockwise: true },
+            { name: "front right", turns: "01:05", clockwise: false },
+            { name: "back right", turns: "00:02", clockwise: true },
+        ];
+        Printer.save-config-pending = true;
+        Printer.pending-config = "probe: z_offset = 1.800 · bed_mesh default: 8 values";
+    }
+
     // Ready printer with a job at 37 %.
     // Happy Hare with four gates, one of them empty, and a sync-feedback buffer in tension.
     public function mmu() {

@@ -1,6 +1,7 @@
 //! Typed view of what Klipper reports, read from the [`ObjectStore`]: Klippy's own state and whether the machine is
 //! busy here, each kind of object in its own module.
 
+use super::calibration::CalibrationState;
 use super::devices::{self, Fan, Led};
 use super::exclude_object::{read_print_objects, PrintObject};
 use super::extruder::{read_extruder, ExtruderState};
@@ -90,6 +91,7 @@ pub(in crate::sources) struct KlipperParts {
     pub retraction: Option<Retraction>,
     pub save_config_pending: bool,
     pub leveling_applied: Option<bool>,
+    pub calibration: CalibrationState,
     pub filament_sensors: Vec<FilamentSensor>,
     pub print_objects: Vec<PrintObject>,
 }
@@ -112,6 +114,7 @@ impl KlipperParts {
             retraction: store.object("firmware_retraction").map(read_retraction),
             save_config_pending: flag(object("configfile"), "save_config_pending"),
             leveling_applied: leveling::read_applied(store),
+            calibration: CalibrationState::read(store),
             filament_sensors: read_filament_sensors(store),
             print_objects: read_print_objects(object("exclude_object")),
         }

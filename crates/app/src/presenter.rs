@@ -1,5 +1,6 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::calibration_view::CalibrationView;
 use crate::history_view::HistoryView;
 use crate::items::{
     color_bar, connection_name, console_items, fan_item, filament_path_item, heater_item, host_interface_item,
@@ -113,6 +114,7 @@ pub struct Presenter {
     extrude_lengths: RefCell<Vec<f64>>,
     filament_sensors: Rc<VecModel<FilamentSensorItem>>,
     print_objects: ObjectsView,
+    calibration: CalibrationView,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
     mmu_sensors: Rc<VecModel<MmuSensorItem>>,
     macros: Rc<VecModel<SharedString>>,
@@ -152,6 +154,7 @@ impl Presenter {
             extrude_lengths: RefCell::default(),
             filament_sensors: Rc::default(),
             print_objects: ObjectsView::default(),
+            calibration: CalibrationView::default(),
             mmu_gates: Rc::default(),
             mmu_sensors: Rc::default(),
             macros: Rc::default(),
@@ -180,6 +183,7 @@ impl Presenter {
         printer.set_tuning(ModelRc::from(presenter.tuning.clone()));
         printer.set_filament_sensors(ModelRc::from(presenter.filament_sensors.clone()));
         presenter.print_objects.bind(&printer);
+        presenter.calibration.bind(&printer);
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
         printer.set_mmu_sensors(ModelRc::from(presenter.mmu_sensors.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
@@ -344,6 +348,7 @@ impl Presenter {
         printer.set_can_quad_gantry_level(klipper.leveling == Some(Leveling::QuadGantry));
         printer.set_can_z_tilt(klipper.leveling == Some(Leveling::ZTilt));
         printer.set_has_probe(klipper.probe);
+        self.calibration.show(&printer, klipper, &status.calibration);
         let macros = match filament::handling(&snapshot.sources, status) {
             FilamentHandling::Macros(macros) => Some(macros),
             FilamentHandling::Mmu | FilamentHandling::None => None,

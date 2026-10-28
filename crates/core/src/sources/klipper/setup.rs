@@ -1,6 +1,7 @@
 //! What this Klipper has: read from `printer.objects.list` and, once per subscription, from its configuration (it
 //! only changes with a restart, which subscribes again).
 
+use super::calibration::{self, CalibrationSetup};
 use super::devices::{self, FanKind, Led, WhiteChannel};
 use super::filament_sensors::is_filament_sensor;
 use super::leveling::Leveling;
@@ -19,6 +20,8 @@ pub struct Setup {
     /// A probe (`probe`, `bltouch`, `smart_effector`, `probe_eddy_current`): the Z offset goes to the probe, else
     /// to the endstop.
     pub probe: bool,
+    /// Bed mesh, bed screws and the Z endstop, see [`CalibrationSetup`].
+    pub calibration: CalibrationSetup,
     /// Additional heaters with a target temperature (`heater_generic`, `temperature_fan`, additional extruders).
     pub extra_heaters: Vec<String>,
     /// Temperatures without a target: `temperature_sensor` and the drivers that measure their own (`tmc2240`).
@@ -47,6 +50,7 @@ impl Setup {
         let mut setup = Self::default();
         let mut leveling_objects = Vec::new();
         for name in names {
+            setup.calibration.note_object(name);
             let (kind, instance) = name.split_once(' ').map_or((name, None), |(kind, instance)| (kind, Some(instance)));
             match (kind, instance) {
                 (_, None) if Leveling::objects().contains(&kind) => leveling_objects.push(kind),
@@ -74,6 +78,7 @@ impl Setup {
         let section = |object: &str| settings.and_then(|settings| settings.get(object));
         self.led_white = self.leds.iter().map(|led| (led.clone(), devices::white_channel(section(led)))).collect();
         self.tuning = TuningConfig::from_settings(settings);
+        self.calibration.apply_settings(settings);
     }
 
     pub fn white_channel(&self, led: &str) -> WhiteChannel {
@@ -134,10 +139,14 @@ impl Setup {
             "extruder",
             Some(&["temperature", "target", "power", "pressure_advance", "smooth_time", "can_extrude"]),
         );
-        subscription.add("configfile", Some(&["save_config_pending", "settings"]));
+        subscription.add("configfile", Some(&["save_config_pending", "save_config_pending_items", "settings"]));
         subscription.add("heater_bed", Some(HEATER_FIELDS));
         for leveling in Leveling::objects() {
             subscription.add(leveling, Some(&["applied"]));
+        }
+        for object in calibration::OBJECTS {
+            // The mesh matrices are not shown; the profiles bring their points along.
+            subscription.add(object, (object == "bed_mesh").then_some(&["profile_name", "profiles"][..]));
         }
         subscription.add(
             "firmware_retraction",

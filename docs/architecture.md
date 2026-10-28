@@ -63,7 +63,7 @@ nothing is loaded at runtime or can be switched off. What is detected is used.
 | Service     | `service.rs`, `commands.rs`             | Collects, publishes `Snapshot`s and `Event`s, resolves and sends commands.       |
 
 Sources: `klipper/` (Klipper's own objects, one module per kind: `job`, `motion`, `extruder`, `heaters`, `devices`
-(fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`; `status.rs` puts them together,
+(fans, LEDs), `filament_sensors`, `firmware_retraction`, `exclude_object`, `leveling`, `calibration` (bed mesh, bed screws, Z height, the modes Klipper waits in, pending `SAVE_CONFIG` items); `status.rs` puts them together,
 `setup.rs` detects what is there; plus configuration, macros, tuning values), `moonraker_server/` (files, job
 history, power, update manager, temperature and console stores, host information), `happy_hare/`, `spoolman.rs`,
 `led_effect.rs`, `mainsail_config.rs` (layer pause macros) and `macro_conventions.rs` (`LOAD_FILAMENT`,

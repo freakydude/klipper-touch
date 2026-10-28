@@ -8,6 +8,7 @@ slint::include_modules!();
 pub mod actions;
 pub mod app;
 mod bed_map;
+mod calibration_view;
 mod chart;
 pub mod display;
 pub mod format;

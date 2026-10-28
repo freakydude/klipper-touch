@@ -1,0 +1,15 @@
+// Preview: the dialog of Klipper's bed screws tool (BED_SCREWS_ADJUST) at the second screw.
+
+import { AppWindow } from "../app.slint";
+import { Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component CalibrateScrewsPreview inherits AppWindow {
+    init => {
+        Sample.calibration();
+        Printer.calibration-mode = "bed-screws";
+        Printer.bed-screw = "front left";
+        Printer.bed-screws-accepted = 1;
+        Printer.bed-screws-count = 4;
+    }
+}

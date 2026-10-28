@@ -201,6 +201,101 @@ export component StepSelector inherits HorizontalLayout {
     }
 }
 
+// A tab of a page: flat, the chosen one in the accent colour with a bar below. Unlike IconButton it does not look like
+// an action, so it reads as a place to switch to (Frank, 2026-10-28). Confirmations keep the button look, at the right.
+export component TabButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> checked;
+    in property <bool> enabled: true;
+    // Waiting items (updates), as a small badge after the text.
+    in property <int> count;
+    callback clicked;
+
+    property <color> content: !root.enabled ? Theme.disabled-foreground : root.checked ? Theme.accent : Theme.muted;
+
+    min-width: 130px;
+    max-width: 190px;
+    horizontal-stretch: 1;
+    min-height: Theme.touch;
+    border-radius: Theme.radius;
+    background: touch.pressed ? Theme.surface-raised : transparent;
+    accessible-role: tab;
+    accessible-label: root.text;
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-bottom: 3px;
+        spacing: 8px;
+        alignment: center;
+        if root.icon.width > 0: Image {
+            cross-axis-self-alignment: center;
+            source: root.icon;
+            colorize: root.content;
+            width: 20px;
+            height: 20px;
+        }
+        Text {
+            text: root.text;
+            color: root.content;
+            font-size: Theme.font-normal;
+            font-weight: root.checked ? 700 : 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        if root.count > 0: Rectangle {
+            cross-axis-self-alignment: center;
+            width: max(18px, count-text.preferred-width + 8px);
+            height: 18px;
+            border-radius: 9px;
+            background: Theme.accent;
+            count-text := Text {
+                text: root.count;
+                color: Theme.foreground;
+                font-size: Theme.font-small;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    Rectangle {
+        y: parent.height - self.height;
+        height: 3px;
+        border-radius: 1.5px;
+        background: root.checked ? Theme.accent : transparent;
+    }
+}
+
+// The row of tabs above a page's content, on a line across the page. Extra children (a status text) follow the tabs.
+export component TabBar inherits Rectangle {
+    // Pages whose layout has no padding of its own (Move, Tune, Thermal, Filament) keep the gap here.
+    in property <length> inset: Theme.padding;
+    height: Theme.touch + root.inset;
+
+    Rectangle {
+        y: parent.height - self.height;
+        height: 1px;
+        background: Theme.border;
+    }
+
+    HorizontalLayout {
+        padding-left: root.inset;
+        padding-right: root.inset;
+        padding-top: root.inset;
+        spacing: Theme.spacing;
+        alignment: start;
+        @children
+    }
+}
+
 // Panel with optional heading for related controls.
 export component Card inherits Rectangle {
     in property <string> title;

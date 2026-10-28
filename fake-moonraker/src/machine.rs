@@ -13,6 +13,12 @@ pub struct MachineProfile {
     pub devices: bool,
     /// Number of filament sensors, taken from the front of the list of the profile (`FILAMENT_SENSORS` or `MMU_FILAMENT_SENSORS`).
     pub filament_sensors: usize,
+    /// A probe (`[probe]`, simulated like a BLTouch).
+    pub probe: bool,
+    /// `[bed_mesh]` with the profile `default`.
+    pub bed_mesh: bool,
+    /// `[bed_screws]` and `[screws_tilt_adjust]` with four screws, as on a bed slinger.
+    pub bed_screws: bool,
 }
 
 /// Klipper object names of the simulated filament sensors; the second reports a runout.
@@ -43,6 +49,9 @@ impl MachineProfile {
             spoolman: false,
             devices: false,
             filament_sensors: 0,
+            probe: true,
+            bed_mesh: true,
+            bed_screws: true,
         }
     }
 
@@ -55,6 +64,9 @@ impl MachineProfile {
             spoolman: true,
             devices: true,
             filament_sensors: 2,
+            probe: true,
+            bed_mesh: true,
+            bed_screws: false,
         }
     }
 
@@ -67,6 +79,9 @@ impl MachineProfile {
             spoolman: true,
             devices: true,
             filament_sensors: 5,
+            probe: true,
+            bed_mesh: true,
+            bed_screws: false,
         }
     }
 }

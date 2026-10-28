@@ -1,0 +1,10 @@
+// Preview: Calibrate tab of the Move page on a bed slinger, with screw results, mesh profiles and a pending save.
+
+import { AppWindow } from "../app.slint";
+import { Sample } from "sample.slint";
+
+export component CalibratePreview inherits AppWindow {
+    init => {
+        Sample.calibration();
+    }
+}

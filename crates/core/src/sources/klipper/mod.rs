@@ -1,6 +1,7 @@
 //! Klipper itself: its objects (heaters, sensors, fans, LEDs, motion, print job), its configuration and its macros.
 //! Each kind of object has its own module; `status.rs` puts them together, `setup.rs` detects what is there.
 
+mod calibration;
 pub mod commands;
 mod devices;
 mod exclude_object;
@@ -18,6 +19,9 @@ mod setup;
 mod status;
 pub mod tuning;
 
+pub use calibration::{
+    BedMeshState, CalibrationMode, CalibrationSetup, CalibrationState, PendingSection, ScrewAdjustment, TestZ,
+};
 pub use devices::{instance, is_led, main_light, white_channel, Fan, FanKind, Led, WhiteChannel};
 pub use exclude_object::{object_at, PrintObject};
 pub use extruder::ExtruderState;

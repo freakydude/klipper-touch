@@ -4,7 +4,7 @@ use crate::session::Session;
 use freakymate::{Confirm, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::sources::klipper::tuning::TuningKey;
-use freakymate_core::sources::klipper::{Activity, KlippyState, PrintState};
+use freakymate_core::sources::klipper::{Activity, CalibrationMode, KlippyState, PrintState, TestZ};
 use freakymate_core::{Command, ConnectionState, Query};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
@@ -25,6 +25,8 @@ pub enum Scene {
     Taps,
     /// Editing keys in the text entry of the console, physical and on-screen.
     Typing,
+    /// The Calibrate tab of the Move page: results of the bed mesh and the screws, the dialogs of the waiting modes.
+    Calibrate,
     /// Print running, system page locked, cancel.
     Printing,
     /// Emergency stop and firmware restart.
@@ -34,18 +36,27 @@ pub enum Scene {
 }
 
 impl Scene {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Pages,
         Self::Spools,
         Self::Network,
         Self::Taps,
         Self::Typing,
+        Self::Calibrate,
         Self::Printing,
         Self::Shutdown,
         Self::Idle,
     ];
-    pub const DEFAULT: [Self; 7] =
-        [Self::Pages, Self::Spools, Self::Network, Self::Taps, Self::Typing, Self::Printing, Self::Shutdown];
+    pub const DEFAULT: [Self; 8] = [
+        Self::Pages,
+        Self::Spools,
+        Self::Network,
+        Self::Taps,
+        Self::Typing,
+        Self::Calibrate,
+        Self::Printing,
+        Self::Shutdown,
+    ];
 
     /// Parses `pages,network` or `all`.
     pub fn parse_list(text: &str) -> Result<Vec<Self>, String> {
@@ -57,7 +68,7 @@ impl Scene {
 
     fn parse(name: &str) -> Result<Self, String> {
         Self::ALL.into_iter().find(|scene| scene.name() == name).ok_or_else(|| {
-            format!("unknown scene '{name}' (pages, spools, network, taps, typing, printing, shutdown, idle, all)")
+            format!("unknown scene '{name}' (pages, spools, network, taps, typing, calibrate, printing, shutdown, idle, all)")
         })
     }
 
@@ -68,6 +79,7 @@ impl Scene {
             Self::Network => "network",
             Self::Taps => "taps",
             Self::Typing => "typing",
+            Self::Calibrate => "calibrate",
             Self::Printing => "printing",
             Self::Shutdown => "shutdown",
             Self::Idle => "idle",
@@ -81,6 +93,7 @@ impl Scene {
             Self::Network => network(session),
             Self::Taps => taps(session),
             Self::Typing => typing(session),
+            Self::Calibrate => calibrate(session),
             Self::Printing => printing(session),
             Self::Shutdown => shutdown(session),
             Self::Idle => idle(session),
@@ -416,6 +429,66 @@ fn expect_console_command(session: &mut Session, command: &str) -> Result<(), St
         "expected the console to end with the command {command}, it ends with {:?}",
         last.map(|line| line.text)
     ))
+}
+
+/// The Move entry of the navigation (800x480, no fitting).
+const NAV_MOVE: (f32, f32) = (38.0, 155.0);
+
+/// Measures what the printer can measure, then shows each waiting mode in its dialog and leaves it; at the end the
+/// changes are saved, so the scenes after it start without pending ones.
+fn calibrate(session: &mut Session) -> Result<(), String> {
+    let offered = session.presenter.snapshot().sources.klipper.calibration;
+    session.window.global::<Navigation>().set_move_tab(1);
+    session.show_page(Page::Move, "calibrate")?;
+    if offered.bed_mesh {
+        session.service.send(Command::CalibrateBedMesh);
+        session.wait_until("bed mesh", |snapshot| {
+            snapshot.status.calibration.bed_mesh.as_ref().is_some_and(|mesh| !mesh.active.is_empty())
+        })?;
+    }
+    if offered.screws_tilt {
+        session.service.send(Command::CalculateScrewsTilt);
+        session.wait_until("screw results", |snapshot| !snapshot.status.calibration.screws.is_empty())?;
+    }
+    session.pump(Duration::from_millis(300));
+    session.capture("calibrate-results")?;
+
+    session.service.send(Command::CalibrateZ);
+    session.wait_until("manual probe", |snapshot| snapshot.status.calibration.mode.is_some())?;
+    session.service.send(Command::TestZ { step: TestZ::By(-1.0) });
+    session.service.send(Command::TestZ { step: TestZ::BisectUp });
+    session.wait_until("heights tried", |snapshot| {
+        matches!(snapshot.status.calibration.mode, Some(CalibrationMode::ManualProbe { lower: Some(_), .. }))
+    })?;
+    session.pump(Duration::from_millis(300));
+    session.capture("calibrate-probe")?;
+    session.service.send(Command::AcceptCalibration);
+    session.wait_until("probe accepted", |snapshot| snapshot.status.calibration.mode.is_none())?;
+    session.pump(Duration::from_millis(300));
+    session.capture("calibrate-pending")?;
+
+    if offered.bed_screws {
+        session.service.send(Command::AdjustBedScrews);
+        session.wait_until("bed screws", |snapshot| snapshot.status.calibration.mode.is_some())?;
+        session.service.send(Command::AcceptCalibration);
+        session.wait_until("first screw accepted", |snapshot| {
+            matches!(snapshot.status.calibration.mode, Some(CalibrationMode::BedScrews { accepted: 1, .. }))
+        })?;
+        session.pump(Duration::from_millis(300));
+        session.capture("calibrate-screws")?;
+        // Closing the dialog, here by a tap on the navigation, leaves the mode.
+        if session.has_reference_layout() {
+            let (x, y) = NAV_MOVE;
+            session.tap(x, y);
+        } else {
+            session.service.send(Command::AbortCalibration);
+        }
+        session.wait_until("bed screws left", |snapshot| snapshot.status.calibration.mode.is_none())?;
+    }
+    session.service.send(Command::SaveConfig);
+    session.wait_until("saved", |snapshot| !snapshot.status.save_config_pending)?;
+    session.window.global::<Navigation>().set_move_tab(0);
+    Ok(())
 }
 
 fn printing(session: &mut Session) -> Result<(), String> {

@@ -159,6 +159,15 @@ export struct BedMapItem {
 }
 
 // Texts of a file row; an empty text is a fact the file does not have.
+// One screw from the last SCREWS_TILT_CALCULATE.
+export struct ScrewItem {
+    name: string,
+    // Turns as Klipper reports them ("01:15" = one and a quarter turns); empty for the base screw.
+    turns: string,
+    clockwise: bool,
+    is-base: bool,
+}
+
 export struct FileItem {
     path: string,
     name: string,
@@ -363,7 +372,31 @@ export global Printer {
     in property <bool> has-power;
     in property <bool> has-update-manager;
     in property <bool> save-config-pending;
+    // What SAVE_CONFIG would write, one entry per section: "probe: z_offset = 0.550 · bed_mesh default: 8 values".
+    in property <string> pending-config;
     in property <string> leveling-state;
+
+    // Calibration (see CalibrationSetup and CalibrationState in the core)
+    in property <bool> has-bed-mesh;
+    in property <bool> has-screws-tilt;
+    in property <bool> has-bed-screws;
+    // How the Z height is found by paper test: probe | endstop, empty if neither.
+    in property <string> z-calibration;
+    // The active mesh profile, empty without one.
+    in property <string> bed-mesh-active;
+    in property <[string]> bed-mesh-profiles;
+    in property <[ScrewItem]> screw-results;
+    // The mode Klipper waits in until ACCEPT or ABORT: manual-probe | bed-screws, empty if none.
+    in property <string> calibration-mode;
+    // manual-probe: the height now and the nearest heights tried below and above (empty if none).
+    in property <string> probe-z;
+    in property <string> probe-z-lower;
+    in property <string> probe-z-upper;
+    // bed-screws: the screw to adjust, whether this is the fine round, accepted screws in a row and their number.
+    in property <string> bed-screw;
+    in property <bool> bed-screw-fine;
+    in property <int> bed-screws-accepted;
+    in property <int> bed-screws-count;
 
     // Lists
     in property <[string]> macros;
@@ -469,6 +502,20 @@ export global Actions {
     callback reset-z-offset();
     callback apply-z-offset();
     callback save-config();
+    callback calibrate-bed-mesh();
+    callback load-bed-mesh(string);
+    callback clear-bed-mesh();
+    callback calculate-screws-tilt();
+    callback adjust-bed-screws();
+    // PROBE_CALIBRATE or Z_ENDSTOP_CALIBRATE, whichever the printer has.
+    callback calibrate-z();
+    // Within the manual probe: a relative move in mm; bisect-z goes halfway up (1) or down (-1) to the nearest
+    // height tried.
+    callback test-z(float);
+    callback bisect-z(int);
+    callback accept-calibration();
+    callback screw-adjusted();
+    callback abort-calibration();
     callback set-speed-factor(float);
     callback extrude(float, float);
     callback load-filament();
@@ -592,6 +639,8 @@ export global Navigation {
     in-out property <int> heat-tab;
     // Tune page: 0 = basics, 1 = expert; the navigation rail opens the basics.
     in-out property <int> tune-tab;
+    // 0 move, 1 calibrate.
+    in-out property <int> move-tab;
     in-out property <bool> history-open;
     // Width to height of the drawing area of the temperature chart; the chart's lines are drawn for this shape.
     in-out property <float> history-aspect: 2;
@@ -658,6 +707,8 @@ export global Dialogs {
         Confirm.open = false;
         SpoolPicker.open = false;
         if (Navigation.history-open) { Actions.close-history(); }
+        // Closing the dialog of a calibration mode leaves the mode (Frank, 2026-10-28).
+        if (Printer.ready && Printer.calibration-mode != "") { Actions.abort-calibration(); }
         self.dismissals += 1;
     }
 }

@@ -118,13 +118,29 @@ built in. This is what I found in the KlipperScreen documentation (read in Octob
 I did not look into what the KlipperScreen Spoolman panel can do beyond its existence, so this row says nothing about
 the depth of either.
 
+## Release and pre-release
+
+The [releases page](https://github.com/freakydude/freakymate/releases) offers two kinds of builds:
+
+| Build           | What it is                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pre-release** | Always the current state of `main`. Every merged change replaces it, so it has the newest functions first.                                 |
+| **Release**     | From time to time I tag a state of `main` as release `vX.Y.0`, when a set of changes feels finished. Fewer updates, more time in use.       |
+
+Neither is an untested nightly: a change only reaches `main` through a reviewed pull request whose automated checks
+(tests, builds and packages for all targets) are green, and a release is a state that was the pre-release before.
+Beyond that, "tested" means tried by me on my own setup, and not very intensively yet. Nobody else has confirmed
+either build, so the caution above applies to both in full. Pick the release if you want few updates, the
+pre-release if you want to follow the development; the update channel below decides which one Moonraker installs.
+
 ## Install on the printer host
 
 This is the main use case: FreakyMate runs on the host of the printer (Raspberry Pi OS, Armbian or another
 Debian-based system with the display attached), starts fullscreen on the display at boot and updates itself through
 Moonraker's update manager, like Mainsail or Fluidd.
 
-1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases):
+1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases)
+   (release or pre-release, see above):
    `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
    Builds target Debian Bookworm and run on Bookworm and Trixie.
 2. Unpack and run the installer as your normal user (the one running Klipper and Moonraker):
@@ -154,7 +170,7 @@ The section written by the installer (add it yourself if `moonraker.conf` lives 
 ```ini
 [update_manager freakymate]
 type: zip
-channel: stable          # beta = also preview builds of main
+channel: stable          # beta = also the pre-release (current main)
 repo: freakydude/freakymate
 path: ~/freakymate
 managed_services: freakymate
@@ -163,8 +179,8 @@ system_dependencies: system-dependencies.json
 
 | Channel  | What you get                                                                                                                        |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `stable` | Releases `vX.Y.0` that I publish by hand when a set of changes feels finished. Few updates, the safer choice.                       |
-| `beta`   | In addition a preview build of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New things first, may be broken.    |
+| `stable` | Only releases `vX.Y.0`. Few updates, more time in use.                                                                              |
+| `beta`   | In addition the pre-release of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New functions first.               |
 
 To change the channel set `channel:` in that section and restart Moonraker (`sudo systemctl restart moonraker`). The
 installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing `channel`
