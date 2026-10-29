@@ -15,6 +15,7 @@ pub mod display;
 pub mod format;
 mod history_view;
 mod items;
+pub mod kiosk_pointer;
 pub mod network_controller;
 mod objects_view;
 pub mod presenter;

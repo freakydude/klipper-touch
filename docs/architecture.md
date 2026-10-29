@@ -168,10 +168,15 @@ history).
   (`SLINT_BACKEND=winit-software`).
 - The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
   (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
-  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Fitting and the
-  hidden pointer in fullscreen share one winit event filter (`app::watch_window_events`): Slint keeps only one per
-  window. Responsive layouts for
+  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. The fitting lives in
+  the one winit event filter (`app::watch_window_events`): Slint keeps only one per window. Responsive layouts for
   7" and 4.3" displays are planned.
+- No mouse pointer in the kiosk (`--fullscreen`, as both services start it): `kiosk_pointer.rs` writes a cursor theme
+  of transparent pointers to `$XDG_RUNTIME_DIR/freakymate-cursors` and sets `XCURSOR_PATH`/`XCURSOR_THEME` before the
+  window exists. Hiding the pointer through the window does not last, because Slint shows it again with every change
+  of the pointer shape, and a tap is a pointer event to Slint. cage hides its pointer by itself only when no pointing
+  device is attached; the BTT HDMI5 also registers as a mouse. On the desktop, in a window and in fullscreen switched
+  on in the settings, the system's pointer stays.
 - Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
 - Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).
 

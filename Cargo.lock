@@ -1513,8 +1513,10 @@ dependencies = [
  "freakymate-ui",
  "log",
  "slint",
+ "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "xcursor",
 ]
 
 [[package]]

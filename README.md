@@ -237,7 +237,8 @@ Besides the Moonraker route there are plain packages, for example to try it on a
   and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start FreakyMate from the
   application menu or with `freakymate` in a terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
   `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
-  Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`); `-f` starts it fullscreen.
+  Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`). For fullscreen with a mouse,
+  switch on Fullscreen on System → Display; `-f` is the kiosk mode for a touch screen and hides the mouse pointer.
 
 ## Configuration
 
@@ -250,7 +251,7 @@ freakymate [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-ne
 | Option               | Meaning                                                                                          |
 | -------------------- | ------------------------------------------------------------------------------------------------ |
 | `-m, --moonraker`    | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
-| `-f, --fullscreen`   | Fullscreen/kiosk mode                                                                            |
+| `-f, --fullscreen`   | Kiosk mode for a touch screen, as the services start it: fullscreen, no window frame, no mouse pointer |
 | `--settings`         | Settings file, default `~/.config/freakymate/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/freakymate.json` |
 | `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
 
