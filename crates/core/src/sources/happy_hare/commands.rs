@@ -62,6 +62,35 @@ pub fn load_gate(gate: usize) -> String {
     format!("{}\n{LOAD}", select_gate(gate))
 }
 
+/// Selects the bypass, for filament fed by hand past the gates. Happy Hare allows it on every MMU (on designs without
+/// a selector it is only a state) and refuses while filament is loaded (`mmu_select_bypass.py`).
+pub const SELECT_BYPASS: &str = "MMU_SELECT BYPASS=1";
+
+/// Selects the bypass and loads the filament fed into it.
+pub fn load_bypass() -> String {
+    format!("{SELECT_BYPASS}\n{LOAD}")
+}
+
+/// Lets `tool` take its filament from `gate` (tool-to-gate map). An empty gate becomes unknown, as Happy Hare
+/// assumes it was just filled (`mmu_ttg_map.py`).
+pub fn map_tool(tool: usize, gate: usize) -> String {
+    format!("MMU_TTG_MAP TOOL={tool} GATE={gate}")
+}
+
+/// Back to the configured tool-to-gate map, usually T0 → gate 0, T1 → gate 1 and so on.
+pub const RESET_TOOL_MAP: &str = "MMU_TTG_MAP RESET=1";
+
+/// On a runout EndlessSpool continues with the next gate of the same group instead of pausing.
+pub fn endless_spool(enabled: bool) -> String {
+    format!("MMU_ENDLESS_SPOOL ENABLE={}", u8::from(enabled))
+}
+
+/// The EndlessSpool group of every gate; Happy Hare takes only the complete list (`GROUPS=`, one value per gate).
+pub fn endless_spool_groups(groups: &[u32]) -> String {
+    let groups: Vec<String> = groups.iter().map(u32::to_string).collect();
+    format!("MMU_ENDLESS_SPOOL GROUPS={}", groups.join(","))
+}
+
 /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record (`SPOOLID=-1`).
 pub fn assign_gate_spool(gate: usize, spool_id: Option<u32>) -> String {
     format!("MMU_GATE_MAP GATE={gate} SPOOLID={}", spool_id.map_or(-1, i64::from))

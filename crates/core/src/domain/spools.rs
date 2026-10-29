@@ -33,7 +33,7 @@ pub fn lanes(status: &PrinterStatus, state: &SpoolmanState) -> Vec<Lane> {
             .iter()
             .map(|gate| Lane {
                 gate: Some(gate.index),
-                tool: gate.tool,
+                tool: gate.tools.first().copied(),
                 spool_id: gate.spool_id,
                 spool: spool(gate.spool_id),
                 active: usize::try_from(mmu.gate) == Ok(gate.index),
@@ -199,7 +199,7 @@ mod tests {
                 .map(|(index, spool_id)| MmuGate {
                     index,
                     spool_id: *spool_id,
-                    tool: Some(index),
+                    tools: vec![index],
                     ..MmuGate::default()
                 })
                 .collect(),

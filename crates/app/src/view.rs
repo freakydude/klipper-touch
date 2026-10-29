@@ -145,7 +145,9 @@ pub fn print_hint_text(hint: &PrintHint, show_tool: bool) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FileFacts {
     pub modified: String,
+    /// The slicer's filament type; files for several tools list one per tool (`PLA;PETG`).
     pub material: String,
+    pub weight: String,
     pub nozzle: String,
     pub time: String,
     pub extruder_temperature: String,
@@ -158,7 +160,9 @@ pub struct FileFacts {
 pub fn file_facts(info: &FileInfo) -> FileFacts {
     let mut facts = FileFacts { modified: format::unix_date(info.entry.modified), ..FileFacts::default() };
     if let Some(metadata) = info.metadata {
-        facts.material = file_filament(metadata, info.last_print, info.spool).unwrap_or_default();
+        facts.material = metadata.filament_type.clone().unwrap_or_default();
+        facts.weight = estimates::filament_weight_grams(metadata, info.last_print, info.spool)
+            .map_or_else(String::new, |grams| show(grams, format::filament_weight));
         facts.nozzle =
             metadata.nozzle_diameter.filter(|diameter| *diameter > 0.0).map_or_else(String::new, |d| d.to_string());
         facts.time = file_print_time(metadata, info.last_print).unwrap_or_default();
@@ -172,14 +176,6 @@ pub fn file_facts(info: &FileInfo) -> FileFacts {
 /// A temperature of 0 means that the slicer sets none.
 fn degrees(temperature: Option<f64>) -> String {
     temperature.filter(|degrees| *degrees > 0.0).map_or_else(String::new, |degrees| format!("{degrees:.0}°"))
-}
-
-fn file_filament(metadata: &FileMetadata, last_print: Option<&LastPrint>, spool: Option<&Spool>) -> Option<String> {
-    let weight =
-        estimates::filament_weight_grams(metadata, last_print, spool).map(|grams| show(grams, format::filament_weight));
-    let parts: Vec<String> =
-        [metadata.filament_type.clone().filter(|kind| !kind.is_empty()), weight].into_iter().flatten().collect();
-    (!parts.is_empty()).then(|| parts.join(" "))
 }
 
 fn file_print_time(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> Option<String> {
@@ -232,6 +228,11 @@ pub fn mmu_chip_sensors(sensors: &[MmuSensor], has_buffer: bool) -> Vec<&MmuSens
         .filter(|sensor| !(has_buffer && BUFFER_SENSORS.contains(&sensor.name.as_str())))
         .filter(|sensor| !on_path.contains(&sensor.name.as_str()))
         .collect()
+}
+
+/// The tools of a gate as the tile shows them, e.g. `T0 T3`; empty without one.
+pub fn mmu_tools(tools: &[usize]) -> String {
+    tools.iter().map(|tool| format!("T{tool}")).collect::<Vec<_>>().join(" ")
 }
 
 /// The distance on the filament path, e.g. `412.6 mm`.
@@ -469,7 +470,8 @@ mod tests {
             facts,
             FileFacts {
                 modified: format::unix_date(1_700_000_000.0),
-                material: "PLA ~30 g".into(),
+                material: "PLA".into(),
+                weight: "~30 g".into(),
                 nozzle: "0.4".into(),
                 time: "~1h 00m".into(),
                 extruder_temperature: "215°".into(),
@@ -485,7 +487,7 @@ mod tests {
 
         let facts = facts_of(Some(&file_metadata()), Some(&last_print));
 
-        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("PLA 27 g", "55m 00s"));
+        assert_eq!((facts.material.as_str(), facts.weight.as_str(), facts.time.as_str()), ("PLA", "27 g", "55m 00s"));
     }
 
     #[test]
@@ -508,7 +510,7 @@ mod tests {
         let facts = facts_of(Some(&metadata), None);
 
         assert_eq!(facts.nozzle, "0.6");
-        assert_eq!((facts.material.as_str(), facts.time.as_str()), ("", ""));
+        assert_eq!((facts.material.as_str(), facts.weight.as_str(), facts.time.as_str()), ("", "", ""));
         assert_eq!(
             (facts.extruder_temperature.as_str(), facts.bed_temperature.as_str(), facts.chamber_temperature.as_str()),
             ("", "", "")

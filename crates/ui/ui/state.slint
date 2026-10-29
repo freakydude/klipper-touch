@@ -86,14 +86,22 @@ export struct MmuGateItem {
     color-count: int,
     // The colours follow each other along the filament instead of lying side by side.
     longitudinal: bool,
-    // Tool mapped to this gate, -1 without one.
-    tool: int,
+    // Tools that take their filament from this gate, as "T0 T3"; empty without one.
+    tools: string,
+    // EndlessSpool group of the gate, -1 if Happy Hare reports none.
+    group: int,
     selected: bool,
     // Remaining filament of the spool in the gate (for example "613 g"), empty without Spoolman or spool.
     spool-text: string,
     spool-low: bool,
     // Spoolman id of the spool in the gate, -1 for none.
     spool-id: int,
+}
+
+// A tool of the MMU and the gate it takes its filament from (Happy Hare's tool-to-gate map).
+export struct MmuToolItem {
+    tool: int,
+    gate: int,
 }
 
 // A label of the temperature chart at `position`, a share from 0 to 1 along its axis.
@@ -174,7 +182,10 @@ export struct FileItem {
     path: string,
     name: string,
     modified: string,
+    // The slicer's filament type, one per tool for files with several (`PLA;PETG`).
     material: string,
+    // Filament the print takes, e.g. "52 g" or "~270 g".
+    weight: string,
     nozzle: string,
     time: string,
     extruder-temperature: string,
@@ -353,6 +364,12 @@ export global Printer {
     // Selected gate and tool, -1 for none or unknown.
     in property <int> mmu-gate: -1;
     in property <int> mmu-tool: -1;
+    // The bypass is selected instead of a gate: filament fed by hand past the gates.
+    in property <bool> mmu-bypass;
+    // Every tool with its gate, in tool order.
+    in property <[MmuToolItem]> mmu-tools;
+    // EndlessSpool: on a runout Happy Hare continues with the next gate of the same group.
+    in property <bool> mmu-endless-spool;
     in property <bool> mmu-paused;
     in property <bool> mmu-locked;
     in property <bool> mmu-homed;
@@ -547,6 +564,15 @@ export global Actions {
     callback mmu-preload(int);
     callback mmu-servo-up();
     callback mmu-servo-down();
+    callback mmu-select-bypass();
+    // Selects the bypass and loads the filament fed into it.
+    callback mmu-load-bypass();
+    // The tool takes its filament from the gate: (tool, gate).
+    callback mmu-map-tool(int, int);
+    callback mmu-reset-tool-map();
+    callback mmu-set-endless-spool(bool);
+    // Moves a gate into an EndlessSpool group: (gate, group).
+    callback mmu-set-endless-spool-group(int, int);
     // Material or colour of a gate in Happy Hare's gate map, for printers without Spoolman.
     callback set-gate-material(int, string);
     callback set-gate-color(int, color);
@@ -645,19 +671,22 @@ export global SpoolPicker {
     }
 }
 
-// The dialogs of the MMU tab: the gate a tap opened (-1 for none) and the service commands of the MMU.
+// The dialogs of the MMU tab: the gate a tap opened (-1 for none), or the bypass.
 export global MmuDialogs {
     in-out property <int> gate: -1;
-    in-out property <bool> service-open;
+    in-out property <bool> bypass-open;
 }
+
+// Tabs of the Filament page; without an MMU it shows the extruder alone.
+export enum FilamentTab { mmu, extruder, service }
 
 export global Navigation {
     in-out property <Page> page: Page.print;
     in-out property <bool> files-open;
     in-out property <bool> messages-open;
-    // Filament page: 0 = extruder, 1 = MMU
-    in-out property <int> filament-tab;
-    // First page of four gates that the MMU tab shows, counted from 0.
+    // Filament page; with an MMU it opens on the MMU tab.
+    in-out property <FilamentTab> filament-tab;
+    // Page of gate tiles the MMU tab shows, counted from 0.
     in-out property <int> mmu-page;
     // Thermal page: 0 = heaters, 1 = fans, 2 = sensors.
     in-out property <int> heat-tab;
@@ -707,6 +736,7 @@ export global Confirm {
         if (self.action == "mmu-motors-off") { Actions.mmu-motors-off(); }
         if (self.action == "mmu-check-gate") { Actions.mmu-check-gate(self.argument.to-float()); }
         if (self.action == "mmu-check-all-gates") { Actions.mmu-check-all-gates(); }
+        if (self.action == "mmu-reset-tool-map") { Actions.mmu-reset-tool-map(); }
         if (self.action == "save-config") { Actions.save-config(); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }
@@ -734,7 +764,7 @@ export global Dialogs {
         Confirm.open = false;
         SpoolPicker.open = false;
         MmuDialogs.gate = -1;
-        MmuDialogs.service-open = false;
+        MmuDialogs.bypass-open = false;
         if (Navigation.history-open) { Actions.close-history(); }
         // Closing the dialog of a calibration mode leaves the mode (Frank, 2026-10-28).
         if (Printer.ready && Printer.calibration-mode != "") { Actions.abort-calibration(); }

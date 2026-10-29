@@ -70,16 +70,19 @@ component InterruptionBanner inherits Rectangle {
     }
 }
 
+// A fact of a file keeps its whole width; only the material gives way (see FileRow).
 component FileChip inherits IconLabel {
     color: Theme.muted;
     font-size: Theme.font-small;
     icon-size: 16px;
+    min-width: self.preferred-width;
 }
 
 component FileRow inherits Rectangle {
     in property <string> name;
     in property <string> modified;
     in property <string> material;
+    in property <string> weight;
     in property <string> nozzle;
     in property <string> time;
     in property <string> extruder-temperature;
@@ -130,7 +133,23 @@ component FileRow inherits Rectangle {
             }
             HorizontalLayout {
                 spacing: 14px;
-                if root.material != "": FileChip { icon: Icons.filament-spool; text: root.material; }
+                // Files for several tools list a material per tool; the list is cut so the weight and the other facts
+                // stay readable.
+                if root.material != "" || root.weight != "": HorizontalLayout {
+                    spacing: 6px;
+                    FileChip {
+                        icon: Icons.filament-spool;
+                        text: root.material;
+                        min-width: min(self.preferred-width, 72px);
+                    }
+                    if root.weight != "": Text {
+                        text: root.weight;
+                        color: Theme.muted;
+                        font-size: Theme.font-small;
+                        vertical-alignment: center;
+                        min-width: self.preferred-width;
+                    }
+                }
                 if root.nozzle != "": FileChip { icon: Icons.print-nozzle-diameter; text: root.nozzle; }
                 if root.time != "": FileChip { icon: Icons.print-duration; text: root.time; }
                 if root.extruder-temperature != "": FileChip {
@@ -173,6 +192,7 @@ export component FileBrowser inherits Rectangle {
                 name: file.name;
                 modified: file.modified;
                 material: file.material;
+                weight: file.weight;
                 nozzle: file.nozzle;
                 time: file.time;
                 extruder-temperature: file.extruder-temperature;

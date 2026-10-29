@@ -88,8 +88,10 @@ pub struct MmuGate {
     pub material: String,
     /// Only known when the gate has a colour set (`gate_color` is not empty).
     pub color: Option<[u8; 3]>,
-    /// First tool that is mapped to this gate (`ttg_map`).
-    pub tool: Option<usize>,
+    /// Tools that take their filament from this gate (`ttg_map`), ascending; none, one or several.
+    pub tools: Vec<usize>,
+    /// EndlessSpool group (`endless_spool_groups`); gates of one group stand in for each other on a runout.
+    pub endless_spool_group: Option<u32>,
     /// Spoolman spool of the gate (`gate_spool_id`); `None` for none (Happy Hare reports -1).
     pub spool_id: Option<u32>,
     /// Print temperature of the gate in °C (`gate_temperature`), from Spoolman if the gate has a spool.
@@ -102,6 +104,9 @@ pub struct MmuSensor {
     pub name: String,
     pub triggered: Option<bool>,
 }
+
+/// `gate` and `tool` while the bypass is selected (`TOOL_GATE_BYPASS` in `mmu_constants.py`).
+pub const BYPASS: i32 = -2;
 
 /// Happy Hare's `filament_pos` when it does not know (`FILAMENT_POS_UNKNOWN` in `mmu_constants.py`).
 const FILAMENT_POS_UNKNOWN: i32 = -1;
@@ -256,6 +261,8 @@ pub struct MmuStatus {
     pub gates: Vec<MmuGate>,
     /// Gate of each tool (`ttg_map`).
     pub tool_to_gate: Vec<usize>,
+    /// EndlessSpool is on (`endless_spool_enabled`); the groups are in [`MmuGate::endless_spool_group`].
+    pub endless_spool: bool,
     /// `off`, `readonly`, `push` or `pull`; empty if not reported.
     pub spoolman_support: String,
     pub sensors: Vec<MmuSensor>,
@@ -299,6 +306,18 @@ impl MmuStatus {
     /// Enabled, but older than the oldest supported version: worth a notice instead of its view.
     pub fn is_too_old(&self) -> bool {
         self.enabled && !self.is_supported()
+    }
+
+    pub fn bypass_selected(&self) -> bool {
+        self.gate == BYPASS
+    }
+
+    /// The EndlessSpool groups of all gates with `gate` moved to `group`; `None` if Happy Hare reports no groups.
+    pub fn endless_spool_groups_with(&self, gate: usize, group: u32) -> Option<Vec<u32>> {
+        self.gates
+            .iter()
+            .map(|other| if other.index == gate { Some(group) } else { other.endless_spool_group })
+            .collect()
     }
 
     /// Material and colour of a gate can be set in Happy Hare, unless it takes them from Spoolman
@@ -354,6 +373,7 @@ pub(super) fn read_mmu(store: &ObjectStore) -> Option<MmuStatus> {
             .and_then(Value::as_array)
             .map(|map| map.iter().filter_map(|gate| gate.as_u64().map(|gate| gate as usize)).collect())
             .unwrap_or_default(),
+        endless_spool: flag(mmu, "endless_spool_enabled"),
         spoolman_support: text(mmu, "spoolman_support"),
         flow_rate: read_flow_rate(mmu, &sensors),
         flowguard: read_flowguard(mmu, &sensors),
@@ -382,13 +402,21 @@ fn has_proportional_sensor(sensors: &[MmuSensor]) -> bool {
     sensors.iter().any(|sensor| sensor.name == PROPORTIONAL_SENSOR && sensor.triggered.is_some())
 }
 
-/// A Klipper filament sensor that belongs to the MMU itself (gates and buffer). `toolhead` and `extruder` stay common:
-/// they sit behind the MMU and matter without one. `object` is the Klipper object name, for example
-/// `filament_switch_sensor mmu_entry_0`.
-pub fn is_mmu_klipper_sensor(object: &str) -> bool {
+/// A Klipper filament sensor that Happy Hare creates and the MMU view shows: those of the gates and the buffer, and
+/// `extruder` and `toolhead`, which the filament path draws. Others (a runout sensor at the spool, a motion sensor)
+/// belong to the printer. `object` is the Klipper object name, for example `filament_switch_sensor mmu_entry_0`.
+pub fn is_shown_by_mmu(object: &str) -> bool {
     let name = object.split_once(' ').map_or(object, |(_, name)| name);
     let name = name.rsplit_once(':').map_or(name, |(_, name)| name);
-    name.starts_with("mmu_") || matches!(name, "filament_compression" | "filament_tension" | "filament_proportional")
+    name.starts_with("mmu_")
+        || matches!(
+            name,
+            "filament_compression"
+                | "filament_tension"
+                | "filament_proportional"
+                | EXTRUDER_PATH_SENSOR
+                | TOOLHEAD_PATH_SENSOR
+        )
 }
 
 /// `major.minor` of a version such as `4.1.0` or `v4.10`.
@@ -399,13 +427,14 @@ fn parse_version(text: &str) -> Option<(u32, u32)> {
 
 fn read_gates(mmu: &Value, num_gates: usize) -> Vec<MmuGate> {
     let list = |field: &str| mmu.get(field).and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
-    let (status, names, materials, colors, rgb, ttg_map, spool_ids, temperatures) = (
+    let (status, names, materials, colors, rgb, ttg_map, groups, spool_ids, temperatures) = (
         list("gate_status"),
         list("gate_filament_name"),
         list("gate_material"),
         list("gate_color"),
         list("gate_color_rgb"),
         list("ttg_map"),
+        list("endless_spool_groups"),
         list("gate_spool_id"),
         list("gate_temperature"),
     );
@@ -421,7 +450,13 @@ fn read_gates(mmu: &Value, num_gates: usize) -> Vec<MmuGate> {
             name: string_at(names, index),
             material: string_at(materials, index),
             color: if string_at(colors, index).is_empty() { None } else { rgb.get(index).and_then(color_from_rgb) },
-            tool: ttg_map.iter().position(|gate| gate.as_u64() == Some(index as u64)),
+            tools: ttg_map
+                .iter()
+                .enumerate()
+                .filter(|(_, gate)| gate.as_u64() == Some(index as u64))
+                .map(|(tool, _)| tool)
+                .collect(),
+            endless_spool_group: groups.get(index).and_then(Value::as_u64).and_then(|group| u32::try_from(group).ok()),
             spool_id: spool_ids.get(index).and_then(Value::as_i64).and_then(|id| u32::try_from(id).ok()),
             temperature: temperatures.get(index).and_then(Value::as_f64).filter(|degrees| *degrees > 0.0),
         })
@@ -548,7 +583,7 @@ mod tests {
         assert_eq!(mmu.flow_rate, None);
         assert_eq!(
             mmu.gates,
-            vec![MmuGate { index: 0, availability: GateAvailability::Empty, tool: Some(0), ..MmuGate::default() }]
+            vec![MmuGate { index: 0, availability: GateAvailability::Empty, tools: vec![0], ..MmuGate::default() }]
         );
         assert_eq!(mmu.sync_feedback, Some(SyncFeedback { state: SyncFeedbackState::Inactive, bias: -1.0 }));
         let flowguard = mmu.flowguard.unwrap();
@@ -612,18 +647,33 @@ mod tests {
         assert_eq!(mmu.gate, 1);
         assert_eq!(mmu.gates[0].availability, GateAvailability::Available);
         assert_eq!(mmu.gates[0].color, Some([255, 0, 0]));
-        assert_eq!(mmu.gates[0].tool, Some(1));
+        assert_eq!(mmu.gates[0].tools, [1]);
         assert_eq!(mmu.gates[1].availability, GateAvailability::Buffered);
         assert_eq!(mmu.gates[1].color, None);
         assert_eq!(mmu.gates[2].availability, GateAvailability::Unknown);
         assert_eq!((mmu.gates[2].name.as_str(), mmu.gates[2].material.as_str()), ("Blue", "PETG"));
-        assert_eq!(mmu.gates[2].tool, Some(0));
+        assert_eq!(mmu.gates[2].tools, [0]);
     }
 
     #[test]
     fn bypass_is_reported_as_gate_minus_two() {
         let bypass = read_mmu(&store(json!({ "mmu": { "num_gates": 2, "gate": -2 } }))).unwrap();
-        assert_eq!(bypass.gate, -2);
+        assert!(bypass.bypass_selected());
+    }
+
+    #[test]
+    fn a_gate_knows_all_its_tools_and_its_endless_spool_group() {
+        let mmu = read_mmu(&store(json!({ "mmu": {
+            "num_gates": 3, "ttg_map": [0, 2, 0], "endless_spool_enabled": 1, "endless_spool_groups": [0, 1, 0]
+        } })))
+        .unwrap();
+
+        let tools: Vec<Vec<usize>> = mmu.gates.iter().map(|gate| gate.tools.clone()).collect();
+        assert_eq!(tools, [vec![0, 2], vec![], vec![1]]);
+        assert!(mmu.endless_spool);
+        assert_eq!(mmu.endless_spool_groups_with(1, 0), Some(vec![0, 0, 0]));
+        let without_groups = read_mmu(&store(json!({ "mmu": { "num_gates": 2 } }))).unwrap();
+        assert_eq!(without_groups.endless_spool_groups_with(0, 1), None);
     }
 
     #[test]
@@ -692,13 +742,14 @@ mod tests {
     }
 
     #[test]
-    fn mmu_sensors_are_told_apart_from_common_klipper_sensors() {
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor mmu_entry_0"));
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor filament_tension"));
-        assert!(is_mmu_klipper_sensor("filament_switch_sensor unit0:mmu_exit_1"));
-        assert!(!is_mmu_klipper_sensor("filament_switch_sensor toolhead"));
-        assert!(!is_mmu_klipper_sensor("filament_switch_sensor extruder"));
-        assert!(!is_mmu_klipper_sensor("filament_motion_sensor extruder_encoder"));
+    fn the_sensors_of_happy_hare_are_told_apart_from_other_klipper_sensors() {
+        assert!(is_shown_by_mmu("filament_switch_sensor mmu_entry_0"));
+        assert!(is_shown_by_mmu("filament_switch_sensor filament_tension"));
+        assert!(is_shown_by_mmu("filament_switch_sensor unit0:mmu_exit_1"));
+        assert!(is_shown_by_mmu("filament_switch_sensor toolhead"));
+        assert!(is_shown_by_mmu("filament_switch_sensor extruder"));
+        assert!(!is_shown_by_mmu("filament_switch_sensor spool_runout"));
+        assert!(!is_shown_by_mmu("filament_motion_sensor extruder_encoder"));
     }
 
     #[test]

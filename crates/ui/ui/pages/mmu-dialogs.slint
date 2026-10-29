@@ -1,15 +1,14 @@
-// Dialogs of the MMU tab: what can be done with one gate (a tap on its tile), and the commands for the MMU itself
-// (home, recover, unlock, motors off, check all gates, selector servo) that are rarely needed during normal use.
+// Dialogs of the MMU tab: what can be done with one gate (a tap on its tile) and with the bypass.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, MmuDialogs, MmuGateItem, Printer, SpoolPicker } from "../state.slint";
-import { ColorBar, IconButton } from "../components/controls.slint";
+import { ColorBar, IconButton, IconLabel } from "../components/controls.slint";
 import { DialogHeader, DialogPanel, Scrim } from "../components/dialog.slint";
 import { GateAvailabilityLabel } from "mmu.slint";
 
 // Happy Hare unloads loaded filament before it checks another gate, and loads it again afterwards outside a print.
-global GateCheck {
+export global GateCheck {
     pure public function unloads-first(gate: int) -> bool {
         return Printer.mmu-filament != "unloaded" && gate != Printer.mmu-gate;
     }
@@ -47,12 +46,54 @@ component ColorSwatch inherits Rectangle {
     }
 }
 
-// One gate: select, load, preload, check or eject it, and the filament in it: the spool with Spoolman, otherwise
-// material and colour in Happy Hare's gate map. Actions that move the filament close the dialog, so the filament
-// path on the tab shows how it goes; material and colour keep it open. The dialog hangs from the top, so its actions
-// stay in the same place with and without Spoolman.
+// A tool in the dialog of a gate: checked when it takes its filament from this gate, otherwise with the gate it takes
+// it from now. A tap brings it here.
+component ToolChip inherits Rectangle {
+    in property <int> tool;
+    in property <int> from-gate;
+    in property <bool> here;
+    callback clicked;
+
+    min-width: 40px;
+    height: Theme.touch;
+    border-radius: Theme.radius;
+    background: chip-touch.pressed ? Theme.surface-active : root.here ? Theme.surface-active : Theme.surface-raised;
+    border-width: root.here ? 2px : 0px;
+    border-color: Theme.accent;
+    accessible-role: button;
+    accessible-label: "T" + root.tool;
+    accessible-checked: root.here;
+
+    chip-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    VerticalLayout {
+        alignment: center;
+        Text {
+            text: "T" + root.tool;
+            color: Theme.foreground;
+            font-size: Theme.font-normal;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        if !root.here: Text {
+            text: "→ " + root.from-gate;
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// One gate: select, load, preload, check or eject it, which tools take their filament from it, its EndlessSpool
+// group, and the filament in it: the spool with Spoolman, otherwise material and colour in Happy Hare's gate map.
+// Actions that move the filament close the dialog, so the filament path on the tab shows how it goes; the settings
+// keep it open. The dialog hangs from the top, so its actions stay in the same place with and without Spoolman.
 export component GateDialog inherits Scrim {
     property <MmuGateItem> item: Printer.mmu-gates[MmuDialogs.gate];
+    // One gate has every tool anyway; the row only helps with several.
+    property <bool> shows-tools: Printer.mmu-gates.length > 1;
+    property <bool> shows-group: Printer.mmu-endless-spool && root.item.group >= 0;
     visible: MmuDialogs.gate >= 0 && MmuDialogs.gate < Printer.mmu-gates.length;
 
     function close() {
@@ -69,7 +110,7 @@ export component GateDialog inherits Scrim {
             padding: Theme.dialog-padding;
             spacing: Theme.spacing;
             DialogHeader {
-                title: root.item.tool >= 0 ? @tr("Gate {} · T{}", root.item.index, root.item.tool) : @tr("Gate {}", root.item.index);
+                title: root.item.tools != "" ? @tr("Gate {} · {}", root.item.index, root.item.tools) : @tr("Gate {}", root.item.index);
                 close => { root.close(); }
                 GateAvailabilityLabel {
                     availability: root.item.availability;
@@ -173,6 +214,42 @@ export component GateDialog inherits Scrim {
                 }
             }
 
+            // Which tools take their filament from this gate (Happy Hare's tool-to-gate map), and with EndlessSpool the
+            // group whose gates stand in for each other on a runout; a tap on the group moves the gate to the next one.
+            if root.shows-tools || root.shows-group: HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                if root.shows-tools: Text {
+                    text: @tr("Tools");
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    vertical-alignment: center;
+                }
+                if root.shows-tools: HorizontalLayout {
+                    horizontal-stretch: 1;
+                    spacing: Theme.spacing;
+                    for mapping in Printer.mmu-tools: ToolChip {
+                        horizontal-stretch: 1;
+                        tool: mapping.tool;
+                        from-gate: mapping.gate;
+                        here: mapping.gate == root.item.index;
+                        clicked => {
+                            if (!self.here) {
+                                Actions.mmu-map-tool(mapping.tool, root.item.index);
+                            }
+                        }
+                    }
+                }
+                if !root.shows-tools: Rectangle { horizontal-stretch: 1; }
+                if root.shows-group: IconButton {
+                    width: 132px;
+                    icon: Icons.mmu-endless-spool;
+                    text: @tr("Group {}", root.item.group);
+                    horizontal: true;
+                    clicked => { Actions.mmu-set-endless-spool-group(root.item.index, mod(root.item.group + 1, Printer.mmu-gates.length)); }
+                }
+            }
+
             // Without Spoolman material and colour live in Happy Hare's gate map; a tap sets them right away.
             if !Printer.has-spoolman: HorizontalLayout {
                 spacing: Theme.spacing;
@@ -196,91 +273,60 @@ export component GateDialog inherits Scrim {
     }
 }
 
-// The commands for the MMU as a whole. Stays open after a command, so its state (home, servo) shows here.
-export component MmuServiceDialog inherits Scrim {
-    property <length> button-height: 80px;
-    visible: MmuDialogs.service-open;
+// The bypass: filament fed by hand past the gates, straight to the extruder. Happy Hare selects it only while no
+// filament is loaded; material and colour of the bypass are not in its status, so the dialog offers none.
+export component BypassDialog inherits Scrim {
+    visible: MmuDialogs.bypass-open;
+
+    function close() {
+        MmuDialogs.bypass-open = false;
+    }
 
     DialogPanel {
-        width: min(parent.width - 16px, 600px);
+        width: min(parent.width - 16px, 680px);
         height: content.preferred-height;
         x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
+        y: 8px;
 
         content := VerticalLayout {
             padding: Theme.dialog-padding;
             spacing: Theme.spacing;
             DialogHeader {
-                title: @tr("MMU service");
-                close => { MmuDialogs.service-open = false; }
-                // What Happy Hare is doing, as on the tab bar the dialog covers.
-                Text {
-                    text: Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
-                    color: Theme.info;
-                    font-size: Theme.font-small;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+                title: @tr("Bypass");
+                close => { root.close(); }
             }
-
+            Text {
+                text: @tr("Filament fed by hand past the gates, straight to the extruder. Load pulls it in once it is pushed into the bypass.");
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                wrap: word-wrap;
+            }
+            if Printer.mmu-filament == "loaded" && !Printer.mmu-bypass: IconLabel {
+                icon: Icons.ui-info;
+                text: @tr("Unload first: Happy Hare selects the bypass only without loaded filament.");
+                color: Theme.muted;
+                font-size: Theme.font-small;
+            }
             HorizontalLayout {
                 spacing: Theme.spacing;
-                height: root.button-height;
+                height: 76px;
                 IconButton {
-                    icon: Icons.mmu-home;
-                    text: @tr("Home");
-                    kind: Printer.mmu-homed ? "normal" : "accent";
-                    clicked => { Actions.mmu-home(); }
-                }
-                IconButton {
-                    icon: Icons.mmu-recover;
-                    text: @tr("Recover");
-                    kind: Printer.mmu-paused ? "accent" : "normal";
-                    clicked => { Actions.mmu-recover(); }
-                }
-                IconButton {
-                    icon: Icons.ui-unlock;
-                    text: @tr("Unlock");
-                    kind: Printer.mmu-locked ? "accent" : "normal";
-                    clicked => { Actions.mmu-unlock(); }
-                }
-                IconButton {
-                    icon: Icons.motion-steppers-off;
-                    text: @tr("Motors off");
+                    icon: Icons.mmu-select-gate;
+                    text: @tr("Select");
+                    enabled: !Printer.mmu-bypass && Printer.mmu-filament != "loaded";
                     clicked => {
-                        Confirm.ask(@tr("MMU motors off"), @tr("The MMU can be moved by hand; the selector loses its position and must be homed again."), "mmu-motors-off", "", false);
+                        Actions.mmu-select-bypass();
+                        root.close();
                     }
                 }
-            }
-
-            HorizontalLayout {
-                spacing: Theme.spacing;
-                height: root.button-height;
                 IconButton {
-                    horizontal-stretch: 2;
-                    icon: Icons.mmu-check-gate;
-                    text: @tr("Check all gates");
+                    icon: Icons.mmu-load;
+                    text: @tr("Load");
+                    enabled: Printer.mmu-filament != "loaded";
                     clicked => {
-                        if (Printer.mmu-filament != "unloaded") {
-                            GateCheck.ask(@tr("Check all gates"), "mmu-check-all-gates", "");
-                        } else {
-                            Actions.mmu-check-all-gates();
-                        }
+                        Actions.mmu-load-bypass();
+                        root.close();
                     }
-                }
-                if Printer.mmu-servo != "": IconButton {
-                    horizontal-stretch: 1;
-                    icon: Icons.mmu-servo-up;
-                    text: @tr("Servo up");
-                    checked: Printer.mmu-servo == "up";
-                    clicked => { Actions.mmu-servo-up(); }
-                }
-                if Printer.mmu-servo != "": IconButton {
-                    horizontal-stretch: 1;
-                    icon: Icons.mmu-servo-down;
-                    text: @tr("Servo down");
-                    checked: Printer.mmu-servo == "down";
-                    clicked => { Actions.mmu-servo-down(); }
                 }
             }
         }

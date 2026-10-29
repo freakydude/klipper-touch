@@ -159,6 +159,20 @@ pub enum MmuCommand {
     Servo {
         position: Option<ServoPosition>,
     },
+    /// `MMU_SELECT BYPASS=1` or `MMU_SELECT_BYPASS`: filament fed by hand past the gates.
+    SelectBypass,
+    /// `MMU_TTG_MAP TOOL= GATE=`: the tool takes its filament from the gate.
+    MapTool {
+        tool: usize,
+        gate: usize,
+    },
+    /// `MMU_TTG_MAP RESET=1`: every tool back to the gate of its number.
+    ResetToolMap,
+    /// `MMU_ENDLESS_SPOOL ENABLE= GROUPS=`; a missing parameter keeps the value.
+    EndlessSpool {
+        enabled: Option<bool>,
+        groups: Option<Vec<u32>>,
+    },
     /// `MMU_GATE_MAP GATE= SPOOLID= MATERIAL= COLOR= TEMP=`: the Spoolman spool of a gate (a negative id for none)
     /// and what Happy Hare keeps of its filament; a missing parameter keeps the value.
     GateMap {
@@ -216,6 +230,9 @@ impl MmuCommand {
             MmuCommand::Preload { .. } => "MMU_PRELOAD",
             MmuCommand::Servo { .. } => "MMU_SERVO",
             MmuCommand::GateMap { .. } => "MMU_GATE_MAP",
+            MmuCommand::SelectBypass => "MMU_SELECT_BYPASS",
+            MmuCommand::MapTool { .. } | MmuCommand::ResetToolMap => "MMU_TTG_MAP",
+            MmuCommand::EndlessSpool { .. } => "MMU_ENDLESS_SPOOL",
             MmuCommand::FakeTangle { .. } => "FAKE_MMU_TANGLE",
             MmuCommand::FakeFilament { .. } => "FAKE_MMU_FILAMENT",
         }
@@ -345,7 +362,23 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             .map_or(Command::Ignored, |profile| Command::Calibration(CalibrationCommand::BedMeshLoad { profile }))),
         "BED_MESH_CLEAR" => Ok(Command::Calibration(CalibrationCommand::BedMeshClear)),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
+        "MMU_SELECT" if named_index(&args, "BYPASS")?.is_some_and(|value| value != 0) => {
+            Ok(Command::Mmu(MmuCommand::SelectBypass))
+        }
         "MMU_SELECT" => Ok(Command::Mmu(MmuCommand::Select { gate: required_index(&args, "GATE")? })),
+        "MMU_SELECT_BYPASS" => Ok(Command::Mmu(MmuCommand::SelectBypass)),
+        // Without `RESET` or `TOOL` and `GATE` Happy Hare only shows the map.
+        "MMU_TTG_MAP" if named_index(&args, "RESET")?.is_some_and(|value| value != 0) => {
+            Ok(Command::Mmu(MmuCommand::ResetToolMap))
+        }
+        "MMU_TTG_MAP" => match (named_index(&args, "TOOL")?, named_index(&args, "GATE")?) {
+            (Some(tool), Some(gate)) => Ok(Command::Mmu(MmuCommand::MapTool { tool, gate })),
+            _ => Ok(Command::Ignored),
+        },
+        "MMU_ENDLESS_SPOOL" => Ok(Command::Mmu(MmuCommand::EndlessSpool {
+            enabled: named_index(&args, "ENABLE")?.map(|value| value != 0),
+            groups: named_text(&args, "GROUPS").map(|groups| parse_groups(&groups)).transpose()?,
+        })),
         "MMU_CHANGE_TOOL" => Ok(Command::Mmu(MmuCommand::ChangeTool { tool: required_index(&args, "TOOL")? })),
         "MMU_LOAD" => Ok(Command::Mmu(MmuCommand::Load)),
         "MMU_UNLOAD" => Ok(Command::Mmu(MmuCommand::Unload)),
@@ -380,6 +413,14 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         })),
         _ => Ok(Command::Ignored),
     }
+}
+
+/// `GROUPS=0,1,0`: non-negative whole numbers, as Happy Hare demands (`mmu_endless_spool.py`).
+fn parse_groups(groups: &str) -> Result<Vec<u32>, CommandError> {
+    groups
+        .split(',')
+        .map(|group| group.trim().parse().map_err(|_| CommandError::new(format!("Invalid GROUPS value: {groups}"))))
+        .collect()
 }
 
 fn tool_number(name: &str) -> Option<usize> {
@@ -585,6 +626,27 @@ mod tests {
                 Command::Mmu(MmuCommand::Unload),
             ]
         );
+    }
+
+    #[test]
+    fn parses_bypass_tool_map_and_endless_spool() {
+        let commands = parse_script(
+            "MMU_SELECT BYPASS=1\nMMU_SELECT_BYPASS\nMMU_TTG_MAP TOOL=3 GATE=1\nMMU_TTG_MAP RESET=1\nMMU_TTG_MAP\nMMU_ENDLESS_SPOOL ENABLE=1 GROUPS=0,0,1",
+        )
+        .unwrap();
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::Mmu(MmuCommand::SelectBypass),
+                Command::Mmu(MmuCommand::SelectBypass),
+                Command::Mmu(MmuCommand::MapTool { tool: 3, gate: 1 }),
+                Command::Mmu(MmuCommand::ResetToolMap),
+                Command::Ignored,
+                Command::Mmu(MmuCommand::EndlessSpool { enabled: Some(true), groups: Some(vec![0, 0, 1]) }),
+            ]
+        );
+        assert!(parse_script("MMU_ENDLESS_SPOOL GROUPS=0,-1").is_err());
     }
 
     #[test]

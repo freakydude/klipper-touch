@@ -11,8 +11,8 @@ use crate::status_log::{self, info_display_time, StatusLog};
 use crate::{bed_map, format, thumbnail, view};
 use crate::{
     AppWindow, ConsoleItem, FanItem, FilamentSensorItem, FileItem, HeaterItem, HostInterfaceItem, LedEffectItem,
-    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, Network, PowerItem, Printer,
-    SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
+    LedItem, MacroItem, MacroParamItem, MessageItem, MmuGateItem, MmuSensorItem, MmuToolItem, Network, PowerItem,
+    Printer, SensorItem, SpoolItem, TuningItem, UiSettings, UpdateItem,
 };
 use chrono::Local;
 use freakymate_core::domain::filament::{self, FilamentHandling};
@@ -117,6 +117,7 @@ pub struct Presenter {
     calibration: CalibrationView,
     mmu_gates: Rc<VecModel<MmuGateItem>>,
     mmu_sensors: Rc<VecModel<MmuSensorItem>>,
+    mmu_tools: Rc<VecModel<MmuToolItem>>,
     macros: Rc<VecModel<SharedString>>,
     macro_items: Rc<VecModel<MacroItem>>,
     all_macros: RefCell<Vec<String>>,
@@ -159,6 +160,7 @@ impl Presenter {
             calibration: CalibrationView::default(),
             mmu_gates: Rc::default(),
             mmu_sensors: Rc::default(),
+            mmu_tools: Rc::default(),
             macros: Rc::default(),
             macro_items: Rc::default(),
             all_macros: RefCell::default(),
@@ -189,6 +191,7 @@ impl Presenter {
         presenter.calibration.bind(&printer);
         printer.set_mmu_gates(ModelRc::from(presenter.mmu_gates.clone()));
         printer.set_mmu_sensors(ModelRc::from(presenter.mmu_sensors.clone()));
+        printer.set_mmu_tools(ModelRc::from(presenter.mmu_tools.clone()));
         printer.set_macros(ModelRc::from(presenter.macros.clone()));
         printer.set_macro_items(ModelRc::from(presenter.macro_items.clone()));
         printer.set_macro_form(ModelRc::from(presenter.macro_form.clone()));
@@ -519,6 +522,7 @@ impl Presenter {
         let Some(mmu) = in_charge else {
             replace_rows(&self.mmu_gates, Vec::new());
             replace_rows(&self.mmu_sensors, Vec::new());
+            replace_rows(&self.mmu_tools, Vec::new());
             return;
         };
 
@@ -543,12 +547,22 @@ impl Presenter {
                     color_count: bar.3,
                     longitudinal,
                     has_color: gate.color.is_some(),
-                    tool: gate.tool.map_or(-1, |tool| tool as i32),
+                    tools: view::mmu_tools(&gate.tools).into(),
+                    group: gate.endless_spool_group.map_or(-1, |group| group as i32),
                     selected: usize::try_from(mmu.gate) == Ok(gate.index),
                 }
             })
             .collect();
         replace_rows(&self.mmu_gates, gates);
+        let tools = mmu
+            .tool_to_gate
+            .iter()
+            .enumerate()
+            .map(|(tool, gate)| MmuToolItem { tool: tool as i32, gate: *gate as i32 })
+            .collect();
+        replace_rows(&self.mmu_tools, tools);
+        printer.set_mmu_bypass(mmu.bypass_selected());
+        printer.set_mmu_endless_spool(mmu.endless_spool);
         let selected = usize::try_from(mmu.gate).ok().and_then(|index| mmu.gates.get(index));
         let (colors, longitudinal) =
             selected.map(|gate| gate_colors(gate, gate_spool(lanes, gate.index))).unwrap_or_default();
@@ -930,6 +944,7 @@ fn file_row(cache: &Cache, file: &FileEntry) -> FileItem {
         name: format::job_name(&file.path).into(),
         modified: facts.modified.into(),
         material: facts.material.into(),
+        weight: facts.weight.into(),
         nozzle: facts.nozzle.into(),
         time: facts.time.into(),
         extruder_temperature: facts.extruder_temperature.into(),
