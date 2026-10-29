@@ -100,8 +100,9 @@ impl Application {
         clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.tick());
         presenter.refresh_job_texts();
 
-        // Started as a kiosk, the window never gets a frame: a kiosk compositor such as cage draws none, but winit
-        // still keeps the height of its own title bar free when leaving fullscreen (800x445 instead of 800x480).
+        // Started as a kiosk, the window never gets a frame: without `cage -d` (the service files) cage asks for
+        // client-side decorations, and winit keeps the height of its own title bar free when leaving fullscreen
+        // (800x445 instead of 800x480). This covers compositors without xdg-decoration as well.
         window.set_kiosk(options.fullscreen);
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);

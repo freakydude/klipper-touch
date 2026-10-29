@@ -143,7 +143,8 @@ history).
 ## Display on the device
 
 - Default is the winit backend: a window on the desktop, fullscreen under `cage` on the printer (kiosk compositor,
-  `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
+  `scripts/install.sh`). `cage -d` hands the frame to the server, which draws none; without it winit keeps room for
+  its own title bar after leaving fullscreen (black bar at the bottom). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
   (`SLINT_BACKEND=winit-software`).
 - The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
   (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
