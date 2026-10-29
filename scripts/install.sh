@@ -86,7 +86,8 @@ PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 Environment=XDG_RUNTIME_DIR=/run/user/$USER_ID
-ExecStart=/usr/bin/cage -s -- $INSTALL_DIR/$NAME --fullscreen --moonraker $MOONRAKER --settings $SETTINGS_FILE
+# -d: no client-side frame, otherwise winit keeps room for its title bar after leaving fullscreen (black bar).
+ExecStart=/usr/bin/cage -d -s -- $INSTALL_DIR/$NAME --fullscreen --moonraker $MOONRAKER --settings $SETTINGS_FILE
 Restart=always
 RestartSec=5
 
