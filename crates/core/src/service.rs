@@ -539,7 +539,9 @@ impl<'a> Session<'a> {
             return false;
         }
         let Some(call) = command.to_call(&status.motion) else { return false };
-        if let Command::RunGcode { script } = &command {
+        // Every G-code script goes to the console, as Moonraker stores it in the console history: typed commands,
+        // macros and the scripts behind the buttons alike.
+        if let Some(script) = gcode_script(&call) {
             self.outputs.event(Event::ConsoleLine(console_line(ConsoleKind::Command, script)));
         }
         let target_set = match &command {
@@ -708,11 +710,18 @@ async fn answer_or_report_running(
 /// What a running command is called in the UI: the first line of a G-code script, as in the console, otherwise
 /// the command's short name.
 fn running_label(call: &Call, command: &Command) -> String {
-    let script = call.params.as_ref().and_then(|params| params.get("script")).and_then(Value::as_str);
-    match script.and_then(|script| script.lines().next()) {
-        Some(line) if call.method == "printer.gcode.script" => line.to_owned(),
-        _ => command.describe(),
+    match gcode_script(call).and_then(|script| script.lines().next()) {
+        Some(line) => line.to_owned(),
+        None => command.describe(),
     }
+}
+
+/// The script of a call that runs G-code.
+fn gcode_script(call: &Call) -> Option<&str> {
+    if call.method != "printer.gcode.script" {
+        return None;
+    }
+    call.params.as_ref().and_then(|params| params.get("script")).and_then(Value::as_str)
 }
 
 fn console_line(kind: ConsoleKind, message: &str) -> ConsoleLine {

@@ -91,6 +91,22 @@ map; EndlessSpool on or off.
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | The MMU tab: gates, sensors, buffer  | The print page while tangle prevention raises the gear current (the FlowGuard line turns yellow)       |
 
+**Quieter console (recommended).** FreakyMate shows Klipper's console messages in its status bar. Happy Hare prints a
+lot there by default: the gate table at startup, a picture of the filament path and statistics after every tool
+change. FreakyMate draws the gates and the filament path itself from `printer.mmu`, so these lines only crowd the
+status bar.
+Happy Hare can keep the console to the essentials and still write everything to `mmu.log`; in `mmu_parameters.cfg`:
+
+```ini
+log_level: 0            # console: essential messages and errors only
+log_file_level: 2       # mmu.log keeps the details (debug)
+log_visual: 0           # no filament path picture in the console
+log_startup_status: 0   # no gate table at startup
+log_statistics: 0       # no statistics after each tool change (still recorded)
+```
+
+This changes the console for every client, Mainsail and Fluidd included.
+
 ### Spoolman
 
 Appears when Moonraker has the `spoolman` component, with or without an MMU:
