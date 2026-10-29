@@ -37,8 +37,17 @@ component ScrewRow inherits HorizontalLayout {
         vertical-alignment: center;
         overflow: elide;
     }
+    if !root.screw.is-base: Image {
+        source: root.screw.clockwise ? Icons.calibration-screw-clockwise : Icons.calibration-screw-counterclockwise;
+        colorize: Theme.foreground;
+        width: 22px;
+        height: 22px;
+        cross-axis-self-alignment: center;
+        accessible-role: image;
+        accessible-label: root.screw.clockwise ? @tr("clockwise") : @tr("counterclockwise");
+    }
     Text {
-        text: root.screw.is-base ? @tr("base") : (root.screw.clockwise ? "CW " : "CCW ") + root.screw.turns;
+        text: root.screw.is-base ? @tr("base") : root.screw.turns;
         color: root.screw.is-base ? Theme.muted : Theme.foreground;
         font-size: Theme.font-normal;
         font-weight: root.screw.is-base ? 400 : 700;

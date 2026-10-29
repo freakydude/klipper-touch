@@ -462,6 +462,23 @@ async fn reports_errors_and_recovers_from_emergency_stop() {
     wait_for(&mut channels, ready).await;
 }
 
+/// After a shutdown mid-print `print_stats` still reports the print, but it is lost; the restart must not be refused.
+#[tokio::test(flavor = "multi_thread")]
+async fn firmware_restart_after_shutdown_during_a_print() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+    service.send(Command::StartPrint { filename: "benchy.gcode".into() });
+    wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Printing).await;
+
+    service.send(Command::EmergencyStop);
+    let snapshot = wait_for(&mut channels, |snapshot| snapshot.status.klippy_state == KlippyState::Shutdown).await;
+    assert!(snapshot.status.job.state.is_active());
+
+    service.send(Command::FirmwareRestart);
+    wait_for(&mut channels, ready).await;
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn queries_host_functions() {
     let endpoint = start_fake().await;

@@ -453,12 +453,13 @@ impl Printer {
         self.layer_pause.clear();
     }
 
+    /// Like Klipper: `print_stats` has no shutdown handler, virtual_sdcard stops reading and notes a pause, so the
+    /// lost print stays "paused" until the restart.
     pub fn emergency_stop(&mut self) {
         self.klippy = KlippyState::Shutdown;
         self.switch_heaters_off();
-        if self.print_state.is_active() {
-            self.print_state = PrintState::Error;
-            self.message = SHUTDOWN_MESSAGE.to_owned();
+        if self.print_state == PrintState::Printing {
+            self.print_state = PrintState::Paused;
         }
     }
 
@@ -1113,7 +1114,7 @@ mod tests {
         printer.emergency_stop();
 
         assert_eq!(printer.status()["webhooks"]["state"], "shutdown");
-        assert_eq!(printer.print_state(), PrintState::Error);
+        assert_eq!(printer.print_state(), PrintState::Paused);
         assert!(run(&mut printer, "G28").is_err());
 
         printer.restart();

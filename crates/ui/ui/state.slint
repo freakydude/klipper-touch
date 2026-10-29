@@ -457,7 +457,8 @@ export global Printer {
     // Moving and extruding are allowed while paused, e.g. to change the filament; a running print locks them.
     out property <bool> motion-locked: print-state == "printing";
     // Restarts, reboots and updates would abort a print or a running command (idle_timeout "Printing").
-    out property <bool> host-actions-locked: is-printing || activity == "busy";
+    // After a shutdown the last print state stays, but nothing runs any more and a restart is the way out.
+    out property <bool> host-actions-locked: klippy-state == "ready" && (is-printing || activity == "busy");
     out property <bool> homed-xy: homed-x && homed-y;
 }
 

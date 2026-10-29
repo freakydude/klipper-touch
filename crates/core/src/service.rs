@@ -531,7 +531,7 @@ impl<'a> Session<'a> {
 
     /// Sends one concrete command; true if it set a heater target, which the snapshot shows at once.
     fn dispatch(&mut self, command: Command, status: &PrinterStatus) -> bool {
-        if command.interrupts_print() && status.job.state.is_active() {
+        if command.interrupts_print() && status.print_running() {
             self.outputs.event(Event::CommandFailed {
                 command: command.describe(),
                 message: "not possible while a print is running".to_owned(),
