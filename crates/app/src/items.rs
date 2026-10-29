@@ -95,6 +95,9 @@ pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>, has_history: b
         target: heater.target as f32,
         power: heater.power as f32,
         can_raise: heater.can_raise(),
+        target_range: heater.max_temp.map_or_else(SharedString::new, |maximum| {
+            format!("Klipper: {:.0}–{maximum:.0} °C", heater.min_temp).into()
+        }),
         has_history,
     }
 }

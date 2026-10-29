@@ -334,6 +334,7 @@ export component TemperaturePage inherits Rectangle {
             edit-target(heater) => {
                 root.target-heater = heater.object;
                 target-entry.title = @tr("Target {}", heater.label);
+                target-entry.hint = heater.target-range;
                 target-entry.text = heater.target > 0 ? round(heater.target) : "";
                 target-entry.open = true;
             }
@@ -346,6 +347,7 @@ export component TemperaturePage inherits Rectangle {
     property <string> target-heater;
     target-entry := NumberEntryDialog {
         unit: "°C";
+        hint-warning: Actions.heater-target-outside(root.target-heater, self.text);
         accepted(text) => {
             if (text.is-float()) {
                 Actions.set-heater(root.target-heater, text.to-float());

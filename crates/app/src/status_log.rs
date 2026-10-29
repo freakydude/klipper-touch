@@ -51,6 +51,8 @@ pub struct StatusLog {
     seen_before: u64,
     /// Reason of the last rejected command, to recognise its duplicate response.
     last_failure: Option<(String, f64)>,
+    /// The last `!!` response (id, text, time): it may arrive before the rejection it repeats.
+    last_error_response: Option<(u64, String, f64)>,
 }
 
 impl StatusLog {
@@ -67,7 +69,15 @@ impl StatusLog {
     }
 
     /// A command of the app was rejected. `shown` goes to the list, `reason` is what Klipper repeats in its response.
+    /// Klipper's response may come first: then the rejection, which also names the command, replaces it.
     pub fn add_command_failure(&mut self, shown: &str, reason: &str, now: f64) -> u64 {
+        if let Some((id, _, _)) = self
+            .last_error_response
+            .take()
+            .filter(|(_, text, time)| now - time <= DUPLICATE_WINDOW_SECONDS && text.contains(reason))
+        {
+            self.messages.retain(|message| message.id != id);
+        }
         self.last_failure = Some((reason.to_owned(), now));
         self.add(shown, true, now)
     }
@@ -77,7 +87,11 @@ impl StatusLog {
         if is_error && self.repeats_last_failure(text, now) {
             return None;
         }
-        Some(self.add(text, is_error, now))
+        let id = self.add(text, is_error, now);
+        if is_error {
+            self.last_error_response = Some((id, text.to_owned(), now));
+        }
+        Some(id)
     }
 
     fn repeats_last_failure(&self, text: &str, now: f64) -> bool {
@@ -182,6 +196,18 @@ mod tests {
 
         assert!(log.add_response("Must home axis first: 0 0", true, 10.5).is_none());
         assert_eq!(log.messages().count(), 1);
+    }
+
+    #[test]
+    fn a_rejection_after_its_response_replaces_it() {
+        let mut log = StatusLog::default();
+        log.add_response("Unknown fan 'missing'", true, 10.0);
+
+        log.add_command_failure("SET_FAN_SPEED FAN=missing: Unknown fan 'missing'", "Unknown fan 'missing'", 10.2);
+
+        let listed: Vec<&str> = log.messages().map(|message| message.text.as_str()).collect();
+        assert_eq!(listed, ["SET_FAN_SPEED FAN=missing: Unknown fan 'missing'"]);
+        assert_eq!(log.badge().map(Message::headline), Some(listed[0]));
     }
 
     #[test]

@@ -818,6 +818,12 @@ impl Presenter {
         self.service.send(Command::ApplyPreset { extruder, bed });
     }
 
+    /// Klipper would refuse `typed` as the target of `heater`; a text that is no number is not judged.
+    pub fn heater_target_outside(&self, heater: &str, typed: &str) -> bool {
+        let Ok(target) = typed.trim().parse::<f64>() else { return false };
+        self.snapshot().status.heater(heater).is_some_and(|heater| !heater.accepts_target(target))
+    }
+
     /// What differs between the file and the spools, as lines for the confirmation to start it; empty if nothing.
     pub fn print_hints_text(&self, path: &str) -> String {
         let snapshot = self.snapshot();

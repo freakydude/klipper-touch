@@ -443,6 +443,10 @@ export component NumberEntryDialog inherits Scrim {
     in property <string> title;
     // Shown after the number, e.g. "°C" or "g".
     in property <string> unit;
+    // A quiet note below the field, e.g. the range the printer takes; with `hint-warning` it says the typed value lies
+    // outside. Nothing is blocked: the receiver (Klipper) decides.
+    in property <string> hint;
+    in property <bool> hint-warning;
     in-out property <string> text;
     in-out property <bool> open;
     callback accepted(string);
@@ -520,6 +524,21 @@ export component NumberEntryDialog inherits Scrim {
                             vertical-alignment: center;
                         }
                     }
+                }
+                if root.hint != "" && !root.hint-warning: Text {
+                    text: root.hint;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                if root.hint != "" && root.hint-warning: IconLabel {
+                    alignment: end;
+                    icon: Icons.ui-warning;
+                    icon-size: 14px;
+                    text: root.hint;
+                    color: Theme.warning;
+                    font-size: Theme.font-small;
                 }
                 NumericKeypad {
                     vertical-stretch: 1;

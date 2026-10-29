@@ -35,6 +35,11 @@ impl Heater {
     pub fn can_raise(&self) -> bool {
         self.max_temp.is_none_or(|maximum| self.target < maximum)
     }
+
+    /// Klipper takes 0 (off) or a target between `min_temp` and `max_temp`.
+    pub fn accepts_target(&self, target: f64) -> bool {
+        target == 0.0 || (target >= self.min_temp && self.max_temp.is_none_or(|maximum| target <= maximum))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -123,6 +128,16 @@ mod tests {
         assert_eq!((nozzle.min_temp, nozzle.max_temp), (10.0, Some(280.0)));
         let bed = status.heater("heater_bed").unwrap();
         assert_eq!((bed.min_temp, bed.max_temp), (0.0, None));
+    }
+
+    #[test]
+    fn targets_are_accepted_off_or_between_the_limits() {
+        let nozzle = Heater { min_temp: 10.0, max_temp: Some(280.0), ..Heater::default() };
+        let accepted: Vec<bool> = [0.0, 5.0, 10.0, 280.0, 281.0].map(|target| nozzle.accepts_target(target)).into();
+        assert_eq!(accepted, [true, false, true, true, false]);
+
+        let without_maximum = Heater { min_temp: 0.0, max_temp: None, ..Heater::default() };
+        assert!(without_maximum.accepts_target(500.0));
     }
 
     #[test]

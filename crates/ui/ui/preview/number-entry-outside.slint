@@ -1,0 +1,22 @@
+// Preview: the numeric keypad with a target above max_temp: the range turns into a warning, nothing is blocked.
+
+import { AppWindow } from "../app.slint";
+import { NumberEntryDialog } from "../components/overlays.slint";
+import { Navigation, Page } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component NumberEntryOutsidePreview inherits AppWindow {
+    NumberEntryDialog {
+        open: true;
+        title: "Target Nozzle";
+        unit: "°C";
+        hint: "Klipper: 10–280 °C";
+        hint-warning: true;
+        text: "320";
+    }
+
+    init => {
+        Sample.ready-printer();
+        Navigation.page = Page.temperature;
+    }
+}

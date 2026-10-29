@@ -13,6 +13,8 @@ export struct HeaterItem {
     power: float,
     // Target is below Klipper's max_temp.
     can-raise: bool,
+    // The targets Klipper takes (min_temp to max_temp), as a note for typing one; empty without max_temp.
+    target-range: string,
     // The temperature the spool in use recommends, when the target is off from it; empty otherwise.
     spool-hint: string,
     // Moonraker keeps its temperature history, so a tap can show it.
@@ -615,6 +617,8 @@ export global Actions {
     callback apply-spool-preset();
     // What differs between a file and the spools, as lines of text for the confirmation; empty if nothing.
     pure callback print-hints(string) -> string;
+    // Klipper would refuse the typed target of a heater (Klipper object, text as typed); false while it is no number.
+    pure callback heater-target-outside(string, string) -> bool;
     callback open-macro-form(string);
     callback set-macro-param(int, string);
     callback macro-form-script() -> string;

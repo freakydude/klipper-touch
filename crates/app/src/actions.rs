@@ -207,6 +207,8 @@ pub fn bind(
     actions.on_apply_spool_preset(move || preset_presenter.apply_spool_preset());
     let hints_presenter = Rc::clone(presenter);
     actions.on_print_hints(move |path| hints_presenter.print_hints_text(&path).into());
+    let target_presenter = Rc::clone(presenter);
+    actions.on_heater_target_outside(move |heater, typed| target_presenter.heater_target_outside(&heater, &typed));
 
     let files_presenter = Rc::clone(presenter);
     actions.on_refresh_files(move || files_presenter.request_files());
