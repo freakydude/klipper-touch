@@ -126,27 +126,39 @@ Appears when Moonraker has the `spoolman` component, with or without an MMU:
 | -------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Spools with colour, material and weight left       | Before a print: what differs between file and spools        | The first preset on the temperature page belongs to the spool in use            |
 
-## How it compares to KlipperScreen
+## How it compares to other touch screen UIs
 
-[KlipperScreen](https://github.com/KlipperScreen/KlipperScreen) is the established touch screen UI for Klipper, with a
-large community, many panels and a much wider hardware support. **If you want something proven, use KlipperScreen.**
-FreakyMate is a younger, smaller alternative with a different technical approach and with Happy Hare and Spoolman
-built in. This is what I found in the KlipperScreen documentation (read in October 2026) and in my own project:
+The Klipper community has several good touch screen projects, and they complement each other more than they compete.
+FreakyMate is a younger, smaller addition with a different technical approach and with Happy Hare and Spoolman built in.
+Please try the others as well and pick what fits your printer:
 
-|                      | KlipperScreen                                                                                                    | FreakyMate                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Maturity             | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI                                 | Young, one developer, tried on three printers, English only                                            |
-| Technology           | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston                                    | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window            |
-| Scope                | Many panels, among them bed mesh, bed level screws, input shaper, Z calibrate, limits, retraction, power         | The everyday ones: print, move, heat, tune, filament, console, macros, system, settings, network       |
-| Printers and hosts   | Several printers from one screen; can run on another device than the printer host                                | One Moonraker; can connect to a remote one, Wi-Fi settings need the printer host                       |
-| Displays             | Many, including GPIO/SPI displays                                                                                | BTT HDMI5 (800x480) first, other sizes are scaled, no SPI displays                                     |
-| Spoolman             | Has a Spoolman panel                                                                                             | Woven into the print page, the temperature page and the MMU gates, with hints before a print           |
-| Happy Hare           | Separate fork, [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition), installed in place of KlipperScreen | Built in, needs Happy Hare 4.1 or newer; buffer, FlowGuard and flow rate included |
-| Updates              | Moonraker update manager or KIAUH                                                                                | Moonraker update manager with `stable` and `beta` channels                                              |
-| License              | AGPL-3.0                                                                                                         | GPL-3.0-or-later                                                                                       |
+- [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen) is the established touch screen UI for Klipper, with a
+  large community, many panels and a much wider hardware support. **If you want something proven, use KlipperScreen.**
+- [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition) by moggieuk is a fork
+  of KlipperScreen that adds control of MMUs running the Happy Hare driver. It follows the upstream project closely and
+  leaves the original functionality untouched.
+- [HelixScreen](https://github.com/prestonbrown/helixscreen) is a newer, actively developed UI written in C++ with
+  LVGL. It has a printer database, a customizable dashboard, several multi-material backends and a wide range of
+  calibration tools.
 
-I did not look into what the KlipperScreen Spoolman panel can do beyond its existence, so this row says nothing about
-the depth of either.
+This is what I found in their documentation (read in October 2026) and in my own project. I only list what the projects
+state themselves and did not test the other projects, so their own pages are the better source.
+
+|                    | KlipperScreen                                                           | KlipperScreen Happy Hare Edition                                   | HelixScreen                                                                         | FreakyMate                                                                                       |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Maturity           | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI | Fork of KlipperScreen, merged with upstream regularly      | 1.0 released, actively developed, nine languages, looking for co-maintainers        | Young, one developer, tried on three printers, English only                                      |
+| Technology         | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston | Same as KlipperScreen                                         | C++17 with LVGL 9, light on RAM                                                     | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window      |
+| Scope              | Many panels, among them bed mesh, bed level screws, input shaper, Z calibrate, limits, retraction, power | KlipperScreen plus MMU panels                | Dashboard with many widgets, input shaper, PID and MPC tuning, bed mesh, screws tilt, Z offset | The everyday ones: print, move, heat, tune, filament, console, macros, system, settings, network |
+| Printers and hosts | Several printers from one screen; can run on another device than the printer host | As KlipperScreen                                        | Printer database with auto-detection; runs on the printer or as a remote screen     | One Moonraker; can connect to a remote one, Wi-Fi settings need the printer host                 |
+| Displays           | Many, including GPIO/SPI displays                                       | Tested by the author on one 640x480 display                        | Layouts from 480x320 to 1024x600, 800x480 and 1024x600 best tested                  | BTT HDMI5 (800x480) first, other sizes are scaled, no SPI displays                               |
+| Multi-material     | See the Happy Hare Edition next to it                                   | Happy Hare (MMU panels, gate menus)                                | Happy Hare, AFC, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers                    | Happy Hare 4.1 or newer only; buffer, FlowGuard and flow rate included                           |
+| Spoolman           | Has a Spoolman panel                                                    | As KlipperScreen                                                   | Spoolman integration with a spool creation wizard                                   | Woven into the print page, the temperature page and the MMU gates, with hints before a print     |
+| Updates            | Moonraker update manager or KIAUH                                       | Install script on top of a KlipperScreen install                   | Install script with `--update`, also as KIAUH extension                             | Moonraker update manager with `stable` and `beta` channels                                       |
+| License            | AGPL-3.0                                                                | AGPL-3.0                                                           | GPL-3.0                                                                             | GPL-3.0-or-later                                                                                 |
+
+I did not look into how deep the Spoolman support of each project goes, so that row says nothing about quality. Happy
+Hare support is the one place where FreakyMate is narrow on purpose: it targets Happy Hare only, while HelixScreen
+covers more systems. Corrections are welcome, please open an issue.
 
 ## Release and pre-release
 
