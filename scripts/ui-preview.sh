@@ -8,7 +8,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 preview_dir="$root/crates/ui/ui/preview"
-out_dir="${TMPDIR:-/tmp}/kt-ui-preview"
+out_dir="${TMPDIR:-/tmp}/freakymate-ui-preview"
 names=()
 
 while getopts "n:o:h" option; do

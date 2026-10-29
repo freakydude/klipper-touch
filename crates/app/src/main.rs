@@ -14,7 +14,7 @@ struct Cli {
     /// Moonraker address for this start, e.g. http://printer.local:7125 (default: saved setting)
     #[arg(short, long)]
     moonraker: Option<String>,
-    /// Start in fullscreen (kiosk) mode
+    /// Kiosk mode on a touch screen: fullscreen, no window frame, no mouse pointer
     #[arg(short, long)]
     fullscreen: bool,
     /// Settings file (default: <config dir>/freakymate/settings.json; the installer uses printer_data/config)
@@ -39,6 +39,10 @@ impl Cli {
 fn main() -> ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
+    // The kiosk on the touch screen shows no pointer; set up before the window and the runtime's threads exist.
+    if cli.fullscreen {
+        freakymate::kiosk_pointer::hide();
+    }
     let options = Options {
         network: cli.network_backend(),
         moonraker: cli.moonraker,

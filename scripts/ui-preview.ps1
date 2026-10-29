@@ -6,7 +6,7 @@
 #>
 param(
     [string[]]$Name = @(),
-    [string]$OutDir = (Join-Path $env:TEMP 'kt-ui-preview')
+    [string]$OutDir = (Join-Path $env:TEMP 'freakymate-ui-preview')
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

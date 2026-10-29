@@ -1,5 +1,5 @@
 [Unit]
-Description=freakymate touch UI for Klipper (user %i)
+Description=FreakyMate touch UI for Klipper (user %i)
 After=systemd-user-sessions.service network-online.target moonraker.service getty@tty1.service
 Wants=network-online.target
 Conflicts=getty@tty1.service

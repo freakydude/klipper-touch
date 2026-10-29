@@ -60,11 +60,12 @@ pub fn job_texts(
 }
 
 fn layers(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
-    let total = estimates::total_layers(job, metadata).map(|total| total.value);
+    // Layers derived from the object height are a prediction and carry a `~`.
+    let total = estimates::total_layers(job, metadata).map(|total| show(total, |layers| layers.to_string()));
     match (job.current_layer, total) {
         (Some(current), Some(total)) => format!("{current} / {total}"),
         (Some(current), None) => current.to_string(),
-        (None, Some(total)) if job.state == PrintState::Standby => format!("{total}"),
+        (None, Some(total)) if job.state == PrintState::Standby => total,
         _ => NO_VALUE.to_owned(),
     }
 }
@@ -174,7 +175,7 @@ fn file_print_time(metadata: &FileMetadata, last_print: Option<&LastPrint>) -> O
 }
 
 /// A prediction carries a `~` so that it is not mistaken for a measurement.
-fn show(value: Sourced<f64>, format: impl FnOnce(f64) -> String) -> String {
+fn show<T>(value: Sourced<T>, format: impl FnOnce(T) -> String) -> String {
     let text = format(value.value);
     match value.provenance {
         Provenance::Measured => text,
@@ -346,7 +347,7 @@ mod tests {
         assert_eq!(texts.elapsed, "6m 00s");
         assert_eq!(texts.remaining, "54m 00s");
         assert_eq!(texts.eta, "12:54");
-        assert_eq!(texts.layers, "3 / 100");
+        assert_eq!(texts.layers, "3 / ~100");
         assert_eq!(texts.filament, "1.00 / 5.00 m");
     }
 
@@ -393,8 +394,21 @@ mod tests {
         assert_eq!(texts.remaining, "-");
         assert_eq!(texts.eta, "-");
         assert_eq!(texts.expectation_origin, None);
-        assert_eq!(texts.layers, "100");
+        assert_eq!(texts.layers, "~100");
         assert_eq!(texts.filament, "5.00 m");
+    }
+
+    #[test]
+    fn layers_klipper_reports_carry_no_tilde() {
+        let job = PrintJob {
+            state: PrintState::Printing,
+            filename: "a.gcode".into(),
+            current_layer: Some(3),
+            total_layer: Some(120),
+            ..PrintJob::default()
+        };
+
+        assert_eq!(job_texts(&job, Some(&metadata("a.gcode")), None, now()).layers, "3 / 120");
     }
 
     #[test]

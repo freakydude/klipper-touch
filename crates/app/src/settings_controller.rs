@@ -138,7 +138,6 @@ impl SettingsController {
     fn change_fullscreen(&self, fullscreen: bool) {
         if let Some(window) = self.window.upgrade() {
             window.window().set_fullscreen(fullscreen);
-            crate::app::set_pointer_visible(window.window(), !fullscreen);
         }
         self.update(|settings| settings.fullscreen = fullscreen);
     }

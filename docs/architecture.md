@@ -1,8 +1,7 @@
 # Architecture
 
-Goal: a lean, native touch UI for Klipper that runs directly on the printer host. The operator's workflows shape the UI
-(see `docs/UseCases and Dependencies.drawio`, page "Workflows"); what the printer has only decides whether a step is
-offered.
+Goal: a lean, native touch UI for Klipper that runs directly on the printer host. The operator's workflows shape the UI;
+what the printer has only decides whether a step is offered.
 
 ## Building blocks
 
@@ -110,7 +109,9 @@ history).
 4. The UI calls `Actions` callbacks; `actions.rs` turns them into `Command`s. Intents such as `Level`, `ApplyPreset` or
    `LoadFilament` are resolved by `Command::resolve` into what this printer needs; `Command::to_call` hands the
    result to the source that carries it out, which builds the G-code or Moonraker call; moves are clamped to the
-   axis range. Heater targets that were sent but not
+   axis range. The service refuses restarts, reboots and updates while a print runs (`Command::interrupts_print`)
+   and moves of the axes, the extruder or the MMU while the print moves the machine, not while it is paused
+   (`Command::moves_machine`); the UI locks the same pages. Heater targets that were sent but not
    yet reported back are kept by the service and shown in the next `Snapshot`. Commands go onto the wire in the order they were
    sent (`Connection::start_call`); only the replies are awaited concurrently. A task per command would let two taps
    overtake each other, and a heater target is absolute.
@@ -138,13 +139,22 @@ history).
 
 - `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
 - `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
-- `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar, ScrollList, TouchSlider), `overlays.slint`
-  (confirmation, messages flyout, on-screen keyboard, text input), `chrome.slint` (status bar with what is running and the newest
-  message, navigation). Messages (errors and informations) are kept in `status_log.rs`, pure logic that the presenter shows.
-- `pages/`: print, move, temperature, tune, filament (with Happy Hare the tabs MMU in `mmu.slint` with the dialogs in `mmu-dialogs.slint`, Extruder, and Service in `mmu-service.slint`; otherwise the extruder alone), console (with the macro list), system, settings, connection.
+- `components/`: `controls.slint` (IconButton, ToggleRow, StepSelector, TabBar, Card, ValueTile, ProgressBar,
+  ScrollList, TouchSlider, TextWithValue, IconLabel, ColorBar), `dialog.slint` (the look all dialogs share),
+  `overlays.slint` (confirmation, messages flyout, on-screen keyboard, text and number entry, macro form, exclude
+  objects, layer pause, calibration modes, spool picker), `chrome.slint` (status bar with what is running and the
+  newest message, navigation), `system-tabs.slint`, `history.slint` (temperature chart), `light.slint` (light panel),
+  `bed-map.slint` (objects on the bed), `bed-mesh.slint` (mesh map and profiles), `filament-path.slint`,
+  `spool-strip.slint`, `busy-wheel.slint`. Messages (errors and informations) are kept in `status_log.rs`, pure logic
+  that the presenter shows.
+- `pages/`: print, move (with the Calibrate tab in `calibrate.slint`), temperature, tune, filament (with Happy Hare the
+  tabs MMU in `mmu.slint` with the dialogs in `mmu-dialogs.slint`, Extruder, and Service in `mmu-service.slint`;
+  otherwise the extruder alone), and the system tabs: system (machine), updates, network (`network-page.slint` with
+  `network.slint`), console (with the macro list), settings (Display); connection replaces the printer pages while
+  Moonraker or Klipper is not ready or wants a login.
 - Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
 - Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;
-  moving and extruding are locked while printing.
+  Move and Filament are locked while printing, and the window leaves them when a print starts (`app.slint`).
 - No scrolling except for lists of any length (files, macros, console, networks): `ScrollList` with a slim bar that
   can be dragged or tapped. Coarse values such as the fan speed use `TouchSlider`. One list per kind of item.
 - Texts in English with `@tr(...)`, so translations can be added later without code changes.
@@ -158,10 +168,15 @@ history).
   (`SLINT_BACKEND=winit-software`).
 - The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
   (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the
-  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. Fitting and the
-  hidden pointer in fullscreen share one winit event filter (`app::watch_window_events`): Slint keeps only one per
-  window. Responsive layouts for
+  other. The scale of the system is not used, and `SLINT_SCALE_FACTOR` switches the fitting off. The fitting lives in
+  the one winit event filter (`app::watch_window_events`): Slint keeps only one per window. Responsive layouts for
   7" and 4.3" displays are planned.
+- No mouse pointer in the kiosk (`--fullscreen`, as both services start it): `kiosk_pointer.rs` writes a cursor theme
+  of transparent pointers to `$XDG_RUNTIME_DIR/freakymate-cursors` and sets `XCURSOR_PATH`/`XCURSOR_THEME` before the
+  window exists. Hiding the pointer through the window does not last, because Slint shows it again with every change
+  of the pointer shape, and a tap is a pointer event to Slint. cage hides its pointer by itself only when no pointing
+  device is attached; the BTT HDMI5 also registers as a mouse. On the desktop, in a window and in fullscreen switched
+  on in the settings, the system's pointer stays.
 - Optional without compositor: cargo feature `linuxkms` (marked experimental in Slint).
 - Builds for `aarch64`, `armv7` and `x86_64` run in CI in a Debian Bookworm container (oldest still maintained glibc).
 
@@ -192,7 +207,9 @@ history).
   data in line when globals change (the script fails on compile errors).
 - `scripts/ui-snapshot.sh` (WSL2/Arch) or `powershell -File scripts\ui-snapshot.ps1` (Windows), or `cargo run -p ui-snapshot`
   against a running fake, renders the pages
-  as PNG without a window. Scenes: `pages`, `network`, `printing`, `shutdown`, `idle` (slow, only with `-Scenes idle|all`).
+  as PNG without a window. Scenes: `pages`, `spools`, `network`, `taps`, `typing`, `calibrate`, `printing`,
+  `shutdown`; `idle` is slow and runs only when chosen (or with `all`), `login` only when chosen by name (the fake then
+  wants a login).
 
 ## Development mode
 

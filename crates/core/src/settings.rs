@@ -218,22 +218,23 @@ mod tests {
         assert_eq!(settings.known_macros, names(&["PARK"]));
     }
 
-    fn temporary_store(name: &str) -> SettingsStore {
-        let path = std::env::temp_dir().join(format!("kt-settings-{name}-{}", std::process::id())).join(FILE_NAME);
-        let _ = std::fs::remove_file(&path);
-        SettingsStore::new(path)
+    /// A store in a folder that does not exist yet; the folder is removed when the returned guard is dropped.
+    fn temporary_store() -> (tempfile::TempDir, SettingsStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = SettingsStore::new(dir.path().join("freakymate").join(FILE_NAME));
+        (dir, store)
     }
 
     #[test]
     fn missing_file_gives_defaults() {
-        let store = temporary_store("missing");
+        let (_dir, store) = temporary_store();
 
         assert_eq!(store.load().unwrap(), Settings::default());
     }
 
     #[test]
     fn a_missing_file_is_created_with_the_defaults() {
-        let store = temporary_store("create");
+        let (_dir, store) = temporary_store();
 
         assert_eq!(store.load_or_create().unwrap(), Settings::default());
 
@@ -244,7 +245,7 @@ mod tests {
 
     #[test]
     fn saved_settings_load_again() {
-        let store = temporary_store("roundtrip");
+        let (_dir, store) = temporary_store();
         let settings = Settings {
             moonraker: "http://voron.local".to_owned(),
             steps: Steps { move_mm: 50.0, ..Steps::default() },
@@ -258,7 +259,7 @@ mod tests {
 
     #[test]
     fn partial_file_keeps_defaults_for_missing_fields() {
-        let store = temporary_store("partial");
+        let (_dir, store) = temporary_store();
         std::fs::create_dir_all(store.path().parent().unwrap()).unwrap();
         std::fs::write(store.path(), r#"{ "fullscreen": true, "steps": { "move_mm": 1 } }"#).unwrap();
 
@@ -272,7 +273,7 @@ mod tests {
 
     #[test]
     fn broken_file_is_reported() {
-        let store = temporary_store("broken");
+        let (_dir, store) = temporary_store();
         std::fs::create_dir_all(store.path().parent().unwrap()).unwrap();
         std::fs::write(store.path(), "{ nope").unwrap();
 

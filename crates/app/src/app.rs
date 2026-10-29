@@ -128,22 +128,15 @@ impl Application {
 }
 
 /// The one filter for winit's window events; Slint keeps only one per window, so a second registration would
-/// silently replace the first.
-///
-/// - Pointer: fullscreen is the touch-only kiosk mode, where a pointer would only be the cursor of a touch screen.
-///   winit may show it again on focus, resize or pointer entry, and the window does not exist yet when the app
-///   starts, so the state is re-applied on those events instead of once.
-/// - Scale: in fullscreen the layout is fitted to the real display whenever the size changes (see [`display`]); the
-///   scale of the system is not used there, a compositor reports 1 for a touch screen. A window keeps the scale of
-///   the system, so a larger window shows more room. Whoever sets `SLINT_SCALE_FACTOR` chooses the scale by hand,
-///   and nothing is fitted then.
+/// silently replace the first. In fullscreen the layout is fitted to the real display whenever the size changes (see
+/// [`display`]); the scale of the system is not used there, a compositor reports 1 for a touch screen. A window keeps
+/// the scale of the system, so a larger window shows more room. Whoever sets `SLINT_SCALE_FACTOR` chooses the scale
+/// by hand, and nothing is fitted then. (The pointer of the kiosk is hidden by its cursor theme, see
+/// [`crate::kiosk_pointer`].)
 pub fn watch_window_events(window: &AppWindow) {
     let fit = std::env::var_os("SLINT_SCALE_FACTOR").is_none();
     let weak = window.as_weak();
-    window.window().on_winit_window_event(move |slint_window, event| {
-        if matches!(event, WindowEvent::Focused(_) | WindowEvent::Resized(_) | WindowEvent::CursorEntered { .. }) {
-            set_pointer_visible(slint_window, !slint_window.is_fullscreen());
-        }
+    window.window().on_winit_window_event(move |_, event| {
         match event {
             WindowEvent::Resized(_) if fit => {
                 // Applied after the event, not inside it: Slint is still handling it.
@@ -171,9 +164,4 @@ fn scale_to_mode(window: &slint::Window) {
     } else {
         display::apply_system_scale(window, system_scale);
     }
-}
-
-/// Shows or hides the pointer; leaving fullscreen brings it back.
-pub fn set_pointer_visible(window: &slint::Window, visible: bool) {
-    let _ = window.with_winit_window(|winit_window| winit_window.set_cursor_visible(visible));
 }

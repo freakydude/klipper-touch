@@ -43,8 +43,17 @@ export component AppWindow inherits Window {
         || ((Navigation.page == Page.console || Navigation.page == Page.updates) && Printer.connection == "connected");
     property <bool> network-visible: Navigation.page == Page.network;
     property <bool> printer-ready: Printer.ready;
+    property <bool> motion-locked: Printer.motion-locked;
 
     changed network-visible => { Network.watch(self.network-visible); }
+    // A print that starts (here or elsewhere) while Move or Filament is open must not get their moves, nor an open
+    // confirmation of theirs: the navigation locks both pages, so leave them for the print page.
+    changed motion-locked => {
+        if (self.motion-locked && (Navigation.page == Page.move || Navigation.page == Page.filament)) {
+            Dialogs.dismiss();
+            Navigation.page = Page.print;
+        }
+    }
     // Without Moonraker or Klipper the dialogs of the printer pages no longer apply; they close like a cancel. The
     // pages that work offline keep theirs (Moonraker address, Wi-Fi password).
     changed printer-ready => {

@@ -101,10 +101,11 @@ impl CredentialStore {
 mod tests {
     use super::*;
 
-    fn temporary_store(name: &str) -> CredentialStore {
-        let path = std::env::temp_dir().join(format!("kt-credentials-{name}-{}", std::process::id())).join(FILE_NAME);
-        let _ = std::fs::remove_file(&path);
-        CredentialStore::new(path)
+    /// A store in a folder that does not exist yet; the folder is removed when the returned guard is dropped.
+    fn temporary_store() -> (tempfile::TempDir, CredentialStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = CredentialStore::new(dir.path().join("freakymate").join(FILE_NAME));
+        (dir, store)
     }
 
     fn login() -> Credential {
@@ -113,7 +114,7 @@ mod tests {
 
     #[test]
     fn credentials_are_kept_per_address() {
-        let store = temporary_store("per-address");
+        let (_dir, store) = temporary_store();
         let voron = Endpoint::parse("voron.local:7125").unwrap();
         let ender = Endpoint::parse("http://ender.local").unwrap();
 
@@ -129,7 +130,7 @@ mod tests {
 
     #[test]
     fn a_hand_written_api_key_is_read() {
-        let store = temporary_store("by-hand");
+        let (_dir, store) = temporary_store();
         let path = store.path().unwrap();
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, r#"{ "moonraker": { "http://pi:7125": { "api_key": "abc" } } }"#).unwrap();
@@ -141,7 +142,7 @@ mod tests {
 
     #[test]
     fn a_broken_file_counts_as_empty() {
-        let store = temporary_store("broken");
+        let (_dir, store) = temporary_store();
         let path = store.path().unwrap();
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, "{ nope").unwrap();
@@ -153,7 +154,7 @@ mod tests {
     #[test]
     fn only_the_owner_can_read_the_file() {
         use std::os::unix::fs::PermissionsExt;
-        let store = temporary_store("mode");
+        let (_dir, store) = temporary_store();
 
         store.store(&Endpoint::parse("pi").unwrap(), Some(login())).unwrap();
 

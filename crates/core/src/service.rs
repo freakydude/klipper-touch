@@ -709,6 +709,11 @@ impl<'a> Session<'a> {
     fn execute(&mut self, command: Command) {
         let status = self.current_status();
         let description = command.describe();
+        if command.moves_machine() && status.print_moving() {
+            let message = "not possible while a print is moving the machine".to_owned();
+            self.outputs.event(Event::CommandFailed { command: description, message });
+            return;
+        }
         let commands = match command.resolve(&self.sources, &status) {
             Ok(commands) => commands,
             Err(message) => {
