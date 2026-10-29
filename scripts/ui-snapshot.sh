@@ -9,7 +9,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-out_dir="${TMPDIR:-/tmp}/kt-ui-snapshots"
+out_dir="${TMPDIR:-/tmp}/freakymate-ui-snapshots"
 profile=voron
 size=800x480
 scenes=
@@ -24,7 +24,7 @@ while getopts "o:p:s:S:P:Fh" option; do
         S) scenes=$OPTARG ;;
         P) port=$OPTARG ;;
         F) fit_flag=(--no-fit) ;;
-        *) sed -n '2,6p' "$0"; exit 2 ;;
+        *) sed -n '2,8p' "$0"; exit 2 ;;
     esac
 done
 
@@ -36,9 +36,9 @@ esac
 cd "$root"
 cargo build -q -p fake-moonraker -p ui-snapshot
 
-# Stale instances from an earlier run would hold the port.
-pkill -x fake-moonraker 2>/dev/null || true
-pkill -x ui-snapshot 2>/dev/null || true
+# Stale instances from an earlier run on this port would hold it; instances on other ports are left alone.
+pkill -f "fake-moonraker --port $port( |$)" 2>/dev/null || true
+pkill -f "ui-snapshot --moonraker http://127.0.0.1:$port( |$)" 2>/dev/null || true
 rm -rf "$out_dir"
 
 fake_arguments=(--port "$port" --time-scale 20 --profile "$profile")

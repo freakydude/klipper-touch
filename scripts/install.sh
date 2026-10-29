@@ -1,10 +1,10 @@
 #!/bin/bash
-# Installs freakymate from an unpacked release zip as a kiosk service (cage on tty1) and
-# registers it with the Moonraker update manager (type: zip), so Mainsail, Fluidd and freakymate
+# Installs FreakyMate from an unpacked release zip as a kiosk service (cage on tty1) and
+# registers it with the Moonraker update manager (type: zip), so Mainsail, Fluidd and FreakyMate
 # itself can install later releases.
 #
 # Run inside the unpacked folder: ./install.sh [-m <moonraker-url>] [-d <printer_data>] [-c stable|beta]
-# EXPERIMENT: not tested on real devices, use at your own risk.
+# Young software: use it with care and at your own risk (see the README).
 
 set -euo pipefail
 
@@ -25,6 +25,10 @@ while getopts "m:d:c:" option; do
     *) echo "usage: $0 [-m moonraker-url] [-d printer_data] [-c stable|beta]"; exit 2 ;;
   esac
 done
+case $CHANNEL in
+  stable | beta) ;;
+  *) echo "channel must be stable or beta"; exit 2 ;;
+esac
 
 report() { echo -e "\n###### $1"; }
 
@@ -52,7 +56,7 @@ if [ -f "$SOURCE_DIR/$POLKIT_RULE" ] && [ -d /etc/polkit-1/rules.d ]; then
   sudo groupadd -f netdev
   sudo usermod -aG netdev "$USER" || true
 else
-  echo "polkit rules directory not found; Wi-Fi settings in freakymate will be read-only."
+  echo "polkit rules directory not found; Wi-Fi settings in FreakyMate will be read-only."
 fi
 
 report "Installing to $INSTALL_DIR"
@@ -63,7 +67,8 @@ fi
 chmod 0755 "$INSTALL_DIR/$NAME" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/uninstall.sh"
 
 report "Creating $SERVICE_FILE"
-# Settings live next to the Klipper configs, like KlipperScreen.conf, so backups of printer_data include them.
+# Settings live next to the Klipper configs, so they can be edited in Mainsail or Fluidd and backups of printer_data
+# include them.
 SETTINGS_FILE="$DATA_DIR/config/freakymate.json"
 OLD_SETTINGS_FILE="$HOME/.config/$NAME/settings.json"
 if [ -f "$OLD_SETTINGS_FILE" ] && [ ! -f "$SETTINGS_FILE" ]; then
@@ -74,7 +79,7 @@ fi
 USER_ID=$(id -u)
 sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
-Description=freakymate touch UI for Klipper
+Description=FreakyMate touch UI for Klipper
 After=systemd-user-sessions.service network-online.target moonraker.service
 Wants=network-online.target
 Conflicts=getty@tty1.service

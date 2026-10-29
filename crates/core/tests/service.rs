@@ -48,10 +48,11 @@ fn start_service(endpoint: Endpoint, credentials: CredentialStore) -> (PrinterSe
     PrinterService::start(&tokio::runtime::Handle::current(), endpoint, credentials)
 }
 
-fn temporary_credentials(name: &str) -> CredentialStore {
-    let path = std::env::temp_dir().join(format!("kt-service-{name}-{}", std::process::id())).join("credentials.json");
-    let _ = std::fs::remove_file(&path);
-    CredentialStore::new(path)
+/// A credential file in a fresh folder, removed when the returned guard is dropped.
+fn temporary_credentials() -> (tempfile::TempDir, CredentialStore) {
+    let dir = tempfile::tempdir().unwrap();
+    let store = CredentialStore::new(dir.path().join("credentials.json"));
+    (dir, store)
 }
 
 fn login_required(snapshot: &Snapshot) -> bool {
@@ -435,6 +436,9 @@ async fn runs_print_job_and_loads_file_details() {
     service.send(Command::RestartService { service: "klipper".into() });
     let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
     assert!(matches!(refused, Event::CommandFailed { message, .. } if message.contains("print is running")));
+    service.send(Command::Jog { axis: Axis::X, distance: 10.0 });
+    let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
+    assert!(matches!(refused, Event::CommandFailed { message, .. } if message.contains("moving the machine")));
 
     service.send(Command::CancelPrint);
     wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Cancelled).await;
@@ -675,7 +679,7 @@ async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
 #[tokio::test(flavor = "multi_thread")]
 async fn logs_in_keeps_the_login_and_logs_out() {
     let endpoint = start_guarded_fake().await;
-    let credentials = temporary_credentials("login");
+    let (_dir, credentials) = temporary_credentials();
     let (service, mut channels) = start_service(endpoint.clone(), credentials.clone());
 
     wait_for(&mut channels, login_required).await;
@@ -703,7 +707,7 @@ async fn logs_in_keeps_the_login_and_logs_out() {
 #[tokio::test(flavor = "multi_thread")]
 async fn an_api_key_opens_the_connection_and_the_thumbnails() {
     let endpoint = start_guarded_fake().await;
-    let credentials = temporary_credentials("api-key");
+    let (_dir, credentials) = temporary_credentials();
     credentials.store(&endpoint, Some(Credential::ApiKey { api_key: AccessConfig::API_KEY.to_owned() })).unwrap();
     let (service, mut channels) = start_service(endpoint, credentials);
 
@@ -731,7 +735,7 @@ async fn a_logged_in_display_fetches_thumbnails_with_a_one_time_token() {
 async fn a_wrong_key_asks_for_a_login_but_does_not_lock_out_a_trusted_display() {
     let wrong = Some(Credential::ApiKey { api_key: "guess".to_owned() });
     let guarded = start_guarded_fake().await;
-    let credentials = temporary_credentials("wrong-guarded");
+    let (_guarded_dir, credentials) = temporary_credentials();
     credentials.store(&guarded, wrong.clone()).unwrap();
     let (_service, mut channels) = start_service(guarded, credentials);
     wait_for(&mut channels, login_required).await;
@@ -739,7 +743,7 @@ async fn a_wrong_key_asks_for_a_login_but_does_not_lock_out_a_trusted_display() 
     // Moonraker refuses a wrong key even from a trusted client; the display then goes on without it.
     let trusting =
         start_fake_configured(MachineProfile::voron(), Some(AccessConfig::new("test", "secret").trusting())).await;
-    let credentials = temporary_credentials("wrong-trusting");
+    let (_trusting_dir, credentials) = temporary_credentials();
     credentials.store(&trusting, wrong).unwrap();
     let (_service, mut channels) = start_service(trusting, credentials);
     let snapshot = wait_for(&mut channels, ready).await;

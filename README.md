@@ -35,6 +35,12 @@ is the BTT HDMI5 (5", 800x480, landscape).
 - **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects (on a map of the bed if the slicer defines their outlines);
   file browser with thumbnails, filament, nozzle and print time of each file.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
+  Move and Filament are locked while a print runs; the screen leaves them when a print starts.
+  - **Calibrate** tab: Klipper's own calibration commands, with their results. Bed screws
+    (`SCREWS_TILT_CALCULATE` with the turns per screw, or the paper test `BED_SCREWS_ADJUST`), Z offset of the probe or
+    the Z endstop, bed mesh (measure, a coloured map of the active mesh, load, save and remove profiles, clear) and
+    what `SAVE_CONFIG` would write. While Klipper waits for the paper test or the Z height, a dialog shows its steps;
+    closing it aborts. FreakyMate only starts these commands, Klipper does the work.
 - **Thermal**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), presets; − and +
   respect `min_temp`/`max_temp` from the Klipper configuration. Tapping a heater or sensor shows its temperature
   history with a grid: the last 20 minutes of Moonraker's temperature store, asked again every five seconds while it
@@ -63,8 +69,8 @@ is the BTT HDMI5 (5", 800x480, landscape).
     command (`rename_existing`) are hidden; further macros can be hidden on the Display tab. Macros with parameters
     open a form first: each parameter is read from the macro's template, Klipper defaults show as placeholders in
     brackets.
-  - **Display**: Moonraker address, fullscreen, the console filter and which macros the console offers. Temperature
-    presets are set in the [settings file](#settings-file).
+  - **Display**: Moonraker address and login (see [Moonraker login](#moonraker-login)), fullscreen, the console filter
+    and which macros the console offers. Temperature presets are set in the [settings file](#settings-file).
 
 Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
 
@@ -220,7 +226,7 @@ Besides the Moonraker route there are plain packages, for example to try it on a
   yourself. Use either the zip installer or the package, not both (they would compete for `tty1`).
 
   ```bash
-  sudo apt install ./freakymate_0.2.0_arm64.deb
+  sudo apt install ./freakymate_0.3.0_arm64.deb
   sudo systemctl disable getty@tty1                # free tty1 for the kiosk
   sudo systemctl enable --now freakymate@$USER  # fullscreen on tty1 as this user
   # remove again (stops and disables all freakymate@ instances)
@@ -332,7 +338,7 @@ interfaces and addresses read from Moonraker.
 Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
 For Windows without admin rights (setup, faster linking with `rust-lld`, build times) see
 [docs/windows-without-admin.md](docs/windows-without-admin.md). Structure, data flow and conventions:
-[docs/architecture.md](docs/architecture.md); workflows and use cases: `docs/UseCases and Dependencies.drawio`.
+[docs/architecture.md](docs/architecture.md).
 
 ### Try it without a printer
 
@@ -350,6 +356,7 @@ cargo run -p freakymate -- -m http://127.0.0.1:7125                       # the 
 | `--gates`      | number of MMU gates, 1 to 16 (default 4; only with `happy-hare` and `ercf`)      |
 | `--port`       | port to listen on (default 7125; only one fake can run per port)                 |
 | `--time-scale` | simulation speed (default 10): heating and printing run that many times faster   |
+| `--auth`       | `<user>:<password>`: Moonraker wants a login (also accepts the API key `fake-api-key`) |
 
 | Profile      | Simulates                                                                                                                  |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -378,7 +385,8 @@ cargo run -p icon-index                                  # after changing icons 
 
 `ui-snapshot` runs the real UI headless against the fake and writes one PNG per screen (`-p` picks the fake profile,
 `-s` the window size, `-F` switches the fitting to the display off, `-S` chooses scenes: `pages`, `spools`, `network`,
-`taps`, `typing`, `printing`, `shutdown`, `idle`). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
+`taps`, `typing`, `calibrate`, `printing`, `shutdown`, and only when chosen `idle` (slow) and `login` (the fake then wants
+a login)). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
 
 Scripts exist in two variants with the same behaviour:
 

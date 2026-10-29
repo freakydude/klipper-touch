@@ -522,6 +522,42 @@ impl Command {
                 | Self::Upgrade { .. }
         )
     }
+
+    /// Moves the axes, the extruder or the MMU on its own; refused while the print moves the machine
+    /// ([`PrinterStatus::print_moving`](crate::sources::PrinterStatus::print_moving)), allowed while it is paused.
+    /// The Move and Filament pages are locked then, too; G-code typed in the console is up to the person.
+    pub fn moves_machine(&self) -> bool {
+        matches!(
+            self,
+            Self::Home { .. }
+                | Self::Jog { .. }
+                | Self::DisableMotors
+                | Self::Level
+                | Self::QuadGantryLevel
+                | Self::ZTiltAdjust
+                | Self::CalibrateZ
+                | Self::ProbeCalibrate
+                | Self::ZEndstopCalibrate
+                | Self::CalibrateBedMesh
+                | Self::CalculateScrewsTilt
+                | Self::AdjustBedScrews
+                | Self::Extrude { .. }
+                | Self::LoadFilament
+                | Self::UnloadFilament
+                | Self::MmuSelectGate { .. }
+                | Self::MmuLoad
+                | Self::MmuLoadGate { .. }
+                | Self::MmuUnload
+                | Self::MmuEject { .. }
+                | Self::MmuHome
+                | Self::MmuMotorsOff
+                | Self::MmuCheckGates { .. }
+                | Self::MmuPreload { .. }
+                | Self::MmuServo { .. }
+                | Self::MmuSelectBypass
+                | Self::MmuLoadBypass
+        )
+    }
 }
 
 /// `RefreshUpdates` → `Refresh Updates`, for names that are shown to people.

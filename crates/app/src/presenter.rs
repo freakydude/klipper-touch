@@ -723,7 +723,8 @@ impl Presenter {
     /// Informations are left out while a print runs, when Klipper sends many of them.
     fn show_console_response(&self, line: &ConsoleLine) {
         let is_error = line.is_error();
-        if !is_error && !(line.is_information() && !self.is_printing()) {
+        let shown = is_error || (line.is_information() && !self.is_printing());
+        if !shown {
             return;
         }
         let text = line.text();
@@ -896,7 +897,12 @@ impl Presenter {
     }
 
     fn show_files(&self, files: Vec<FileEntry>) {
-        self.cache.borrow_mut().catalog.set_entries(files);
+        {
+            let mut cache = self.cache.borrow_mut();
+            for changed in cache.catalog.set_entries(files) {
+                cache.thumbnails.remove(&changed);
+            }
+        }
         self.show_file_rows();
         if let Some(window) = self.window.upgrade() {
             window.global::<Printer>().set_files_loading(false);

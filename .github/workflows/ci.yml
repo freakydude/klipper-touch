@@ -83,8 +83,8 @@ jobs:
           gh release create "v$VERSION" artifacts/*.zip artifacts/*.deb \
             --target "$GITHUB_SHA" \
             --prerelease \
-            --title "freakymate v$VERSION (preview)" \
-            --notes "Automatic build of main at $GITHUB_SHA. Replaced by the next commit on main. Untested experiment, use at your own risk."
+            --title "FreakyMate v$VERSION (pre-release)" \
+            --notes "Automatic build of main at $GITHUB_SHA, replaced by the next commit on main. Newest functions first, less time in use than a release; use it with care and at your own risk (see the README)."
           for old in $(gh release list --limit 100 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease) | .tagName'); do
             if [ "$old" != "v$VERSION" ]; then gh release delete "$old" --yes --cleanup-tag; fi
           done

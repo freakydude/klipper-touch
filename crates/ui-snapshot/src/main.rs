@@ -25,7 +25,7 @@ struct Options {
 fn parse_options() -> Result<Options, String> {
     let mut options = Options {
         moonraker: "http://127.0.0.1:7125".to_owned(),
-        out: std::env::temp_dir().join("kt-ui-snapshots"),
+        out: std::env::temp_dir().join("freakymate-ui-snapshots"),
         width: 800,
         height: 480,
         fit: true,

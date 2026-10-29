@@ -1,6 +1,7 @@
 #!/bin/bash
 # Removes the service, the program folder and the Moonraker update manager entry.
-# System packages and settings (printer_data/config/freakymate.json) are kept.
+# System packages, settings (printer_data/config/freakymate.json) and a stored Moonraker login
+# (~/.config/freakymate/credentials.json) are kept.
 # Usage: ./uninstall.sh [-d <printer_data>]
 set -euo pipefail
 
@@ -34,3 +35,6 @@ fi
 
 rm -rf "$INSTALL_DIR"
 echo "Removed. Settings remain in $DATA_DIR/config/$NAME.json."
+if [ -f "$HOME/.config/$NAME/credentials.json" ]; then
+  echo "A Moonraker login remains in $HOME/.config/$NAME/credentials.json; delete it if it is no longer needed."
+fi

@@ -3,7 +3,7 @@
 use super::happy_hare::{self, MmuStatus};
 use super::klipper::{
     Activity, CalibrationState, ExtruderState, Fan, FilamentSensor, Heater, KlipperParts, KlippyState, Led, Motion,
-    PrintJob, PrintObject, Retraction, TemperatureSensor,
+    PrintJob, PrintObject, PrintState, Retraction, TemperatureSensor,
 };
 use super::led_effect::{self, LedEffect};
 use super::objects::ObjectStore;
@@ -67,6 +67,11 @@ impl PrinterStatus {
     /// notes a pause), but the print is lost and restarts must stay possible.
     pub fn print_running(&self) -> bool {
         self.klippy_state == KlippyState::Ready && self.job.state.is_active()
+    }
+
+    /// The print moves the machine right now; unlike a pause, there is no room for moves of one's own.
+    pub fn print_moving(&self) -> bool {
+        self.klippy_state == KlippyState::Ready && self.job.state == PrintState::Printing
     }
 
     pub fn heater(&self, object: &str) -> Option<&Heater> {

@@ -64,5 +64,5 @@ change takes as long as such a build; rendering itself takes a few seconds. It p
 
 - `cannot find -lshlwapi` when linking: `%USERPROFILE%\.cargo\config.toml` contains `-C link-self-contained=yes`. Remove that line; w64devkit plus the empty `libgcc_eh.a` are enough.
 - Skia as Slint renderer needs MSVC; the project therefore uses FemtoVG and the software renderer.
-- Checking the UI without a window: `powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Size 640x400] [-Profile basic|voron|happy-hare|ercf] [-Scenes pages,network|all]` starts a fake Moonraker and renders the pages to PNG (default folder `%TEMP%\kt-ui-snapshots`).
+- Checking the UI without a window: `powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Size 640x400] [-Profile basic|voron|happy-hare|ercf] [-Scenes pages,network|all]` starts a fake Moonraker and renders the pages to PNG (default folder `%TEMP%\freakymate-ui-snapshots`).
 - Linker errors after a Rust update mentioning `gcc-ld`: run `scripts\setup.ps1` again or remove the `[target.x86_64-pc-windows-gnu]` section from `%USERPROFILE%\.cargo\config.toml`.

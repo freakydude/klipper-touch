@@ -30,3 +30,4 @@ zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
 
 [dev-dependencies]
 fake-moonraker.workspace = true
+tempfile = "3.27.0"

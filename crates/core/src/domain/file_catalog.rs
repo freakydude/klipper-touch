@@ -37,8 +37,21 @@ pub struct FileCatalog {
 }
 
 impl FileCatalog {
-    pub fn set_entries(&mut self, entries: Vec<FileEntry>) {
+    /// Takes a new file list. A file that was changed since the last list loses its metadata, so it is loaded again;
+    /// the changed files are returned, because whatever else was kept for them (thumbnails) is outdated as well.
+    pub fn set_entries(&mut self, entries: Vec<FileEntry>) -> Vec<String> {
+        let before: HashMap<&str, f64> =
+            self.entries.iter().map(|entry| (entry.path.as_str(), entry.modified)).collect();
+        let changed: Vec<String> = entries
+            .iter()
+            .filter(|entry| before.get(entry.path.as_str()).is_some_and(|modified| *modified != entry.modified))
+            .map(|entry| entry.path.clone())
+            .collect();
+        for path in &changed {
+            self.metadata.remove(path);
+        }
         self.entries = entries;
+        changed
     }
 
     pub fn entries(&self) -> &[FileEntry] {
@@ -148,6 +161,20 @@ mod tests {
 
         assert_eq!(catalog.info(&catalog.entries()[0]).spool.map(|spool| spool.id), Some(18));
         assert_eq!(catalog.info(&catalog.entries()[1]).spool, None);
+    }
+
+    #[test]
+    fn a_changed_file_needs_its_details_again() {
+        let mut catalog = FileCatalog::default();
+        catalog.set_entries(vec![entry("a.gcode"), entry("b.gcode")]);
+        catalog.store_metadata(metadata("a.gcode"));
+        catalog.store_metadata(metadata("b.gcode"));
+
+        let changed = catalog.set_entries(vec![FileEntry { modified: 2.0, ..entry("a.gcode") }, entry("b.gcode")]);
+
+        assert_eq!(changed, ["a.gcode"]);
+        assert_eq!(catalog.needing_details(), ["a.gcode"]);
+        assert!(catalog.metadata("b.gcode").is_some());
     }
 
     #[test]
