@@ -95,7 +95,11 @@ history).
    (heaters, motion, job, objects to exclude, and Happy Hare in `sources/happy_hare/`: gates, sensors, buffer,
    FlowGuard). Moonraker's WLED strips join the LEDs as `wled <strip>`: read when subscribing, every 5 s (Moonraker
    does not report changes) and from the answer of each command to a strip; `domain/light.rs` picks the main light
-   among all of them. Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
+   among all of them. Two pieces of state live in the service beside the store: heater targets sent but not yet
+   reported back (`PendingTargets`) and what each fan's tachometer has measured since Klipper started (`FanWatch`:
+   the lowest speed with a settled reading; a fan that reports 0 rpm for 5 s at or above it counts as stalled, judged
+   with each status update).
+   Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only
    copies pixels. The temperature history comes from Moonraker's `server.temperature_store` when a chart opens
@@ -125,8 +129,8 @@ history).
 - `app.slint`: window 800x480 (grows with the screen), status bar, navigation rail, page, overlays.
 - `state.slint`: globals `Printer` (read-only), `UiSettings`, `Actions` (callbacks), `Navigation`, `Confirm`, `StateIcons`.
 - `components/`: `controls.slint` (IconButton, StepSelector, Card, ValueTile, ProgressBar, ScrollList, TouchSlider), `overlays.slint`
-  (confirmation, messages flyout, on-screen keyboard, text input), `chrome.slint` (status bar with the newest message,
-  navigation). Messages (errors and informations) are kept in `status_log.rs`, pure logic that the presenter shows.
+  (confirmation, messages flyout, on-screen keyboard, text input), `chrome.slint` (status bar with what is running and the newest
+  message, navigation). Messages (errors and informations) are kept in `status_log.rs`, pure logic that the presenter shows.
 - `pages/`: print, move, temperature, tune, filament (with Happy Hare the tabs MMU in `mmu.slint` with the dialogs in `mmu-dialogs.slint`, Extruder, and Service in `mmu-service.slint`; otherwise the extruder alone), console (with the macro list), system, settings, connection.
 - Pages only read globals and only call `Actions`/`Confirm`; printer-related logic belongs in the core.
 - Touch rules: controls at least 56 px (`Theme.touch`), confirmation for cancel, emergency stop and host actions;

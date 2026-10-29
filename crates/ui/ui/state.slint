@@ -13,6 +13,8 @@ export struct HeaterItem {
     power: float,
     // Target is below Klipper's max_temp.
     can-raise: bool,
+    // The targets Klipper takes (min_temp to max_temp), as a note for typing one; empty without max_temp.
+    target-range: string,
     // The temperature the spool in use recommends, when the target is off from it; empty otherwise.
     spool-hint: string,
     // Moonraker keeps its temperature history, so a tap can show it.
@@ -39,6 +41,8 @@ export struct FanItem {
     speed: float,
     // Measured speed as text ("2800 rpm"), empty without a tachometer.
     rpm: string,
+    // Should turn, but the tachometer has reported 0 rpm since the spin-up time.
+    stalled: bool,
 }
 
 export struct LedItem {
@@ -134,7 +138,9 @@ export struct FilamentPathItem {
 export struct SpoolItem {
     id: int,
     title: string,
-    detail: string,
+    material: string,
+    // What is left, e.g. "613 g"; empty if Spoolman does not know.
+    remaining: string,
     color: color,
     color-2: color,
     color-3: color,
@@ -166,6 +172,39 @@ export struct BedMapItem {
     width: float,
     depth: float,
     grid: string,
+}
+
+// The active bed mesh, back at the top: a dense mesh as a picture of one pixel per probed point, a small one as cells. `aspect` is width to depth of the
+// measured area; `limit` the end of the colour scale on both sides of 0; `filled`: corners of a round bed, not probed.
+export struct BedMeshMap {
+    shown: bool,
+    image: image,
+    columns: int,
+    rows: int,
+    aspect: float,
+    range: string,
+    lowest: string,
+    highest: string,
+    limit: string,
+    averaged: int,
+    filled: bool,
+}
+
+// A cell of a small mesh map with its value, counted from the top left; `dark` text on a light cell.
+export struct MeshCellItem {
+    column: int,
+    row: int,
+    text: string,
+    colour: color,
+    dark: bool,
+}
+
+// The points a faulty region replaced with the average around it, counted from the top left.
+export struct MeshFrameItem {
+    column: int,
+    row: int,
+    columns: int,
+    rows: int,
 }
 
 // Texts of a file row; an empty text is a fact the file does not have.
@@ -222,6 +261,8 @@ export struct MacroParamItem {
     name: string,
     placeholder: string,
     value: string,
+    // The default is a number: the field opens the numeric keypad.
+    numeric: bool,
 }
 
 export struct PowerItem {
@@ -235,6 +276,7 @@ export struct UpdateItem {
     version: string,
     detail: string,
     has-update: bool,
+    up-to-date: bool,
 }
 
 export struct PresetItem {
@@ -408,6 +450,9 @@ export global Printer {
     // The active mesh profile, empty without one.
     in property <string> bed-mesh-active;
     in property <[string]> bed-mesh-profiles;
+    in property <BedMeshMap> bed-mesh-map;
+    in property <[MeshCellItem]> bed-mesh-cells;
+    in property <[MeshFrameItem]> bed-mesh-frames;
     in property <[ScrewItem]> screw-results;
     // The mode Klipper waits in until ACCEPT or ABORT: manual-probe | bed-screws, empty if none.
     in property <string> calibration-mode;
@@ -437,7 +482,7 @@ export global Printer {
     // Spoolman id of the spool in use, -1 for none.
     in property <int> spool-id: -1;
     in property <string> spool-title;
-    in property <string> spool-detail;
+    in property <string> spool-material;
     // What is left of the spool, for example "613 g".
     in property <string> spool-weight;
     in property <color> spool-color;
@@ -529,6 +574,10 @@ export global Actions {
     callback calibrate-bed-mesh();
     callback load-bed-mesh(string);
     callback clear-bed-mesh();
+    callback save-bed-mesh(string);
+    callback remove-bed-mesh(string);
+    // Why a typed name cannot be saved, or that it overwrites a profile; empty if neither.
+    pure callback bed-mesh-name-hint(string) -> string;
     callback calculate-screws-tilt();
     callback adjust-bed-screws();
     // PROBE_CALIBRATE or Z_ENDSTOP_CALIBRATE, whichever the printer has.
@@ -613,6 +662,8 @@ export global Actions {
     callback apply-spool-preset();
     // What differs between a file and the spools, as lines of text for the confirmation; empty if nothing.
     pure callback print-hints(string) -> string;
+    // Klipper would refuse the typed target of a heater (Klipper object, text as typed); false while it is no number.
+    pure callback heater-target-outside(string, string) -> bool;
     callback open-macro-form(string);
     callback set-macro-param(int, string);
     callback macro-form-script() -> string;
@@ -738,6 +789,7 @@ export global Confirm {
         if (self.action == "mmu-check-all-gates") { Actions.mmu-check-all-gates(); }
         if (self.action == "mmu-reset-tool-map") { Actions.mmu-reset-tool-map(); }
         if (self.action == "save-config") { Actions.save-config(); }
+        if (self.action == "remove-bed-mesh") { Actions.remove-bed-mesh(self.argument); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }
         if (self.action == "restart-service") { Actions.restart-service(self.argument); }
@@ -754,6 +806,12 @@ export global Confirm {
     }
 }
 
+// The map of the active bed mesh and the saved profiles, opened from the Calibrate tab.
+export global MeshDialogs {
+    in-out property <bool> map-open;
+    in-out property <bool> profiles-open;
+}
+
 // Dialogs lie in the content area, beside the navigation and below the status bar. A tap there cancels every open
 // dialog before the button does its own work (Frank, 2026-10-27): `dismiss` closes the dialogs of the window, and
 // the dialogs of the pages close when `dismissals` changes.
@@ -765,6 +823,8 @@ export global Dialogs {
         SpoolPicker.open = false;
         MmuDialogs.gate = -1;
         MmuDialogs.bypass-open = false;
+        MeshDialogs.map-open = false;
+        MeshDialogs.profiles-open = false;
         if (Navigation.history-open) { Actions.close-history(); }
         // Closing the dialog of a calibration mode leaves the mode (Frank, 2026-10-28).
         if (Printer.ready && Printer.calibration-mode != "") { Actions.abort-calibration(); }
@@ -818,9 +878,22 @@ export global StateIcons {
     // Status bar: connection/Klipper while not ready, then a print job if there is one, otherwise the activity.
     public pure function summary-label() -> string {
         if (!Printer.ready) { return self.klippy-label(Printer.connection, Printer.klippy-state); }
-        if (Printer.is-printing) { return Printer.job-name + "  " + round(Printer.progress * 100) + "%"; }
+        if (Printer.is-printing) { return Printer.job-name; }
         if (Printer.print-state != "standby") { return self.print-state-label(Printer.print-state); }
         return self.activity-label(Printer.activity);
+    }
+
+    // The value after the summary that must not be cut off: the progress of a print.
+    public pure function summary-value() -> string {
+        if (Printer.ready && Printer.is-printing) { return round(Printer.progress * 100) + "%"; }
+        return "";
+    }
+
+    // Whether the summary says that all is fine: Klipper ready and nothing running, or the print finished.
+    public pure function summary-is-fine() -> bool {
+        if (!Printer.ready) { return false; }
+        if (Printer.print-state == "complete") { return true; }
+        return Printer.print-state == "standby" && Printer.activity != "busy";
     }
 
     public pure function summary() -> image {

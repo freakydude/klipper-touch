@@ -55,7 +55,8 @@ pub(crate) fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
             SpoolItem {
                 id: spool.id as i32,
                 title: spool.title().into(),
-                detail: view::spool_detail(spool).into(),
+                material: spool.material.as_str().into(),
+                remaining: view::spool_remaining(spool).into(),
                 color: bar.0,
                 color_2: bar.1,
                 color_3: bar.2,
@@ -95,6 +96,9 @@ pub(crate) fn heater_item(heater: &Heater, spool: Option<&Spool>, has_history: b
         target: heater.target as f32,
         power: heater.power as f32,
         can_raise: heater.can_raise(),
+        target_range: heater.max_temp.map_or_else(SharedString::new, |maximum| {
+            format!("Klipper: {:.0}–{maximum:.0} °C", heater.min_temp).into()
+        }),
         has_history,
     }
 }
@@ -147,6 +151,7 @@ pub(crate) fn update_item(update: &UpdateInfo) -> UpdateItem {
         version: update.version.as_str().into(),
         detail: detail.into(),
         has_update: update.has_update(),
+        up_to_date: update.is_up_to_date(),
     }
 }
 
@@ -168,6 +173,7 @@ pub(crate) fn fan_item(fan: &Fan) -> FanItem {
         controllable: fan.kind.is_controllable(),
         speed: (fan.speed * 100.0) as f32,
         rpm: view::fan_rpm(fan.rpm).into(),
+        stalled: fan.stalled,
     }
 }
 

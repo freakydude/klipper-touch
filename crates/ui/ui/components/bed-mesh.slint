@@ -1,0 +1,250 @@
+// The active bed mesh as a map and the saved profiles. A small mesh is drawn as cells with values, a dense one as a
+// picture of one pixel per probed point, scaled up without smoothing; both by the GPU. Profiles are kept by Klipper
+// for the session; Save config writes them.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { Actions, Confirm, MeshDialogs, Printer } from "../state.slint";
+import { IconButton, ScrollList } from "controls.slint";
+import { DialogHeader, DialogPanel, Scrim } from "dialog.slint";
+import { TextEntryDialog } from "overlays.slint";
+
+// Width of the legend beside the map in the dialog.
+global MeshLayout {
+    out property <length> legend-width: 170px;
+    // Share of the full colour at the ends of the scale, as the cells have it (STRENGTH in bed_mesh_view.rs).
+    out property <float> strength: 0.9;
+}
+
+export component MeshMap inherits Rectangle {
+    // Large in the dialog: values in the cells, gaps between them and wider frames.
+    in property <bool> large;
+    property <length> cell-width: root.width / max(1, Printer.bed-mesh-map.columns);
+    property <length> cell-height: root.height / max(1, Printer.bed-mesh-map.rows);
+    property <bool> labelled: root.large && root.cell-width >= 40px && root.cell-height >= 24px;
+    accessible-role: image;
+    accessible-label: @tr("Bed mesh, range {}", Printer.bed-mesh-map.range);
+
+    Image {
+        width: 100%;
+        height: 100%;
+        source: Printer.bed-mesh-map.image;
+        image-fit: fill;
+        image-rendering: pixelated;
+    }
+    for cell in Printer.bed-mesh-cells: Rectangle {
+        x: cell.column * root.cell-width;
+        y: cell.row * root.cell-height;
+        width: root.cell-width;
+        height: root.cell-height;
+        background: cell.colour;
+        // The gaps between the cells.
+        border-width: root.large ? 1px : 0px;
+        border-color: Theme.surface;
+        if root.labelled: Text {
+            text: cell.text;
+            color: cell.dark ? Theme.background : Theme.foreground;
+            font-size: Theme.font-small;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    for frame in Printer.bed-mesh-frames: Rectangle {
+        x: frame.column * root.cell-width;
+        y: frame.row * root.cell-height;
+        width: frame.columns * root.cell-width;
+        height: frame.rows * root.cell-height;
+        border-width: root.large ? 2px : 1px;
+        border-color: Theme.foreground;
+    }
+}
+
+component Note inherits Text {
+    color: Theme.muted;
+    font-size: Theme.font-small;
+    wrap: word-wrap;
+}
+
+// The range, the colour scale with its ends and what the marks in the map mean.
+component MeshLegend inherits VerticalLayout {
+    width: MeshLayout.legend-width;
+    spacing: Theme.spacing;
+    Note {
+        text: @tr("Range");
+    }
+    Text {
+        text: Printer.bed-mesh-map.range;
+        color: Theme.foreground;
+        font-size: Theme.font-large;
+        font-weight: 700;
+    }
+    HorizontalLayout {
+        spacing: Theme.spacing;
+        vertical-stretch: 1;
+        // The cells blend from the neutral colour, so the scale does too.
+        Rectangle {
+            width: 14px;
+            border-radius: 3px;
+            background: Theme.surface-active;
+            Rectangle {
+                border-radius: parent.border-radius;
+                background: @linear-gradient(180deg, Theme.danger.with-alpha(MeshLayout.strength) 0%, transparent 50%, Theme.info.with-alpha(MeshLayout.strength) 100%);
+            }
+        }
+        VerticalLayout {
+            Text {
+                text: "+" + Printer.bed-mesh-map.limit;
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+            }
+            Rectangle { vertical-stretch: 1; }
+            Text {
+                text: "0";
+                color: Theme.muted;
+                font-size: Theme.font-normal;
+            }
+            Rectangle { vertical-stretch: 1; }
+            Text {
+                text: "−" + Printer.bed-mesh-map.limit;
+                color: Theme.foreground;
+                font-size: Theme.font-normal;
+            }
+        }
+    }
+    Note {
+        text: @tr("Lowest {}", Printer.bed-mesh-map.lowest);
+    }
+    Note {
+        text: @tr("Highest {}", Printer.bed-mesh-map.highest);
+    }
+    Note {
+        text: @tr("{} × {} points, back at the top", Printer.bed-mesh-map.columns, Printer.bed-mesh-map.rows);
+    }
+    if Printer.bed-mesh-map.averaged > 0: Note {
+        text: @tr("Framed: faulty region, average of the points around it");
+    }
+    if Printer.bed-mesh-map.filled: Note {
+        text: @tr("Empty: outside the round bed, not probed");
+    }
+}
+
+// The map of the active mesh, as large as the content area allows, with the legend beside it.
+export component BedMeshDialog inherits Scrim {
+    property <length> room-height: root.height - 16px - 2 * Theme.dialog-padding - Theme.touch - Theme.spacing;
+    property <length> room-width: root.width - 16px - 2 * Theme.dialog-padding - 2 * Theme.spacing - MeshLayout.legend-width;
+    property <float> aspect: Printer.bed-mesh-map.aspect > 0 ? Printer.bed-mesh-map.aspect : 1;
+    property <length> map-height: min(root.room-height, root.room-width / root.aspect);
+    visible: MeshDialogs.map-open;
+
+    DialogPanel {
+        width: 2 * Theme.dialog-padding + 2 * Theme.spacing + max(root.map-height * root.aspect, 260px) + MeshLayout.legend-width;
+        height: parent.height - 16px;
+        x: (parent.width - self.width) / 2;
+        y: 8px;
+        VerticalLayout {
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: Printer.bed-mesh-active != "" ? @tr("Bed mesh: {}", Printer.bed-mesh-active) : @tr("Bed mesh");
+                close => { MeshDialogs.map-open = false; }
+            }
+            if !Printer.bed-mesh-map.shown: Note {
+                vertical-stretch: 1;
+                text: @tr("No mesh active.");
+            }
+            if Printer.bed-mesh-map.shown: HorizontalLayout {
+                vertical-stretch: 1;
+                spacing: 2 * Theme.spacing;
+                // Wrapper: the map keeps the shape of the measured area at the top left.
+                Rectangle {
+                    horizontal-stretch: 1;
+                    MeshMap {
+                        x: 0;
+                        y: 0;
+                        width: root.map-height * root.aspect;
+                        height: root.map-height;
+                        large: true;
+                    }
+                }
+                MeshLegend { }
+            }
+        }
+    }
+}
+
+// The saved profiles: a tap loads one, the bin removes it, Save as stores the active mesh under a new name.
+export component BedMeshProfilesDialog inherits Scrim {
+    property <length> row-step: Theme.touch + Theme.spacing;
+    visible: MeshDialogs.profiles-open;
+
+    DialogPanel {
+        width: 440px;
+        height: parent.height - 16px;
+        x: (parent.width - self.width) / 2;
+        y: 8px;
+        VerticalLayout {
+            padding: Theme.dialog-padding;
+            spacing: Theme.spacing;
+            DialogHeader {
+                title: @tr("Bed mesh profiles");
+                close => { MeshDialogs.profiles-open = false; }
+            }
+            if Printer.bed-mesh-profiles.length == 0: Note {
+                text: @tr("No saved profiles.");
+            }
+            profiles := ScrollList {
+                vertical-stretch: 1;
+                content-height: Printer.bed-mesh-profiles.length * root.row-step;
+                for profile[index] in Printer.bed-mesh-profiles: HorizontalLayout {
+                    y: index * root.row-step;
+                    width: profiles.row-width;
+                    height: Theme.touch;
+                    spacing: Theme.spacing;
+                    IconButton {
+                        horizontal: true;
+                        align-start: true;
+                        icon: Icons.print-load;
+                        text: profile;
+                        checked: profile == Printer.bed-mesh-active;
+                        clicked => {
+                            Actions.load-bed-mesh(profile);
+                            MeshDialogs.profiles-open = false;
+                        }
+                    }
+                    IconButton {
+                        width: Theme.touch;
+                        icon: Icons.ui-delete;
+                        accessible-label: @tr("Remove {}", profile);
+                        clicked => { Confirm.ask(@tr("Remove profile"), @tr("Klipper removes {} for this session; Save config removes it from the configuration.", profile), "remove-bed-mesh", profile, true); }
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: Theme.spacing;
+                height: Theme.touch;
+                Note {
+                    horizontal-stretch: 1;
+                    text: @tr("Kept after Save config.");
+                    vertical-alignment: center;
+                }
+                IconButton {
+                    width: 180px;
+                    horizontal: true;
+                    kind: "accent";
+                    icon: Icons.ui-save;
+                    text: @tr("Save as…");
+                    enabled: Printer.bed-mesh-map.shown;
+                    clicked => {
+                        name.text = "";
+                        name.open = true;
+                    }
+                }
+            }
+        }
+    }
+
+    name := TextEntryDialog {
+        title: Actions.bed-mesh-name-hint(self.text) != "" ? Actions.bed-mesh-name-hint(self.text) : @tr("Profile name");
+        accepted(text) => { Actions.save-bed-mesh(text); }
+    }
+}

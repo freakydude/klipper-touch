@@ -536,6 +536,21 @@ async fn multi_line_responses_arrive_as_one_message_with_line_breaks() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_macro_appears_in_the_console_like_a_typed_command() {
+    let endpoint = start_fake().await;
+    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    wait_for(&mut channels, ready).await;
+
+    service.send(Command::RunMacro { name: "G28".into() });
+    let Event::ConsoleLine(line) =
+        next_event(&mut channels, |event| matches!(event, Event::ConsoleLine(line) if line.message == "G28")).await
+    else {
+        unreachable!()
+    };
+    assert_eq!(line.kind, ConsoleKind::Command);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn reports_disconnected_when_server_is_missing() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let endpoint = Endpoint::parse(&listener.local_addr().unwrap().to_string()).unwrap();

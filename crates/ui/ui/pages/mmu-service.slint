@@ -21,6 +21,7 @@ export component MmuServiceTab inherits Rectangle {
                 icon: Icons.mmu-home;
                 text: @tr("Home");
                 kind: Printer.mmu-homed ? "normal" : "accent";
+                done: Printer.mmu-homed;
                 clicked => { Actions.mmu-home(); }
             }
             IconButton {

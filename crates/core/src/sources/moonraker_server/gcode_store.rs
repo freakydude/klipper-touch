@@ -22,9 +22,16 @@ impl ConsoleLine {
         self.message.starts_with("!!")
     }
 
-    /// Klipper marks information responses with `//`.
+    /// Klipper marks information responses with `//`. A host action is not one: it is meant for the client, not
+    /// for a person.
     pub fn is_information(&self) -> bool {
-        self.message.starts_with("//")
+        self.message.starts_with("//") && !self.is_host_action()
+    }
+
+    /// An instruction from a macro to the client, such as `// action:prompt_begin Title` (the dialogs Mainsail and
+    /// Fluidd show) or `// action:notification ...`; Klipper's "action:" prefix of `RESPOND TYPE=command`.
+    pub fn is_host_action(&self) -> bool {
+        self.message.strip_prefix("//").is_some_and(|rest| rest.trim_start().starts_with("action:"))
     }
 
     /// A temperature report, such as Klipper sends every second while `M109` or `M190` waits
@@ -170,6 +177,14 @@ mod tests {
     fn only_bang_bang_responses_are_errors() {
         assert!(response("!! Timer too close").is_error());
         assert!(!response("// ok").is_error());
+    }
+
+    #[test]
+    fn host_actions_are_no_information_for_a_person() {
+        assert!(response("// action:prompt_begin MMU Error").is_host_action());
+        assert!(!response("// action:prompt_show").is_information());
+        assert!(response("// Bypass enabled").is_information());
+        assert!(!response("// Bypass enabled").is_host_action());
     }
 
     #[test]

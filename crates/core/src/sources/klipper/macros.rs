@@ -97,6 +97,8 @@ pub struct MacroField {
     /// Shown while the value is empty; Klipper uses it then.
     pub placeholder: String,
     pub value: String,
+    /// The default is a number, so the UI offers the numeric keypad (any text can still be typed elsewhere).
+    pub numeric: bool,
 }
 
 /// The parameter form of one macro: fields with values, and the command they result in.
@@ -118,6 +120,7 @@ impl MacroForm {
                         name: param.name.clone(),
                         placeholder: param.default.clone().unwrap_or_default(),
                         value: String::new(),
+                        numeric: param.default.as_deref().is_some_and(|default| default.parse::<f64>().is_ok()),
                     })
                     .collect()
             })
@@ -319,6 +322,20 @@ mod tests {
         assert_eq!(details.len(), 2);
         assert_eq!(details["PARK"].params, [param("Z", Some("10"))]);
         assert!(details["PAUSE"].renamed);
+    }
+
+    #[test]
+    fn a_number_as_default_makes_a_numeric_field() {
+        let form = MacroForm::open(
+            "PURGE",
+            Some(&details(
+                &[("LENGTH", Some("50")), ("SPEED", Some("2.5")), ("MODE", Some("fast")), ("X", None)],
+                false,
+            )),
+        );
+
+        let numeric: Vec<bool> = form.fields().iter().map(|field| field.numeric).collect();
+        assert_eq!(numeric, [true, true, false, false]);
     }
 
     fn details(params: &[(&str, Option<&str>)], renamed: bool) -> MacroDetails {

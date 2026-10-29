@@ -8,7 +8,7 @@ import { IconButton } from "controls.slint";
 
 // Dimming background that intercepts input meant for elements underneath.
 export component Scrim inherits Rectangle {
-    background: #000000b0;
+    background: Theme.scrim;
     TouchArea { }
 
     @children

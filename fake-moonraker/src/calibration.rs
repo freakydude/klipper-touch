@@ -1,7 +1,8 @@
 //! Klipper's calibration helpers, simplified: `manual_probe` (`PROBE_CALIBRATE`, `MANUAL_PROBE`, `TESTZ`), the paper
-//! test of `bed_screws`, `SCREWS_TILT_CALCULATE` with fixed results, the bed mesh profiles and what `SAVE_CONFIG`
-//! would write (`configfile.save_config_pending_items`). Behaviour follows `klippy/extras/manual_probe.py`,
-//! `bed_screws.py` and `configfile.py` (read 2026-10-28); measured values are made up.
+//! test of `bed_screws`, `SCREWS_TILT_CALCULATE` with fixed results, the bed mesh with its profiles and what
+//! `SAVE_CONFIG` would write (`configfile.save_config_pending_items`). Behaviour follows
+//! `klippy/extras/manual_probe.py`, `bed_screws.py`, `bed_mesh.py` and `configfile.py` (read 2026-10-28 and
+//! 2026-10-29); measured values are made up.
 
 use crate::gcode::CommandError;
 use serde_json::{json, Map, Value};
@@ -23,6 +24,15 @@ pub const SCREWS: [(&str, [f64; 2]); 4] = [
 /// `SCREWS_TILT_CALCULATE` results per screw: sign and turns; the first screw is the base.
 const SCREW_TILT: [(&str, &str); 4] = [("CW", "00:00"), ("CW", "00:18"), ("CCW", "01:05"), ("CW", "00:02")];
 const DEFAULT_MESH: &str = "default";
+/// Profiles saved before the start, each with its own tilt of the made-up surface.
+const SAVED_MESHES: [(&str, f64); 2] = [(DEFAULT_MESH, 0.0), ("pei-textured", 0.03)];
+/// `[bed_mesh]`: 5 x 5 points from 30 to 270 mm; the faulty region holds the point at 150, 210 (a magnet, say).
+const MESH_MIN: f64 = 30.0;
+const MESH_MAX: f64 = 270.0;
+const MESH_COUNT: usize = 5;
+const FAULTY_REGION: ([f64; 2], [f64; 2]) = ([140.0, 200.0], [160.0, 220.0]);
+
+type MeshPoints = Vec<Vec<f64>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalibrationCommand {
@@ -37,6 +47,8 @@ pub enum CalibrationCommand {
     BedMeshCalibrate { profile: Option<String> },
     BedMeshLoad { profile: String },
     BedMeshClear,
+    BedMeshSave { profile: String },
+    BedMeshRemove { profile: String },
 }
 
 /// `TESTZ Z=`: a relative move, `+`/`-` halfway to the nearest height tried, `++`/`--` all the way.
@@ -126,15 +138,21 @@ pub struct Calibration {
     manual_probe: Option<ManualProbe>,
     bed_screws: Option<BedScrews>,
     screw_results: bool,
-    active_mesh: Option<String>,
-    meshes: Vec<String>,
-    pending: BTreeMap<String, Map<String, Value>>,
+    /// Name and points; like Klipper, the active mesh stays when its profile is removed.
+    active_mesh: Option<(String, MeshPoints)>,
+    meshes: BTreeMap<String, MeshPoints>,
+    /// `None` for a section `SAVE_CONFIG` removes.
+    pending: BTreeMap<String, Option<Map<String, Value>>>,
 }
 
 impl Calibration {
-    /// `screws` adds both `[bed_screws]` and `[screws_tilt_adjust]`; a bed mesh starts with the profile `default`.
+    /// `screws` adds both `[bed_screws]` and `[screws_tilt_adjust]`; a bed mesh starts with saved profiles.
     pub fn new(probe: bool, bed_mesh: bool, screws: bool) -> Self {
-        let meshes = if bed_mesh { vec![DEFAULT_MESH.to_owned()] } else { Vec::new() };
+        let meshes = if bed_mesh {
+            SAVED_MESHES.iter().map(|(name, tilt)| ((*name).to_owned(), mesh_points(*tilt))).collect()
+        } else {
+            BTreeMap::new()
+        };
         Self { probe, bed_mesh, screws, meshes, ..Self::default() }
     }
 
@@ -166,22 +184,36 @@ impl Calibration {
             CalibrationCommand::BedMeshCalibrate { profile } if self.bed_mesh && self.probe => {
                 must_be_homed(homed)?;
                 let profile = profile.unwrap_or_else(|| DEFAULT_MESH.to_owned());
-                if !self.meshes.contains(&profile) {
-                    self.meshes.push(profile.clone());
-                }
-                self.pending.insert(format!("bed_mesh {profile}"), mesh_section());
-                self.active_mesh = Some(profile);
+                let points = mesh_points(-0.01);
+                self.store_mesh(&profile, points.clone());
+                self.active_mesh = Some((profile, points));
             }
             CalibrationCommand::BedMeshLoad { profile } if self.bed_mesh => {
-                if !self.meshes.contains(&profile) {
+                let Some(points) = self.meshes.get(&profile) else {
                     return Err(CommandError::new(format!("bed_mesh: Unknown profile [{profile}]")));
-                }
-                self.active_mesh = Some(profile);
+                };
+                self.active_mesh = Some((profile, points.clone()));
             }
             CalibrationCommand::BedMeshClear if self.bed_mesh => self.active_mesh = None,
+            // Klipper only answers with a message when there is no mesh or the name is `default`.
+            CalibrationCommand::BedMeshSave { profile } if self.bed_mesh => {
+                if let Some((_, points)) = self.active_mesh.clone().filter(|_| profile != DEFAULT_MESH) {
+                    self.store_mesh(&profile, points);
+                }
+            }
+            CalibrationCommand::BedMeshRemove { profile } if self.bed_mesh => {
+                if self.meshes.remove(&profile).is_some() {
+                    self.pending.insert(format!("bed_mesh {profile}"), None);
+                }
+            }
             other => return Err(CommandError::new(format!("Unknown command:\"{}\"", command_name(&other)))),
         }
         Ok(())
+    }
+
+    fn store_mesh(&mut self, profile: &str, points: MeshPoints) {
+        self.pending.insert(format!("bed_mesh {profile}"), Some(mesh_section(&points)));
+        self.meshes.insert(profile.to_owned(), points);
     }
 
     fn start_probe(&mut self, purpose: ProbePurpose, homed: bool) -> Result<(), CommandError> {
@@ -205,6 +237,7 @@ impl Calibration {
             self.pending
                 .entry("probe".to_owned())
                 .or_default()
+                .get_or_insert_with(Map::new)
                 .insert("z_offset".to_owned(), json!(format!("{z_offset:.3}")));
         }
     }
@@ -259,11 +292,23 @@ impl Calibration {
             let profiles: Map<String, Value> = self
                 .meshes
                 .iter()
-                .map(|name| (name.clone(), json!({ "points": [[0.0]], "mesh_params": {} })))
+                .map(|(name, points)| (name.clone(), json!({ "points": points, "mesh_params": mesh_params() })))
                 .collect();
+            // Without a mesh Klipper reports an empty name, zero corners and `[[]]`.
+            let (name, points, corners) = match &self.active_mesh {
+                Some((name, points)) => (name.as_str(), json!(points), [MESH_MIN, MESH_MAX]),
+                None => ("", json!([[]]), [0.0, 0.0]),
+            };
             objects.insert(
                 "bed_mesh".to_owned(),
-                json!({ "profile_name": self.active_mesh.clone().unwrap_or_default(), "profiles": profiles }),
+                json!({
+                    "profile_name": name,
+                    "mesh_min": [corners[0], corners[0]],
+                    "mesh_max": [corners[1], corners[1]],
+                    "probed_matrix": points,
+                    "mesh_matrix": points,
+                    "profiles": profiles,
+                }),
             );
         }
         if self.screws {
@@ -312,7 +357,13 @@ impl Calibration {
         if self.bed_mesh {
             sections.insert(
                 "bed_mesh".to_owned(),
-                json!({ "probe_count": [5, 5], "mesh_min": [30.0, 30.0], "mesh_max": [270.0, 270.0] }),
+                json!({
+                    "probe_count": [MESH_COUNT, MESH_COUNT],
+                    "mesh_min": [MESH_MIN, MESH_MIN],
+                    "mesh_max": [MESH_MAX, MESH_MAX],
+                    "faulty_region_1_min": FAULTY_REGION.0,
+                    "faulty_region_1_max": FAULTY_REGION.1,
+                }),
             );
         }
         if self.screws {
@@ -348,25 +399,52 @@ fn command_name(command: &CalibrationCommand) -> &'static str {
         CalibrationCommand::BedScrewsAdjust => "BED_SCREWS_ADJUST",
         CalibrationCommand::ScrewsTiltCalculate => "SCREWS_TILT_CALCULATE",
         CalibrationCommand::BedMeshCalibrate { .. } => "BED_MESH_CALIBRATE",
-        CalibrationCommand::BedMeshLoad { .. } => "BED_MESH_PROFILE",
+        CalibrationCommand::BedMeshLoad { .. }
+        | CalibrationCommand::BedMeshSave { .. }
+        | CalibrationCommand::BedMeshRemove { .. } => "BED_MESH_PROFILE",
         CalibrationCommand::BedMeshClear => "BED_MESH_CLEAR",
     }
 }
 
-/// The options Klipper stores for a mesh profile, with made-up points.
-fn mesh_section() -> Map<String, Value> {
+/// A made-up bed: higher in the middle, lower at the corners, tilted from left to right by `tilt` mm.
+fn mesh_points(tilt: f64) -> MeshPoints {
+    let step = (MESH_MAX - MESH_MIN) / (MESH_COUNT - 1) as f64;
+    let middle = (MESH_MAX + MESH_MIN) / 2.0;
+    (0..MESH_COUNT)
+        .map(|row| {
+            (0..MESH_COUNT)
+                .map(|column| {
+                    let [x, y] = [MESH_MIN + column as f64 * step, MESH_MIN + row as f64 * step];
+                    let distance = (x - middle).hypot(y - middle) / (middle - MESH_MIN);
+                    let height = 0.06 - 0.09 * distance * distance + tilt * (x - middle) / (middle - MESH_MIN);
+                    (height * 1e6).round() / 1e6
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn mesh_params() -> Value {
+    json!({
+        "min_x": MESH_MIN, "max_x": MESH_MAX, "min_y": MESH_MIN, "max_y": MESH_MAX,
+        "x_count": MESH_COUNT, "y_count": MESH_COUNT, "mesh_x_pps": 2, "mesh_y_pps": 2,
+        "algo": "lagrange", "tension": 0.2,
+    })
+}
+
+/// The options Klipper stores for a mesh profile.
+fn mesh_section(points: &MeshPoints) -> Map<String, Value> {
+    let rows: Vec<String> = points
+        .iter()
+        .map(|row| row.iter().map(|height| format!("{height:.6}")).collect::<Vec<_>>().join(", "))
+        .collect();
     let mut section = Map::new();
-    for (option, value) in [
-        ("version", "1"),
-        ("points", "\n0.02, 0.01, -0.01\n0.03, 0.00, -0.02\n0.04, 0.01, -0.03"),
-        ("x_count", "3"),
-        ("y_count", "3"),
-        ("min_x", "30.0"),
-        ("max_x", "270.0"),
-        ("min_y", "30.0"),
-        ("max_y", "270.0"),
-    ] {
-        section.insert(option.to_owned(), json!(value));
+    section.insert("version".to_owned(), json!("1"));
+    section.insert("points".to_owned(), json!(format!("\n{}", rows.join("\n"))));
+    if let Value::Object(params) = mesh_params() {
+        for (option, value) in params {
+            section.insert(option, json!(value.to_string()));
+        }
     }
     section
 }
@@ -427,9 +505,27 @@ mod tests {
         calibration.apply(CalibrationCommand::BedMeshCalibrate { profile: None }, true).unwrap();
         assert_eq!(calibration.status()["bed_mesh"]["profile_name"], "default");
         assert!(calibration.has_pending());
+        assert_eq!(calibration.status()["bed_mesh"]["probed_matrix"].as_array().unwrap().len(), MESH_COUNT);
         calibration.apply(CalibrationCommand::BedMeshClear, true).unwrap();
         assert_eq!(calibration.status()["bed_mesh"]["profile_name"], "");
+        assert_eq!(calibration.status()["bed_mesh"]["probed_matrix"], json!([[]]));
         calibration.save();
         assert!(!calibration.has_pending());
+    }
+
+    #[test]
+    fn profiles_are_saved_and_removed_for_the_session() {
+        let mut calibration = printer();
+        calibration.apply(CalibrationCommand::BedMeshLoad { profile: "pei-textured".into() }, true).unwrap();
+        calibration.apply(CalibrationCommand::BedMeshSave { profile: "copy".into() }, true).unwrap();
+        calibration.apply(CalibrationCommand::BedMeshSave { profile: DEFAULT_MESH.into() }, true).unwrap();
+        calibration.apply(CalibrationCommand::BedMeshRemove { profile: "pei-textured".into() }, true).unwrap();
+        let status = calibration.status();
+        let profiles = status["bed_mesh"]["profiles"].as_object().unwrap();
+        assert_eq!(profiles.keys().collect::<Vec<_>>(), ["copy", "default"]);
+        // Saving does not rename the active mesh, removing its profile keeps it.
+        assert_eq!(status["bed_mesh"]["profile_name"], "pei-textured");
+        assert_eq!(calibration.pending_json()["bed_mesh pei-textured"], Value::Null);
+        assert_eq!(calibration.pending_json()["bed_mesh copy"]["x_count"], "5");
     }
 }

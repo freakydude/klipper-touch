@@ -1,10 +1,14 @@
-//! The Calibrate tab and the dialog of a calibration mode: what the printer offers, the bed mesh profiles, the screw
-//! results, the waiting mode and what `SAVE_CONFIG` would write.
+//! The Calibrate tab and the dialog of a calibration mode: what the printer offers, the bed mesh with its profiles,
+//! the screw results, the waiting mode and what `SAVE_CONFIG` would write.
 
+use crate::bed_mesh_view;
 use crate::items::replace_rows;
-use crate::{Printer, ScrewItem};
-use freakymate_core::sources::klipper::{CalibrationMode, CalibrationState, PendingSection, ScrewAdjustment, Setup};
+use crate::{BedMeshMap, MeshCellItem, MeshFrameItem, Printer, ScrewItem};
+use freakymate_core::sources::klipper::{
+    BedMesh, CalibrationMode, CalibrationState, PendingSection, ScrewAdjustment, Setup,
+};
 use slint::{ModelRc, SharedString, VecModel};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Longer values (a mesh's points) are left out of the pending lines; a section with several options shows their
@@ -15,12 +19,18 @@ const SHORT_VALUE: usize = 12;
 pub struct CalibrationView {
     profiles: Rc<VecModel<SharedString>>,
     screws: Rc<VecModel<ScrewItem>>,
+    mesh_cells: Rc<VecModel<MeshCellItem>>,
+    mesh_frames: Rc<VecModel<MeshFrameItem>>,
+    /// The mesh last drawn: the picture is built again only when the mesh changes.
+    drawn_mesh: RefCell<Option<BedMesh>>,
 }
 
 impl CalibrationView {
     pub fn bind(&self, printer: &Printer) {
         printer.set_bed_mesh_profiles(ModelRc::from(self.profiles.clone()));
         printer.set_screw_results(ModelRc::from(self.screws.clone()));
+        printer.set_bed_mesh_cells(ModelRc::from(self.mesh_cells.clone()));
+        printer.set_bed_mesh_frames(ModelRc::from(self.mesh_frames.clone()));
     }
 
     pub fn show(&self, printer: &Printer, setup: &Setup, calibration: &CalibrationState) {
@@ -38,10 +48,28 @@ impl CalibrationView {
         printer.set_bed_mesh_active(mesh.map(|mesh| mesh.active.as_str()).unwrap_or_default().into());
         let profiles = mesh.map(|mesh| mesh.profiles.iter().map(|profile| profile.into()).collect());
         replace_rows(&self.profiles, profiles.unwrap_or_default());
+        self.show_mesh(printer, mesh.and_then(|mesh| mesh.mesh.as_ref()));
         replace_rows(&self.screws, calibration.screws.iter().map(screw_item).collect());
         let pending: Vec<String> = calibration.pending.iter().map(pending_line).collect();
         printer.set_pending_config(pending.join(" · ").into());
         show_mode(printer, calibration.mode.as_ref());
+    }
+}
+
+impl CalibrationView {
+    fn show_mesh(&self, printer: &Printer, mesh: Option<&BedMesh>) {
+        let mut drawn = self.drawn_mesh.borrow_mut();
+        if drawn.as_ref() == mesh {
+            return;
+        }
+        *drawn = mesh.cloned();
+        let (map, cells, frames) = match mesh.map(bed_mesh_view::picture) {
+            Some(picture) => (picture.map, picture.cells, picture.frames),
+            None => (BedMeshMap::default(), Vec::new(), Vec::new()),
+        };
+        printer.set_bed_mesh_map(map);
+        self.mesh_cells.set_vec(cells);
+        self.mesh_frames.set_vec(frames);
     }
 }
 

@@ -1,13 +1,13 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use freakymate::{Actions, Confirm, FilamentTab, MmuDialogs, Navigation, Page, Printer, SpoolPicker};
+use freakymate::{Actions, Confirm, FilamentTab, MeshDialogs, MmuDialogs, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Activity, CalibrationMode, KlippyState, PrintState, TestZ};
 use freakymate_core::sources::moonraker_server::wled::{self, StripAction};
-use freakymate_core::{Command, ConnectionState, Query};
+use freakymate_core::{Command, ConnectionState, Query, Snapshot};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
 
@@ -344,6 +344,33 @@ fn messages(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
+/// The exhaust fan measures at 50 %, then its tachometer goes silent: red after a while; afterwards off again. The
+/// core only learns a reading some seconds after a change of speed (kick start), so this scene waits that long.
+fn stalled_fan(session: &mut Session) -> Result<(), String> {
+    let exhaust_stalled =
+        |snapshot: &Snapshot| snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.stalled);
+    session.service.send(Command::RunGcode { script: "SET_FAN_SPEED FAN=exhaust SPEED=0.5".into() });
+    session.wait_until("the exhaust fan to measure", |snapshot| {
+        snapshot
+            .status
+            .fans
+            .iter()
+            .any(|fan| fan.object == "fan_generic exhaust" && fan.rpm.is_some_and(|rpm| rpm > 0.0))
+    })?;
+    // Settling time of the core (3 s plus Klipper's default kick start of 0.1 s) and a little more.
+    session.pump(Duration::from_millis(4500));
+    session.service.send(Command::RunGcode { script: "FAKE_FAN_STALL FAN=exhaust".into() });
+    session.wait_until("the exhaust fan to count as stalled", exhaust_stalled)?;
+    session.show_page(Page::Temperature, "temperature-fan-stalled")?;
+    session.service.send(Command::RunGcode {
+        script: "FAKE_FAN_STALL FAN=exhaust STALL=0\nSET_FAN_SPEED FAN=exhaust SPEED=0".into(),
+    });
+    session.wait_until("the exhaust fan to be off", |snapshot| {
+        !exhaust_stalled(snapshot)
+            && snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.speed == 0.0)
+    })
+}
+
 /// The Fans and Sensors tabs of the Thermal page and the light panel, where the printer has them.
 fn heat_tabs(session: &mut Session) -> Result<(), String> {
     let status = session.presenter.snapshot().status;
@@ -351,6 +378,9 @@ fn heat_tabs(session: &mut Session) -> Result<(), String> {
     if !status.fans.is_empty() || !status.leds.is_empty() {
         navigation.set_heat_tab(1);
         session.show_page(Page::Temperature, "temperature-fans")?;
+        if status.fans.iter().any(|fan| fan.object == "fan_generic exhaust") {
+            stalled_fan(session)?;
+        }
     }
     if !status.sensors.is_empty() {
         session.window.global::<Navigation>().set_heat_tab(2);
@@ -615,6 +645,9 @@ fn calibrate(session: &mut Session) -> Result<(), String> {
     }
     session.pump(Duration::from_millis(300));
     session.capture("calibrate-results")?;
+    if offered.bed_mesh {
+        bed_mesh_dialogs(session)?;
+    }
 
     session.service.send(Command::CalibrateZ);
     session.wait_until("manual probe", |snapshot| snapshot.status.calibration.mode.is_some())?;
@@ -652,6 +685,54 @@ fn calibrate(session: &mut Session) -> Result<(), String> {
     session.wait_until("saved", |snapshot| !snapshot.status.save_config_pending)?;
     session.window.global::<Navigation>().set_move_tab(0);
     Ok(())
+}
+
+/// The tiles of the bed mesh card on the Calibrate tab (800x480, no fitting): the map and the profile selector.
+const MESH_MAP_TILE: (f32, f32) = (660.0, 178.0);
+const MESH_PROFILE_TILE: (f32, f32) = (660.0, 240.0);
+
+/// The map of the measured mesh with its faulty region, then the profiles: one saved under a new name and removed
+/// again, so the scenes after it see the profiles they started with.
+fn bed_mesh_dialogs(session: &mut Session) -> Result<(), String> {
+    if session.has_reference_layout() {
+        let (x, y) = MESH_MAP_TILE;
+        session.tap(x, y);
+    } else {
+        session.window.global::<MeshDialogs>().set_map_open(true);
+    }
+    session.pump(Duration::from_millis(300));
+    if !session.window.global::<MeshDialogs>().get_map_open() {
+        return Err("a tap on the mesh thumbnail did not open the map".into());
+    }
+    session.capture("calibrate-mesh")?;
+    session.window.global::<MeshDialogs>().set_map_open(false);
+
+    if session.has_reference_layout() {
+        let (x, y) = MESH_PROFILE_TILE;
+        session.tap(x, y);
+    } else {
+        session.window.global::<MeshDialogs>().set_profiles_open(true);
+    }
+    session.window.global::<Actions>().invoke_save_bed_mesh("smooth-pei".into());
+    session.wait_until("profile saved", |snapshot| has_mesh_profile(snapshot, "smooth-pei"))?;
+    session.pump(Duration::from_millis(300));
+    if !session.window.global::<MeshDialogs>().get_profiles_open() {
+        return Err("a tap on the profile selector did not open the profiles".into());
+    }
+    session.capture("calibrate-mesh-profiles")?;
+    session.window.global::<Actions>().invoke_remove_bed_mesh("smooth-pei".into());
+    session.wait_until("profile removed", |snapshot| !has_mesh_profile(snapshot, "smooth-pei"))?;
+    session.window.global::<MeshDialogs>().set_profiles_open(false);
+    Ok(())
+}
+
+fn has_mesh_profile(snapshot: &Snapshot, name: &str) -> bool {
+    snapshot
+        .status
+        .calibration
+        .bed_mesh
+        .as_ref()
+        .is_some_and(|mesh| mesh.profiles.iter().any(|profile| profile == name))
 }
 
 fn printing(session: &mut Session) -> Result<(), String> {

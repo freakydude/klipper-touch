@@ -65,7 +65,7 @@ pub enum Command {
     },
     SetVelocityLimit(VelocityLimit),
     SetRetraction(RetractionChange),
-    /// Fans, LEDs and effects (`SET_FAN_SPEED`, `SET_LED`, `SET_LED_EFFECT`, `STOP_LED_EFFECTS`).
+    /// Fans, LEDs and effects (`SET_FAN_SPEED`, `SET_LED`, `SET_LED_EFFECT`, `STOP_LED_EFFECTS`, `FAKE_FAN_STALL`).
     Device(DeviceCommand),
     SetHeaterTemperature {
         heater: String,
@@ -125,6 +125,12 @@ pub enum DeviceCommand {
         stop: bool,
     },
     StopLedEffects,
+    /// The tachometer of a fan reports 0 rpm, as if the fan were blocked (`FAKE_FAN_STALL FAN= [STALL=0|1]`; not in
+    /// Klipper).
+    FakeFanStall {
+        fan: String,
+        stall: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,6 +336,10 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             stop: named_index(&args, "STOP")?.is_some_and(|stop| stop >= 1),
         })),
         "STOP_LED_EFFECTS" => Ok(Command::Device(DeviceCommand::StopLedEffects)),
+        "FAKE_FAN_STALL" => Ok(Command::Device(DeviceCommand::FakeFanStall {
+            fan: required_text(&args, "FAN")?,
+            stall: named_index(&args, "STALL")?.is_none_or(|stall| stall != 0),
+        })),
         "SET_HEATER_TEMPERATURE" => Ok(Command::SetHeaterTemperature {
             heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
             target: named_value(&args, "TARGET")?.unwrap_or(0.0),
@@ -357,9 +367,8 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "BED_MESH_CALIBRATE" => {
             Ok(Command::Calibration(CalibrationCommand::BedMeshCalibrate { profile: named_text(&args, "PROFILE") }))
         }
-        // Only `LOAD` is simulated; `SAVE` and `REMOVE` are ignored.
-        "BED_MESH_PROFILE" => Ok(named_text(&args, "LOAD")
-            .map_or(Command::Ignored, |profile| Command::Calibration(CalibrationCommand::BedMeshLoad { profile }))),
+        // Klipper takes the first of `LOAD`, `SAVE` and `REMOVE` (`bed_mesh.py`).
+        "BED_MESH_PROFILE" => Ok(bed_mesh_profile(&args).map_or(Command::Ignored, Command::Calibration)),
         "BED_MESH_CLEAR" => Ok(Command::Calibration(CalibrationCommand::BedMeshClear)),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" if named_index(&args, "BYPASS")?.is_some_and(|value| value != 0) => {
@@ -474,6 +483,16 @@ fn required_text(args: &[&str], name: &str) -> Result<String, CommandError> {
     named_text(args, name).ok_or_else(|| CommandError::new(format!("Missing parameter {name}")))
 }
 
+fn bed_mesh_profile(args: &[&str]) -> Option<CalibrationCommand> {
+    if let Some(profile) = named_text(args, "LOAD") {
+        return Some(CalibrationCommand::BedMeshLoad { profile });
+    }
+    if let Some(profile) = named_text(args, "SAVE") {
+        return Some(CalibrationCommand::BedMeshSave { profile });
+    }
+    named_text(args, "REMOVE").map(|profile| CalibrationCommand::BedMeshRemove { profile })
+}
+
 fn named_text(args: &[&str], name: &str) -> Option<String> {
     args.iter()
         .filter_map(|arg| arg.split_once('='))
@@ -545,7 +564,7 @@ mod tests {
                 Command::Calibration(CalibrationCommand::TestZ(TestZ::By(-0.05))),
                 Command::Calibration(CalibrationCommand::TestZ(TestZ::Up { half: false })),
                 Command::Calibration(CalibrationCommand::BedMeshLoad { profile: "hot".into() }),
-                Command::Ignored,
+                Command::Calibration(CalibrationCommand::BedMeshSave { profile: "hot".into() }),
             ]
         );
         assert!(parse_script("TESTZ Z=up").is_err());

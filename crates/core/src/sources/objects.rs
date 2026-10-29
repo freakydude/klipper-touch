@@ -13,12 +13,13 @@ impl ObjectStore {
         self.objects = status.as_object().cloned().unwrap_or_default();
     }
 
-    /// Applies changed fields; fields not mentioned are kept.
+    /// Applies changed fields; fields not mentioned are kept. Klipper sends a changed field whole (`webhooks.py`,
+    /// `_do_query`), so a field's value is replaced, not merged: a key missing from a nested object was removed.
     pub fn merge(&mut self, changes: &Value) {
         let Some(changes) = changes.as_object() else { return };
         for (name, change) in changes {
             match self.objects.get_mut(name) {
-                Some(current) => merge_value(current, change),
+                Some(current) => merge_fields(current, change),
                 None => {
                     self.objects.insert(name.clone(), change.clone());
                 }
@@ -39,16 +40,11 @@ impl ObjectStore {
     }
 }
 
-fn merge_value(current: &mut Value, change: &Value) {
+fn merge_fields(current: &mut Value, change: &Value) {
     match (current, change) {
         (Value::Object(current), Value::Object(change)) => {
-            for (key, value) in change {
-                match current.get_mut(key) {
-                    Some(existing) => merge_value(existing, value),
-                    None => {
-                        current.insert(key.clone(), value.clone());
-                    }
-                }
+            for (field, value) in change {
+                current.insert(field.clone(), value.clone());
             }
         }
         (current, change) => *current = change.clone(),
@@ -61,7 +57,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn merge_keeps_unchanged_fields_and_nested_values() {
+    fn merge_keeps_unchanged_fields_and_replaces_changed_ones() {
         let mut store = ObjectStore::default();
         store.replace(&json!({
             "extruder": { "temperature": 20.0, "target": 0.0 },
@@ -70,13 +66,23 @@ mod tests {
 
         store.merge(&json!({
             "extruder": { "temperature": 25.5 },
-            "print_stats": { "info": { "current_layer": 2 } },
+            "print_stats": { "info": { "current_layer": 2, "total_layer": 10 } },
             "fan": { "speed": 0.5 }
         }));
 
         assert_eq!(store.object("extruder"), Some(&json!({ "temperature": 25.5, "target": 0.0 })));
         assert_eq!(store.object("print_stats"), Some(&json!({ "info": { "current_layer": 2, "total_layer": 10 } })));
         assert_eq!(store.object("fan"), Some(&json!({ "speed": 0.5 })));
+    }
+
+    #[test]
+    fn keys_missing_from_a_changed_field_are_gone() {
+        let mut store = ObjectStore::default();
+        store.replace(&json!({ "bed_mesh": { "profile_name": "a", "profiles": { "a": {}, "b": {} } } }));
+
+        store.merge(&json!({ "bed_mesh": { "profiles": { "a": {} } } }));
+
+        assert_eq!(store.object("bed_mesh"), Some(&json!({ "profile_name": "a", "profiles": { "a": {} } })));
     }
 
     #[test]

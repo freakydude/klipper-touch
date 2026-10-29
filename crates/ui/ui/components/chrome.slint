@@ -2,8 +2,9 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Dialogs, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Network, Page, Printer, StateIcons } from "../state.slint";
 import { BusyWheel } from "busy-wheel.slint";
+import { TextWithValue } from "controls.slint";
 
 // A temperature of the status bar; a tap leads to the heaters without looking like a button.
 component TemperatureReading inherits Rectangle {
@@ -39,6 +40,12 @@ component TemperatureReading inherits Rectangle {
 }
 
 export component StatusBar inherits Rectangle {
+    // The one place for what is running right now: a command of this display that waits long for its answer, what
+    // the MMU is doing (whoever started it), or the network being changed.
+    property <string> activity: Printer.running-command != "" ? Printer.running-command
+        : Printer.mmu-action != "" && Printer.mmu-action != "Idle" ? Printer.mmu-action
+        : Network.busy;
+
     height: 44px;
     background: Theme.surface;
 
@@ -50,25 +57,26 @@ export component StatusBar inherits Rectangle {
         HorizontalLayout {
             spacing: 6px;
             horizontal-stretch: 1;
-            // While a command waits long for its answer, the turning wheel and the command replace the summary.
-            if Printer.running-command != "": BusyWheel {
+            // While something runs, the turning wheel and its name replace the summary.
+            if root.activity != "": BusyWheel {
                 cross-axis-self-alignment: center;
                 width: 40px;
                 height: 40px;
             }
-            if Printer.running-command == "": Image {
+            if root.activity == "": Image {
                 cross-axis-self-alignment: center;
                 source: StateIcons.summary();
-                colorize: Printer.ready ? Theme.foreground : Theme.warning;
+                colorize: !Printer.ready ? Theme.warning : StateIcons.summary-is-fine() ? Theme.success : Theme.foreground;
                 width: 24px;
                 height: 24px;
             }
-            Text {
-                text: Printer.running-command != "" ? Printer.running-command + " …" : StateIcons.summary-label();
+            // The progress of a print stays whole when a long file name is shortened.
+            TextWithValue {
+                text: root.activity != "" ? root.activity + " …" : StateIcons.summary-label();
+                value: root.activity != "" ? "" : StateIcons.summary-value();
+                separator: "  ";
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
-                vertical-alignment: center;
-                overflow: elide;
             }
         }
 
@@ -90,7 +98,8 @@ export component StatusBar inherits Rectangle {
             // Leaves the state, the temperatures and the light symbol their room.
             max-width: 300px;
             border-radius: Theme.radius;
-            background: Printer.status-message-error ? Theme.danger : Theme.info;
+            // An error is filled red and stays until seen; an information is quiet, only its symbol is blue.
+            background: Printer.status-message-error ? Theme.danger-fill : Theme.surface-raised;
             accessible-role: button;
             accessible-label: Printer.status-message;
             status-touch := TouchArea {
@@ -107,7 +116,7 @@ export component StatusBar inherits Rectangle {
                 Image {
                     cross-axis-self-alignment: center;
                     source: Printer.status-message-error ? Icons.ui-error : Icons.ui-info;
-                    colorize: Theme.foreground;
+                    colorize: Printer.status-message-error ? Theme.foreground : Theme.info;
                     width: 20px;
                     height: 20px;
                 }
@@ -135,7 +144,7 @@ export component StatusBar inherits Rectangle {
             }
             Image {
                 source: Icons.accessory-light;
-                colorize: Printer.light-on ? Theme.warning : Theme.muted;
+                colorize: Printer.light-on ? Theme.accent : Theme.muted;
                 width: 24px;
                 height: 24px;
             }
@@ -152,7 +161,7 @@ export component StatusBar inherits Rectangle {
             Rectangle {
                 width: 64px;
                 border-radius: Theme.radius;
-                background: stop-touch.pressed ? Theme.danger-pressed : Theme.danger;
+                background: stop-touch.pressed ? Theme.danger-fill-pressed : Theme.danger-fill;
                 accessible-role: button;
                 accessible-label: @tr("Emergency stop");
                 stop-touch := TouchArea {
@@ -184,7 +193,8 @@ component NavItem inherits Rectangle {
     property <color> content: !root.enabled ? Theme.disabled-foreground : root.active ? Theme.accent : Theme.foreground;
 
     border-radius: Theme.radius;
-    background: root.active ? Theme.surface-active : nav-touch.pressed ? Theme.surface-raised : transparent;
+    // The chosen page on the raised surface: the accent label stays readable there (on `surface-active` it is not).
+    background: nav-touch.pressed ? Theme.surface-active : root.active ? Theme.surface-raised : transparent;
     accessible-role: tab;
     accessible-label: root.label;
 
@@ -199,7 +209,7 @@ component NavItem inherits Rectangle {
     }
     VerticalLayout {
         alignment: center;
-        spacing: 1px;
+        spacing: 2px;
         Image {
             cross-axis-self-alignment: center;
             source: root.icon;
@@ -210,7 +220,8 @@ component NavItem inherits Rectangle {
         Text {
             text: root.label;
             color: root.content;
-            font-size: 11px;
+            font-size: Theme.font-label;
+            font-weight: 600;
             horizontal-alignment: center;
             overflow: elide;
         }

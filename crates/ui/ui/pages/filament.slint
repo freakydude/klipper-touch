@@ -153,14 +153,6 @@ export component FilamentPage inherits Rectangle {
                 checked: root.tab == FilamentTab.service;
                 clicked => { Navigation.filament-tab = FilamentTab.service; }
             }
-            Text {
-                horizontal-stretch: 1;
-                text: root.tab != FilamentTab.extruder && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
-                color: Theme.info;
-                font-size: Theme.font-normal;
-                vertical-alignment: center;
-                overflow: elide;
-            }
         }
         if root.tab == FilamentTab.mmu: MmuTab {
             vertical-stretch: 1;

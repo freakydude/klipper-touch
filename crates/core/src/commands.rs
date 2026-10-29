@@ -127,6 +127,13 @@ pub enum Command {
         profile: String,
     },
     ClearBedMesh,
+    /// Saves the active mesh as a profile for this session.
+    SaveBedMesh {
+        profile: String,
+    },
+    RemoveBedMesh {
+        profile: String,
+    },
     /// Measures each bed screw with the probe; the result tells how far to turn them.
     CalculateScrewsTilt,
     /// Paper test at each bed screw; Klipper waits in its `bed_screws` mode.
@@ -421,6 +428,8 @@ impl Command {
             Self::CalibrateBedMesh => run_gcode(klipper::BED_MESH_CALIBRATE),
             Self::LoadBedMesh { profile } => run_gcode(klipper::load_bed_mesh(profile)?),
             Self::ClearBedMesh => run_gcode(klipper::BED_MESH_CLEAR),
+            Self::SaveBedMesh { profile } => run_gcode(klipper::save_bed_mesh(profile)?),
+            Self::RemoveBedMesh { profile } => run_gcode(klipper::remove_bed_mesh(profile)?),
             Self::CalculateScrewsTilt => run_gcode(klipper::SCREWS_TILT_CALCULATE),
             Self::AdjustBedScrews => run_gcode(klipper::BED_SCREWS_ADJUST),
             Self::ProbeCalibrate => run_gcode(klipper::PROBE_CALIBRATE),

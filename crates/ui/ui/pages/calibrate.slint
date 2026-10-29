@@ -4,8 +4,9 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Printer, ScrewItem } from "../state.slint";
-import { Card, IconButton, ScrollList } from "../components/controls.slint";
+import { Actions, Confirm, MeshDialogs, Printer, ScrewItem } from "../state.slint";
+import { Card, IconButton } from "../components/controls.slint";
+import { MeshMap } from "../components/bed-mesh.slint";
 
 component ActionButton inherits IconButton {
     height: Theme.touch;
@@ -84,13 +85,13 @@ component LevelCard inherits Card {
     ActionButton {
         icon: Icons.motion-home;
         text: @tr("Home all");
-        checked: Printer.homed-xy && Printer.homed-z;
+        done: Printer.homed-xy && Printer.homed-z;
         clicked => { Actions.home(true, true, true); }
     }
     if Printer.can-quad-gantry-level || Printer.can-z-tilt: ActionButton {
         icon: Icons.calibration-gantry-level;
         text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
-        checked: Printer.leveling-state == "applied";
+        done: Printer.leveling-state == "applied";
         clicked => { Actions.level(); }
     }
     if Printer.z-calibration != "": ActionButton {
@@ -101,15 +102,80 @@ component LevelCard inherits Card {
     Rectangle { vertical-stretch: 1; }
 }
 
+// A tile in the card: a tap opens a dialog.
+component CardTile inherits Rectangle {
+    callback clicked;
+    height: Theme.touch;
+    background: touch.pressed ? Theme.surface-active : Theme.surface-raised;
+    border-radius: Theme.radius;
+    accessible-role: button;
+    accessible-action-default => { root.clicked(); }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    @children
+}
+
+// The thumbnail of the active mesh opens its map; the profile selector the saved profiles.
 component BedMeshCard inherits Card {
-    property <length> row-step: Theme.touch + Theme.spacing;
     title: @tr("Bed mesh");
     icon: Icons.calibration-bed-mesh;
-    Text {
-        text: Printer.bed-mesh-active != "" ? Printer.bed-mesh-active : @tr("No mesh active");
-        color: Printer.bed-mesh-active != "" ? Theme.foreground : Theme.muted;
-        font-size: Theme.font-large;
-        overflow: elide;
+    if Printer.bed-mesh-map.shown: CardTile {
+        clicked => { MeshDialogs.map-open = true; }
+        HorizontalLayout {
+            padding: 6px;
+            spacing: Theme.spacing;
+            Rectangle {
+                width: 44px;
+                MeshMap {
+                    width: min(parent.width, parent.height * Printer.bed-mesh-map.aspect);
+                    height: self.width / Printer.bed-mesh-map.aspect;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: @tr("Range {}", Printer.bed-mesh-map.range);
+                    color: Theme.foreground;
+                    font-size: Theme.font-normal;
+                    font-weight: 700;
+                    overflow: elide;
+                }
+                Note {
+                    text: Printer.bed-mesh-map.averaged > 0 ? @tr("{n} point averaged" | "{n} points averaged" % Printer.bed-mesh-map.averaged) : @tr("Tap for the map");
+                    wrap: no-wrap;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+    CardTile {
+        clicked => { MeshDialogs.profiles-open = true; }
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 8px;
+            spacing: Theme.spacing;
+            Text {
+                horizontal-stretch: 1;
+                text: Printer.bed-mesh-active != "" ? Printer.bed-mesh-active : @tr("No mesh active");
+                color: Printer.bed-mesh-active != "" ? Theme.foreground : Theme.muted;
+                font-size: Theme.font-large;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Note {
+                text: @tr("{} saved", Printer.bed-mesh-profiles.length);
+                vertical-alignment: center;
+                wrap: no-wrap;
+            }
+            Image {
+                source: Icons.ui-chevron-down;
+                colorize: Theme.foreground;
+                width: 24px;
+                height: 24px;
+                cross-axis-self-alignment: center;
+            }
+        }
     }
     HorizontalLayout {
         spacing: Theme.spacing;
@@ -125,22 +191,7 @@ component BedMeshCard inherits Card {
             clicked => { Actions.clear-bed-mesh(); }
         }
     }
-    if Printer.bed-mesh-profiles.length > 0: Note {
-        text: @tr("Saved profiles:");
-    }
-    // Scrolls if there are more profiles than fit.
-    profiles := ScrollList {
-        vertical-stretch: 1;
-        content-height: Printer.bed-mesh-profiles.length * root.row-step;
-        for profile[index] in Printer.bed-mesh-profiles: ActionButton {
-            y: index * root.row-step;
-            width: profiles.row-width;
-            icon: Icons.print-load;
-            text: profile;
-            checked: profile == Printer.bed-mesh-active;
-            clicked => { Actions.load-bed-mesh(profile); }
-        }
-    }
+    Rectangle { vertical-stretch: 1; }
 }
 
 export component CalibrateTab inherits Rectangle {

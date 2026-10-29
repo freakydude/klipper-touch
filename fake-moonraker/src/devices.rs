@@ -3,11 +3,14 @@
 
 use crate::gcode::{CommandError, DeviceCommand};
 use serde_json::{json, Map, Value};
+use std::collections::BTreeSet;
 
 /// Generic fans: name and the speed its tachometer reports at 100 %, `None` without a tachometer.
 const GENERIC_FANS: [(&str, Option<f64>); 2] = [("nevermore", None), ("exhaust", Some(2800.0))];
 const HOTEND_FAN_RPM: f64 = 7200.0;
 const BOARD_FAN_RPM: f64 = 3100.0;
+/// Instance names of the fans with a tachometer, which `FAKE_FAN_STALL` can block.
+const TACHOMETER_FANS: [&str; 3] = ["exhaust", "hotend", "board"];
 /// The hotend fan of Klipper runs from this nozzle temperature on (`heater_temp` default).
 const HOTEND_FAN_TEMPERATURE: f64 = 50.0;
 /// Stepper drivers only report a temperature while they are enabled.
@@ -35,6 +38,8 @@ pub struct Devices {
     generic_speeds: [f64; GENERIC_FANS.len()],
     leds: Vec<FakeLed>,
     effects: [bool; EFFECTS.len()],
+    /// Fans whose tachometer reports 0 rpm whatever their speed.
+    stalled: BTreeSet<String>,
 }
 
 impl Default for Devices {
@@ -46,6 +51,7 @@ impl Default for Devices {
                 FakeLed { name: "status", chips: 3, white: false, color: [0.0, 0.0, 0.0, 0.0] },
             ],
             effects: [false; EFFECTS.len()],
+            stalled: BTreeSet::new(),
         }
     }
 }
@@ -76,6 +82,16 @@ impl Devices {
                 self.effects[index] = !stop;
             }
             DeviceCommand::StopLedEffects => self.effects = [false; EFFECTS.len()],
+            DeviceCommand::FakeFanStall { fan, stall } => {
+                if !TACHOMETER_FANS.contains(&fan.as_str()) {
+                    return Err(CommandError::new(format!("Unknown fan with a tachometer '{fan}'")));
+                }
+                if stall {
+                    self.stalled.insert(fan);
+                } else {
+                    self.stalled.remove(&fan);
+                }
+            }
         }
         Ok(())
     }
@@ -83,12 +99,12 @@ impl Devices {
     pub fn status(&self, inputs: DeviceInputs) -> Map<String, Value> {
         let mut objects = Map::new();
         for ((name, tachometer), speed) in GENERIC_FANS.iter().zip(self.generic_speeds) {
-            objects.insert(format!("fan_generic {name}"), fan(speed, *tachometer));
+            objects.insert(format!("fan_generic {name}"), self.fan(name, speed, *tachometer));
         }
         let hotend = if inputs.nozzle_temperature >= HOTEND_FAN_TEMPERATURE { 1.0 } else { 0.0 };
-        objects.insert("heater_fan hotend".to_owned(), fan(hotend, Some(HOTEND_FAN_RPM)));
+        objects.insert("heater_fan hotend".to_owned(), self.fan("hotend", hotend, Some(HOTEND_FAN_RPM)));
         let board = if inputs.steppers_enabled { 1.0 } else { 0.0 };
-        objects.insert("controller_fan board".to_owned(), fan(board, Some(BOARD_FAN_RPM)));
+        objects.insert("controller_fan board".to_owned(), self.fan("board", board, Some(BOARD_FAN_RPM)));
         for led in &self.leds {
             // Klipper reports four channels per chip, also for RGB-only LEDs.
             let mut color = led.color;
@@ -105,6 +121,12 @@ impl Devices {
             objects.insert(format!("tmc2240 {stepper}"), json!({ "temperature": temperature }));
         }
         objects
+    }
+
+    /// A fan's status: the tachometer reports its share of the full speed, 0 rpm while stalled.
+    fn fan(&self, name: &str, speed: f64, tachometer: Option<f64>) -> Value {
+        let rpm = tachometer.map(|full| if self.stalled.contains(name) { 0.0 } else { (full * speed).round() });
+        json!({ "speed": speed, "rpm": rpm })
     }
 
     pub fn config_sections(&self) -> Vec<(String, Value)> {
@@ -128,10 +150,6 @@ impl Devices {
     }
 }
 
-fn fan(speed: f64, tachometer: Option<f64>) -> Value {
-    json!({ "speed": speed, "rpm": tachometer.map(|full| (full * speed).round()) })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,6 +166,18 @@ mod tests {
         assert_eq!(status["fan_generic exhaust"], json!({ "speed": 0.5, "rpm": 1400.0 }));
         assert_eq!(status["fan_generic nevermore"]["rpm"], Value::Null);
         assert!(devices.apply(DeviceCommand::SetFanSpeed { fan: "hotend".into(), speed: 1.0 }).is_err());
+    }
+
+    #[test]
+    fn a_stalled_fan_reports_0_rpm_until_released() {
+        let mut devices = Devices::default();
+        let hot = DeviceInputs { nozzle_temperature: 200.0, steppers_enabled: true };
+        devices.apply(DeviceCommand::FakeFanStall { fan: "hotend".into(), stall: true }).unwrap();
+
+        assert_eq!(devices.status(hot)["heater_fan hotend"], json!({ "speed": 1.0, "rpm": 0.0 }));
+        devices.apply(DeviceCommand::FakeFanStall { fan: "hotend".into(), stall: false }).unwrap();
+        assert_eq!(devices.status(hot)["heater_fan hotend"]["rpm"], HOTEND_FAN_RPM);
+        assert!(devices.apply(DeviceCommand::FakeFanStall { fan: "nevermore".into(), stall: true }).is_err());
     }
 
     #[test]

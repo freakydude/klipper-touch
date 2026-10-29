@@ -5,7 +5,7 @@
 
 use crate::commands::Command;
 use crate::moonraker::{Call, CallError, Connection, Endpoint, Notification, PendingCall};
-use crate::sources::klipper::{KlippyState, PendingTargets, PrintState};
+use crate::sources::klipper::{FanWatch, KlippyState, PendingTargets, PrintState};
 use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
 use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
 use crate::sources::moonraker_server::history::{self, PrintHistory};
@@ -257,6 +257,8 @@ struct Session<'a> {
     job_state: PrintState,
     /// Targets sent but not yet reported back; the snapshot shows them.
     pending_targets: PendingTargets,
+    /// What each fan's tachometer has measured since Klipper started; the snapshot marks the stalled ones.
+    fan_watch: FanWatch,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
     spoolman_gate_spools: Option<Vec<u32>>,
     /// Limits the file details in flight, so a long file list does not flood Moonraker.
@@ -287,6 +289,7 @@ impl<'a> Session<'a> {
             job_filename: String::new(),
             job_state: PrintState::default(),
             pending_targets: PendingTargets::default(),
+            fan_watch: FanWatch::default(),
             spoolman_gate_spools: None,
             file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
             wled: Vec::new(),
@@ -379,6 +382,8 @@ impl<'a> Session<'a> {
         sources.wled_strips = self.wled.iter().map(WledStrip::object).collect();
         self.sources = sources;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
+        // After a restart the configuration or the hardware may have changed: what was learned about the fans is gone.
+        self.fan_watch = FanWatch::default();
         self.klippy_ready = true;
         self.publish();
         Ok(())
@@ -470,10 +475,12 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// The state with the heater targets that were sent but not yet reported back.
+    /// The state with the heater targets that were sent but not yet reported back, and the fans that do not turn.
     fn current_status(&mut self) -> PrinterStatus {
         let mut status = PrinterStatus::from_store(&self.store);
-        self.pending_targets.apply(&mut status.heaters, Instant::now());
+        let now = Instant::now();
+        self.pending_targets.apply(&mut status.heaters, now);
+        self.fan_watch.apply(&mut status.fans, now);
         status.leds.extend(self.wled.iter().map(WledStrip::led));
         status
     }
@@ -539,7 +546,9 @@ impl<'a> Session<'a> {
             return false;
         }
         let Some(call) = command.to_call(&status.motion) else { return false };
-        if let Command::RunGcode { script } = &command {
+        // Every G-code script goes to the console, as Moonraker stores it in the console history: typed commands,
+        // macros and the scripts behind the buttons alike.
+        if let Some(script) = gcode_script(&call) {
             self.outputs.event(Event::ConsoleLine(console_line(ConsoleKind::Command, script)));
         }
         let target_set = match &command {
@@ -708,11 +717,18 @@ async fn answer_or_report_running(
 /// What a running command is called in the UI: the first line of a G-code script, as in the console, otherwise
 /// the command's short name.
 fn running_label(call: &Call, command: &Command) -> String {
-    let script = call.params.as_ref().and_then(|params| params.get("script")).and_then(Value::as_str);
-    match script.and_then(|script| script.lines().next()) {
-        Some(line) if call.method == "printer.gcode.script" => line.to_owned(),
-        _ => command.describe(),
+    match gcode_script(call).and_then(|script| script.lines().next()) {
+        Some(line) => line.to_owned(),
+        None => command.describe(),
     }
+}
+
+/// The script of a call that runs G-code.
+fn gcode_script(call: &Call) -> Option<&str> {
+    if call.method != "printer.gcode.script" {
+        return None;
+    }
+    call.params.as_ref().and_then(|params| params.get("script")).and_then(Value::as_str)
 }
 
 fn console_line(kind: ConsoleKind, message: &str) -> ConsoleLine {

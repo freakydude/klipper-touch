@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Dialogs, Navigation, Page, PrintObjectItem, Printer, SpoolPicker } from "../state.slint";
-import { ColorBar, FlyoutPanel, IconButton, ScrollList } from "controls.slint";
+import { ColorBar, FlyoutPanel, IconButton, IconLabel, ScrollList, TextWithValue } from "controls.slint";
 import { BedMap, BedMapLegend } from "bed-map.slint";
 import { DialogHeader, DialogPanel, Scrim } from "dialog.slint";
 
@@ -139,12 +139,14 @@ component Key inherits Rectangle {
     in property <image> icon;
     // Orange like every confirming button (enter).
     in property <bool> accent;
+    in property <length> font-size: Theme.font-normal;
     callback pressed;
     min-width: 40px;
     horizontal-stretch: 1;
     border-radius: 6px;
     background: root.accent ? (key-touch.pressed ? Theme.accent-pressed : Theme.accent)
         : (key-touch.pressed ? Theme.accent : Theme.surface-raised);
+    property <color> content: root.accent || key-touch.pressed ? Theme.on-accent : Theme.foreground;
     accessible-role: button;
     accessible-label: root.label;
 
@@ -154,14 +156,14 @@ component Key inherits Rectangle {
 
     if root.icon.width > 0: Image {
         source: root.icon;
-        colorize: Theme.foreground;
+        colorize: root.content;
         width: 22px;
         height: 22px;
     }
     if root.icon.width == 0: Text {
         text: root.label;
-        color: Theme.foreground;
-        font-size: Theme.font-normal;
+        color: root.content;
+        font-size: root.font-size;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -384,6 +386,171 @@ export component TextEntryDialog inherits Scrim {
     }
 }
 
+// Keys for numbers, 7 8 9 on top as on a calculator; enter wide at the bottom right like on the full keyboard.
+component NumericKeypad inherits VerticalLayout {
+    callback typed(string);
+    callback backspace;
+    callback enter;
+
+    property <[[string]]> rows: [["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]];
+    // The key at the right end of each of the rows above.
+    property <[string]> row-ends: ["", "-", "."];
+
+    spacing: 6px;
+
+    for row[index] in root.rows: HorizontalLayout {
+        spacing: 6px;
+        vertical-stretch: 1;
+        for key in row: Key {
+            label: key;
+            font-size: Theme.font-large;
+            pressed => { root.typed(key); }
+        }
+        if index == 0: Key {
+            label: "backspace";
+            icon: Icons.ui-chevron-left;
+            pressed => { root.backspace(); }
+        }
+        if index > 0: Key {
+            label: root.row-ends[index];
+            font-size: Theme.font-large;
+            pressed => { root.typed(self.label); }
+        }
+    }
+    HorizontalLayout {
+        spacing: 6px;
+        vertical-stretch: 1;
+        Key {
+            label: "0";
+            font-size: Theme.font-large;
+            horizontal-stretch: 2;
+            pressed => { root.typed("0"); }
+        }
+        Key {
+            label: "enter";
+            icon: Icons.ui-check;
+            accent: true;
+            horizontal-stretch: 2;
+            pressed => { root.enter(); }
+        }
+    }
+}
+
+// Entry of a number with the numeric keypad, as a small dialog in the middle of the content area. Like the text
+// entry, the field is Slint's own `TextInput`, so a physical keyboard works too. What the number may be (range,
+// decimals) the receiver decides; Klipper checks its own limits.
+export component NumberEntryDialog inherits Scrim {
+    in property <string> title;
+    // Shown after the number, e.g. "°C" or "g".
+    in property <string> unit;
+    // A quiet note below the field, e.g. the range the printer takes; with `hint-warning` it says the typed value lies
+    // outside. Nothing is blocked: the receiver (Klipper) decides.
+    in property <string> hint;
+    in property <bool> hint-warning;
+    in-out property <string> text;
+    in-out property <bool> open;
+    callback accepted(string);
+    // A tap on the status bar or the navigation cancels the entry.
+    property <int> dismissals: Dialogs.dismissals;
+    visible: root.open;
+
+    changed dismissals => {
+        root.open = false;
+    }
+
+    changed open => {
+        if (root.open) {
+            field.focus();
+            field.select-all();
+        }
+    }
+
+    FocusScope {
+        width: parent.width;
+        height: parent.height;
+        // Escape closes the dialog; every other key is for the field.
+        capture-key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.open = false;
+                return accept;
+            }
+            reject
+        }
+
+        DialogPanel {
+            width: 380px;
+            height: parent.height - 16px;
+            x: (parent.width - self.width) / 2;
+            y: 8px;
+
+            VerticalLayout {
+                padding: Theme.dialog-padding;
+                spacing: Theme.spacing;
+                DialogHeader {
+                    title: root.title;
+                    close => { root.open = false; }
+                }
+                Rectangle {
+                    height: Theme.touch;
+                    background: Theme.background;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: Theme.accent;
+                    clip: true;
+                    forward-focus: field;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        field := TextInput {
+                            horizontal-stretch: 1;
+                            single-line: true;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                            text <=> root.text;
+                            color: Theme.foreground;
+                            font-size: Theme.font-large;
+                            font-weight: 600;
+                            input-type: InputType.decimal;
+                            accepted => {
+                                root.open = false;
+                                root.accepted(root.text);
+                            }
+                        }
+                        if root.unit != "": Text {
+                            text: root.unit;
+                            color: Theme.muted;
+                            font-size: Theme.font-large;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+                if root.hint != "" && !root.hint-warning: Text {
+                    text: root.hint;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                if root.hint != "" && root.hint-warning: IconLabel {
+                    alignment: end;
+                    icon: Icons.ui-warning;
+                    icon-size: 14px;
+                    text: root.hint;
+                    color: Theme.warning;
+                    font-size: Theme.font-small;
+                }
+                NumericKeypad {
+                    vertical-stretch: 1;
+                    typed(key) => { Actions.press-key(key); }
+                    backspace => { Actions.press-key(Key.Backspace); }
+                    enter => { Actions.press-key(Key.Return); }
+                }
+            }
+        }
+    }
+}
+
 // Parameters of a macro: one field per parameter, Klipper defaults as placeholders. Running asks for confirmation.
 export component MacroFormDialog inherits Scrim {
     in-out property <bool> open;
@@ -459,9 +626,15 @@ export component MacroFormDialog inherits Scrim {
                         height: parent.height;
                         clicked => {
                             root.edit-index = index;
-                            edit.title = param.name;
-                            edit.text = param.value;
-                            edit.open = true;
+                            if (param.numeric) {
+                                edit-number.title = param.name;
+                                edit-number.text = param.value;
+                                edit-number.open = true;
+                            } else {
+                                edit.title = param.name;
+                                edit.text = param.value;
+                                edit.open = true;
+                            }
                         }
                     }
                 }
@@ -483,6 +656,9 @@ export component MacroFormDialog inherits Scrim {
     }
 
     edit := TextEntryDialog {
+        accepted(text) => { Actions.set-macro-param(root.edit-index, text); }
+    }
+    edit-number := NumberEntryDialog {
         accepted(text) => { Actions.set-macro-param(root.edit-index, text); }
     }
 }
@@ -846,11 +1022,11 @@ export component SpoolDialog inherits Scrim {
             DialogHeader {
                 title: SpoolPicker.gate >= 0 ? @tr("Spool for gate {}", SpoolPicker.gate) : @tr("Spool in use");
                 close => { SpoolPicker.open = false; }
-                if Printer.spoolman-offline: Text {
+                if Printer.spoolman-offline: IconLabel {
+                    icon: Icons.ui-warning;
                     text: Printer.spoolman-pending > 0 ? @tr("Spoolman offline, {} reports waiting", Printer.spoolman-pending) : @tr("Spoolman offline");
                     color: Theme.warning;
                     font-size: Theme.font-small;
-                    vertical-alignment: center;
                 }
             }
             spools-list := ScrollList {
@@ -890,11 +1066,10 @@ export component SpoolDialog inherits Scrim {
                                 font-weight: 600;
                                 overflow: elide;
                             }
-                            Text {
-                                text: spool.detail;
+                            TextWithValue {
+                                text: spool.material;
+                                value: spool.remaining;
                                 color: spool.low ? Theme.warning : Theme.muted;
-                                font-size: Theme.font-small;
-                                overflow: elide;
                             }
                         }
                         Text {
@@ -958,8 +1133,9 @@ export component SpoolDialog inherits Scrim {
     }
 
     // The weight of the spool with its core, as the scale shows it; Spoolman subtracts the empty spool.
-    weigh := TextEntryDialog {
-        title: @tr("Weight of the spool in g, with the empty spool");
+    weigh := NumberEntryDialog {
+        title: @tr("Weight with the empty spool");
+        unit: "g";
         accepted(text) => { Actions.measure-spool(root.selected, text); }
     }
 }

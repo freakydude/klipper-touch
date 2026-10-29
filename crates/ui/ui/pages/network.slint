@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, HostInterfaceItem, Network, Printer, WifiItem, WiredItem } from "../state.slint";
-import { Card, IconButton, IconLabel, ScrollList, ToggleRow } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList, TextWithValue, ToggleRow } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 
 // One network: tap to connect; buttons to disconnect (active) or remove (saved).
@@ -17,7 +17,7 @@ component WifiRow inherits Rectangle {
     border-radius: Theme.radius;
     background: row-touch.pressed ? Theme.surface-active : root.network.active ? Theme.surface-active : Theme.surface-raised;
     border-width: root.network.active ? 2px : 0px;
-    border-color: Theme.accent;
+    border-color: Theme.success;
     accessible-role: button;
     accessible-label: root.network.ssid;
 
@@ -32,7 +32,7 @@ component WifiRow inherits Rectangle {
         Image {
             cross-axis-self-alignment: center;
             source: !root.network.in-range ? Icons.network-wifi-saved : root.network.bars >= 3 ? Icons.system-network : root.network.bars == 2 ? Icons.network-wifi-fair : Icons.network-wifi-weak;
-            colorize: root.network.active ? Theme.accent : root.network.in-range ? Theme.foreground : Theme.muted;
+            colorize: root.network.active ? Theme.success : root.network.in-range ? Theme.foreground : Theme.muted;
             width: 24px;
             height: 24px;
         }
@@ -51,7 +51,7 @@ component WifiRow inherits Rectangle {
                     : !root.network.in-range ? @tr("Saved, not in range")
                     : !root.network.supported ? @tr("Not supported")
                     : root.network.known ? @tr("Saved") : root.network.secured ? @tr("Password needed") : @tr("Open");
-                color: root.network.active ? Theme.accent : Theme.muted;
+                color: root.network.active ? Theme.success : Theme.muted;
                 font-size: Theme.font-small;
                 overflow: elide;
             }
@@ -127,14 +127,12 @@ component WifiCard inherits Card {
             clicked => { root.hidden-network(); }
         }
     }
-    Text {
-        text: Network.busy != "" ? Network.busy + " …"
-            : Network.active-ssid != "" && Network.wifi-address != "" ? @tr("Connected to {} ({})", Network.active-ssid, Network.wifi-address)
-            : Network.active-ssid != "" ? @tr("Connected to {}", Network.active-ssid)
+    // What is being changed right now shows in the status bar; here the state, with the address kept whole.
+    TextWithValue {
+        text: Network.active-ssid != "" ? @tr("Connected to {}", Network.active-ssid)
             : Network.wifi-enabled ? @tr("Not connected") : @tr("Wi-Fi is switched off");
-        color: Network.busy != "" ? Theme.accent : Theme.muted;
-        font-size: Theme.font-small;
-        overflow: elide;
+        value: Network.active-ssid != "" && Network.wifi-address != "" ? "(" + Network.wifi-address + ")" : "";
+        separator: " ";
     }
     wifi-list := ScrollList {
         property <length> row-pitch: Theme.touch + 14px;
@@ -167,7 +165,7 @@ component WiredCard inherits Card {
             IconLabel {
                 icon: link.cable ? Icons.network-ethernet : Icons.network-ethernet-off;
                 text: link.interface;
-                color: link.connected ? Theme.accent : Theme.foreground;
+                color: link.connected ? Theme.success : Theme.foreground;
             }
             Text {
                 text: !link.cable ? @tr("No cable") : link.connected ? link.address : @tr("Disconnected");

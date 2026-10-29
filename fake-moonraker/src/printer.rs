@@ -21,6 +21,10 @@ const MAX_BED_TARGET: f64 = 120.0;
 const MIN_HEATER_TEMPERATURE: f64 = 10.0;
 const MAX_CHAMBER_TARGET: f64 = 70.0;
 const HOST_TEMPERATURE: f64 = 45.0;
+/// The host temperature wanders this much around `HOST_TEMPERATURE`, like a real CPU under changing load. Klipper
+/// only reports changed values; this way status updates keep coming as on a real printer, whose readings never stand
+/// still.
+const HOST_TEMPERATURE_SWING: f64 = 0.4;
 /// Macros every simulated printer knows; `_` macros are helper macros and invisible to the UI.
 const MACROS: [&str; 10] = [
     "PRINT_START",
@@ -186,6 +190,8 @@ const CONFIGURED_RETRACTION: Retraction =
 #[derive(Debug, Clone)]
 pub struct Printer {
     time_scale: f64,
+    /// Simulated seconds since the start.
+    uptime: f64,
     profile: MachineProfile,
     mmu: Option<HappyHare>,
     klippy: KlippyState,
@@ -239,6 +245,7 @@ impl Printer {
     pub fn with_profile(time_scale: f64, profile: MachineProfile) -> Self {
         Self {
             time_scale,
+            uptime: 0.0,
             profile,
             mmu: profile.mmu_gates.map(|gates| HappyHare::new(gates, profile.spoolman)),
             klippy: KlippyState::Ready,
@@ -301,6 +308,7 @@ impl Printer {
 
     pub fn advance(&mut self, elapsed: Duration) {
         let seconds = elapsed.as_secs_f64() * self.time_scale;
+        self.uptime += seconds;
         self.extruder.advance(seconds);
         self.bed.advance(seconds);
         if let Some(chamber) = self.chamber.as_mut() {
@@ -310,6 +318,10 @@ impl Printer {
         self.advance_idle(seconds);
         let samples = self.temperature_samples();
         self.temperatures.advance(seconds, || samples.clone());
+    }
+
+    fn host_temperature(&self) -> f64 {
+        HOST_TEMPERATURE + HOST_TEMPERATURE_SWING * (self.uptime / 7.0).sin()
     }
 
     /// `server.temperature_store`.
@@ -329,7 +341,7 @@ impl Printer {
         }
         samples.push((
             "temperature_sensor raspberry_pi".to_owned(),
-            Sample { temperature: HOST_TEMPERATURE, heater: None },
+            Sample { temperature: self.host_temperature(), heater: None },
         ));
         samples
     }
@@ -496,9 +508,10 @@ impl Printer {
         if let Some(chamber) = self.chamber {
             objects.insert("heater_generic chamber".to_owned(), chamber.to_json());
         }
-        objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        let host = round(self.host_temperature(), 2);
+        objects.insert("temperature_sensor raspberry_pi".to_owned(), json!({ "temperature": host }));
         // Like Klipper: the sensor type `temperature_host` adds its own object beside the section.
-        objects.insert("temperature_host raspberry_pi".to_owned(), json!({ "temperature": HOST_TEMPERATURE }));
+        objects.insert("temperature_host raspberry_pi".to_owned(), json!({ "temperature": host }));
         if let Some(devices) = &self.devices {
             let inputs = DeviceInputs {
                 nozzle_temperature: self.extruder.temperature,

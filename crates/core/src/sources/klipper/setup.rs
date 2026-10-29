@@ -134,8 +134,9 @@ impl Setup {
             subscription.add(leveling, Some(&["applied"]));
         }
         for object in calibration::OBJECTS {
-            // The mesh matrices are not shown; the profiles bring their points along.
-            subscription.add(object, (object == "bed_mesh").then_some(&["profile_name", "profiles"][..]));
+            // Only the probed points are shown; the interpolated `mesh_matrix` can be much larger.
+            let mesh_fields = &["profile_name", "profiles", "mesh_min", "mesh_max", "probed_matrix"][..];
+            subscription.add(object, (object == "bed_mesh").then_some(mesh_fields));
         }
         subscription.add(
             "firmware_retraction",

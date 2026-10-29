@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Printer, SpoolPicker } from "../state.slint";
-import { ColorBar } from "controls.slint";
+import { ColorBar, TextWithValue } from "controls.slint";
 
 export component SpoolStrip inherits Rectangle {
     height: 52px;
@@ -37,11 +37,10 @@ export component SpoolStrip inherits Rectangle {
                 font-weight: 600;
                 overflow: elide;
             }
-            if Printer.has-spool: Text {
-                text: Printer.spool-detail;
+            if Printer.has-spool: TextWithValue {
+                text: Printer.spool-material;
+                value: Printer.spool-weight;
                 color: Printer.spool-low ? Theme.warning : Theme.muted;
-                font-size: Theme.font-small;
-                overflow: elide;
             }
         }
         Image {

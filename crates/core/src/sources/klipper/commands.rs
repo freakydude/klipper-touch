@@ -139,9 +139,47 @@ pub fn exclude_object(name: &str) -> Option<String> {
     (!name.is_empty() && !name.contains(char::is_whitespace)).then(|| format!("EXCLUDE_OBJECT NAME={name}"))
 }
 
+/// Why a name cannot be given to `BED_MESH_PROFILE SAVE=`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeshNameProblem {
+    Empty,
+    /// Klipper splits parameters at whitespace.
+    Whitespace,
+    /// `bed_mesh.py` refuses to save to `default`, the profile `BED_MESH_CALIBRATE` writes.
+    Reserved,
+}
+
+pub const DEFAULT_MESH_PROFILE: &str = "default";
+
+fn usable_profile(profile: &str) -> bool {
+    !profile.is_empty() && !profile.contains(char::is_whitespace)
+}
+
+pub fn mesh_name_problem(profile: &str) -> Option<MeshNameProblem> {
+    if profile.is_empty() {
+        Some(MeshNameProblem::Empty)
+    } else if profile.contains(char::is_whitespace) {
+        Some(MeshNameProblem::Whitespace)
+    } else if profile == DEFAULT_MESH_PROFILE {
+        Some(MeshNameProblem::Reserved)
+    } else {
+        None
+    }
+}
+
 /// Klipper splits parameters at whitespace, so a profile name with a space cannot be loaded this way.
 pub fn load_bed_mesh(profile: &str) -> Option<String> {
-    (!profile.is_empty() && !profile.contains(char::is_whitespace)).then(|| format!("BED_MESH_PROFILE LOAD={profile}"))
+    usable_profile(profile).then(|| format!("BED_MESH_PROFILE LOAD={profile}"))
+}
+
+/// Saves the active mesh as `profile` for this session; `SAVE_CONFIG` keeps it.
+pub fn save_bed_mesh(profile: &str) -> Option<String> {
+    mesh_name_problem(profile).is_none().then(|| format!("BED_MESH_PROFILE SAVE={profile}"))
+}
+
+/// Removes `profile` for this session; `SAVE_CONFIG` removes it from the configuration.
+pub fn remove_bed_mesh(profile: &str) -> Option<String> {
+    usable_profile(profile).then(|| format!("BED_MESH_PROFILE REMOVE={profile}"))
 }
 
 pub fn test_z(step: TestZ) -> String {
@@ -230,6 +268,10 @@ mod tests {
         assert_eq!(test_z(TestZ::BisectUp), "TESTZ Z=+");
         assert_eq!(load_bed_mesh("default").as_deref(), Some("BED_MESH_PROFILE LOAD=default"));
         assert_eq!(load_bed_mesh("my mesh"), None);
+        assert_eq!(save_bed_mesh("pei").as_deref(), Some("BED_MESH_PROFILE SAVE=pei"));
+        assert_eq!(save_bed_mesh("default"), None);
+        assert_eq!(mesh_name_problem("my mesh"), Some(MeshNameProblem::Whitespace));
+        assert_eq!(remove_bed_mesh("default").as_deref(), Some("BED_MESH_PROFILE REMOVE=default"));
         assert_eq!(speed_factor(110.0), "M220 S110");
         assert_eq!(speed_factor(0.0), "M220 S1");
         assert_eq!(extrude(-10.0, 5.0), "M83\nG1 E-10 F300");

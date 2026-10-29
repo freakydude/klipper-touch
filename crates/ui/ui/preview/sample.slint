@@ -88,8 +88,8 @@ export global Sample {
         Printer.power-devices = [{ name: "printer", on: true, locked: true }, { name: "lights", on: false, locked: false }];
         Printer.updates = [
             { name: "klipper", version: "v0.13.0-100", detail: "20 commits behind", has-update: true },
-            { name: "moonraker", version: "v0.9.3-50", detail: "up to date", has-update: false },
-            { name: "mainsail", version: "v2.14.0", detail: "up to date", has-update: false },
+            { name: "moonraker", version: "v0.9.3-50", detail: "v0.9.3-50", has-update: false, up-to-date: true },
+            { name: "mainsail", version: "v2.14.0", detail: "v2.14.0", has-update: false, up-to-date: true },
         ];
         UiSettings.presets = [{ name: "PLA", extruder: 215, bed: 60 }, { name: "PETG", extruder: 240, bed: 80 }];
     }
