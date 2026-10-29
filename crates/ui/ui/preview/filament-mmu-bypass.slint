@@ -1,0 +1,16 @@
+// Preview: dialog of the bypass while a gate is loaded, so selecting it waits for an unload. Open in the Slint preview
+// or render with scripts/ui-preview.sh.
+
+import { AppWindow } from "../app.slint";
+import { FilamentTab, MmuDialogs, Navigation, Page, Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component FilamentMmuBypassPreview inherits AppWindow {
+    init => {
+        Sample.mmu();
+        Navigation.page = Page.filament;
+        Navigation.filament-tab = FilamentTab.mmu;
+        Printer.mmu-filament = "loaded";
+        MmuDialogs.bypass-open = true;
+    }
+}

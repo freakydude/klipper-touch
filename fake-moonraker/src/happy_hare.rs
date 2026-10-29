@@ -8,6 +8,9 @@ use serde_json::{json, Map, Value};
 
 const VERSION: &str = "4.1.0";
 const NONE_SELECTED: i32 = -1;
+/// `gate` and `tool` while the bypass is selected.
+const BYPASS: i32 = -2;
+const GATE_UNKNOWN: i32 = -1;
 const GATE_EMPTY: i32 = 0;
 const GATE_AVAILABLE: i32 = 1;
 const FILAMENT_POSITION_UNLOADED: i32 = 0;
@@ -102,6 +105,9 @@ pub struct HappyHare {
     held_position: Option<i32>,
     toolchanges: u32,
     tool_to_gate: Vec<usize>,
+    /// EndlessSpool (`endless_spool_enabled`, off as in Happy Hare's default) and the group of each gate.
+    endless_spool: bool,
+    endless_spool_groups: Vec<u32>,
     gate_status: Vec<i32>,
     /// Spoolman spool of each gate.
     gate_spool: Vec<Option<u32>>,
@@ -154,6 +160,8 @@ impl HappyHare {
             held_position: None,
             toolchanges: 0,
             tool_to_gate: (0..gates).collect(),
+            endless_spool: false,
+            endless_spool_groups: (0..gates as u32).collect(),
             gate_status,
             gate_spool,
             gate_filament: vec![GateFilament::default(); gates],
@@ -188,6 +196,14 @@ impl HappyHare {
             MmuCommand::GateMap { gate, spool_id, material, color, temperature } => {
                 self.gate_map(gate, spool_id, GateFilament { material, color, temperature })
             }
+            MmuCommand::SelectBypass => self.select_bypass(),
+            MmuCommand::MapTool { tool, gate } => self.map_tool(tool, gate),
+            MmuCommand::ResetToolMap => {
+                self.tool_to_gate = (0..self.gates).collect();
+                self.match_tool_to_gate();
+                Ok(())
+            }
+            MmuCommand::EndlessSpool { enabled, groups } => self.set_endless_spool(enabled, groups),
             MmuCommand::FakeFilament { position, direction } => {
                 self.held_position = Some(position);
                 self.direction = direction;
@@ -228,6 +244,53 @@ impl HappyHare {
         Ok(())
     }
 
+    /// Like `MMU_SELECT_BYPASS` (`mmu_select_bypass.py`): allowed on every MMU, refused while filament is loaded.
+    fn select_bypass(&mut self) -> Result<(), CommandError> {
+        if self.loaded {
+            return Err(CommandError::new("Operation not possible. Filament is loaded"));
+        }
+        self.gate = BYPASS;
+        self.tool = BYPASS;
+        Ok(())
+    }
+
+    /// Like `MMU_TTG_MAP TOOL= GATE=` (`mmu_ttg_map.py`): an empty gate becomes unknown, as it was probably just filled.
+    fn map_tool(&mut self, tool: usize, gate: usize) -> Result<(), CommandError> {
+        self.check_gate(gate)?;
+        let mapped =
+            self.tool_to_gate.get_mut(tool).ok_or_else(|| CommandError::new(format!("Tool T{tool} does not exist")))?;
+        *mapped = gate;
+        if self.gate_status[gate] == GATE_EMPTY {
+            self.gate_status[gate] = GATE_UNKNOWN;
+        }
+        self.match_tool_to_gate();
+        Ok(())
+    }
+
+    /// Like `ensure_ttg_match` (`mmu_gate_maps.py`): the selected tool follows the map of the selected gate.
+    fn match_tool_to_gate(&mut self) {
+        if let Ok(gate) = usize::try_from(self.gate) {
+            self.select(gate);
+        }
+    }
+
+    /// Like `MMU_ENDLESS_SPOOL` (`mmu_endless_spool.py`): the groups need one value per gate.
+    fn set_endless_spool(&mut self, enabled: Option<bool>, groups: Option<Vec<u32>>) -> Result<(), CommandError> {
+        if let Some(groups) = groups {
+            if groups.len() != self.gates {
+                return Err(CommandError::new(format!(
+                    "Invalid GROUPS value. Expected {} comma-separated non-negative integers.",
+                    self.gates
+                )));
+            }
+            self.endless_spool_groups = groups;
+        }
+        if let Some(enabled) = enabled {
+            self.endless_spool = enabled;
+        }
+        Ok(())
+    }
+
     fn change_tool(&mut self, tool: usize) -> Result<(), CommandError> {
         self.require_homed()?;
         let gate =
@@ -245,8 +308,11 @@ impl HappyHare {
         if self.loaded {
             return Err(CommandError::new("Filament is already loaded"));
         }
-        let selected = usize::try_from(self.gate).map_err(|_| CommandError::new("No gate selected"))?;
-        self.require_filament_at(selected)?;
+        // Filament in the bypass was fed by hand; the fake takes it as there.
+        if self.gate != BYPASS {
+            let selected = usize::try_from(self.gate).map_err(|_| CommandError::new("No gate selected"))?;
+            self.require_filament_at(selected)?;
+        }
         self.set_loaded(true);
         Ok(())
     }
@@ -471,7 +537,8 @@ impl HappyHare {
             "sensors": self.sensors_json(printing),
             "sync_drive": false,
             "ttg_map": self.tool_to_gate,
-            "endless_spool_enabled": 0,
+            "endless_spool_enabled": u8::from(self.endless_spool),
+            "endless_spool_groups": self.endless_spool_groups,
             "gate_status": self.gate_status,
             "gate_filament_name": self.per_gate(|gate| self.spool(gate).name),
             "gate_material": self.per_gate(|gate| self.material(gate)),
@@ -630,6 +697,47 @@ mod tests {
         // Gate 2 holds the spool with three colours (spool 8), whose first colour Happy Hare reports.
         assert_eq!(status["active_filament"]["filament_name"], "Silk Red+Gold+Black");
         assert_eq!(status["active_filament"]["spool_id"], 8);
+    }
+
+    #[test]
+    fn the_bypass_is_selected_and_loaded_unless_filament_is_loaded() {
+        let mut hare = homed(4);
+
+        hare.apply(MmuCommand::SelectBypass, IDLE).unwrap();
+        hare.apply(MmuCommand::Load, IDLE).unwrap();
+
+        let status = mmu(&hare);
+        assert_eq!((status["gate"].clone(), status["tool"].clone()), (json!(-2), json!(-2)));
+        assert_eq!(status["filament"], "Loaded");
+        assert!(hare.apply(MmuCommand::SelectBypass, IDLE).is_err());
+    }
+
+    #[test]
+    fn a_tool_is_mapped_to_another_gate_and_back() {
+        let mut hare = homed(4);
+        hare.apply(MmuCommand::Select { gate: 3 }, IDLE).unwrap();
+
+        hare.apply(MmuCommand::MapTool { tool: 1, gate: 3 }, IDLE).unwrap();
+        let status = mmu(&hare);
+        assert_eq!(status["ttg_map"], json!([0, 3, 2, 3]));
+        assert_eq!(status["gate_status"][3], GATE_UNKNOWN, "the empty gate was probably just filled");
+        assert_eq!(status["tool"], 1);
+
+        hare.apply(MmuCommand::ResetToolMap, IDLE).unwrap();
+        assert_eq!(mmu(&hare)["ttg_map"], json!([0, 1, 2, 3]));
+        assert_eq!(mmu(&hare)["tool"], 3);
+    }
+
+    #[test]
+    fn endless_spool_takes_one_group_per_gate() {
+        let mut hare = homed(3);
+
+        hare.apply(MmuCommand::EndlessSpool { enabled: Some(true), groups: Some(vec![0, 0, 1]) }, IDLE).unwrap();
+        assert!(hare.apply(MmuCommand::EndlessSpool { enabled: None, groups: Some(vec![0]) }, IDLE).is_err());
+
+        let status = mmu(&hare);
+        assert_eq!(status["endless_spool_enabled"], 1);
+        assert_eq!(status["endless_spool_groups"], json!([0, 0, 1]));
     }
 
     #[test]

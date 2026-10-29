@@ -1,5 +1,6 @@
-// MMU tab of the Filament page: gates (four at a time), sensors with buffer, load and unload of the selected gate; a
-// tap on a gate opens what can be done with it (`mmu-dialogs.slint`).
+// MMU tab of the Filament page: the gates and the bypass (five slots at a time), the filament path with sensors and
+// buffer, unload of the loaded filament; a tap on a gate or the bypass opens what can be done with it
+// (`mmu-dialogs.slint`).
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
@@ -41,19 +42,18 @@ export component GateAvailabilityLabel inherits IconLabel {
     font-size: Theme.font-small;
 }
 
-component GateTile inherits Rectangle {
-    in property <MmuGateItem> gate;
+// The frame of a gate and of the bypass: a tile to tap, with an accent border while selected.
+component SlotTile inherits Rectangle {
+    in property <bool> selected;
+    in property <string> label;
     callback clicked;
-
-    property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
-    property <bool> shows-spool: Printer.has-spoolman && root.has-filament;
 
     border-radius: Theme.radius;
     background: tile-touch.pressed ? Theme.surface-active : Theme.surface-raised;
-    border-width: root.gate.selected ? 3px : 0px;
+    border-width: root.selected ? 3px : 0px;
     border-color: Theme.accent;
     accessible-role: button;
-    accessible-label: @tr("Gate {}", root.gate.index);
+    accessible-label: root.label;
 
     tile-touch := TouchArea {
         clicked => { root.clicked(); }
@@ -61,49 +61,103 @@ component GateTile inherits Rectangle {
     VerticalLayout {
         padding: 10px;
         spacing: 6px;
-        HorizontalLayout {
-            spacing: 6px;
-            Text {
-                text: @tr("Gate {}", root.gate.index);
-                color: Theme.foreground;
-                font-size: Theme.font-normal;
-                font-weight: 700;
-            }
-            Rectangle { horizontal-stretch: 1; }
-            if root.gate.tool >= 0: Text {
-                text: "T" + root.gate.tool;
-                color: Theme.accent;
-                font-size: Theme.font-normal;
-                font-weight: 700;
-            }
-        }
-        ColorBar {
-            height: 12px;
-            border-radius: 6px;
-            first: root.gate.color;
-            second: root.gate.color-2;
-            third: root.gate.color-3;
-            count: root.gate.color-count;
-            longitudinal: root.gate.longitudinal;
-        }
+        @children
+    }
+}
+
+component GateTile inherits SlotTile {
+    in property <MmuGateItem> gate;
+
+    property <bool> has-filament: root.gate.availability == "available" || root.gate.availability == "buffered";
+    property <bool> shows-spool: Printer.has-spoolman && root.has-filament;
+
+    selected: root.gate.selected;
+    label: @tr("Gate {}", root.gate.index);
+
+    HorizontalLayout {
+        spacing: 6px;
         Text {
-            text: root.gate.material == "" ? "-" : root.gate.material;
+            text: @tr("Gate {}", root.gate.index);
             color: Theme.foreground;
-            font-size: Theme.font-large;
-            overflow: elide;
+            font-size: Theme.font-normal;
+            font-weight: 700;
         }
-        // With Spoolman the line of the filament name says what is left of the spool instead (the name repeats the
-        // material and the colour above); a gate without one invites to pick one in the gate's dialog.
+        // The tools that take their filament from this gate; several share it after a remap.
         Text {
-            text: !root.shows-spool ? root.gate.name : root.gate.spool-text != "" ? root.gate.spool-text : @tr("+ spool");
-            color: root.shows-spool && root.gate.spool-low ? Theme.warning : root.shows-spool && root.gate.spool-text == "" ? Theme.accent : Theme.muted;
-            font-size: Theme.font-small;
+            horizontal-stretch: 1;
+            text: root.gate.tools;
+            color: Theme.accent;
+            font-size: Theme.font-normal;
+            font-weight: 700;
+            horizontal-alignment: right;
             overflow: elide;
         }
-        Rectangle { vertical-stretch: 1; }
+    }
+    ColorBar {
+        height: 12px;
+        border-radius: 6px;
+        first: root.gate.color;
+        second: root.gate.color-2;
+        third: root.gate.color-3;
+        count: root.gate.color-count;
+        longitudinal: root.gate.longitudinal;
+    }
+    Text {
+        text: root.gate.material == "" ? "-" : root.gate.material;
+        color: Theme.foreground;
+        font-size: Theme.font-large;
+        overflow: elide;
+    }
+    // With Spoolman the line of the filament name says what is left of the spool instead (the name repeats the
+    // material and the colour above); a gate without one invites to pick one in the gate's dialog.
+    Text {
+        text: !root.shows-spool ? root.gate.name : root.gate.spool-text != "" ? root.gate.spool-text : @tr("+ spool");
+        color: root.shows-spool && root.gate.spool-low ? Theme.warning : root.shows-spool && root.gate.spool-text == "" ? Theme.accent : Theme.muted;
+        font-size: Theme.font-small;
+        overflow: elide;
+    }
+    Rectangle { vertical-stretch: 1; }
+    HorizontalLayout {
         GateAvailabilityLabel {
             availability: root.gate.availability;
         }
+        if Printer.mmu-endless-spool && root.gate.group >= 0: IconLabel {
+            icon: Icons.mmu-endless-spool;
+            text: root.gate.group;
+            color: Theme.muted;
+            font-size: Theme.font-small;
+        }
+    }
+}
+
+// Happy Hare offers the bypass on every MMU: filament fed by hand past the gates. Material and colour of the bypass
+// are not in its status, so the tile only names it.
+component BypassTile inherits SlotTile {
+    selected: Printer.mmu-bypass;
+    label: @tr("Bypass");
+
+    Text {
+        text: @tr("Bypass");
+        color: Theme.foreground;
+        font-size: Theme.font-normal;
+        font-weight: 700;
+    }
+    Rectangle { vertical-stretch: 1; }
+    HorizontalLayout {
+        alignment: center;
+        Image {
+            source: Icons.mmu-bypass;
+            colorize: Printer.mmu-bypass ? Theme.accent : Theme.muted;
+            width: 40px;
+            height: 40px;
+        }
+    }
+    Rectangle { vertical-stretch: 1; }
+    Text {
+        text: @tr("Fed by hand");
+        color: Theme.muted;
+        font-size: Theme.font-small;
+        overflow: elide;
     }
 }
 
@@ -133,55 +187,83 @@ export component BufferGauge inherits Rectangle {
     }
 }
 
-// A tap on a gate opens its dialog instead of moving the selector, so looking at a gate or setting its colour never
-// moves anything; the service button opens the commands for the MMU as a whole.
-export component MmuTab inherits Rectangle {
-    property <int> gates-per-page: 4;
-    property <int> pages: max(1, ceil(Printer.mmu-gates.length / root.gates-per-page));
-    property <int> page: min(Navigation.mmu-page, root.pages - 1);
-    property <int> first: root.page * root.gates-per-page;
+// Recover and unlock while the MMU holds the print or is locked; the print page shows the same in its strip.
+component MmuRecoverRow inherits HorizontalLayout {
+    spacing: Theme.spacing;
+    height: Theme.touch;
+    IconButton {
+        icon: Icons.mmu-recover;
+        text: @tr("Recover");
+        horizontal: true;
+        kind: "accent";
+        clicked => { Actions.mmu-recover(); }
+    }
+    IconButton {
+        icon: Icons.ui-unlock;
+        text: @tr("Unlock");
+        horizontal: true;
+        clicked => { Actions.mmu-unlock(); }
+    }
+}
 
-    HorizontalLayout {
+// A tap on a gate opens its dialog instead of moving the selector, so looking at a gate or setting its colour never
+// moves anything. Loading belongs to a gate (its dialog); unloading takes out whatever is loaded, so it sits at the
+// filament path. The commands for the MMU as a whole are on the Service tab.
+export component MmuTab inherits Rectangle {
+    // The bypass is one more slot after the last gate.
+    property <int> bypass-slot: Printer.mmu-gates.length;
+    property <int> slots-per-page: 5;
+    property <int> pages: max(1, ceil((root.bypass-slot + 1) / root.slots-per-page));
+    property <int> page: min(Navigation.mmu-page, root.pages - 1);
+    property <int> first: root.page * root.slots-per-page;
+    property <bool> needs-recovery: Printer.mmu-paused || Printer.mmu-locked;
+
+    VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
 
-        VerticalLayout {
-            horizontal-stretch: 1;
+        HorizontalLayout {
             spacing: Theme.spacing;
-
-            HorizontalLayout {
-                spacing: Theme.spacing;
-                height: 150px;
-                if root.pages > 1: IconButton {
-                    width: 48px;
-                    icon: Icons.ui-chevron-left;
-                    enabled: root.page > 0;
-                    clicked => { Navigation.mmu-page = root.page - 1; }
+            height: 150px;
+            if root.pages > 1: IconButton {
+                width: 48px;
+                icon: Icons.ui-chevron-left;
+                enabled: root.page > 0;
+                clicked => { Navigation.mmu-page = root.page - 1; }
+            }
+            tiles := Rectangle {
+                horizontal-stretch: 1;
+                property <length> cell-width: (self.width - (root.slots-per-page - 1) * Theme.spacing) / root.slots-per-page;
+                for item in Printer.mmu-gates: GateTile {
+                    visible: item.index >= root.first && item.index < root.first + root.slots-per-page;
+                    x: mod(item.index, root.slots-per-page) * (tiles.cell-width + Theme.spacing);
+                    width: tiles.cell-width;
+                    height: tiles.height;
+                    gate: item;
+                    clicked => { MmuDialogs.gate = item.index; }
                 }
-                tiles := Rectangle {
-                    horizontal-stretch: 1;
-                    property <length> cell-width: (self.width - (root.gates-per-page - 1) * Theme.spacing) / root.gates-per-page;
-                    for item in Printer.mmu-gates: GateTile {
-                        visible: item.index >= root.first && item.index < root.first + root.gates-per-page;
-                        x: mod(item.index, root.gates-per-page) * (tiles.cell-width + Theme.spacing);
-                        width: tiles.cell-width;
-                        height: tiles.height;
-                        gate: item;
-                        clicked => { MmuDialogs.gate = item.index; }
-                    }
-                }
-                if root.pages > 1: IconButton {
-                    width: 48px;
-                    icon: Icons.ui-chevron-right;
-                    enabled: root.page < root.pages - 1;
-                    clicked => { Navigation.mmu-page = root.page + 1; }
+                if root.bypass-slot >= root.first && root.bypass-slot < root.first + root.slots-per-page: BypassTile {
+                    x: mod(root.bypass-slot, root.slots-per-page) * (tiles.cell-width + Theme.spacing);
+                    width: tiles.cell-width;
+                    height: tiles.height;
+                    clicked => { MmuDialogs.bypass-open = true; }
                 }
             }
+            if root.pages > 1: IconButton {
+                width: 48px;
+                icon: Icons.ui-chevron-right;
+                enabled: root.page < root.pages - 1;
+                clicked => { Navigation.mmu-page = root.page + 1; }
+            }
+        }
 
-            Card {
-                title: @tr("Filament path");
-                icon: Icons.filament-sensor;
+        Card {
+            title: @tr("Filament path");
+            icon: Icons.filament-sensor;
+            HorizontalLayout {
+                spacing: Theme.spacing;
                 VerticalLayout {
+                    horizontal-stretch: 1;
                     spacing: 8px;
                     // Gate to nozzle with the sensors on the way; further sensors below as chips.
                     FilamentPath { path: Printer.mmu-path; }
@@ -202,7 +284,9 @@ export component MmuTab inherits Rectangle {
                             font-size: Theme.font-small;
                         }
                     }
-                    if Printer.mmu-has-buffer: VerticalLayout {
+                    // While the MMU holds the print, recovering needs the room of the buffer.
+                    if root.needs-recovery: MmuRecoverRow { }
+                    if Printer.mmu-has-buffer && !root.needs-recovery: VerticalLayout {
                         spacing: 4px;
                         IconLabel {
                             icon: Icons.mmu-sync;
@@ -239,36 +323,25 @@ export component MmuTab inherits Rectangle {
                     }
                     Rectangle { vertical-stretch: 1; }
                 }
+                VerticalLayout {
+                    width: 120px;
+                    spacing: Theme.spacing;
+                    IconButton {
+                        icon: Icons.mmu-unload;
+                        text: @tr("Unload");
+                        enabled: Printer.mmu-filament != "unloaded";
+                        clicked => { Actions.mmu-unload(); }
+                    }
+                    // A hint, not a lock: an MMU without home is still shown, but most commands need it.
+                    if !Printer.mmu-homed: IconButton {
+                        icon: Icons.mmu-home;
+                        text: @tr("Home");
+                        kind: "accent";
+                        clicked => { Actions.mmu-home(); }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                }
             }
-        }
-
-        VerticalLayout {
-            width: 120px;
-            spacing: Theme.spacing;
-            IconButton {
-                icon: Icons.mmu-load;
-                text: @tr("Load");
-                enabled: Printer.mmu-filament != "loaded";
-                clicked => { Actions.mmu-load(); }
-            }
-            IconButton {
-                icon: Icons.mmu-unload;
-                text: @tr("Unload");
-                enabled: Printer.mmu-filament != "unloaded";
-                clicked => { Actions.mmu-unload(); }
-            }
-            if !Printer.mmu-homed: IconButton {
-                icon: Icons.mmu-home;
-                text: @tr("Home");
-                kind: "accent";
-                clicked => { Actions.mmu-home(); }
-            }
-            IconButton {
-                icon: Icons.mmu-maintenance;
-                text: @tr("Service");
-                clicked => { MmuDialogs.service-open = true; }
-            }
-            Rectangle { vertical-stretch: 1; }
         }
     }
 }
@@ -285,7 +358,7 @@ export component MmuStrip inherits Card {
         HorizontalLayout {
             spacing: Theme.spacing;
             Text {
-                text: Printer.mmu-gate >= 0 ? (Printer.mmu-tool >= 0 ? "T" + Printer.mmu-tool + " · " : "") + @tr("Gate {}", Printer.mmu-gate) : @tr("No gate");
+                text: Printer.mmu-bypass ? @tr("Bypass") : Printer.mmu-gate >= 0 ? (Printer.mmu-tool >= 0 ? "T" + Printer.mmu-tool + " · " : "") + @tr("Gate {}", Printer.mmu-gate) : @tr("No gate");
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
                 font-weight: 700;
@@ -355,23 +428,6 @@ export component MmuStrip inherits Card {
             }
         }
         // The reason of the pause stands in the banner of the print page.
-        if Printer.mmu-paused || Printer.mmu-locked: HorizontalLayout {
-            spacing: Theme.spacing;
-            height: Theme.touch;
-            IconButton {
-                icon: Icons.mmu-recover;
-                text: @tr("Recover");
-                horizontal: true;
-                kind: "accent";
-                clicked => { Actions.mmu-recover(); }
-            }
-            IconButton {
-                icon: Icons.ui-unlock;
-                text: @tr("Unlock");
-                horizontal: true;
-                clicked => { Actions.mmu-unlock(); }
-            }
-        }
+        if Printer.mmu-paused || Printer.mmu-locked: MmuRecoverRow { }
     }
 }
-

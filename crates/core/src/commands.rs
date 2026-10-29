@@ -16,7 +16,7 @@ use crate::sources::{led_effect, spoolman, PrinterStatus, Sources};
 /// A command triggered by a person. The UI only knows this level, not G-code or JSON-RPC.
 ///
 /// Some commands state an intent (`Level`, `ApplyPreset`, `CoolDown`, `StepHeater`, `ApplyZOffset`, `LoadFilament`,
-/// `UnloadFilament`, the layer pauses, `CalibrateZ`, `SetGateFilament` and the commands within a calibration mode); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
+/// `UnloadFilament`, the layer pauses, `CalibrateZ`, `SetGateFilament`, `SetEndlessSpoolGroup` and the commands within a calibration mode); [`Command::resolve`] turns them into the commands this printer needs. Only those reach
 /// [`Command::to_call`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -193,6 +193,25 @@ pub enum Command {
     MmuServo {
         position: mmu::ServoCommand,
     },
+    /// Selects the bypass for filament fed by hand past the gates.
+    MmuSelectBypass,
+    /// Selects the bypass and loads the filament fed into it.
+    MmuLoadBypass,
+    /// Lets `tool` take its filament from `gate`.
+    MmuMapTool {
+        tool: usize,
+        gate: usize,
+    },
+    /// Back to the configured tool-to-gate map.
+    MmuResetToolMap,
+    MmuEndlessSpool {
+        enabled: bool,
+    },
+    /// Moves a gate into an EndlessSpool group; the other gates keep theirs.
+    SetEndlessSpoolGroup {
+        gate: usize,
+        group: u32,
+    },
     /// Puts a Spoolman spool into a gate; `None` takes the spool out of the record.
     AssignGateSpool {
         gate: usize,
@@ -351,6 +370,16 @@ impl Command {
                 let temperature = mmu.gates.get(gate).ok_or_else(|| format!("gate {gate} does not exist"))?.temperature;
                 vec![Self::RunGcode { script: mmu::set_gate_filament(gate, material.as_deref(), color, temperature)? }]
             }
+            Self::SetEndlessSpoolGroup { gate, group } => {
+                let mmu = status.mmu.as_ref().ok_or_else(|| NO_MMU.to_owned())?;
+                if gate >= mmu.gates.len() {
+                    return Err(format!("gate {gate} does not exist"));
+                }
+                let groups = mmu
+                    .endless_spool_groups_with(gate, group)
+                    .ok_or_else(|| "Happy Hare reports no EndlessSpool groups".to_owned())?;
+                vec![Self::RunGcode { script: mmu::endless_spool_groups(&groups) }]
+            }
             Self::RunGcode { script } => match script.trim() {
                 "" => Vec::new(),
                 trimmed => vec![Self::RunGcode { script: trimmed.to_owned() }],
@@ -418,6 +447,11 @@ impl Command {
             Self::MmuCheckGates { gates } => run_gcode(mmu::check_gates(*gates)),
             Self::MmuPreload { gate } => run_gcode(mmu::preload(*gate)),
             Self::MmuServo { position } => run_gcode(mmu::servo(*position)),
+            Self::MmuSelectBypass => run_gcode(mmu::SELECT_BYPASS),
+            Self::MmuLoadBypass => run_gcode(mmu::load_bypass()),
+            Self::MmuMapTool { tool, gate } => run_gcode(mmu::map_tool(*tool, *gate)),
+            Self::MmuResetToolMap => run_gcode(mmu::RESET_TOOL_MAP),
+            Self::MmuEndlessSpool { enabled } => run_gcode(mmu::endless_spool(*enabled)),
             Self::AssignGateSpool { gate, spool_id } => run_gcode(mmu::assign_gate_spool(*gate, *spool_id)),
             // Moonraker's components
             Self::SetActiveSpool { spool_id } => spoolman::set_active_spool(*spool_id),
@@ -445,7 +479,8 @@ impl Command {
             | Self::PauseAtNextLayer
             | Self::PauseAtLayer { .. }
             | Self::ClearLayerPause
-            | Self::SetGateFilament { .. } => return None,
+            | Self::SetGateFilament { .. }
+            | Self::SetEndlessSpoolGroup { .. } => return None,
         };
         Some(call)
     }
@@ -730,6 +765,43 @@ mod tests {
         assert!(red(0).resolve(&printer(&[]), &with_support("pull")).is_err());
         assert!(red(1).resolve(&printer(&[]), &with_support("off")).is_err());
         assert!(red(0).resolve(&printer(&[]), &PrinterStatus::default()).is_err());
+    }
+
+    #[test]
+    fn bypass_tool_map_and_endless_spool_are_happy_hare_gcode() {
+        assert_eq!(script(Command::MmuSelectBypass), "MMU_SELECT BYPASS=1");
+        assert_eq!(script(Command::MmuLoadBypass), "MMU_SELECT BYPASS=1\nMMU_LOAD");
+        assert_eq!(script(Command::MmuMapTool { tool: 3, gate: 1 }), "MMU_TTG_MAP TOOL=3 GATE=1");
+        assert_eq!(script(Command::MmuResetToolMap), "MMU_TTG_MAP RESET=1");
+        assert_eq!(script(Command::MmuEndlessSpool { enabled: true }), "MMU_ENDLESS_SPOOL ENABLE=1");
+    }
+
+    #[test]
+    fn an_endless_spool_group_is_sent_with_the_groups_of_all_other_gates() {
+        let with_groups = |groups: &[Option<u32>]| PrinterStatus {
+            mmu: Some(crate::sources::happy_hare::MmuStatus {
+                gates: groups
+                    .iter()
+                    .enumerate()
+                    .map(|(index, group)| crate::sources::happy_hare::MmuGate {
+                        index,
+                        endless_spool_group: *group,
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..Default::default()
+            }),
+            ..PrinterStatus::default()
+        };
+        let move_gate = |gate| Command::SetEndlessSpoolGroup { gate, group: 0 };
+        let groups = [Some(0), Some(1), Some(2)];
+
+        assert_eq!(
+            move_gate(2).resolve(&printer(&[]), &with_groups(&groups)),
+            Ok(vec![Command::RunGcode { script: "MMU_ENDLESS_SPOOL GROUPS=0,1,0".into() }])
+        );
+        assert!(move_gate(3).resolve(&printer(&[]), &with_groups(&groups)).is_err());
+        assert!(move_gate(0).resolve(&printer(&[]), &with_groups(&[None, None])).is_err());
     }
 
     #[test]

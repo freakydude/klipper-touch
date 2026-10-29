@@ -152,6 +152,24 @@ pub fn bind(
     }));
     actions.on_mmu_servo_up(send(|| Command::MmuServo { position: ServoCommand::Up }));
     actions.on_mmu_servo_down(send(|| Command::MmuServo { position: ServoCommand::Down }));
+    actions.on_mmu_select_bypass(send(|| Command::MmuSelectBypass));
+    actions.on_mmu_load_bypass(send(|| Command::MmuLoadBypass));
+    let tool_map_service = service.clone();
+    actions.on_mmu_map_tool(move |tool, gate| {
+        if let (Ok(tool), Ok(gate)) = (usize::try_from(tool), usize::try_from(gate)) {
+            tool_map_service.send(Command::MmuMapTool { tool, gate });
+        }
+    });
+    actions.on_mmu_reset_tool_map(send(|| Command::MmuResetToolMap));
+    actions.on_mmu_set_endless_spool(with(service, |service, enabled: bool| {
+        service.send(Command::MmuEndlessSpool { enabled })
+    }));
+    let group_service = service.clone();
+    actions.on_mmu_set_endless_spool_group(move |gate, group| {
+        if let (Ok(gate), Ok(group)) = (usize::try_from(gate), u32::try_from(group)) {
+            group_service.send(Command::SetEndlessSpoolGroup { gate, group });
+        }
+    });
     let material_service = service.clone();
     actions.on_set_gate_material(move |gate, material| {
         if let Ok(gate) = usize::try_from(gate) {

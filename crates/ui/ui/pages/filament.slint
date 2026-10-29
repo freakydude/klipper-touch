@@ -1,12 +1,13 @@
-// Filament: extrude by hand, load and unload.
+// Filament: the MMU with its gates, extrude by hand, load and unload, the service commands of the MMU.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Navigation, Printer, UiSettings } from "../state.slint";
+import { Actions, FilamentTab, Navigation, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, IconLabel, StepSelector, TabBar, TabButton } from "../components/controls.slint";
 import { SpoolStrip } from "../components/spool-strip.slint";
 import { MmuTab } from "mmu.slint";
-import { GateDialog, MmuServiceDialog } from "mmu-dialogs.slint";
+import { BypassDialog, GateDialog } from "mmu-dialogs.slint";
+import { MmuServiceTab } from "mmu-service.slint";
 
 component ExtruderTab inherits Rectangle {
     VerticalLayout {
@@ -127,44 +128,52 @@ component ExtruderTab inherits Rectangle {
     }
 }
 
-// Extruder by hand and, with Happy Hare, the MMU with its gates; the dialogs of a gate and of the MMU's service
-// commands cover the whole page.
+// With Happy Hare the MMU with its gates comes first, then the extruder by hand and the service commands of the MMU;
+// without it the extruder alone. The dialogs of a gate and of the bypass cover the whole page.
 export component FilamentPage inherits Rectangle {
-    property <bool> mmu-tab: Printer.has-mmu && Navigation.filament-tab == 1;
-    property <bool> extruder-tab: !root.mmu-tab;
+    property <FilamentTab> tab: Printer.has-mmu ? Navigation.filament-tab : FilamentTab.extruder;
 
     VerticalLayout {
         if Printer.has-mmu: TabBar {
             TabButton {
-                icon: Icons.filament-extrude;
-                text: @tr("Extruder");
-                checked: root.extruder-tab;
-                clicked => { Navigation.filament-tab = 0; }
-            }
-            TabButton {
                 icon: Icons.mmu-unit;
                 text: @tr("MMU");
-                checked: root.mmu-tab;
-                clicked => { Navigation.filament-tab = 1; }
+                checked: root.tab == FilamentTab.mmu;
+                clicked => { Navigation.filament-tab = FilamentTab.mmu; }
+            }
+            TabButton {
+                icon: Icons.filament-extrude;
+                text: @tr("Extruder");
+                checked: root.tab == FilamentTab.extruder;
+                clicked => { Navigation.filament-tab = FilamentTab.extruder; }
+            }
+            TabButton {
+                icon: Icons.mmu-maintenance;
+                text: @tr("Service");
+                checked: root.tab == FilamentTab.service;
+                clicked => { Navigation.filament-tab = FilamentTab.service; }
             }
             Text {
                 horizontal-stretch: 1;
-                text: !root.extruder-tab && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
+                text: root.tab != FilamentTab.extruder && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
                 color: Theme.info;
                 font-size: Theme.font-normal;
                 vertical-alignment: center;
                 overflow: elide;
             }
         }
-        if root.mmu-tab: MmuTab {
+        if root.tab == FilamentTab.mmu: MmuTab {
             vertical-stretch: 1;
         }
-        if root.extruder-tab: ExtruderTab {
+        if root.tab == FilamentTab.extruder: ExtruderTab {
+            vertical-stretch: 1;
+        }
+        if root.tab == FilamentTab.service: MmuServiceTab {
             vertical-stretch: 1;
         }
     }
 
-    if root.mmu-tab: GateDialog { }
-    if root.mmu-tab: MmuServiceDialog { }
+    if root.tab == FilamentTab.mmu: GateDialog { }
+    if root.tab == FilamentTab.mmu: BypassDialog { }
 }
 

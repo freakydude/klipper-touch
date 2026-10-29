@@ -129,16 +129,16 @@ export global Sample {
         Printer.mmu-gate = 0;
         Printer.mmu-tool = 0;
         Printer.mmu-gates = [
-            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #e03131, has-color: true, color-count: 1, tool: 0, selected: true },
-            { index: 1, availability: "available", name: "Green PETG", material: "PETG", color: #37b24d, has-color: true, color-count: 1, tool: 1, selected: false },
-            { index: 2, availability: "buffered", name: "", material: "ABS", color: #4dabf7, has-color: true, color-count: 1, tool: 2, selected: false },
-            { index: 3, availability: "empty", name: "", material: "", color: #000000, has-color: false, tool: 3, selected: false },
+            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #e03131, has-color: true, color-count: 1, tools: "T0", group: 0, selected: true },
+            { index: 1, availability: "available", name: "Green PETG", material: "PETG", color: #37b24d, has-color: true, color-count: 1, tools: "T1", group: 1, selected: false },
+            { index: 2, availability: "buffered", name: "", material: "ABS", color: #4dabf7, has-color: true, color-count: 1, tools: "T2", group: 2, selected: false },
+            { index: 3, availability: "empty", name: "", material: "", color: #000000, has-color: false, tools: "T3", group: 3, selected: false },
         ];
+        Printer.mmu-tools = [{ tool: 0, gate: 0 }, { tool: 1, gate: 1 }, { tool: 2, gate: 2 }, { tool: 3, gate: 3 }];
+        // Entry, exit, extruder and toolhead are drawn on the filament path, so only the other sensors are chips.
         Printer.mmu-sensors = [
-            { label: "Entry", state: "triggered" },
-            { label: "Exit", state: "open" },
-            { label: "Extruder", state: "open" },
-            { label: "Toolhead", state: "open" },
+            { label: "Pre gate 0", state: "triggered" },
+            { label: "Gear touch", state: "open" },
         ];
         Printer.mmu-has-buffer = true;
         Printer.mmu-path = {

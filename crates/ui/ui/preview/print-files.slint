@@ -1,5 +1,6 @@
 // Preview: the file list with facts as icons. Rows: with thumbnail, with estimates and chamber temperature, without
-// thumbnail, metadata not loaded yet (placeholder). Open in the Slint preview or render with scripts/ui-preview.sh.
+// thumbnail, for several tools with a material per tool, metadata not loaded yet (placeholder). Open in the Slint
+// preview or render with scripts/ui-preview.sh.
 
 import { AppWindow } from "../app.slint";
 import { Navigation, Page, Printer } from "../state.slint";
@@ -15,7 +16,8 @@ export component PrintFilesPreview inherits AppWindow {
                 path: "benchy.gcode",
                 name: "benchy",
                 modified: "17.11.2023 06:46",
-                material: "PLA 52 g",
+                material: "PLA",
+                weight: "52 g",
                 nozzle: "0.4",
                 time: "2h 07m",
                 extruder-temperature: "215°",
@@ -28,7 +30,8 @@ export component PrintFilesPreview inherits AppWindow {
                 path: "long_job.gcode",
                 name: "long_job",
                 modified: "16.11.2023 03:00",
-                material: "PETG ~270 g",
+                material: "PETG",
+                weight: "~270 g",
                 nozzle: "0.6",
                 time: "~10h 00m",
                 extruder-temperature: "240°",
@@ -40,12 +43,25 @@ export component PrintFilesPreview inherits AppWindow {
                 path: "calibration_cube_with_a_rather_long_name.gcode",
                 name: "calibration_cube_with_a_rather_long_name",
                 modified: "14.11.2023 23:13",
-                material: "ABS 11 g",
+                material: "ABS",
+                weight: "11 g",
                 nozzle: "0.4",
                 time: "23m 00s",
                 extruder-temperature: "250°",
                 bed-temperature: "105°",
                 show-thumbnail: false,
+            },
+            {
+                path: "multicolor.gcode",
+                name: "multicolor",
+                modified: "12.11.2023 09:30",
+                material: "PLA;PLA;PETG;PLA;ABS;PLA;PETG;TPU",
+                weight: "84 g",
+                nozzle: "0.4",
+                time: "~5h 12m",
+                extruder-temperature: "220°",
+                bed-temperature: "60°",
+                show-thumbnail: true,
             },
             {
                 path: "plain.gcode",

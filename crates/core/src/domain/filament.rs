@@ -1,7 +1,7 @@
 //! Filament on this printer: what Load and Unload run, and which filament sensors belong to the printer rather
 //! than to Happy Hare.
 
-use crate::sources::happy_hare::is_mmu_klipper_sensor;
+use crate::sources::happy_hare::is_shown_by_mmu;
 use crate::sources::klipper::FilamentSensor;
 use crate::sources::macro_conventions::FilamentMacros;
 use crate::sources::{PrinterStatus, Sources};
@@ -24,11 +24,11 @@ pub fn handling(sources: &Sources, status: &PrinterStatus) -> FilamentHandling {
     sources.filament_macros.map_or(FilamentHandling::None, FilamentHandling::Macros)
 }
 
-/// The filament sensors of the printer itself. With Happy Hare in charge its gate and buffer sensors belong to its
-/// own view; `toolhead` and `extruder` stay, they sit behind the MMU and matter without one.
+/// The filament sensors of the printer itself. With Happy Hare in charge the sensors it creates belong to its own
+/// view (gates, buffer, and `extruder` and `toolhead` on the filament path); other sensors stay.
 pub fn printer_sensors(status: &PrinterStatus) -> impl Iterator<Item = &FilamentSensor> {
     let has_mmu = status.happy_hare().is_some();
-    status.filament_sensors.iter().filter(move |sensor| !(has_mmu && is_mmu_klipper_sensor(&sensor.object)))
+    status.filament_sensors.iter().filter(move |sensor| !(has_mmu && is_shown_by_mmu(&sensor.object)))
 }
 
 #[cfg(test)]
@@ -47,6 +47,7 @@ mod tests {
             filament_sensors: vec![
                 sensor("filament_switch_sensor mmu_gate_0"),
                 sensor("filament_switch_sensor toolhead"),
+                sensor("filament_switch_sensor spool_runout"),
             ],
             ..PrinterStatus::default()
         }
@@ -81,8 +82,8 @@ mod tests {
             printer_sensors(status).map(|sensor| sensor.object.clone()).collect()
         };
 
-        assert_eq!(names(&status_with(Some(happy_hare(true, "4.1.0")))), ["filament_switch_sensor toolhead"]);
-        assert_eq!(names(&status_with(Some(happy_hare(false, "4.1.0")))).len(), 2);
-        assert_eq!(names(&status_with(None)).len(), 2);
+        assert_eq!(names(&status_with(Some(happy_hare(true, "4.1.0")))), ["filament_switch_sensor spool_runout"]);
+        assert_eq!(names(&status_with(Some(happy_hare(false, "4.1.0")))).len(), 3);
+        assert_eq!(names(&status_with(None)).len(), 3);
     }
 }

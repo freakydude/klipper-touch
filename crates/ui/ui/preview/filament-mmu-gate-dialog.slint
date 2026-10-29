@@ -1,20 +1,25 @@
-// Preview: dialog of a gate without Spoolman, with material and colour from Happy Hare's gate map. Open in the Slint preview or render with scripts/ui-preview.sh.
+// Preview: dialog of a gate without Spoolman, with material and colour from Happy Hare's gate map, the tools of the
+// gate (T1 and T3, T2 from elsewhere) and its EndlessSpool group. Open in the Slint preview or render with
+// scripts/ui-preview.sh.
 
 import { AppWindow } from "../app.slint";
-import { MmuDialogs, Navigation, Page, Printer } from "../state.slint";
+import { FilamentTab, MmuDialogs, Navigation, Page, Printer } from "../state.slint";
 import { Sample } from "sample.slint";
 
 export component FilamentMmuGateDialogPreview inherits AppWindow {
     init => {
         Sample.mmu();
         Navigation.page = Page.filament;
-        Navigation.filament-tab = 1;
+        Navigation.filament-tab = FilamentTab.mmu;
         Printer.has-spoolman = false;
+        Printer.mmu-endless-spool = true;
         Printer.mmu-gates = [
-            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #ff0000, has-color: true, color-count: 1, tool: 0, selected: true },
-            { index: 1, availability: "available", name: "", material: "PETG", color: #ff8000, has-color: true, color-count: 1, tool: 1, selected: false },
-            { index: 2, availability: "empty", name: "", material: "", color: #000000, has-color: false, tool: 2, selected: false },
+            { index: 0, availability: "available", name: "Red PLA", material: "PLA", color: #ff0000, has-color: true, color-count: 1, tools: "T0 T2", group: 0, selected: true },
+            { index: 1, availability: "available", name: "", material: "PETG", color: #ff8000, has-color: true, color-count: 1, tools: "T1 T3", group: 1, selected: false },
+            { index: 2, availability: "empty", name: "", material: "", color: #000000, has-color: false, tools: "", group: 0, selected: false },
+            { index: 3, availability: "available", name: "", material: "PLA", color: #ff0000, has-color: true, color-count: 1, tools: "", group: 0, selected: false },
         ];
+        Printer.mmu-tools = [{ tool: 0, gate: 0 }, { tool: 1, gate: 1 }, { tool: 2, gate: 0 }, { tool: 3, gate: 1 }];
         MmuDialogs.gate = 1;
     }
 }

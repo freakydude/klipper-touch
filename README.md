@@ -49,7 +49,7 @@ is the BTT HDMI5 (5", 800x480, landscape).
   the calibration values until the next restart: flow factor, pressure advance and smooth time, velocity and
   acceleration limits, square corner velocity, minimum cruise ratio and firmware retraction; it shows where a value
   differs from the configuration and resets it.
-- **Filament**: extrude/retract with length and speed (lengths up to `max_extrude_only_distance`), `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors.
+- **Filament**: extrude/retract with length and speed (lengths up to `max_extrude_only_distance`), `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors (with Happy Hare those it does not show itself).
 - **System**, in five tabs:
   - **Machine**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices.
   - **Updates**: Moonraker's update manager; the tab shows how many updates are waiting.
@@ -67,10 +67,11 @@ Functions only appear when the printer has them (capabilities from `printer.obje
 
 ### Happy Hare (MMU)
 
-Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip on the print page show:
+Needs Happy Hare 4.1 or newer. The Filament page then opens on the **MMU** tab, next to **Extruder** and **Service**.
+The MMU tab and a strip on the print page show:
 
-- the gates (four at a time): status, material, colour and mapped tool; load and unload the selected gate, home, recover
-  and unlock after a pause;
+- the gates and the bypass (five at a time): status, material, colour and the tools that take their filament from each
+  gate; unload what is loaded, home, recover and unlock after a pause;
 - the way of the filament of the selected gate, from the gate through the bowden and the extruder to the nozzle,
   filled in the colours of the spool as far as Happy Hare reports it (`filament_pos`), with the sensors on the way,
   the direction and the distance; on the print page as a slim line;
@@ -78,11 +79,13 @@ Needs Happy Hare 4.1 or newer. The **MMU** tab on the Filament page and a strip 
   tangle prevention at work, or triggered with its reason;
 - the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
 
-A tap on a gate opens what can be done with it: select, load, preload, check or eject it, and pick its spool. Without
-Spoolman the dialog sets material and colour of the gate in Happy Hare's gate map instead, from a set of common
-materials and colours. A tap on a gate never moves the selector by itself. The **Service** button opens what is rarely
-needed for the MMU as a whole: home, recover, unlock, motors off, check all gates and, on selectors with a servo, servo
-up and down.
+A tap on a gate opens what can be done with it: select, load, preload, check or eject it, pick its spool, move tools to
+it (Happy Hare's tool-to-gate map) and, with EndlessSpool on, choose its group. Without Spoolman the dialog sets
+material and colour of the gate in Happy Hare's gate map instead, from a set of common materials and colours. A tap on
+a gate never moves the selector by itself. The bypass takes filament fed by hand past the gates; its dialog selects
+and loads it. The **Service** tab holds what is rarely needed for the MMU as a whole: home, recover, unlock, motors
+off, check all gates and, on selectors with a servo, servo up and down; the tools with their gates and a reset of the
+map; EndlessSpool on or off.
 
 | ![MMU tab](docs/screenshots/mmu.png) | ![FlowGuard line while tangle prevention raises the gear current](docs/screenshots/print-tangle-boost.png) |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
