@@ -30,6 +30,9 @@ export component AppWindow inherits Window {
     // the layout to any display instead (`display.rs`).
     min-width: 800px;
     min-height: 480px;
+    // Started with `--fullscreen`: no frame, also when fullscreen is switched off (`app.rs`).
+    in property <bool> kiosk;
+    no-frame: root.kiosk;
     background: Theme.background;
     default-font-size: Theme.font-normal;
 

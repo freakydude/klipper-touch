@@ -3,11 +3,13 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, FanItem, HeaterItem, Navigation, Printer, SensorItem, UiSettings } from "../state.slint";
-import { IconButton, ProgressBar, ScrollList, StepSelector, TabBar, TabButton, TouchSlider } from "../components/controls.slint";
+import { NumberEntryDialog } from "../components/overlays.slint";
+import { IconButton, IconLabel, ProgressBar, ScrollList, StepSelector, TabBar, TabButton, TouchSlider } from "../components/controls.slint";
 
 component HeaterRow inherits Rectangle {
     in property <HeaterItem> heater;
     in property <float> step;
+    callback edit-target();
     height: 60px;
     background: history-touch.pressed ? Theme.surface-raised : Theme.surface;
     border-radius: Theme.radius;
@@ -48,11 +50,12 @@ component HeaterRow inherits Rectangle {
                     height: 14px;
                 }
                 // The spool in use recommends another temperature than the target: a quiet note, nothing is changed.
-                if root.heater.spool-hint != "": Text {
+                if root.heater.spool-hint != "": IconLabel {
+                    icon: Icons.ui-warning;
+                    icon-size: 14px;
                     text: root.heater.spool-hint;
                     color: Theme.warning;
                     font-size: Theme.font-small;
-                    overflow: elide;
                 }
             }
             Text {
@@ -62,21 +65,31 @@ component HeaterRow inherits Rectangle {
                 font-weight: 600;
             }
         }
-        VerticalLayout {
-            alignment: center;
-            width: 80px;
-            Text {
-                text: @tr("Target");
-                color: Theme.muted;
-                font-size: Theme.font-small;
-                horizontal-alignment: center;
+        // The target is a field: a tap opens the numeric keypad to type it.
+        Rectangle {
+            width: 96px;
+            border-radius: Theme.radius;
+            background: target-touch.pressed ? Theme.surface-active : Theme.surface-raised;
+            accessible-role: button;
+            accessible-label: @tr("Target");
+            target-touch := TouchArea {
+                clicked => { root.edit-target(); }
             }
-            Text {
-                text: root.heater.target > 0 ? round(root.heater.target) + " °C" : @tr("off");
-                color: root.heater.target > 0 ? Theme.accent : Theme.muted;
-                font-size: Theme.font-large;
-                font-weight: 600;
-                horizontal-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: @tr("Target");
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.heater.target > 0 ? round(root.heater.target) + " °C" : @tr("off");
+                    color: root.heater.target > 0 ? Theme.accent : Theme.muted;
+                    font-size: Theme.font-large;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
             }
         }
         IconButton {
@@ -154,7 +167,7 @@ component FanRow inherits Rectangle {
             cross-axis-self-alignment: center;
             horizontal-stretch: 1;
             progress: root.fan.speed / 100;
-            bar-color: Theme.info;
+            bar-color: Theme.accent;
         }
         if !root.fan.controllable: Text {
             width: 64px;
@@ -168,6 +181,7 @@ component FanRow inherits Rectangle {
 }
 
 component HeatersTab inherits Rectangle {
+    callback edit-target(HeaterItem);
     VerticalLayout {
         padding: Theme.padding;
         spacing: Theme.spacing;
@@ -182,6 +196,7 @@ component HeatersTab inherits Rectangle {
                 for heater in Printer.heaters: HeaterRow {
                     heater: heater;
                     step: UiSettings.temperature-step;
+                    edit-target => { root.edit-target(heater); }
                 }
                 Rectangle { vertical-stretch: 1; }
                 // Under the heaters, so the presets can take the full height beside them.
@@ -314,8 +329,27 @@ export component TemperaturePage inherits Rectangle {
                 clicked => { Navigation.heat-tab = 2; }
             }
         }
-        if root.tab == 0: HeatersTab { vertical-stretch: 1; }
+        if root.tab == 0: HeatersTab {
+            vertical-stretch: 1;
+            edit-target(heater) => {
+                root.target-heater = heater.object;
+                target-entry.title = @tr("Target {}", heater.label);
+                target-entry.text = heater.target > 0 ? round(heater.target) : "";
+                target-entry.open = true;
+            }
+        }
         if root.tab == 1: FansTab { vertical-stretch: 1; }
         if root.tab == 2: SensorsTab { vertical-stretch: 1; }
+    }
+
+    // The heater whose target is being typed. Klipper enforces its limits (min/max_temp) and reports a refusal.
+    property <string> target-heater;
+    target-entry := NumberEntryDialog {
+        unit: "°C";
+        accepted(text) => {
+            if (text.is-float()) {
+                Actions.set-heater(root.target-heater, text.to-float());
+            }
+        }
     }
 }

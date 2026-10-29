@@ -1,4 +1,6 @@
 // Colors, spacing and font sizes. Designed for 800x480 (BTT HDMI5), dark theme for touch.
+// Text and icons reach 4.5:1 against the grounds they sit on (WCAG 2.2, 1.4.3), outlines and other required graphics
+// 3:1; content on a filled colour uses its `on-` partner.
 
 export global Theme {
     out property <color> background: #121417;
@@ -7,19 +9,35 @@ export global Theme {
     out property <color> surface-active: #3b424b;
     out property <color> border: #343a42;
     out property <color> foreground: #f1f3f5;
-    out property <color> muted: #9aa4ae;
-    out property <color> accent: #f76707;
-    out property <color> accent-pressed: #d9480f;
-    out property <color> danger: #e03131;
-    out property <color> danger-pressed: #b72727;
+    out property <color> muted: #a8b2bc;
+    // Operation: confirming buttons, the selection, what is switched on or running.
+    out property <color> accent: #fd7e14;
+    out property <color> accent-pressed: #e8590c;
+    // Text and icons on an accent fill: dark, as white on the bright orange is hard to read.
+    out property <color> on-accent: #121417;
+    // Errors and danger as text, icons and outlines: a light red that stays readable on the dark grounds.
+    out property <color> danger: #ff6b6b;
+    // Danger as a filled area (emergency stop, dangerous confirmations, error badge), with `foreground` on it.
+    out property <color> danger-fill: #c92a2a;
+    out property <color> danger-fill-pressed: #a61e1e;
+    // Reserved for "all fine" (currently unused, Frank 2026-10-29: normal states stay without colour for now).
     out property <color> success: #37b24d;
+    // A deviation that deserves attention, never an error.
     out property <color> warning: #f59f00;
+    // Neutral information: messages, Klipper starting up, secondary chart lines.
     out property <color> info: #4dabf7;
     out property <color> disabled-foreground: #5c656f;
     // Flyouts (messages, light) let the page shine through a little, so it is clear that they lie above it.
     out property <float> flyout-opacity: 0.8;
     // Outline of flyouts: lighter than `border`, so their edge stands out from the page below.
     out property <color> flyout-border: #4f5761;
+    // Darkens the content area behind a dialog.
+    out property <color> scrim: #000000b0;
+    out property <color> shadow: #000000c0;
+    // What is active as a filled shape that lets the grid shine through (the object printing in the bed map).
+    out property <color> active-fill: Theme.accent.with-alpha(0.6);
+    // A second line in a chart beside the main one in `accent` (heater power under the temperature).
+    out property <color> chart-secondary: Theme.info.with-alpha(0.5);
 
     out property <length> radius: 8px;
     out property <length> spacing: 8px;
@@ -33,6 +51,8 @@ export global Theme {
     out property <length> icon-small: 20px;
 
     out property <length> font-small: 13px;
+    // Labels below an icon (navigation); Material's "label medium" (12 sp) at the size of the HDMI5.
+    out property <length> font-label: 14px;
     out property <length> font-normal: 16px;
     out property <length> font-large: 22px;
     out property <length> font-huge: 34px;

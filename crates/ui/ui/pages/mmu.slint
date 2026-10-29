@@ -38,7 +38,7 @@ export component GateAvailabilityLabel inherits IconLabel {
 
     icon: root.has-filament ? Icons.mmu-gate-available : root.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
     text: MmuTexts.availability(root.availability);
-    color: root.has-filament ? Theme.success : root.availability == "empty" ? Theme.warning : Theme.muted;
+    color: root.has-filament ? Theme.foreground : root.availability == "empty" ? Theme.warning : Theme.muted;
     font-size: Theme.font-small;
 }
 
@@ -165,7 +165,7 @@ component BypassTile inherits SlotTile {
 export component BufferGauge inherits Rectangle {
     in property <float> bias;
     in property <string> state;
-    out property <color> marker-color: root.state == "neutral" ? Theme.success : root.state == "tension" || root.state == "compressed" ? Theme.warning : Theme.muted;
+    out property <color> marker-color: root.state == "neutral" ? Theme.foreground : root.state == "tension" || root.state == "compressed" ? Theme.warning : Theme.muted;
 
     height: 18px;
     Rectangle {
@@ -175,8 +175,7 @@ export component BufferGauge inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         width: parent.width * 0.1;
-        background: Theme.success;
-        opacity: 0.35;
+        background: Theme.surface-active;
     }
     Rectangle {
         width: 8px;
@@ -280,7 +279,7 @@ export component MmuTab inherits Rectangle {
                             height: sensor-grid.row-height;
                             icon: sensor.state == "disabled" ? Icons.ui-minus : sensor.state == "triggered" ? Icons.ui-check : Icons.filament-runout;
                             text: sensor.label;
-                            color: sensor.state == "triggered" ? Theme.success : sensor.state == "disabled" ? Theme.disabled-foreground : Theme.muted;
+                            color: sensor.state == "triggered" ? Theme.foreground : sensor.state == "disabled" ? Theme.disabled-foreground : Theme.muted;
                             font-size: Theme.font-small;
                         }
                     }
@@ -381,13 +380,6 @@ export component MmuStrip inherits Card {
                 color: Printer.spool-low ? Theme.warning : Theme.muted;
                 font-size: Theme.font-small;
                 horizontal-alignment: right;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            Text {
-                text: Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
-                color: Theme.info;
-                font-size: Theme.font-small;
                 vertical-alignment: center;
                 overflow: elide;
             }

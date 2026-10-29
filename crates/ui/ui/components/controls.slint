@@ -18,9 +18,9 @@ export component IconButton inherits Rectangle {
     callback clicked;
 
     property <bool> has-icon: root.icon.width > 0;
-    property <color> base: root.kind == "accent" ? Theme.accent : root.kind == "danger" ? Theme.danger : root.checked ? Theme.surface-active : Theme.surface-raised;
-    property <color> pressed: root.kind == "accent" ? Theme.accent-pressed : root.kind == "danger" ? Theme.danger-pressed : Theme.surface-active;
-    property <color> content: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+    property <color> base: root.kind == "accent" ? Theme.accent : root.kind == "danger" ? Theme.danger-fill : root.checked ? Theme.surface-active : Theme.surface-raised;
+    property <color> pressed: root.kind == "accent" ? Theme.accent-pressed : root.kind == "danger" ? Theme.danger-fill-pressed : Theme.surface-active;
+    property <color> content: !root.enabled ? Theme.disabled-foreground : root.kind == "accent" ? Theme.on-accent : Theme.foreground;
 
     min-width: Theme.touch;
     min-height: Theme.touch;
@@ -136,7 +136,7 @@ export component ToggleRow inherits Rectangle {
                 width: 22px;
                 height: 22px;
                 border-radius: self.height / 2;
-                background: root.enabled ? Theme.foreground : Theme.disabled-foreground;
+                background: !root.enabled ? Theme.disabled-foreground : root.checked ? Theme.on-accent : Theme.foreground;
                 animate x { duration: 120ms; }
             }
         }
@@ -152,7 +152,7 @@ export component FlyoutPanel inherits Rectangle {
     border-color: Theme.flyout-border;
     drop-shadow-blur: 16px;
     drop-shadow-offset-y: 4px;
-    drop-shadow-color: #000000c0;
+    drop-shadow-color: Theme.shadow;
 
     TouchArea { }
 
@@ -192,7 +192,7 @@ export component StepSelector inherits HorizontalLayout {
 
         Text {
             text: value + root.unit;
-            color: Theme.foreground;
+            color: value == root.selected ? Theme.on-accent : Theme.foreground;
             font-size: Theme.font-small;
             font-weight: 600;
             horizontal-alignment: center;
@@ -257,7 +257,7 @@ export component TabButton inherits Rectangle {
             background: Theme.accent;
             count-text := Text {
                 text: root.count;
-                color: Theme.foreground;
+                color: Theme.on-accent;
                 font-size: Theme.font-small;
                 font-weight: 700;
                 horizontal-alignment: center;

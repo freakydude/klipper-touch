@@ -650,6 +650,7 @@ impl Presenter {
                 name: SharedString::from(field.name.as_str()),
                 placeholder: SharedString::from(field.placeholder.as_str()),
                 value: SharedString::from(field.value.as_str()),
+                numeric: field.numeric,
             })
             .collect();
         *self.macro_form_state.borrow_mut() = form;

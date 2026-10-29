@@ -86,7 +86,7 @@ component ExtruderTab inherits Rectangle {
                             height: sensor-grid.row-height;
                             icon: !sensor.enabled ? Icons.ui-minus : sensor.detected ? Icons.ui-check : Icons.filament-runout;
                             text: sensor.label;
-                            color: !sensor.enabled ? Theme.muted : sensor.detected ? Theme.success : Theme.warning;
+                            color: !sensor.enabled ? Theme.muted : sensor.detected ? Theme.foreground : Theme.warning;
                             font-size: Theme.font-small;
                         }
                     }
@@ -152,14 +152,6 @@ export component FilamentPage inherits Rectangle {
                 text: @tr("Service");
                 checked: root.tab == FilamentTab.service;
                 clicked => { Navigation.filament-tab = FilamentTab.service; }
-            }
-            Text {
-                horizontal-stretch: 1;
-                text: root.tab != FilamentTab.extruder && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
-                color: Theme.info;
-                font-size: Theme.font-normal;
-                vertical-alignment: center;
-                overflow: elide;
             }
         }
         if root.tab == FilamentTab.mmu: MmuTab {

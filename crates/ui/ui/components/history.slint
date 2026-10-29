@@ -104,7 +104,7 @@ export component HistoryDialog inherits Rectangle {
                     width: parent.width - 16px;
                     height: parent.height - 16px;
                     commands: Printer.history-power-path;
-                    stroke: Theme.info.with-alpha(0.5);
+                    stroke: Theme.chart-secondary;
                 }
                 ChartLine {
                     x: 8px;
@@ -159,7 +159,7 @@ export component HistoryDialog inherits Rectangle {
             alignment: end;
             Legend { color: Theme.accent; text: @tr("Temperature"); }
             if Printer.history-target-path != "": Legend { color: Theme.muted; text: @tr("Target"); }
-            if Printer.history-power-path != "": Legend { color: Theme.info.with-alpha(0.5); text: @tr("Power"); }
+            if Printer.history-power-path != "": Legend { color: Theme.chart-secondary; text: @tr("Power"); }
         }
     }
 }
