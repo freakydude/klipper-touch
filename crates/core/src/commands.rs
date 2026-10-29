@@ -461,11 +461,12 @@ impl Command {
             Self::RunMacro { name } => name.clone(),
             Self::RunGcode { script } => script.lines().next().unwrap_or_default().to_owned(),
             Self::Upgrade { name } => format!("Upgrade {name}"),
-            other => format!("{other:?}").split([' ', '{']).next().unwrap_or_default().to_owned(),
+            other => spaced_words(format!("{other:?}").split([' ', '{', '(']).next().unwrap_or_default()),
         }
     }
 
-    /// Restarts, reboots and updates end a running print; they are refused while a job is active.
+    /// Restarts, reboots and updates end a running print; they are refused while one runs
+    /// ([`PrinterStatus::print_running`](crate::sources::PrinterStatus::print_running)).
     pub fn interrupts_print(&self) -> bool {
         matches!(
             self,
@@ -477,6 +478,18 @@ impl Command {
                 | Self::Upgrade { .. }
         )
     }
+}
+
+/// `RefreshUpdates` → `Refresh Updates`, for names that are shown to people.
+fn spaced_words(name: &str) -> String {
+    let mut spaced = String::with_capacity(name.len() + 4);
+    for (index, letter) in name.char_indices() {
+        if index > 0 && letter.is_uppercase() {
+            spaced.push(' ');
+        }
+        spaced.push(letter);
+    }
+    spaced
 }
 
 #[cfg(test)]
@@ -747,7 +760,8 @@ mod tests {
 
     #[test]
     fn describes_commands_briefly() {
-        assert_eq!(Command::PausePrint.describe(), "PausePrint");
+        assert_eq!(Command::PausePrint.describe(), "Pause Print");
+        assert_eq!(Command::RefreshUpdates.describe(), "Refresh Updates");
         assert_eq!(Command::Jog { axis: Axis::X, distance: 1.0 }.describe(), "Jog");
         assert_eq!(Command::RunMacro { name: "PARK".into() }.describe(), "PARK");
         assert_eq!(Command::Upgrade { name: "klipper".into() }.describe(), "Upgrade klipper");
