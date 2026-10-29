@@ -126,39 +126,22 @@ Appears when Moonraker has the `spoolman` component, with or without an MMU:
 | -------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Spools with colour, material and weight left       | Before a print: what differs between file and spools        | The first preset on the temperature page belongs to the spool in use            |
 
-## How it compares to other touch screen UIs
+## What to expect
 
-The Klipper community has several good touch screen projects, and they complement each other more than they compete.
-FreakyMate is a younger, smaller addition with a different technical approach and with Happy Hare and Spoolman built in.
-Please try the others as well and pick what fits your printer:
+|                    | FreakyMate                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Maturity           | Young, one developer, tried on three printers, English only                                                       |
+| Technology         | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window                       |
+| Scope              | What a printer needs every day: print, move, heat, tune, filament, console and macros, system, settings, network |
+| Printers and hosts | One Moonraker at a time, on the printer host or elsewhere; Wi-Fi settings only on the printer host               |
+| Displays           | Works best from 5" at 800x480 (tested with the BTT HDMI5); other sizes are scaled, not tested yet                |
+| Multi-material     | Happy Hare 4.1 or newer; gates, filament path, buffer, FlowGuard and flow rate                                   |
+| Spoolman           | Woven into the print page, the temperature page and the MMU gates, with hints before a print                     |
+| Updates            | Moonraker's update manager, with a `stable` and a `beta` channel                                                 |
+| License            | GPL-3.0-or-later                                                                                                  |
 
-- [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen) is the established touch screen UI for Klipper, with a
-  large community, many panels and a much wider hardware support. **If you want something proven, use KlipperScreen.**
-- [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition) by moggieuk is a fork
-  of KlipperScreen that adds control of MMUs running the Happy Hare driver. It follows the upstream project closely and
-  leaves the original functionality untouched.
-- [HelixScreen](https://github.com/prestonbrown/helixscreen) is a newer, actively developed UI written in C++ with
-  LVGL. It has a printer database, a customizable dashboard, several multi-material backends and a wide range of
-  calibration tools.
-
-This is what I found in their documentation (read in October 2026) and in my own project. I only list what the projects
-state themselves and did not test the other projects, so their own pages are the better source.
-
-|                    | KlipperScreen                                                           | KlipperScreen Happy Hare Edition                                   | HelixScreen                                                                         | FreakyMate                                                                                       |
-| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Maturity           | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI | Fork of KlipperScreen, merged with upstream regularly      | 1.0 released, actively developed, nine languages, looking for co-maintainers        | Young, one developer, tried on three printers, English only                                      |
-| Technology         | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston | Same as KlipperScreen                                         | C++17 with LVGL 9, light on RAM                                                     | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window      |
-| Scope              | Many panels, among them bed mesh, bed level screws, input shaper, Z calibrate, limits, retraction, power | KlipperScreen plus MMU panels                | Dashboard with many widgets, input shaper, PID and MPC tuning, bed mesh, screws tilt, Z offset | The everyday ones: print, move, heat, tune, filament, console, macros, system, settings, network |
-| Printers and hosts | Several printers from one screen; can run on another device than the printer host | As KlipperScreen                                        | Printer database with auto-detection; runs on the printer or as a remote screen     | One Moonraker; can connect to a remote one, Wi-Fi settings need the printer host                 |
-| Displays           | Many, including GPIO/SPI displays                                       | Tested by the author on one 640x480 display                        | Layouts from 480x320 to 1024x600, 800x480 and 1024x600 best tested                  | BTT HDMI5 (800x480) first, other sizes are scaled, no SPI displays                               |
-| Multi-material     | See the Happy Hare Edition next to it                                   | Happy Hare (MMU panels, gate menus)                                | Happy Hare, AFC, ACE, AD5X IFS, CFS, Snapmaker U1, tool changers                    | Happy Hare 4.1 or newer only; buffer, FlowGuard and flow rate included                           |
-| Spoolman           | Has a Spoolman panel                                                    | As KlipperScreen                                                   | Spoolman integration with a spool creation wizard                                   | Woven into the print page, the temperature page and the MMU gates, with hints before a print     |
-| Updates            | Moonraker update manager or KIAUH                                       | Install script on top of a KlipperScreen install                   | Install script with `--update`, also as KIAUH extension                             | Moonraker update manager with `stable` and `beta` channels                                       |
-| License            | AGPL-3.0                                                                | AGPL-3.0                                                           | GPL-3.0                                                                             | GPL-3.0-or-later                                                                                 |
-
-I did not look into how deep the Spoolman support of each project goes, so that row says nothing about quality. Happy
-Hare support is the one place where FreakyMate is narrow on purpose: it targets Happy Hare only, while HelixScreen
-covers more systems. Corrections are welcome, please open an issue.
+Functions appear only where the printer has them, and the screen points out what looks unusual without forbidding it.
+Feedback, bug reports and corrections are welcome, please open an issue.
 
 ## Release and pre-release
 
@@ -199,8 +182,8 @@ Moonraker's update manager, like Mainsail or Fluidd.
      `moonraker.asvc`) and restarts Moonraker.
 
    Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c stable|beta` (update channel, see below).
-   Settings go to `printer_data/config/freakymate.json`, next to the Klipper configs, as KlipperScreen does with its
-   `KlipperScreen.conf`. An existing `~/.config/freakymate/settings.json` is copied there once.
+   Settings go to `printer_data/config/freakymate.json`, next to the Klipper configs, so they can be edited in
+   Mainsail or Fluidd. An existing `~/.config/freakymate/settings.json` is copied there once.
    Remove everything with `~/freakymate/uninstall.sh`; the settings file stays.
 
 ### Updates and channels
@@ -289,18 +272,48 @@ The Thermal page shows the first four. Restart FreakyMate after editing (`sudo s
 writes the file itself when a setting changes on the screen, so edit it while FreakyMate is stopped or restart right
 after saving.
 
+### Moonraker login
+
+Usually Moonraker trusts the machine FreakyMate runs on (`trusted_clients` in `moonraker.conf`, on the printer host
+`localhost`), and nothing needs to be set up. If it does not, for example with FreakyMate on another machine or with
+`force_logins: True`, the screen says that Moonraker wants a login and offers one:
+
+- **Log in on the screen** with a Moonraker user. FreakyMate keeps only Moonraker's refresh token, not the password,
+  and logs in again with it at every start until it expires (`login_timeout` in `moonraker.conf`, 90 days by default)
+  or the user logs out; then the screen asks again. Logging out (Display tab, or the same user logging out in
+  Mainsail or Fluidd) ends every login of that user, so a user of its own for the display avoids surprises.
+- **API key**, entered by hand in the credentials file below. Moonraker hands it out to an authorized client, for
+  example on the printer host, which it usually trusts: `curl http://localhost:7125/access/api_key`.
+
+The credentials are kept per Moonraker address in `~/.config/freakymate/credentials.json` (Windows:
+`%APPDATA%\freakymate\credentials.json`), readable by the owner only. They stay there also when the settings lie in
+`printer_data/config`, because Moonraker serves that folder and it is often backed up to a git repository.
+
+```json
+{
+  "moonraker": {
+    "http://printer.local:7125": { "api_key": "<Moonraker's API key>" }
+  }
+}
+```
+
+FreakyMate talks plain HTTP and WebSocket to Moonraker so far (no HTTPS), like most installations in a home network;
+the password of a login goes over the network unencrypted.
+
 ### Displays
 
-The supported display is the BTT HDMI5 (800x480), where it has been run; the layout is made for it. In fullscreen, other
-resolutions show the same layout scaled up or down to fit, so a 7" 1024x600 display fills its screen and a 4.3" 480x272
-display shows everything, only smaller. A window on a desktop is never smaller than 800x480; a larger one shows more
-room instead of scaling (where a compositor forces a smaller window, the layout is fitted as in fullscreen). These are not tested yet. A 3.5" 480x320 display is too small to operate comfortably, and displays that hang on
-the SPI bus may not work with the kiosk compositor at all. Layouts of their own for the 7" and 4.3" displays are planned.
+FreakyMate works best on a display of 5" or more at 800x480, such as the BTT HDMI5: the layout is made for that size and
+it is the one it has been tested with. In fullscreen, other resolutions show the same layout scaled up or down to fit, so
+a 7" 1024x600 display fills its screen and a smaller one, say a 4.3" 480x272, shows everything, only smaller. A window on
+a desktop is never smaller than 800x480; a larger one shows more room instead of scaling (where a compositor forces a
+smaller window, the layout is fitted as in fullscreen). Other sizes are not tested yet. Whether a small display is
+comfortable to read and touch depends on the display and on you, so it is worth a try. Layouts of their own for the 7"
+and 4.3" displays are planned.
 
 ### Network settings
 
 Moonraker can only report the host's network (`machine.system_info`), it cannot change it. FreakyMate therefore talks
-to NetworkManager over D-Bus, like KlipperScreen. Managing Wi-Fi (open, WPA/WPA2, WPA3, hidden, remove saved networks,
+to NetworkManager over D-Bus. Managing Wi-Fi (open, WPA/WPA2, WPA3, hidden, remove saved networks,
 on/off) and Ethernet (status, connect/disconnect) is offered when
 
 - FreakyMate runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and

@@ -1,12 +1,16 @@
-// Shown instead of the control pages while Moonraker or Klipper is not ready.
+// Shown instead of the control pages while Moonraker or Klipper is not ready, or Moonraker wants a login.
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Navigation, Page, Printer, StateIcons } from "../state.slint";
 import { IconButton } from "../components/controls.slint";
+import { TextEntryDialog } from "../components/overlays.slint";
 
 export component ConnectionPage inherits Rectangle {
     property <bool> connected: Printer.connection == "connected";
+    property <bool> login-required: Printer.connection == "login-required";
+    // Kept between attempts, so a wrong password needs only the password again.
+    property <string> username;
     background: Theme.background;
 
     TouchArea { }
@@ -30,7 +34,8 @@ export component ConnectionPage inherits Rectangle {
                 }
             }
             Text {
-                text: !root.connected
+                text: root.login-required ? @tr("Moonraker wants a login")
+                    : !root.connected
                     ? (Printer.connection == "connecting" ? @tr("Connecting to Moonraker …") : @tr("Moonraker not reachable"))
                     : Printer.klippy-state == "startup" ? @tr("Klipper is starting …")
                     : Printer.klippy-state == "shutdown" ? @tr("Klipper is shut down")
@@ -47,12 +52,29 @@ export component ConnectionPage inherits Rectangle {
                 font-size: Theme.font-normal;
                 wrap: word-wrap;
             }
+            if root.login-required && Printer.login-error != "": Text {
+                text: Printer.login-error;
+                color: Theme.warning;
+                font-size: Theme.font-normal;
+                wrap: word-wrap;
+            }
         }
 
         VerticalLayout {
             width: 240px;
             alignment: center;
             spacing: Theme.spacing;
+            if root.login-required: IconButton {
+                icon: Icons.ui-unlock;
+                text: @tr("Log in");
+                horizontal: true;
+                align-start: true;
+                kind: "accent";
+                clicked => {
+                    user-entry.text = root.username;
+                    user-entry.open = true;
+                }
+            }
             if root.connected: IconButton {
                 icon: Icons.system-restart;
                 text: @tr("Restart Klipper");
@@ -76,5 +98,21 @@ export component ConnectionPage inherits Rectangle {
                 clicked => { Navigation.page = Page.settings; }
             }
         }
+    }
+
+    // The keyboard needs the whole screen, so user and password are two entries one after the other.
+    user-entry := TextEntryDialog {
+        title: @tr("User");
+        accepted(text) => {
+            root.username = text;
+            password-entry.text = "";
+            password-entry.open = true;
+        }
+    }
+
+    password-entry := TextEntryDialog {
+        title: @tr("Password");
+        secret: true;
+        accepted(text) => { Actions.log-in(root.username, text); }
     }
 }

@@ -121,6 +121,10 @@ pub fn bind(
     actions.on_exclude_object(with(service, |service, name: slint::SharedString| {
         service.send(Command::ExcludeObject { name: name.into() })
     }));
+    let login_service = service.clone();
+    actions.on_log_in(move |username, password| login_service.log_in(&username, &password));
+    let logout_service = service.clone();
+    actions.on_log_out(move || logout_service.log_out());
     actions.on_mmu_select_gate(with(service, |service, gate: i32| {
         if let Ok(gate) = usize::try_from(gate) {
             service.send(Command::MmuSelectGate { gate });

@@ -13,6 +13,8 @@ use std::time::Duration;
 
 /// The fake's idle timeout passes after about 30 s at time scale 20.
 const IDLE_WAIT_LIMIT: Duration = Duration::from_secs(60);
+/// "Log in" on the connection page (800x480 layout).
+const LOG_IN_BUTTON: (f32, f32) = (656.0, 230.0);
 
 /// Scenes run in this order; each one leaves the printer ready for the next.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,10 +37,13 @@ pub enum Scene {
     Shutdown,
     /// Idle timeout; slow, therefore not part of the default selection.
     Idle,
+    /// Moonraker wants a login: refused, accepted, logged in on the settings, logged out. Needs a fake started with
+    /// `--auth test:secret`, so it is only run when chosen by name.
+    Login,
 }
 
 impl Scene {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Pages,
         Self::Spools,
         Self::Network,
@@ -48,6 +53,7 @@ impl Scene {
         Self::Printing,
         Self::Shutdown,
         Self::Idle,
+        Self::Login,
     ];
     pub const DEFAULT: [Self; 8] = [
         Self::Pages,
@@ -60,17 +66,20 @@ impl Scene {
         Self::Shutdown,
     ];
 
-    /// Parses `pages,network` or `all`.
+    /// Parses `pages,network` or `all` (every scene that runs against a fake without login).
     pub fn parse_list(text: &str) -> Result<Vec<Self>, String> {
         if text == "all" {
-            return Ok(Self::ALL.to_vec());
+            return Ok(Self::ALL.into_iter().filter(|scene| *scene != Self::Login).collect());
         }
         text.split(',').map(|name| Self::parse(name.trim())).collect()
     }
 
     fn parse(name: &str) -> Result<Self, String> {
         Self::ALL.into_iter().find(|scene| scene.name() == name).ok_or_else(|| {
-            format!("unknown scene '{name}' (pages, spools, network, taps, typing, calibrate, printing, shutdown, idle, all)")
+            format!(
+                "unknown scene '{name}' (pages, spools, network, taps, typing, calibrate, printing, shutdown, idle, \
+                 login, all)"
+            )
         })
     }
 
@@ -85,6 +94,7 @@ impl Scene {
             Self::Printing => "printing",
             Self::Shutdown => "shutdown",
             Self::Idle => "idle",
+            Self::Login => "login",
         }
     }
 
@@ -99,13 +109,18 @@ impl Scene {
             Self::Printing => printing(session),
             Self::Shutdown => shutdown(session),
             Self::Idle => idle(session),
+            Self::Login => logged_in(session),
         }
     }
 }
 
-/// Connects, homes and loads host data, then runs the chosen scenes in their fixed order.
+/// Connects (logging in first for the scene `login`), homes and loads host data, then runs the chosen scenes in their
+/// fixed order.
 pub fn run(session: &mut Session, chosen: &[Scene]) -> Result<(), String> {
     session.capture("connecting")?;
+    if chosen.contains(&Scene::Login) {
+        log_in(session)?;
+    }
     session.wait_until("printer ready", |snapshot| {
         snapshot.connection == ConnectionState::Connected && snapshot.status.klippy_state == KlippyState::Ready
     })?;
@@ -907,6 +922,52 @@ fn shutdown(session: &mut Session) -> Result<(), String> {
     session.wait_until("ready again", |snapshot| snapshot.status.klippy_state == KlippyState::Ready)
 }
 
+/// Before the printer is ready: the connection page asks for a login, a wrong password is refused, the right one
+/// opens the connection.
+fn log_in(session: &mut Session) -> Result<(), String> {
+    session.wait_until("login required", |snapshot| snapshot.connection == ConnectionState::LoginRequired)?;
+    session.capture("login-required")?;
+    session.window.global::<Actions>().invoke_log_in("test".into(), "wrong".into());
+    session.pump(Duration::from_secs(1));
+    if session.window.global::<Printer>().get_login_error().is_empty() {
+        return Err("a wrong password was not reported".into());
+    }
+    session.capture("login-refused")?;
+    if !session.has_reference_layout() {
+        session.window.global::<Actions>().invoke_log_in("test".into(), "secret".into());
+        return Ok(());
+    }
+    // As a user would: "Log in", the user, Enter, the password, Enter.
+    let (x, y) = LOG_IN_BUTTON;
+    session.tap(x, y);
+    session.pump(Duration::from_millis(300));
+    type_and_enter(session, "test");
+    session.capture("login-password")?;
+    type_and_enter(session, "secret");
+    Ok(())
+}
+
+fn type_and_enter(session: &mut Session, text: &str) {
+    for character in text.chars() {
+        session.key(character.to_string());
+    }
+    session.key(slint::platform::Key::Return);
+    session.pump(Duration::from_millis(300));
+}
+
+/// The settings show the user and offer to log out; the logout leads back to the login.
+fn logged_in(session: &mut Session) -> Result<(), String> {
+    session.show_page(Page::Settings, "settings-logged-in")?;
+    if session.window.global::<Printer>().get_login_user() != "test" {
+        return Err("the settings do not show the logged-in user".into());
+    }
+    ask(session, "Log out", "The next connection needs the password again.", "log-out", "");
+    session.capture("confirm-log-out")?;
+    session.window.global::<Confirm>().invoke_execute();
+    session.wait_until("login required again", |snapshot| snapshot.connection == ConnectionState::LoginRequired)?;
+    session.capture("logged-out")
+}
+
 fn idle(session: &mut Session) -> Result<(), String> {
     session.wait_until_for("idle timeout", IDLE_WAIT_LIMIT, |snapshot| snapshot.status.activity == Activity::Idle)?;
     session.show_page(Page::Print, "print-idle")
@@ -924,7 +985,8 @@ mod tests {
     #[test]
     fn parses_scene_lists() {
         assert_eq!(Scene::parse_list("network, pages"), Ok(vec![Scene::Network, Scene::Pages]));
-        assert_eq!(Scene::parse_list("all"), Ok(Scene::ALL.to_vec()));
+        assert_eq!(Scene::parse_list("all").map(|scenes| scenes.len()), Ok(Scene::ALL.len() - 1));
+        assert_eq!(Scene::parse_list("login"), Ok(vec![Scene::Login]));
         assert!(Scene::parse_list("pages,unknown").is_err());
     }
 }

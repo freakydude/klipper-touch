@@ -1,7 +1,9 @@
 //! End-to-end test of the service against the fake Moonraker in the same process.
 
+use fake_moonraker::access::AccessConfig;
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
+use freakymate_core::credentials::Credential;
 use freakymate_core::domain::filament::{self, FilamentHandling};
 use freakymate_core::domain::{job_end, light, pause, spools};
 use freakymate_core::sources::happy_hare::commands::{Gates, ServoCommand};
@@ -11,7 +13,10 @@ use freakymate_core::sources::klipper::{Axis, FanKind, KlippyState, Leveling, Pr
 use freakymate_core::sources::moonraker_server::files::ThumbnailImage;
 use freakymate_core::sources::moonraker_server::gcode_store::ConsoleKind;
 use freakymate_core::sources::PrinterStatus;
-use freakymate_core::{Command, ConnectionState, Endpoint, Event, PrinterService, Query, ServiceChannels, Snapshot};
+use freakymate_core::{
+    Access, Command, ConnectionState, CredentialStore, Endpoint, Event, PrinterService, Query, ServiceChannels,
+    Snapshot,
+};
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
@@ -23,11 +28,34 @@ async fn start_fake() -> Endpoint {
 }
 
 async fn start_fake_with(profile: MachineProfile) -> Endpoint {
+    start_fake_configured(profile, None).await
+}
+
+/// A fake that trusts nobody: user `test`, password `secret`, and its API key.
+async fn start_guarded_fake() -> Endpoint {
+    start_fake_configured(MachineProfile::voron(), Some(AccessConfig::new("test", "secret"))).await
+}
+
+async fn start_fake_configured(profile: MachineProfile, access: Option<AccessConfig>) -> Endpoint {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    let config = ServerConfig { time_scale: 1000.0, status_interval: Duration::from_millis(20), profile };
+    let config = ServerConfig { time_scale: 1000.0, status_interval: Duration::from_millis(20), profile, access };
     tokio::spawn(serve(listener, config));
     Endpoint::parse(&address.to_string()).unwrap()
+}
+
+fn start_service(endpoint: Endpoint, credentials: CredentialStore) -> (PrinterService, ServiceChannels) {
+    PrinterService::start(&tokio::runtime::Handle::current(), endpoint, credentials)
+}
+
+fn temporary_credentials(name: &str) -> CredentialStore {
+    let path = std::env::temp_dir().join(format!("kt-service-{name}-{}", std::process::id())).join("credentials.json");
+    let _ = std::fs::remove_file(&path);
+    CredentialStore::new(path)
+}
+
+fn login_required(snapshot: &Snapshot) -> bool {
+    snapshot.connection == ConnectionState::LoginRequired
 }
 
 async fn wait_for(channels: &mut ServiceChannels, condition: impl Fn(&Snapshot) -> bool) -> Snapshot {
@@ -63,7 +91,8 @@ fn ready(snapshot: &Snapshot) -> bool {
 #[tokio::test(flavor = "multi_thread")]
 async fn connects_detects_capabilities_and_follows_state() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
 
     let snapshot = wait_for(&mut channels, ready).await;
     let klipper = &snapshot.sources.klipper;
@@ -91,7 +120,8 @@ async fn connects_detects_capabilities_and_follows_state() {
 #[tokio::test(flavor = "multi_thread")]
 async fn follows_happy_hare_gates_sensors_and_loading() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
 
     let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
     assert_eq!(filament::handling(&snapshot.sources, &snapshot.status), FilamentHandling::Mmu);
@@ -136,7 +166,8 @@ async fn follows_happy_hare_gates_sensors_and_loading() {
 #[tokio::test(flavor = "multi_thread")]
 async fn runs_the_service_commands_of_happy_hare() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
     assert_eq!(snapshot.status.mmu.unwrap().servo, Some(ServoPosition::Up));
 
@@ -157,7 +188,8 @@ async fn runs_the_service_commands_of_happy_hare() {
 #[tokio::test(flavor = "multi_thread")]
 async fn sets_the_filament_of_a_gate_and_loads_it() {
     let endpoint = start_fake_with(MachineProfile::ercf(4)).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     let snapshot = wait_for(&mut channels, |snapshot| ready(snapshot) && snapshot.status.mmu.is_some()).await;
     let temperature = snapshot.status.mmu.unwrap().gates[1].temperature;
 
@@ -179,7 +211,8 @@ async fn sets_the_filament_of_a_gate_and_loads_it() {
 #[tokio::test(flavor = "multi_thread")]
 async fn commands_reach_the_printer_in_the_order_they_were_sent() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     for target in 100..200 {
@@ -196,7 +229,8 @@ async fn commands_reach_the_printer_in_the_order_they_were_sent() {
 #[tokio::test(flavor = "multi_thread")]
 async fn quick_heater_steps_build_on_each_other() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     // Each step starts from the target the previous one set, even before Klipper reported it back.
@@ -211,7 +245,8 @@ async fn quick_heater_steps_build_on_each_other() {
 #[tokio::test(flavor = "multi_thread")]
 async fn presets_and_cooling_down_act_on_every_heater() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::ApplyPreset { extruder: 210.0, bed: 60.0 });
@@ -227,7 +262,8 @@ async fn presets_and_cooling_down_act_on_every_heater() {
 #[tokio::test(flavor = "multi_thread")]
 async fn intents_the_printer_cannot_carry_out_are_reported() {
     let endpoint = start_fake_with(MachineProfile::basic()).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::Level);
@@ -240,7 +276,8 @@ async fn intents_the_printer_cannot_carry_out_are_reported() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_command_that_waits_long_for_its_answer_is_reported_as_running_until_it_has_one() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     // Quick commands never show up as running.
@@ -260,7 +297,8 @@ async fn a_command_that_waits_long_for_its_answer_is_reported_as_running_until_i
 #[tokio::test(flavor = "multi_thread")]
 async fn reads_the_spools_of_the_gates_from_spoolman() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
-    let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (_service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     let snapshot = wait_for(&mut channels, ready).await;
     assert!(snapshot.sources.moonraker.spoolman);
 
@@ -287,7 +325,8 @@ async fn reads_the_spools_of_the_gates_from_spoolman() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_printer_without_spoolman_has_no_spoolman_component() {
     let endpoint = start_fake_with(MachineProfile::basic()).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     let snapshot = wait_for(&mut channels, ready).await;
 
     service.query(Query::Spoolman);
@@ -302,7 +341,8 @@ async fn a_printer_without_spoolman_has_no_spoolman_component() {
 #[tokio::test(flavor = "multi_thread")]
 async fn the_active_spool_is_set_and_reported_back() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::SetActiveSpool { spool_id: Some(6) });
@@ -324,7 +364,8 @@ async fn the_active_spool_is_set_and_reported_back() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_spool_is_assigned_to_a_gate_and_its_weight_is_corrected() {
     let endpoint = start_fake_with(MachineProfile::happy_hare(4)).await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::AssignGateSpool { gate: 1, spool_id: Some(8) });
@@ -351,7 +392,8 @@ async fn a_spool_is_assigned_to_a_gate_and_its_weight_is_corrected() {
 #[tokio::test(flavor = "multi_thread")]
 async fn the_picker_list_is_most_recently_used_first() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.query(Query::SpoolList);
@@ -367,7 +409,8 @@ async fn the_picker_list_is_most_recently_used_first() {
 #[tokio::test(flavor = "multi_thread")]
 async fn runs_print_job_and_loads_file_details() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.query(Query::Files);
@@ -400,7 +443,8 @@ async fn runs_print_job_and_loads_file_details() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::StartPrint { filename: "calibration_cube.gcode".into() });
@@ -429,7 +473,8 @@ async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
 #[tokio::test(flavor = "multi_thread")]
 async fn loads_the_last_completed_print_of_each_file() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.query(Query::PrintHistory);
@@ -447,7 +492,8 @@ async fn loads_the_last_completed_print_of_each_file() {
 #[tokio::test(flavor = "multi_thread")]
 async fn reports_errors_and_recovers_from_emergency_stop() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::RunGcode { script: "G1 X10".into() });
@@ -466,7 +512,8 @@ async fn reports_errors_and_recovers_from_emergency_stop() {
 #[tokio::test(flavor = "multi_thread")]
 async fn firmware_restart_after_shutdown_during_a_print() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
     service.send(Command::StartPrint { filename: "benchy.gcode".into() });
     wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Printing).await;
@@ -482,7 +529,8 @@ async fn firmware_restart_after_shutdown_during_a_print() {
 #[tokio::test(flavor = "multi_thread")]
 async fn queries_host_functions() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.query(Query::PowerDevices);
@@ -513,7 +561,8 @@ async fn queries_host_functions() {
 #[tokio::test(flavor = "multi_thread")]
 async fn multi_line_responses_arrive_as_one_message_with_line_breaks() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::RunGcode { script: "HELP".into() });
@@ -538,7 +587,8 @@ async fn multi_line_responses_arrive_as_one_message_with_line_breaks() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_macro_appears_in_the_console_like_a_typed_command() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     wait_for(&mut channels, ready).await;
 
     service.send(Command::RunMacro { name: "G28".into() });
@@ -555,7 +605,8 @@ async fn reports_disconnected_when_server_is_missing() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let endpoint = Endpoint::parse(&listener.local_addr().unwrap().to_string()).unwrap();
     drop(listener);
-    let (_service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (_service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
 
     wait_for(&mut channels, |snapshot| snapshot.connection == ConnectionState::Disconnected).await;
 }
@@ -563,7 +614,8 @@ async fn reports_disconnected_when_server_is_missing() {
 #[tokio::test(flavor = "multi_thread")]
 async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
     let endpoint = start_fake().await;
-    let (service, mut channels) = PrinterService::start(&tokio::runtime::Handle::current(), endpoint);
+    let (service, mut channels) =
+        PrinterService::start(&tokio::runtime::Handle::current(), endpoint, CredentialStore::in_memory());
     let snapshot = wait_for(&mut channels, ready).await;
 
     let klipper = &snapshot.sources.klipper;
@@ -618,4 +670,89 @@ async fn fans_lights_sensors_and_tuning_values_follow_the_printer() {
     })
     .await
     .expect("temperature history not filled in time");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn logs_in_keeps_the_login_and_logs_out() {
+    let endpoint = start_guarded_fake().await;
+    let credentials = temporary_credentials("login");
+    let (service, mut channels) = start_service(endpoint.clone(), credentials.clone());
+
+    wait_for(&mut channels, login_required).await;
+    service.log_in("test", "wrong");
+    let failed = next_event(&mut channels, |event| matches!(event, Event::LoginFailed(_))).await;
+    assert_eq!(failed, Event::LoginFailed("Invalid Password".to_owned()));
+    service.log_in("test", "secret");
+    let snapshot = wait_for(&mut channels, ready).await;
+    assert_eq!(snapshot.access, Access::User("test".to_owned()));
+    assert!(
+        matches!(credentials.credential(&endpoint), Some(Credential::Login { username, .. }) if username == "test")
+    );
+
+    // A new start gets in with the stored refresh token, without the password.
+    drop(service);
+    let (service, mut channels) = start_service(endpoint.clone(), credentials.clone());
+    let snapshot = wait_for(&mut channels, ready).await;
+    assert_eq!(snapshot.access, Access::User("test".to_owned()));
+
+    service.log_out();
+    wait_for(&mut channels, login_required).await;
+    assert_eq!(credentials.credential(&endpoint), None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_api_key_opens_the_connection_and_the_thumbnails() {
+    let endpoint = start_guarded_fake().await;
+    let credentials = temporary_credentials("api-key");
+    credentials.store(&endpoint, Some(Credential::ApiKey { api_key: AccessConfig::API_KEY.to_owned() })).unwrap();
+    let (service, mut channels) = start_service(endpoint, credentials);
+
+    let snapshot = wait_for(&mut channels, ready).await;
+    assert_eq!(snapshot.access, Access::ApiKey);
+    service.query(Query::FileDetails { filename: "benchy.gcode".into() });
+    let thumbnail = next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
+    assert!(matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Svg(_), .. }));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_logged_in_display_fetches_thumbnails_with_a_one_time_token() {
+    let endpoint = start_guarded_fake().await;
+    let (service, mut channels) = start_service(endpoint, CredentialStore::in_memory());
+
+    wait_for(&mut channels, login_required).await;
+    service.log_in("test", "secret");
+    wait_for(&mut channels, ready).await;
+    service.query(Query::FileDetails { filename: "benchy.gcode".into() });
+
+    next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_wrong_key_asks_for_a_login_but_does_not_lock_out_a_trusted_display() {
+    let wrong = Some(Credential::ApiKey { api_key: "guess".to_owned() });
+    let guarded = start_guarded_fake().await;
+    let credentials = temporary_credentials("wrong-guarded");
+    credentials.store(&guarded, wrong.clone()).unwrap();
+    let (_service, mut channels) = start_service(guarded, credentials);
+    wait_for(&mut channels, login_required).await;
+
+    // Moonraker refuses a wrong key even from a trusted client; the display then goes on without it.
+    let trusting =
+        start_fake_configured(MachineProfile::voron(), Some(AccessConfig::new("test", "secret").trusting())).await;
+    let credentials = temporary_credentials("wrong-trusting");
+    credentials.store(&trusting, wrong).unwrap();
+    let (_service, mut channels) = start_service(trusting, credentials);
+    let snapshot = wait_for(&mut channels, ready).await;
+    assert_eq!(snapshot.access, Access::Open);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn commands_fail_while_moonraker_wants_a_login() {
+    let endpoint = start_guarded_fake().await;
+    let (service, mut channels) = start_service(endpoint, CredentialStore::in_memory());
+
+    wait_for(&mut channels, login_required).await;
+    service.send(Command::Home { x: true, y: true, z: true });
+
+    next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
 }

@@ -28,7 +28,7 @@ use freakymate_core::sources::moonraker_server::gcode_store::{ConsoleKind, Conso
 use freakymate_core::sources::moonraker_server::history::{FinishedJob, PrintHistory};
 use freakymate_core::sources::spoolman::{Spool, SpoolmanState};
 use freakymate_core::sources::PrinterStatus;
-use freakymate_core::{Command, ConnectionState, Event, PrinterService, Query, Snapshot};
+use freakymate_core::{Access, Command, ConnectionState, Event, PrinterService, Query, Snapshot};
 use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -268,6 +268,14 @@ impl Presenter {
         printer.set_klippy_message(status.klippy_message.as_str().into());
         printer.set_endpoint(snapshot.endpoint.as_str().into());
         printer.set_ready(ready);
+        printer.set_login_user(match &snapshot.access {
+            Access::User(username) => username.as_str().into(),
+            Access::Open | Access::ApiKey => SharedString::new(),
+        });
+        printer.set_api_key(snapshot.access == Access::ApiKey);
+        if snapshot.connection != ConnectionState::LoginRequired {
+            printer.set_login_error(SharedString::new());
+        }
 
         printer.set_print_state(status.job.state.as_str().into());
         printer.set_activity(status.activity.as_str().into());
@@ -473,6 +481,11 @@ impl Presenter {
                 let shown = format!("{command}: {message}");
                 let id = self.status.log.borrow_mut().add_command_failure(&shown, &message, now_seconds());
                 self.show_message(id, &shown, true);
+            }
+            Event::LoginFailed(message) => {
+                if let Some(window) = self.window.upgrade() {
+                    window.global::<Printer>().set_login_error(message.into());
+                }
             }
             Event::CommandRunning { id, command } => {
                 self.running_commands.borrow_mut().push((id, command));

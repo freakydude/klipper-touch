@@ -1,14 +1,16 @@
 //! HTTP and WebSocket server that behaves like Moonraker.
 
+use crate::access::AccessConfig;
 use crate::backend::Backend;
 use crate::machine::MachineProfile;
 use crate::session::Session;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, State};
-use axum::http::{header, StatusCode};
+use axum::extract::{Path, Query, State};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use std::collections::HashMap;
 use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -17,17 +19,24 @@ use tokio::net::TcpListener;
 
 const SIMULATION_STEP: Duration = Duration::from_millis(100);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ServerConfig {
     /// Speeds up heating and print progress; 1.0 means real time.
     pub time_scale: f64,
     pub status_interval: Duration,
     pub profile: MachineProfile,
+    /// Wants a login like a Moonraker that does not trust the client; `None` trusts everyone.
+    pub access: Option<AccessConfig>,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        Self { time_scale: 1.0, status_interval: Duration::from_millis(250), profile: MachineProfile::default() }
+        Self {
+            time_scale: 1.0,
+            status_interval: Duration::from_millis(250),
+            profile: MachineProfile::default(),
+            access: None,
+        }
     }
 }
 
@@ -39,7 +48,7 @@ struct AppState {
 }
 
 pub async fn serve(listener: TcpListener, config: ServerConfig) -> io::Result<()> {
-    let backend = Arc::new(Backend::with_profile(config.time_scale, config.profile));
+    let backend = Arc::new(Backend::with_profile(config.time_scale, config.profile).with_access(config.access));
     let simulation = tokio::spawn(simulate(Arc::clone(&backend)));
     let state =
         AppState { backend, status_interval: config.status_interval, next_connection_id: Arc::new(AtomicU64::new(1)) };
@@ -102,7 +111,7 @@ async fn run_session(mut socket: WebSocket, state: AppState, connection_id: u64)
             Some(reply) = delayed.recv() => Some(reply),
             _ = status_ticker.tick() => session.status_notification(&state.backend),
             notification = notifications.recv() => match notification {
-                Ok(message) => Some(message),
+                Ok(message) => session.authorized(&state.backend).then_some(message),
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => None,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             },
@@ -116,7 +125,17 @@ async fn run_session(mut socket: WebSocket, state: AppState, connection_id: u64)
     }
 }
 
-async fn thumbnail(State(state): State<AppState>, Path(path): Path<String>) -> Response {
+/// A fake that wants a login serves files only for a one-time token (`?token=`) or the API key (`X-Api-Key`).
+async fn thumbnail(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Response {
+    let api_key = headers.get("X-Api-Key").and_then(|value| value.to_str().ok());
+    if !state.backend.access().allows_download(query.get("token").map(String::as_str), api_key) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
     match state.backend.catalog().thumbnail_svg(&path) {
         Some(svg) => ([(header::CONTENT_TYPE, "image/svg+xml")], svg).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),

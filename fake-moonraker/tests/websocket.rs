@@ -21,7 +21,12 @@ async fn start_server() -> SocketAddr {
 async fn start_server_with(profile: MachineProfile) -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
-    let config = ServerConfig { time_scale: 1000.0, status_interval: Duration::from_millis(20), profile };
+    let config = ServerConfig {
+        time_scale: 1000.0,
+        status_interval: Duration::from_millis(20),
+        profile,
+        ..ServerConfig::default()
+    };
     tokio::spawn(serve(listener, config));
     address
 }

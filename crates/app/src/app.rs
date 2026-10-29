@@ -8,7 +8,7 @@ use crate::settings_controller::SettingsController;
 use crate::AppWindow;
 use freakymate_core::network::{NetworkBackend, NetworkService};
 use freakymate_core::settings::{SettingsError, SettingsStore};
-use freakymate_core::{Endpoint, PrinterService};
+use freakymate_core::{CredentialStore, Endpoint, PrinterService};
 use slint::winit_030::winit::event::WindowEvent;
 use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -71,7 +71,9 @@ impl Application {
         if let Err(error) = slint::set_xdg_app_id("freakymate") {
             log::warn!("cannot set the app id: {error}");
         }
-        let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
+        // Always in the user's configuration directory, also when the settings lie in printer_data/config.
+        let (service, channels) =
+            PrinterService::start(runtime.handle(), endpoint.clone(), CredentialStore::default_location());
         let presenter = Presenter::new(&window, service.clone());
         let (network_service, network_channels) = NetworkService::start(runtime.handle(), options.network);
         let network = NetworkController::bind(

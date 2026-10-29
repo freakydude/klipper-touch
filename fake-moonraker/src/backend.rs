@@ -1,5 +1,6 @@
 //! Shared state of all connections: printer, host, file catalog and runtime.
 
+use crate::access::{Access, AccessConfig};
 use crate::files::Catalog;
 use crate::host::Host;
 use crate::machine::MachineProfile;
@@ -26,6 +27,7 @@ pub struct Backend {
     ended_jobs: Mutex<Vec<Value>>,
     started: Instant,
     notifications: broadcast::Sender<String>,
+    access: Access,
 }
 
 impl Backend {
@@ -45,7 +47,18 @@ impl Backend {
             ended_jobs: Mutex::new(Vec::new()),
             started: Instant::now(),
             notifications: broadcast::channel(NOTIFICATION_BUFFER).0,
+            access: Access::default(),
         }
+    }
+
+    /// Wants a login from every connection, unlike the default that trusts all.
+    pub fn with_access(mut self, config: Option<AccessConfig>) -> Self {
+        self.access = Access::new(config);
+        self
+    }
+
+    pub fn access(&self) -> &Access {
+        &self.access
     }
 
     /// Receiver for notifications to all connections (G-code responses, Klippy state ...).

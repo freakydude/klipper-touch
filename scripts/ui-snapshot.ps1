@@ -1,10 +1,11 @@
 <#
   Renders the pages of the Slint UI headless as PNG against a freshly started fake Moonraker.
   Usage (repo root): powershell -File scripts\ui-snapshot.ps1 [-OutDir <folder>] [-Profile voron] [-Size 800x480]
-                     [-NoFit] [-Scenes pages,network,printing,shutdown,idle|all]
+                     [-NoFit] [-Scenes pages,network,printing,shutdown,idle,login|all]
   -NoFit: the window of the given size without scaling the layout to 800x480 (as a desktop window; at least 800x480).
           Without it the layout is fitted to the size like the app does in fullscreen.
-  Without -Scenes all scenes except the slow 'idle' run. Exit code 0 on success; the PNG paths are printed.
+  Without -Scenes all scenes except the slow 'idle' and 'login' run; with 'login' the fake wants a login (user test,
+  password secret) and the other chosen scenes run logged in. Exit code 0 on success; the PNG paths are printed.
 #>
 param(
     [string]$OutDir = (Join-Path $env:TEMP 'kt-ui-snapshots'),
@@ -24,7 +25,9 @@ try {
 
     Get-Process fake-moonraker, ui-snapshot -ErrorAction SilentlyContinue | Stop-Process -Force
     if (Test-Path $OutDir) { Remove-Item -Recurse -Force $OutDir }
-    $fake = Start-Process -FilePath 'target\debug\fake-moonraker.exe' -ArgumentList '--port', $Port, '--time-scale', '20', '--profile', $Profile -PassThru -WindowStyle Hidden
+    $fakeArguments = @('--port', $Port, '--time-scale', '20', '--profile', $Profile)
+    if (",$Scenes," -like '*,login,*') { $fakeArguments += @('--auth', 'test:secret') }
+    $fake = Start-Process -FilePath 'target\debug\fake-moonraker.exe' -ArgumentList $fakeArguments -PassThru -WindowStyle Hidden
     try {
         Start-Sleep -Milliseconds 800
         $arguments = @('--moonraker', "http://127.0.0.1:$Port", '--out', $OutDir, '--size', $Size)

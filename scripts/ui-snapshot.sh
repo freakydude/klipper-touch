@@ -4,7 +4,8 @@
 # Usage (repo root): scripts/ui-snapshot.sh [-o <folder>] [-p voron] [-s 800x480] [-F] [-S pages,network] [-P 7125]
 # -F: no fit; the window of the given size without scaling the layout to 800x480 (as a desktop window; at least
 #     800x480). Without -F the layout is fitted to the size like the app does in fullscreen.
-# Without -S all scenes except the slow 'idle' run. Exit code 0 on success; the PNG paths are printed.
+# Without -S all scenes except the slow 'idle' and 'login' run; with 'login' the fake wants a login (user test,
+# password secret) and the other chosen scenes run logged in. Exit code 0 on success; the PNG paths are printed.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -40,7 +41,11 @@ pkill -x fake-moonraker 2>/dev/null || true
 pkill -x ui-snapshot 2>/dev/null || true
 rm -rf "$out_dir"
 
-target/debug/fake-moonraker --port "$port" --time-scale 20 --profile "$profile" > /dev/null 2>&1 &
+fake_arguments=(--port "$port" --time-scale 20 --profile "$profile")
+if [[ ,$scenes, == *,login,* ]]; then
+    fake_arguments+=(--auth test:secret)
+fi
+target/debug/fake-moonraker "${fake_arguments[@]}" > /dev/null 2>&1 &
 fake=$!
 trap 'kill "$fake" 2>/dev/null || true' EXIT
 
