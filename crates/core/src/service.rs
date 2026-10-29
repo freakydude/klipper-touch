@@ -36,8 +36,6 @@ const PRINT_HISTORY_LIMIT: u32 = 300;
 const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// Moonraker does not report WLED changes, and Mainsail or a macro may switch a strip too.
 const WLED_POLL_INTERVAL: Duration = Duration::from_secs(5);
-/// While a fan spins up, its state is looked at this often, so a stalled one shows without news from Klipper.
-const FAN_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 /// Spools for the picker: the most recently used ones.
 const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "freakymate";
@@ -259,7 +257,7 @@ struct Session<'a> {
     job_state: PrintState,
     /// Targets sent but not yet reported back; the snapshot shows them.
     pending_targets: PendingTargets,
-    /// Since when each fan should turn; the snapshot marks the stalled ones.
+    /// What each fan's tachometer has measured since Klipper started; the snapshot marks the stalled ones.
     fan_watch: FanWatch,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
     spoolman_gate_spools: Option<Vec<u32>>,
@@ -313,7 +311,6 @@ impl<'a> Session<'a> {
         let mut klippy_poll = tokio::time::interval(KLIPPY_POLL_INTERVAL);
         let mut spoolman_poll = tokio::time::interval(SPOOLMAN_POLL_INTERVAL);
         let mut wled_poll = tokio::time::interval(WLED_POLL_INTERVAL);
-        let mut fan_check = tokio::time::interval(FAN_CHECK_INTERVAL);
         loop {
             tokio::select! {
                 notification = notifications.recv() => match notification {
@@ -335,7 +332,6 @@ impl<'a> Session<'a> {
                     let strips = self.fetch_wled().await;
                     self.update_wled(strips);
                 }
-                _ = fan_check.tick(), if self.klippy_ready && self.fan_watch.awaits_spin_up() => self.publish(),
                 _ = klippy_poll.tick(), if !self.klippy_ready => {
                     if let Err(error) = self.refresh_klippy().await {
                         log::debug!("klippy not ready yet: {error}");
@@ -386,6 +382,8 @@ impl<'a> Session<'a> {
         sources.wled_strips = self.wled.iter().map(WledStrip::object).collect();
         self.sources = sources;
         self.store.replace(result.get("status").unwrap_or(&Value::Null));
+        // After a restart the configuration or the hardware may have changed: what was learned about the fans is gone.
+        self.fan_watch = FanWatch::default();
         self.klippy_ready = true;
         self.publish();
         Ok(())

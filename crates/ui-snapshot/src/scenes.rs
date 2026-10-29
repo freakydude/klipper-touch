@@ -344,13 +344,22 @@ fn messages(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
-/// The exhaust fan switched on with a blocked tachometer: red after the spin-up time; afterwards off again.
+/// The exhaust fan measures at 50 %, then its tachometer goes silent: red after a while; afterwards off again. The
+/// core only learns a reading some seconds after a change of speed (kick start), so this scene waits that long.
 fn stalled_fan(session: &mut Session) -> Result<(), String> {
     let exhaust_stalled =
         |snapshot: &Snapshot| snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.stalled);
-    session
-        .service
-        .send(Command::RunGcode { script: "SET_FAN_SPEED FAN=exhaust SPEED=0.5\nFAKE_FAN_STALL FAN=exhaust".into() });
+    session.service.send(Command::RunGcode { script: "SET_FAN_SPEED FAN=exhaust SPEED=0.5".into() });
+    session.wait_until("the exhaust fan to measure", |snapshot| {
+        snapshot
+            .status
+            .fans
+            .iter()
+            .any(|fan| fan.object == "fan_generic exhaust" && fan.rpm.is_some_and(|rpm| rpm > 0.0))
+    })?;
+    // Settling time of the core (3 s plus Klipper's default kick start of 0.1 s) and a little more.
+    session.pump(Duration::from_millis(4500));
+    session.service.send(Command::RunGcode { script: "FAKE_FAN_STALL FAN=exhaust".into() });
     session.wait_until("the exhaust fan to count as stalled", exhaust_stalled)?;
     session.show_page(Page::Temperature, "temperature-fan-stalled")?;
     session.service.send(Command::RunGcode {

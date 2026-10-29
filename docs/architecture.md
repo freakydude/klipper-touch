@@ -96,8 +96,9 @@ history).
    FlowGuard). Moonraker's WLED strips join the LEDs as `wled <strip>`: read when subscribing, every 5 s (Moonraker
    does not report changes) and from the answer of each command to a strip; `domain/light.rs` picks the main light
    among all of them. Two pieces of state live in the service beside the store: heater targets sent but not yet
-   reported back (`PendingTargets`) and since when each fan should turn (`FanWatch`, marks a fan stalled whose
-   tachometer still reports 0 rpm after the spin-up time; while a fan spins up the service looks again every second).
+   reported back (`PendingTargets`) and what each fan's tachometer has measured since Klipper started (`FanWatch`:
+   the lowest speed with a settled reading; a fan that reports 0 rpm for 5 s at or above it counts as stalled, judged
+   with each status update).
    Every new state goes to the UI as a `Snapshot` (status and sources) through a `watch` channel.
 3. One-off data (files, metadata, thumbnails, power devices, updates, console, errors) arrives as `Event`. File
    details are fetched four at a time, and thumbnails arrive decoded (`files::ThumbnailImage`), so the UI thread only

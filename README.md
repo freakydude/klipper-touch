@@ -40,8 +40,9 @@ is the BTT HDMI5 (5", 800x480, landscape).
   history with a grid: the last 20 minutes of Moonraker's temperature store, asked again every five seconds while it
   is open. Moonraker keeps heaters and `temperature_sensor` objects there; the others have no history. Further tabs when the printer has them:
   - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
-    bar, speed in rpm where there is a tachometer; a fan that should turn but has reported 0 rpm for a few seconds
-    turns red.
+    bar, speed in rpm where there is a tachometer. A fan turns red when its tachometer has reported 0 rpm for a few
+    seconds at a speed where it measured before (many tachometers report nothing at a low speed although the fan
+    turns); what it learned is forgotten when Klipper restarts.
   - **Sensors**: every temperature without a target (`temperature_sensor` of any sensor type, TMC2240 drivers).
 - **Light**: the light symbol in the status bar opens a panel with the main (chamber) light as a switch, every LED
   (`neopixel`, `led`, `dotstar`, …) on, off and dimmed as white light, and the effects of the
