@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, Dialogs, Navigation, Page, PrintObjectItem, Printer, SpoolPicker } from "../state.slint";
-import { ColorBar, FlyoutPanel, IconButton, IconLabel, ScrollList } from "controls.slint";
+import { ColorBar, FlyoutPanel, IconButton, IconLabel, ScrollList, TextWithValue } from "controls.slint";
 import { BedMap, BedMapLegend } from "bed-map.slint";
 import { DialogHeader, DialogPanel, Scrim } from "dialog.slint";
 
@@ -1066,11 +1066,10 @@ export component SpoolDialog inherits Scrim {
                                 font-weight: 600;
                                 overflow: elide;
                             }
-                            Text {
-                                text: spool.detail;
+                            TextWithValue {
+                                text: spool.material;
+                                value: spool.remaining;
                                 color: spool.low ? Theme.warning : Theme.muted;
-                                font-size: Theme.font-small;
-                                overflow: elide;
                             }
                         }
                         Text {

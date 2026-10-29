@@ -106,15 +106,6 @@ pub fn spool_remaining(spool: &Spool) -> String {
     spool.remaining_weight.map(format::filament_weight).unwrap_or_default()
 }
 
-/// Material and what is left, for example `ABS+ · 613 g`.
-pub fn spool_detail(spool: &Spool) -> String {
-    [spool.material.clone(), spool_remaining(spool)]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join(" · ")
-}
-
 /// The spool as a preset on the temperature page, for example `ABS+  240/120`.
 pub fn spool_preset_text(spool: &Spool) -> Option<String> {
     let nozzle = spool.extruder_temp?;

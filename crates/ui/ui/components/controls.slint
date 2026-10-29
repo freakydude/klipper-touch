@@ -554,6 +554,35 @@ export component TouchSlider inherits Rectangle {
     }
 }
 
+// A describing text and a value on one line, e.g. "Sunlu PETG · 38 g". Only the text is shortened when room is
+// short; the value (a number, a weight, a percentage) always stays whole. `alignment: end` puts the line at the right.
+export component TextWithValue inherits HorizontalLayout {
+    in property <string> text;
+    in property <string> value;
+    in property <string> separator: " · ";
+    in property <color> color: Theme.muted;
+    in property <length> font-size: Theme.font-small;
+    in property <int> font-weight: 400;
+    alignment: start;
+
+    if root.text != "": Text {
+        text: root.text;
+        color: root.color;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    if root.value != "": Text {
+        min-width: self.preferred-width;
+        text: (root.text != "" ? root.separator : "") + root.value;
+        color: root.color;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        vertical-alignment: center;
+    }
+}
+
 // Row with icon and text, e.g. for status displays.
 export component IconLabel inherits HorizontalLayout {
     in property <image> icon;

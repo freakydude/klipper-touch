@@ -55,7 +55,8 @@ pub(crate) fn spool_rows(spools: &[Spool], lanes: &[Lane]) -> Vec<SpoolItem> {
             SpoolItem {
                 id: spool.id as i32,
                 title: spool.title().into(),
-                detail: view::spool_detail(spool).into(),
+                material: spool.material.as_str().into(),
+                remaining: view::spool_remaining(spool).into(),
                 color: bar.0,
                 color_2: bar.1,
                 color_3: bar.2,

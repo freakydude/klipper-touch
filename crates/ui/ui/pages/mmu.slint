@@ -5,7 +5,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, MmuDialogs, MmuGateItem, Navigation, Printer } from "../state.slint";
-import { Card, ColorBar, IconButton, IconLabel } from "../components/controls.slint";
+import { Card, ColorBar, IconButton, IconLabel, TextWithValue } from "../components/controls.slint";
 import { FilamentPath } from "../components/filament-path.slint";
 
 // Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
@@ -375,13 +375,11 @@ export component MmuStrip inherits Card {
                 count: Printer.spool-color-count;
                 longitudinal: Printer.spool-longitudinal;
             }
-            Text {
-                text: Printer.has-spool ? (Printer.spool-weight != "" ? Printer.spool-title + " · " + Printer.spool-weight : Printer.spool-title) : "";
+            if Printer.has-spool: TextWithValue {
+                alignment: end;
+                text: Printer.spool-title;
+                value: Printer.spool-weight;
                 color: Printer.spool-low ? Theme.warning : Theme.muted;
-                font-size: Theme.font-small;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-                overflow: elide;
             }
         }
         // Where the filament is, in the short form without the distance.

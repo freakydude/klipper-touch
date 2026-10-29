@@ -136,7 +136,9 @@ export struct FilamentPathItem {
 export struct SpoolItem {
     id: int,
     title: string,
-    detail: string,
+    material: string,
+    // What is left, e.g. "613 g"; empty if Spoolman does not know.
+    remaining: string,
     color: color,
     color-2: color,
     color-3: color,
@@ -441,7 +443,7 @@ export global Printer {
     // Spoolman id of the spool in use, -1 for none.
     in property <int> spool-id: -1;
     in property <string> spool-title;
-    in property <string> spool-detail;
+    in property <string> spool-material;
     // What is left of the spool, for example "613 g".
     in property <string> spool-weight;
     in property <color> spool-color;
@@ -824,9 +826,15 @@ export global StateIcons {
     // Status bar: connection/Klipper while not ready, then a print job if there is one, otherwise the activity.
     public pure function summary-label() -> string {
         if (!Printer.ready) { return self.klippy-label(Printer.connection, Printer.klippy-state); }
-        if (Printer.is-printing) { return Printer.job-name + "  " + round(Printer.progress * 100) + "%"; }
+        if (Printer.is-printing) { return Printer.job-name; }
         if (Printer.print-state != "standby") { return self.print-state-label(Printer.print-state); }
         return self.activity-label(Printer.activity);
+    }
+
+    // The value after the summary that must not be cut off: the progress of a print.
+    public pure function summary-value() -> string {
+        if (Printer.ready && Printer.is-printing) { return round(Printer.progress * 100) + "%"; }
+        return "";
     }
 
     public pure function summary() -> image {

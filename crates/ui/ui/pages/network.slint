@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Confirm, HostInterfaceItem, Network, Printer, WifiItem, WiredItem } from "../state.slint";
-import { Card, IconButton, IconLabel, ScrollList, ToggleRow } from "../components/controls.slint";
+import { Card, IconButton, IconLabel, ScrollList, TextWithValue, ToggleRow } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 
 // One network: tap to connect; buttons to disconnect (active) or remove (saved).
@@ -127,14 +127,12 @@ component WifiCard inherits Card {
             clicked => { root.hidden-network(); }
         }
     }
-    Text {
-        text: Network.busy != "" ? Network.busy + " …"
-            : Network.active-ssid != "" && Network.wifi-address != "" ? @tr("Connected to {} ({})", Network.active-ssid, Network.wifi-address)
-            : Network.active-ssid != "" ? @tr("Connected to {}", Network.active-ssid)
+    // What is being changed right now shows in the status bar; here the state, with the address kept whole.
+    TextWithValue {
+        text: Network.active-ssid != "" ? @tr("Connected to {}", Network.active-ssid)
             : Network.wifi-enabled ? @tr("Not connected") : @tr("Wi-Fi is switched off");
-        color: Network.busy != "" ? Theme.accent : Theme.muted;
-        font-size: Theme.font-small;
-        overflow: elide;
+        value: Network.active-ssid != "" && Network.wifi-address != "" ? "(" + Network.wifi-address + ")" : "";
+        separator: " ";
     }
     wifi-list := ScrollList {
         property <length> row-pitch: Theme.touch + 14px;

@@ -2,8 +2,9 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Confirm, Dialogs, Navigation, Page, Printer, StateIcons } from "../state.slint";
+import { Actions, Confirm, Dialogs, Navigation, Network, Page, Printer, StateIcons } from "../state.slint";
 import { BusyWheel } from "busy-wheel.slint";
+import { TextWithValue } from "controls.slint";
 
 // A temperature of the status bar; a tap leads to the heaters without looking like a button.
 component TemperatureReading inherits Rectangle {
@@ -39,10 +40,11 @@ component TemperatureReading inherits Rectangle {
 }
 
 export component StatusBar inherits Rectangle {
-    // The one place for what is running right now: a command of this display that waits long for its answer, or
-    // what the MMU is doing (whoever started it).
+    // The one place for what is running right now: a command of this display that waits long for its answer, what
+    // the MMU is doing (whoever started it), or the network being changed.
     property <string> activity: Printer.running-command != "" ? Printer.running-command
-        : Printer.mmu-action != "" && Printer.mmu-action != "Idle" ? Printer.mmu-action : "";
+        : Printer.mmu-action != "" && Printer.mmu-action != "Idle" ? Printer.mmu-action
+        : Network.busy;
 
     height: 44px;
     background: Theme.surface;
@@ -68,12 +70,13 @@ export component StatusBar inherits Rectangle {
                 width: 24px;
                 height: 24px;
             }
-            Text {
+            // The progress of a print stays whole when a long file name is shortened.
+            TextWithValue {
                 text: root.activity != "" ? root.activity + " …" : StateIcons.summary-label();
+                value: root.activity != "" ? "" : StateIcons.summary-value();
+                separator: "  ";
                 color: Theme.foreground;
                 font-size: Theme.font-normal;
-                vertical-alignment: center;
-                overflow: elide;
             }
         }
 
