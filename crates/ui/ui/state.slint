@@ -174,6 +174,39 @@ export struct BedMapItem {
     grid: string,
 }
 
+// The active bed mesh, back at the top: a dense mesh as a picture of one pixel per probed point, a small one as cells. `aspect` is width to depth of the
+// measured area; `limit` the end of the colour scale on both sides of 0; `filled`: corners of a round bed, not probed.
+export struct BedMeshMap {
+    shown: bool,
+    image: image,
+    columns: int,
+    rows: int,
+    aspect: float,
+    range: string,
+    lowest: string,
+    highest: string,
+    limit: string,
+    averaged: int,
+    filled: bool,
+}
+
+// A cell of a small mesh map with its value, counted from the top left; `dark` text on a light cell.
+export struct MeshCellItem {
+    column: int,
+    row: int,
+    text: string,
+    colour: color,
+    dark: bool,
+}
+
+// The points a faulty region replaced with the average around it, counted from the top left.
+export struct MeshFrameItem {
+    column: int,
+    row: int,
+    columns: int,
+    rows: int,
+}
+
 // Texts of a file row; an empty text is a fact the file does not have.
 // One screw from the last SCREWS_TILT_CALCULATE.
 export struct ScrewItem {
@@ -417,6 +450,9 @@ export global Printer {
     // The active mesh profile, empty without one.
     in property <string> bed-mesh-active;
     in property <[string]> bed-mesh-profiles;
+    in property <BedMeshMap> bed-mesh-map;
+    in property <[MeshCellItem]> bed-mesh-cells;
+    in property <[MeshFrameItem]> bed-mesh-frames;
     in property <[ScrewItem]> screw-results;
     // The mode Klipper waits in until ACCEPT or ABORT: manual-probe | bed-screws, empty if none.
     in property <string> calibration-mode;
@@ -538,6 +574,10 @@ export global Actions {
     callback calibrate-bed-mesh();
     callback load-bed-mesh(string);
     callback clear-bed-mesh();
+    callback save-bed-mesh(string);
+    callback remove-bed-mesh(string);
+    // Why a typed name cannot be saved, or that it overwrites a profile; empty if neither.
+    pure callback bed-mesh-name-hint(string) -> string;
     callback calculate-screws-tilt();
     callback adjust-bed-screws();
     // PROBE_CALIBRATE or Z_ENDSTOP_CALIBRATE, whichever the printer has.
@@ -749,6 +789,7 @@ export global Confirm {
         if (self.action == "mmu-check-all-gates") { Actions.mmu-check-all-gates(); }
         if (self.action == "mmu-reset-tool-map") { Actions.mmu-reset-tool-map(); }
         if (self.action == "save-config") { Actions.save-config(); }
+        if (self.action == "remove-bed-mesh") { Actions.remove-bed-mesh(self.argument); }
         if (self.action == "reboot-host") { Actions.reboot-host(); }
         if (self.action == "shutdown-host") { Actions.shutdown-host(); }
         if (self.action == "restart-service") { Actions.restart-service(self.argument); }
@@ -765,6 +806,12 @@ export global Confirm {
     }
 }
 
+// The map of the active bed mesh and the saved profiles, opened from the Calibrate tab.
+export global MeshDialogs {
+    in-out property <bool> map-open;
+    in-out property <bool> profiles-open;
+}
+
 // Dialogs lie in the content area, beside the navigation and below the status bar. A tap there cancels every open
 // dialog before the button does its own work (Frank, 2026-10-27): `dismiss` closes the dialogs of the window, and
 // the dialogs of the pages close when `dismissals` changes.
@@ -776,6 +823,8 @@ export global Dialogs {
         SpoolPicker.open = false;
         MmuDialogs.gate = -1;
         MmuDialogs.bypass-open = false;
+        MeshDialogs.map-open = false;
+        MeshDialogs.profiles-open = false;
         if (Navigation.history-open) { Actions.close-history(); }
         // Closing the dialog of a calibration mode leaves the mode (Frank, 2026-10-28).
         if (Printer.ready && Printer.calibration-mode != "") { Actions.abort-calibration(); }

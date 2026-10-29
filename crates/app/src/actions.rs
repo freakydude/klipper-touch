@@ -89,6 +89,9 @@ pub fn bind(
         service.send(Command::LoadBedMesh { profile: profile.into() })
     }));
     actions.on_clear_bed_mesh(send(|| Command::ClearBedMesh));
+    actions.on_remove_bed_mesh(with(service, |service, profile: SharedString| {
+        service.send(Command::RemoveBedMesh { profile: profile.into() })
+    }));
     actions.on_calculate_screws_tilt(send(|| Command::CalculateScrewsTilt));
     actions.on_adjust_bed_screws(send(|| Command::AdjustBedScrews));
     actions.on_calibrate_z(send(|| Command::CalibrateZ));
@@ -209,6 +212,10 @@ pub fn bind(
     actions.on_print_hints(move |path| hints_presenter.print_hints_text(&path).into());
     let target_presenter = Rc::clone(presenter);
     actions.on_heater_target_outside(move |heater, typed| target_presenter.heater_target_outside(&heater, &typed));
+    let mesh_presenter = Rc::clone(presenter);
+    actions.on_bed_mesh_name_hint(move |name| mesh_presenter.bed_mesh_name_hint(&name).into());
+    let save_presenter = Rc::clone(presenter);
+    actions.on_save_bed_mesh(move |name| save_presenter.save_bed_mesh(name.trim()));
 
     let files_presenter = Rc::clone(presenter);
     actions.on_refresh_files(move || files_presenter.request_files());

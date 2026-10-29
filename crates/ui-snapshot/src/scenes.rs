@@ -1,7 +1,7 @@
 //! The run, split into scenes that can be chosen on the command line.
 
 use crate::session::Session;
-use freakymate::{Actions, Confirm, FilamentTab, MmuDialogs, Navigation, Page, Printer, SpoolPicker};
+use freakymate::{Actions, Confirm, FilamentTab, MeshDialogs, MmuDialogs, Navigation, Page, Printer, SpoolPicker};
 use freakymate_core::network::{Availability, NetworkCommand, NetworkState};
 use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
@@ -645,6 +645,9 @@ fn calibrate(session: &mut Session) -> Result<(), String> {
     }
     session.pump(Duration::from_millis(300));
     session.capture("calibrate-results")?;
+    if offered.bed_mesh {
+        bed_mesh_dialogs(session)?;
+    }
 
     session.service.send(Command::CalibrateZ);
     session.wait_until("manual probe", |snapshot| snapshot.status.calibration.mode.is_some())?;
@@ -682,6 +685,54 @@ fn calibrate(session: &mut Session) -> Result<(), String> {
     session.wait_until("saved", |snapshot| !snapshot.status.save_config_pending)?;
     session.window.global::<Navigation>().set_move_tab(0);
     Ok(())
+}
+
+/// The tiles of the bed mesh card on the Calibrate tab (800x480, no fitting): the map and the profile selector.
+const MESH_MAP_TILE: (f32, f32) = (660.0, 178.0);
+const MESH_PROFILE_TILE: (f32, f32) = (660.0, 240.0);
+
+/// The map of the measured mesh with its faulty region, then the profiles: one saved under a new name and removed
+/// again, so the scenes after it see the profiles they started with.
+fn bed_mesh_dialogs(session: &mut Session) -> Result<(), String> {
+    if session.has_reference_layout() {
+        let (x, y) = MESH_MAP_TILE;
+        session.tap(x, y);
+    } else {
+        session.window.global::<MeshDialogs>().set_map_open(true);
+    }
+    session.pump(Duration::from_millis(300));
+    if !session.window.global::<MeshDialogs>().get_map_open() {
+        return Err("a tap on the mesh thumbnail did not open the map".into());
+    }
+    session.capture("calibrate-mesh")?;
+    session.window.global::<MeshDialogs>().set_map_open(false);
+
+    if session.has_reference_layout() {
+        let (x, y) = MESH_PROFILE_TILE;
+        session.tap(x, y);
+    } else {
+        session.window.global::<MeshDialogs>().set_profiles_open(true);
+    }
+    session.window.global::<Actions>().invoke_save_bed_mesh("smooth-pei".into());
+    session.wait_until("profile saved", |snapshot| has_mesh_profile(snapshot, "smooth-pei"))?;
+    session.pump(Duration::from_millis(300));
+    if !session.window.global::<MeshDialogs>().get_profiles_open() {
+        return Err("a tap on the profile selector did not open the profiles".into());
+    }
+    session.capture("calibrate-mesh-profiles")?;
+    session.window.global::<Actions>().invoke_remove_bed_mesh("smooth-pei".into());
+    session.wait_until("profile removed", |snapshot| !has_mesh_profile(snapshot, "smooth-pei"))?;
+    session.window.global::<MeshDialogs>().set_profiles_open(false);
+    Ok(())
+}
+
+fn has_mesh_profile(snapshot: &Snapshot, name: &str) -> bool {
+    snapshot
+        .status
+        .calibration
+        .bed_mesh
+        .as_ref()
+        .is_some_and(|mesh| mesh.profiles.iter().any(|profile| profile == name))
 }
 
 fn printing(session: &mut Session) -> Result<(), String> {

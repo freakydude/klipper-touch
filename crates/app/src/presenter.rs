@@ -1,5 +1,6 @@
 //! Transfers core state and events into the Slint globals. Runs on the UI thread only.
 
+use crate::bed_mesh_view::mesh_name_problem_text;
 use crate::calibration_view::CalibrationView;
 use crate::history_view::HistoryView;
 use crate::items::{
@@ -20,6 +21,7 @@ use freakymate_core::domain::file_catalog::FileCatalog;
 use freakymate_core::domain::spools::{self, Lane};
 use freakymate_core::domain::{estimates, light, pause};
 use freakymate_core::sources::happy_hare::{MmuGate, MmuStatus};
+use freakymate_core::sources::klipper::commands::{mesh_name_problem, MeshNameProblem};
 use freakymate_core::sources::klipper::{offered_macros, tuning, KlippyState, Leveling, MacroDetails, MacroForm};
 use freakymate_core::sources::moonraker_server::files::{FileEntry, FileMetadata, ThumbnailImage};
 use freakymate_core::sources::moonraker_server::gcode_store::{ConsoleKind, ConsoleLine};
@@ -816,6 +818,35 @@ impl Presenter {
         let bed =
             spool.bed_temp.or_else(|| snapshot.status.heater("heater_bed").map(|heater| heater.target)).unwrap_or(0.0);
         self.service.send(Command::ApplyPreset { extruder, bed });
+    }
+
+    /// Why `name` cannot be saved as a bed mesh profile, or that it replaces one; empty while nothing is typed.
+    pub fn bed_mesh_name_hint(&self, name: &str) -> String {
+        let name = name.trim();
+        match mesh_name_problem(name) {
+            Some(problem) => mesh_name_problem_text(problem).to_owned(),
+            None if self.has_bed_mesh_profile(name) => "Overwrites this profile".to_owned(),
+            None => String::new(),
+        }
+    }
+
+    /// Saves the active mesh as `name`, or says why Klipper would not.
+    pub fn save_bed_mesh(&self, name: &str) {
+        match mesh_name_problem(name) {
+            Some(MeshNameProblem::Empty) => self.show_notice("Enter a name for the profile", true),
+            Some(problem) => self.show_notice(mesh_name_problem_text(problem), true),
+            None => self.service.send(Command::SaveBedMesh { profile: name.to_owned() }),
+        }
+    }
+
+    fn has_bed_mesh_profile(&self, name: &str) -> bool {
+        let snapshot = self.snapshot();
+        snapshot
+            .status
+            .calibration
+            .bed_mesh
+            .as_ref()
+            .is_some_and(|mesh| mesh.profiles.iter().any(|profile| profile == name))
     }
 
     /// Klipper would refuse `typed` as the target of `heater`; a text that is no number is not judged.

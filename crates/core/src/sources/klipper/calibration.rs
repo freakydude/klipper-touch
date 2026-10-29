@@ -2,6 +2,7 @@
 //! Z height of the probe or the Z endstop, the interactive modes Klipper waits in (`manual_probe`, `bed_screws`) and
 //! what `SAVE_CONFIG` would write. Commands and fields follow Klipper's G-Codes.md and Status_Reference.md.
 
+use super::bed_mesh::{self, BedMesh};
 use super::fields::{count, number, text};
 use crate::sources::objects::ObjectStore;
 use serde_json::Value;
@@ -62,11 +63,13 @@ pub struct ScrewAdjustment {
 }
 
 /// The bed mesh in use and the saved profiles.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct BedMeshState {
     /// Empty if no mesh is active.
     pub active: String,
     pub profiles: Vec<String>,
+    /// The points of the active mesh.
+    pub mesh: Option<BedMesh>,
 }
 
 /// A section `SAVE_CONFIG` would write: options with their new values, or `None` if it removes the section.
@@ -91,7 +94,7 @@ impl CalibrationState {
         Self {
             mode: read_manual_probe(store.object("manual_probe"))
                 .or_else(|| read_bed_screws(store.object("bed_screws"), section("bed_screws"))),
-            bed_mesh: store.object("bed_mesh").map(read_bed_mesh),
+            bed_mesh: store.object("bed_mesh").map(|object| read_bed_mesh(object, section("bed_mesh"))),
             screws: read_screws(store.object("screws_tilt_adjust"), section("screws_tilt_adjust")),
             pending: read_pending(store.object("configfile")),
         }
@@ -127,9 +130,13 @@ fn is_active(object: &Value) -> bool {
     object.get("is_active").and_then(Value::as_bool).unwrap_or_default()
 }
 
-fn read_bed_mesh(object: &Value) -> BedMeshState {
+fn read_bed_mesh(object: &Value, settings: Option<&Value>) -> BedMeshState {
     let profiles = object.get("profiles").and_then(Value::as_object).map(|profiles| profiles.keys().cloned().collect());
-    BedMeshState { active: text(object, "profile_name").to_owned(), profiles: profiles.unwrap_or_default() }
+    BedMeshState {
+        active: text(object, "profile_name").to_owned(),
+        profiles: profiles.unwrap_or_default(),
+        mesh: bed_mesh::read(object, settings),
+    }
 }
 
 fn read_screws(object: Option<&Value>, settings: Option<&Value>) -> Vec<ScrewAdjustment> {

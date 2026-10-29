@@ -367,9 +367,8 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
         "BED_MESH_CALIBRATE" => {
             Ok(Command::Calibration(CalibrationCommand::BedMeshCalibrate { profile: named_text(&args, "PROFILE") }))
         }
-        // Only `LOAD` is simulated; `SAVE` and `REMOVE` are ignored.
-        "BED_MESH_PROFILE" => Ok(named_text(&args, "LOAD")
-            .map_or(Command::Ignored, |profile| Command::Calibration(CalibrationCommand::BedMeshLoad { profile }))),
+        // Klipper takes the first of `LOAD`, `SAVE` and `REMOVE` (`bed_mesh.py`).
+        "BED_MESH_PROFILE" => Ok(bed_mesh_profile(&args).map_or(Command::Ignored, Command::Calibration)),
         "BED_MESH_CLEAR" => Ok(Command::Calibration(CalibrationCommand::BedMeshClear)),
         "MMU_HOME" => Ok(Command::Mmu(MmuCommand::Home)),
         "MMU_SELECT" if named_index(&args, "BYPASS")?.is_some_and(|value| value != 0) => {
@@ -484,6 +483,16 @@ fn required_text(args: &[&str], name: &str) -> Result<String, CommandError> {
     named_text(args, name).ok_or_else(|| CommandError::new(format!("Missing parameter {name}")))
 }
 
+fn bed_mesh_profile(args: &[&str]) -> Option<CalibrationCommand> {
+    if let Some(profile) = named_text(args, "LOAD") {
+        return Some(CalibrationCommand::BedMeshLoad { profile });
+    }
+    if let Some(profile) = named_text(args, "SAVE") {
+        return Some(CalibrationCommand::BedMeshSave { profile });
+    }
+    named_text(args, "REMOVE").map(|profile| CalibrationCommand::BedMeshRemove { profile })
+}
+
 fn named_text(args: &[&str], name: &str) -> Option<String> {
     args.iter()
         .filter_map(|arg| arg.split_once('='))
@@ -555,7 +564,7 @@ mod tests {
                 Command::Calibration(CalibrationCommand::TestZ(TestZ::By(-0.05))),
                 Command::Calibration(CalibrationCommand::TestZ(TestZ::Up { half: false })),
                 Command::Calibration(CalibrationCommand::BedMeshLoad { profile: "hot".into() }),
-                Command::Ignored,
+                Command::Calibration(CalibrationCommand::BedMeshSave { profile: "hot".into() }),
             ]
         );
         assert!(parse_script("TESTZ Z=up").is_err());

@@ -1,6 +1,7 @@
 //! Klipper itself: its objects (heaters, sensors, fans, LEDs, motion, print job), its configuration and its macros.
 //! Each kind of object has its own module; `status.rs` puts them together, `setup.rs` detects what is there.
 
+mod bed_mesh;
 mod calibration;
 pub mod commands;
 mod devices;
@@ -20,6 +21,7 @@ mod setup;
 mod status;
 pub mod tuning;
 
+pub use bed_mesh::{BedMesh, MeshPoint, MeshSpan};
 pub use calibration::{
     BedMeshState, CalibrationMode, CalibrationSetup, CalibrationState, PendingSection, ScrewAdjustment, TestZ,
 };

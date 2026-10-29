@@ -8,6 +8,7 @@ pub use freakymate_ui::*;
 pub mod actions;
 pub mod app;
 mod bed_map;
+mod bed_mesh_view;
 mod calibration_view;
 mod chart;
 pub mod display;
