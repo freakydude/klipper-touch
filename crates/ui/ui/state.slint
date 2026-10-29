@@ -312,12 +312,18 @@ export struct HostInterfaceItem {
 }
 
 export global Printer {
-    // Connection: connection = connecting | connected | disconnected; klippy-state as in Moonraker.
+    // Connection: connection = connecting | connected | disconnected | login-required; klippy-state as in Moonraker.
     in property <string> connection: "connecting";
     in property <string> klippy-state: "disconnected";
     in property <string> klippy-message;
     in property <string> endpoint;
     in property <bool> ready;
+    // How the display got into Moonraker: as the user logged in here, with the API key of the credentials file,
+    // or neither (Moonraker trusts this machine).
+    in property <string> login-user;
+    in property <bool> api-key;
+    // Moonraker's reason for refusing the last login; empty once a login is no longer asked for.
+    in property <string> login-error;
 
     // Print job (print_stats.state)
     in property <string> print-state: "standby";
@@ -595,6 +601,9 @@ export global Actions {
     callback unload-filament();
     callback run-macro(string);
     callback exclude-object(string);
+    // User and password; only Moonraker sees the password.
+    callback log-in(string, string);
+    callback log-out();
     // The index of the print object under a tap on the bed map, or -1: position and the finger's reach as shares of
     // the map's width and height, from the top left.
     callback print-object-at(float, float, float) -> int;
@@ -796,6 +805,7 @@ export global Confirm {
         if (self.action == "upgrade") { Actions.upgrade(self.argument); }
         if (self.action == "firmware-restart") { Actions.firmware-restart(); }
         if (self.action == "restart-klipper") { Actions.restart-klipper(); }
+        if (self.action == "log-out") { Actions.log-out(); }
         if (self.action == "disable-motors") { Actions.disable-motors(); }
         if (self.action == "power-off") { Actions.set-power(self.argument, false); }
         if (self.action == "connect-network") { Network.connect-pending(); }
@@ -867,6 +877,7 @@ export global StateIcons {
 
     public pure function klippy-label(connection: string, state: string) -> string {
         if (connection == "connecting") { return @tr("Moonraker: connecting"); }
+        if (connection == "login-required") { return @tr("Moonraker: login required"); }
         if (connection != "connected") { return @tr("Moonraker: not reachable"); }
         if (state == "ready") { return @tr("Klipper ready"); }
         if (state == "startup") { return @tr("Klipper: starting"); }
@@ -903,6 +914,7 @@ export global StateIcons {
     }
 
     public pure function klippy-state(connection: string, state: string) -> image {
+        if (connection == "login-required") { return Icons.ui-lock; }
         if (connection != "connected") { return Icons.system-disconnected; }
         if (state == "ready") { return Icons.state-ready; }
         if (state == "startup") { return Icons.state-startup; }

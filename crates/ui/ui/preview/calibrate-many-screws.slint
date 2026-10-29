@@ -1,0 +1,22 @@
+// Preview: Calibrate tab with nine screws of a large bed, more than fit, so the screw list scrolls.
+
+import { AppWindow } from "../app.slint";
+import { Printer } from "../state.slint";
+import { Sample } from "sample.slint";
+
+export component CalibrateManyScrewsPreview inherits AppWindow {
+    init => {
+        Sample.calibration();
+        Printer.screw-results = [
+            { name: "back left", turns: "00:00", clockwise: true, is-base: true },
+            { name: "back center", turns: "00:05", clockwise: true },
+            { name: "back right", turns: "00:12", clockwise: false },
+            { name: "center left", turns: "00:18", clockwise: true },
+            { name: "center", turns: "00:03", clockwise: false },
+            { name: "center right", turns: "00:40", clockwise: false },
+            { name: "front left", turns: "01:05", clockwise: true },
+            { name: "front center", turns: "00:22", clockwise: true },
+            { name: "front right", turns: "00:02", clockwise: false },
+        ];
+    }
+}

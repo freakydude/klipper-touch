@@ -8,7 +8,7 @@ use freakymate::settings_controller::SettingsController;
 use freakymate::{actions, AppWindow, Navigation, Page};
 use freakymate_core::network::{NetworkBackend, NetworkChannels, NetworkService};
 use freakymate_core::settings::{Settings, SettingsStore};
-use freakymate_core::{Endpoint, PrinterService, ServiceChannels, Snapshot};
+use freakymate_core::{CredentialStore, Endpoint, PrinterService, ServiceChannels, Snapshot};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
 use slint::platform::{Platform, WindowAdapter};
 use slint::platform::{PointerEventButton, WindowEvent};
@@ -73,7 +73,8 @@ impl Session {
             freakymate::display::apply_fit(window.window());
         }
 
-        let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
+        let (service, channels) =
+            PrinterService::start(runtime.handle(), endpoint.clone(), CredentialStore::in_memory());
         let presenter = Presenter::new(&window, service.clone());
         let (network_service, network_channels) = NetworkService::start(runtime.handle(), NetworkBackend::Simulated);
         let network = NetworkController::bind(

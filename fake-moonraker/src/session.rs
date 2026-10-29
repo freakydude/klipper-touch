@@ -1,5 +1,6 @@
 //! JSON-RPC session of a WebSocket connection.
 
+use crate::access;
 use crate::backend::Backend;
 use crate::files::GcodeFile;
 use crate::gcode::{self, CommandError};
@@ -44,11 +45,77 @@ pub struct Session {
     connection_id: u64,
     subscription: Subscription,
     reply_delay: Option<Duration>,
+    authorization: Authorization,
+}
+
+/// What a connection showed; it only matters while the fake wants a login.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Authorization {
+    Missing,
+    ApiKey,
+    /// Logged in, valid until the next logout (the backend counts them).
+    Login {
+        logouts: u64,
+    },
 }
 
 impl Session {
     pub fn new(connection_id: u64) -> Self {
-        Self { connection_id, subscription: Subscription::default(), reply_delay: None }
+        Self {
+            connection_id,
+            subscription: Subscription::default(),
+            reply_delay: None,
+            authorization: Authorization::Missing,
+        }
+    }
+
+    /// Moonraker sends notifications only to authorized connections.
+    pub fn authorized(&self, backend: &Backend) -> bool {
+        let access = backend.access();
+        !access.required()
+            || match self.authorization {
+                Authorization::Missing => false,
+                Authorization::ApiKey => true,
+                Authorization::Login { logouts } => logouts == access.logouts(),
+            }
+    }
+
+    /// Like Moonraker: a token or key must be valid even where none is needed, and without one the connection must
+    /// already be authorized.
+    fn identify(&mut self, backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+        let access = backend.access();
+        if access.enabled() {
+            if let Some(token) = params.get("access_token").and_then(Value::as_str) {
+                if !access.accepts_token(token) {
+                    return Err(RpcError::new(access::REFUSED, "Failed to decode JWT: unknown token"));
+                }
+                self.authorization = Authorization::Login { logouts: access.logouts() };
+            } else if let Some(api_key) = params.get("api_key").and_then(Value::as_str) {
+                if !access.accepts_api_key(api_key) {
+                    return Err(RpcError::new(access::REFUSED, "Invalid API Key"));
+                }
+                self.authorization = Authorization::ApiKey;
+            } else if !self.authorized(backend) {
+                return Err(unauthorized());
+            }
+        }
+        Ok(json!({ "connection_id": self.connection_id }))
+    }
+
+    fn log_in(&mut self, backend: &Backend, params: &Value) -> Result<Value, RpcError> {
+        let text = |name: &str| params.get(name).and_then(Value::as_str).unwrap_or_default();
+        let login = backend
+            .access()
+            .log_in(text("username"), text("password"))
+            .map_err(|message| RpcError::new(access::REFUSED, message))?;
+        self.authorization = Authorization::Login { logouts: backend.access().logouts() };
+        Ok(login)
+    }
+
+    fn log_out(backend: &Backend) -> Result<Value, RpcError> {
+        let username = backend.access().log_out().ok_or_else(|| RpcError::invalid_params("No user logged in"))?;
+        backend.notify("notify_user_logged_out", json!([{ "username": username }]));
+        Ok(json!({ "username": username, "action": "user_logged_out" }))
     }
 
     /// How long the reply to the last message waits (a script with `G4`); the server sends it later.
@@ -71,6 +138,9 @@ impl Session {
 
     /// Changes of the subscribed objects since the last report as `notify_status_update`.
     pub fn status_notification(&mut self, backend: &Backend) -> Option<String> {
+        if !self.authorized(backend) {
+            return None;
+        }
         let changes = self.subscription.changes(&backend.status())?;
         let notification = json!({
             "jsonrpc": "2.0",
@@ -97,8 +167,19 @@ impl Session {
     }
 
     fn dispatch(&mut self, backend: &Backend, method: &str, params: &Value) -> Result<Value, RpcError> {
+        if !access::OPEN_METHODS.contains(&method) && !self.authorized(backend) {
+            return Err(unauthorized());
+        }
         match method {
-            "server.connection.identify" => Ok(json!({ "connection_id": self.connection_id })),
+            "server.connection.identify" => self.identify(backend, params),
+            "access.info" => Ok(backend.access().info()),
+            "access.login" => self.log_in(backend, params),
+            "access.refresh_jwt" => backend
+                .access()
+                .refresh(params.get("refresh_token").and_then(Value::as_str).unwrap_or_default())
+                .map_err(|message| RpcError::new(access::REFUSED, message)),
+            "access.logout" => Self::log_out(backend),
+            "access.oneshot_token" => Ok(json!(backend.access().oneshot_token())),
             "server.info" => Ok(server_info(backend)),
             "printer.info" => Ok(printer_info(backend)),
             "server.gcode_store" => Ok(backend.with_host(|host| {
@@ -324,10 +405,73 @@ fn failure(id: Value, error: &RpcError) -> Value {
     json!({ "jsonrpc": "2.0", "error": error.to_json(), "id": id })
 }
 
+fn unauthorized() -> RpcError {
+    RpcError::new(access::REFUSED, "Unauthorized")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::access::AccessConfig;
     use crate::machine::MachineProfile;
+
+    fn guarded() -> Backend {
+        Backend::new(1.0).with_access(Some(AccessConfig::new("test", "secret")))
+    }
+
+    fn error_code(reply: &Value) -> Option<i64> {
+        reply["error"]["code"].as_i64()
+    }
+
+    #[test]
+    fn without_login_only_the_access_methods_answer() {
+        let backend = guarded();
+        let mut session = Session::new(1);
+
+        assert_eq!(error_code(&exchange(&mut session, &backend, call("server.info", json!({})))), Some(-32602));
+        let identify = exchange(&mut session, &backend, call("server.connection.identify", json!({})));
+        assert_eq!(identify["error"]["message"], "Unauthorized");
+        assert_eq!(exchange(&mut session, &backend, call("access.info", json!({})))["result"]["trusted"], false);
+        assert!(session.status_notification(&backend).is_none());
+    }
+
+    #[test]
+    fn a_login_authorizes_the_connection_until_the_logout() {
+        let backend = guarded();
+        let mut session = Session::new(1);
+        let wrong =
+            exchange(&mut session, &backend, call("access.login", json!({"username": "test", "password": "x"})));
+        assert_eq!(error_code(&wrong), Some(-32602));
+
+        let login =
+            exchange(&mut session, &backend, call("access.login", json!({"username": "test", "password": "secret"})));
+        let token = login["result"]["token"].clone();
+        let mut other = Session::new(2);
+        let identify =
+            exchange(&mut other, &backend, call("server.connection.identify", json!({"access_token": token})));
+
+        assert!(identify["result"]["connection_id"].is_number());
+        assert!(exchange(&mut session, &backend, call("server.info", json!({})))["result"].is_object());
+        exchange(&mut session, &backend, call("access.logout", json!({})));
+        assert_eq!(error_code(&exchange(&mut other, &backend, call("server.info", json!({})))), Some(-32602));
+    }
+
+    #[test]
+    fn the_api_key_authorizes_and_a_wrong_one_is_refused() {
+        let backend = guarded();
+        let mut session = Session::new(1);
+
+        let wrong = exchange(&mut session, &backend, call("server.connection.identify", json!({"api_key": "guess"})));
+        let right = exchange(
+            &mut session,
+            &backend,
+            call("server.connection.identify", json!({"api_key": AccessConfig::API_KEY})),
+        );
+
+        assert_eq!(wrong["error"]["message"], "Invalid API Key");
+        assert!(right["result"].is_object());
+        assert!(exchange(&mut session, &backend, call("server.info", json!({})))["result"].is_object());
+    }
 
     fn exchange(session: &mut Session, backend: &Backend, request: Value) -> Value {
         let reply = session.handle_text(backend, &request.to_string()).expect("reply expected");

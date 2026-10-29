@@ -6,6 +6,7 @@
 //! [`PrinterService`]; the UI reads [`Snapshot`]s and [`Event`]s and sends [`Command`]s.
 
 pub mod commands;
+pub mod credentials;
 pub mod domain;
 pub mod moonraker;
 pub mod network;
@@ -15,8 +16,9 @@ pub mod sourced;
 pub mod sources;
 
 pub use commands::Command;
+pub use credentials::CredentialStore;
 pub use moonraker::Endpoint;
-pub use service::{ConnectionState, Event, PrinterService, Query, ServiceChannels, Snapshot};
+pub use service::{Access, ConnectionState, Event, PrinterService, Query, ServiceChannels, Snapshot};
 pub use settings::{Settings, SettingsStore};
 pub use sourced::{Provenance, Sourced};
 

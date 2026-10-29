@@ -3,7 +3,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { Actions, Navigation, Printer, UiSettings } from "../state.slint";
+import { Actions, Confirm, Navigation, Printer, UiSettings } from "../state.slint";
 import { Card, IconButton, ScrollList, ToggleRow } from "../components/controls.slint";
 import { TextEntryDialog } from "../components/overlays.slint";
 import { SystemTabs } from "../components/system-tabs.slint";
@@ -19,7 +19,8 @@ export component SettingsPage inherits Rectangle {
             spacing: Theme.spacing;
 
             VerticalLayout {
-                width: 250px;
+                // Room for "Change" and "Log out" side by side; below each other they would not fit in height.
+                width: 290px;
                 spacing: Theme.spacing;
                 Card {
                     title: @tr("Moonraker address");
@@ -30,14 +31,33 @@ export component SettingsPage inherits Rectangle {
                         font-size: Theme.font-normal;
                         overflow: elide;
                     }
-                    IconButton {
-                        height: 52px;
-                        icon: Icons.ui-edit;
-                        text: @tr("Change");
-                        horizontal: true;
-                        clicked => {
-                            address.text = UiSettings.moonraker;
-                            address.open = true;
+                    // Only when the display shows credentials; a trusted display has nothing to say here.
+                    if Printer.login-user != "" || Printer.api-key: Text {
+                        text: Printer.login-user != "" ? @tr("Logged in as {}", Printer.login-user) : @tr("With API key");
+                        color: Theme.muted;
+                        font-size: Theme.font-small;
+                        overflow: elide;
+                    }
+                    HorizontalLayout {
+                        spacing: Theme.spacing;
+                        IconButton {
+                            height: 52px;
+                            icon: Icons.ui-edit;
+                            text: @tr("Change");
+                            horizontal: true;
+                            clicked => {
+                                address.text = UiSettings.moonraker;
+                                address.open = true;
+                            }
+                        }
+                        if Printer.login-user != "": IconButton {
+                            height: 52px;
+                            icon: Icons.ui-lock;
+                            text: @tr("Log out");
+                            horizontal: true;
+                            clicked => {
+                                Confirm.ask(@tr("Log out"), @tr("The next connection needs the password again."), "log-out", "", false);
+                            }
                         }
                     }
                 }

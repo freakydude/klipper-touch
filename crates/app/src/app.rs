@@ -8,7 +8,7 @@ use crate::settings_controller::SettingsController;
 use crate::AppWindow;
 use freakymate_core::network::{NetworkBackend, NetworkService};
 use freakymate_core::settings::{SettingsError, SettingsStore};
-use freakymate_core::{Endpoint, PrinterService};
+use freakymate_core::{CredentialStore, Endpoint, PrinterService};
 use slint::winit_030::winit::event::WindowEvent;
 use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -71,7 +71,9 @@ impl Application {
         if let Err(error) = slint::set_xdg_app_id("freakymate") {
             log::warn!("cannot set the app id: {error}");
         }
-        let (service, channels) = PrinterService::start(runtime.handle(), endpoint.clone());
+        // Always in the user's configuration directory, also when the settings lie in printer_data/config.
+        let (service, channels) =
+            PrinterService::start(runtime.handle(), endpoint.clone(), CredentialStore::default_location());
         let presenter = Presenter::new(&window, service.clone());
         let (network_service, network_channels) = NetworkService::start(runtime.handle(), options.network);
         let network = NetworkController::bind(
@@ -100,8 +102,9 @@ impl Application {
         clock.start(TimerMode::Repeated, Duration::from_secs(1), move || clock_presenter.tick());
         presenter.refresh_job_texts();
 
-        // Started as a kiosk, the window never gets a frame: a kiosk compositor such as cage draws none, but winit
-        // still keeps the height of its own title bar free when leaving fullscreen (800x445 instead of 800x480).
+        // Started as a kiosk, the window never gets a frame: without `cage -d` (the service files) cage asks for
+        // client-side decorations, and winit keeps the height of its own title bar free when leaving fullscreen
+        // (800x445 instead of 800x480). This covers compositors without xdg-decoration as well.
         window.set_kiosk(options.fullscreen);
         if options.fullscreen || settings.fullscreen() {
             window.window().set_fullscreen(true);

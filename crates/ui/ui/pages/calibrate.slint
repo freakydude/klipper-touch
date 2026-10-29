@@ -5,7 +5,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { Actions, Confirm, MeshDialogs, Printer, ScrewItem } from "../state.slint";
-import { Card, IconButton } from "../components/controls.slint";
+import { Card, IconButton, ScrollList } from "../components/controls.slint";
 import { MeshMap } from "../components/bed-mesh.slint";
 
 component ActionButton inherits IconButton {
@@ -56,7 +56,9 @@ component ScrewRow inherits HorizontalLayout {
     }
 }
 
+// The screw rows scroll: `screws_tilt_adjust` takes any number of screws, a large bed has nine.
 component BedScrewsCard inherits Card {
+    property <length> row-step: 32px;
     title: @tr("Bed screws");
     icon: Icons.calibration-bed-screws;
     HorizontalLayout {
@@ -72,11 +74,18 @@ component BedScrewsCard inherits Card {
             clicked => { Actions.adjust-bed-screws(); }
         }
     }
-    for screw in Printer.screw-results: ScrewRow { screw: screw; }
+    screws := ScrollList {
+        vertical-stretch: 1;
+        content-height: Printer.screw-results.length * root.row-step;
+        for screw[index] in Printer.screw-results: ScrewRow {
+            y: index * root.row-step;
+            width: screws.row-width;
+            screw: screw;
+        }
+    }
     if Printer.screw-results.length > 0: Note {
         text: @tr("Turns as on a clock: 01:15 is one and a quarter turns.");
     }
-    Rectangle { vertical-stretch: 1; }
 }
 
 component LevelCard inherits Card {
@@ -204,13 +213,14 @@ export component CalibrateTab inherits Rectangle {
         HorizontalLayout {
             spacing: Theme.spacing;
             vertical-stretch: 1;
-            // Shares of the width independent of the content, so the cards keep their size when results come.
+            // Shares of the width independent of the content, so the cards keep their size when results come. The
+            // level card holds only buttons and gets just their width; screws and mesh share the rest.
             if root.has-screws: BedScrewsCard {
                 preferred-width: 0px;
-                horizontal-stretch: 1.3;
+                horizontal-stretch: 1;
             }
             LevelCard {
-                width: 210px;
+                width: 190px;
             }
             if Printer.has-bed-mesh: BedMeshCard {
                 preferred-width: 0px;

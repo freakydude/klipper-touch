@@ -4,6 +4,8 @@
 //! [`Snapshot`] over a `watch` channel, one-off results as [`Event`].
 
 use crate::commands::Command;
+use crate::credentials::{Credential, CredentialStore};
+use crate::moonraker::access::{self, AccessError};
 use crate::moonraker::{Call, CallError, Connection, Endpoint, Notification, PendingCall};
 use crate::sources::klipper::{FanWatch, KlippyState, PendingTargets, PrintState};
 use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
@@ -41,6 +43,9 @@ const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "freakymate";
 /// A command whose answer takes longer is shown as running (busy indicator).
 const LONG_COMMAND: Duration = Duration::from_secs(1);
+/// Moonraker sends nothing more to a connection that lost its authorization (the same user logged out elsewhere),
+/// not even the logout; so an authorized session asks now and then whether it still may.
+const ACCESS_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 /// Ids of running commands; unique across reconnections, where answers of an old connection may still arrive.
 static NEXT_COMMAND_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -50,6 +55,26 @@ pub enum ConnectionState {
     Connecting,
     Connected,
     Disconnected,
+    /// Connected, but Moonraker answers only after a login ([`PrinterService::log_in`]).
+    LoginRequired,
+}
+
+/// How the display got into Moonraker.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Access {
+    /// Without credentials: Moonraker trusts this machine or has no authorization.
+    #[default]
+    Open,
+    /// With the API key from the credentials file.
+    ApiKey,
+    /// As this user, logged in on the display.
+    User(String),
+}
+
+impl Access {
+    fn is_authorized(&self) -> bool {
+        *self != Self::Open
+    }
 }
 
 /// Current overall state for display.
@@ -57,6 +82,7 @@ pub enum ConnectionState {
 pub struct Snapshot {
     pub endpoint: String,
     pub connection: ConnectionState,
+    pub access: Access,
     pub status: PrinterStatus,
     /// What this printer has; detected again with every subscription.
     pub sources: Sources,
@@ -117,12 +143,16 @@ pub enum Event {
     CommandFinished {
         id: u64,
     },
+    /// Moonraker refused the login; Moonraker's reason.
+    LoginFailed(String),
 }
 
 enum Request {
     Command(Command),
     Query(Query),
     Connect(Endpoint),
+    LogIn { username: String, password: String },
+    LogOut,
 }
 
 /// Handle for the UI; cheap to clone.
@@ -137,12 +167,18 @@ pub struct ServiceChannels {
 }
 
 impl PrinterService {
-    /// Starts the service on the given Tokio runtime.
-    pub fn start(runtime: &tokio::runtime::Handle, endpoint: Endpoint) -> (Self, ServiceChannels) {
+    /// Starts the service on the given Tokio runtime; `credentials` holds the access to Moonraker servers that do not
+    /// trust this machine.
+    pub fn start(
+        runtime: &tokio::runtime::Handle,
+        endpoint: Endpoint,
+        credentials: CredentialStore,
+    ) -> (Self, ServiceChannels) {
         let (requests, requests_rx) = mpsc::unbounded_channel();
         let (snapshot_tx, snapshots) = watch::channel(Snapshot { endpoint: endpoint.display(), ..Snapshot::default() });
         let (events_tx, events) = mpsc::unbounded_channel();
-        runtime.spawn(run(endpoint, requests_rx, snapshot_tx, events_tx));
+        let outputs = Outputs { snapshot: snapshot_tx, events: events_tx };
+        runtime.spawn(run(endpoint, credentials, requests_rx, outputs));
         (Self { requests }, ServiceChannels { snapshots, events })
     }
 
@@ -157,6 +193,17 @@ impl PrinterService {
     /// Reconnects, e.g. after the address was changed in the settings.
     pub fn connect_to(&self, endpoint: Endpoint) {
         let _ = self.requests.send(Request::Connect(endpoint));
+    }
+
+    /// Logs in while the connection is [`ConnectionState::LoginRequired`]; only the refresh token is kept, the
+    /// password goes to Moonraker alone. A refusal arrives as [`Event::LoginFailed`].
+    pub fn log_in(&self, username: &str, password: &str) {
+        let _ = self.requests.send(Request::LogIn { username: username.to_owned(), password: password.to_owned() });
+    }
+
+    /// Logs out at Moonraker, forgets the stored credential of this address and connects again without it.
+    pub fn log_out(&self) {
+        let _ = self.requests.send(Request::LogOut);
     }
 }
 
@@ -179,18 +226,18 @@ impl Outputs {
 
 async fn run(
     mut endpoint: Endpoint,
+    credentials: CredentialStore,
     mut requests: mpsc::UnboundedReceiver<Request>,
-    snapshot: watch::Sender<Snapshot>,
-    events: mpsc::UnboundedSender<Event>,
+    outputs: Outputs,
 ) {
-    let outputs = Outputs { snapshot, events };
     let http = reqwest::Client::new();
     loop {
         publish_connection(&outputs, &endpoint, ConnectionState::Connecting);
         let end = match Connection::open(&endpoint.websocket_url()).await {
             Ok((connection, notifications)) => {
                 let (wled_answers, wled_answers_rx) = mpsc::unbounded_channel();
-                let session = Session::new(connection, http.clone(), endpoint.clone(), &outputs, wled_answers);
+                let session =
+                    Session::new(connection, http.clone(), endpoint.clone(), &credentials, &outputs, wled_answers);
                 session.run(notifications, wled_answers_rx, &mut requests).await
             }
             Err(error) => {
@@ -203,7 +250,7 @@ async fn run(
             SessionEnd::SwitchTo(next) => endpoint = next,
             SessionEnd::ConnectionLost => {
                 publish_connection(&outputs, &endpoint, ConnectionState::Disconnected);
-                match wait_for_retry(&mut requests, &outputs).await {
+                match wait_for_retry(&mut requests, &outputs, &endpoint, &credentials).await {
                     Retry::Same => {}
                     Retry::SwitchTo(next) => endpoint = next,
                     Retry::Shutdown => return,
@@ -224,7 +271,12 @@ enum Retry {
 }
 
 /// Waits before the next connection attempt; commands fail immediately during this time.
-async fn wait_for_retry(requests: &mut mpsc::UnboundedReceiver<Request>, outputs: &Outputs) -> Retry {
+async fn wait_for_retry(
+    requests: &mut mpsc::UnboundedReceiver<Request>,
+    outputs: &Outputs,
+    endpoint: &Endpoint,
+    credentials: &CredentialStore,
+) -> Retry {
     let delay = tokio::time::sleep(RECONNECT_DELAY);
     tokio::pin!(delay);
     loop {
@@ -237,16 +289,41 @@ async fn wait_for_retry(requests: &mut mpsc::UnboundedReceiver<Request>, outputs
                     command: command.describe(),
                     message: "not connected to Moonraker".to_owned(),
                 }),
+                Some(Request::LogIn { .. }) => outputs.event(Event::LoginFailed("not connected to Moonraker".to_owned())),
+                // Moonraker is not reachable to end the login there; the display forgets it anyway.
+                Some(Request::LogOut) => forget_credential(credentials, endpoint),
                 Some(Request::Query(_)) => {}
             }
         }
     }
 }
 
+fn remember_credential(credentials: &CredentialStore, endpoint: &Endpoint, credential: Option<Credential>) {
+    if let Err(error) = credentials.store(endpoint, credential) {
+        log::warn!("cannot store the access to {}: {error}", endpoint.display());
+    }
+}
+
+fn forget_credential(credentials: &CredentialStore, endpoint: &Endpoint) {
+    remember_credential(credentials, endpoint, None);
+}
+
+/// What the display tells Moonraker about itself in `server.connection.identify`.
+fn identity() -> Value {
+    json!({
+        "client_name": CLIENT_NAME,
+        "version": crate::VERSION,
+        "type": "display",
+        "url": env!("CARGO_PKG_REPOSITORY"),
+    })
+}
+
 struct Session<'a> {
     connection: Connection,
     http: reqwest::Client,
     endpoint: Endpoint,
+    credentials: &'a CredentialStore,
+    access: Access,
     outputs: &'a Outputs,
     store: ObjectStore,
     sources: Sources,
@@ -274,6 +351,7 @@ impl<'a> Session<'a> {
         connection: Connection,
         http: reqwest::Client,
         endpoint: Endpoint,
+        credentials: &'a CredentialStore,
         outputs: &'a Outputs,
         wled_answers: mpsc::UnboundedSender<Vec<WledStrip>>,
     ) -> Self {
@@ -281,6 +359,8 @@ impl<'a> Session<'a> {
             connection,
             http,
             endpoint,
+            credentials,
+            access: Access::Open,
             outputs,
             store: ObjectStore::default(),
             sources: Sources::default(),
@@ -303,7 +383,20 @@ impl<'a> Session<'a> {
         mut wled_answers: mpsc::UnboundedReceiver<Vec<WledStrip>>,
         requests: &mut mpsc::UnboundedReceiver<Request>,
     ) -> SessionEnd {
-        if let Err(error) = self.introduce().await {
+        match self.introduce().await {
+            Ok(()) => {}
+            Err(AccessError::Refused(message)) => {
+                log::info!("Moonraker wants a login: {message}");
+                if let Some(end) = self.wait_for_login(&mut notifications, requests).await {
+                    return end;
+                }
+            }
+            Err(error) => {
+                log::warn!("Moonraker handshake failed: {error}");
+                return SessionEnd::ConnectionLost;
+            }
+        }
+        if let Err(error) = self.refresh_klippy().await {
             log::warn!("Moonraker handshake failed: {error}");
             return SessionEnd::ConnectionLost;
         }
@@ -311,6 +404,7 @@ impl<'a> Session<'a> {
         let mut klippy_poll = tokio::time::interval(KLIPPY_POLL_INTERVAL);
         let mut spoolman_poll = tokio::time::interval(SPOOLMAN_POLL_INTERVAL);
         let mut wled_poll = tokio::time::interval(WLED_POLL_INTERVAL);
+        let mut access_check = tokio::time::interval(ACCESS_CHECK_INTERVAL);
         loop {
             tokio::select! {
                 notification = notifications.recv() => match notification {
@@ -323,7 +417,15 @@ impl<'a> Session<'a> {
                     Some(Request::Connect(_)) => {}
                     Some(Request::Command(command)) => self.execute(command),
                     Some(Request::Query(query)) => self.answer(query),
+                    Some(Request::LogIn { .. }) => log::debug!("login ignored: Moonraker already answers"),
+                    Some(Request::LogOut) => return self.log_out().await,
                 },
+                _ = access_check.tick(), if self.access.is_authorized() => {
+                    if !self.still_authorized().await {
+                        log::info!("Moonraker withdrew the authorization of this display");
+                        return SessionEnd::SwitchTo(self.endpoint.clone());
+                    }
+                }
                 _ = spoolman_poll.tick(), if self.klippy_ready && self.components.spoolman => {
                     self.answer(Query::Spoolman);
                 }
@@ -341,16 +443,102 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// Identifies with Moonraker and performs the first sync of the Klippy state.
-    async fn introduce(&mut self) -> Result<(), CallError> {
-        let identity = json!({
-            "client_name": CLIENT_NAME,
-            "version": crate::VERSION,
-            "type": "display",
-            "url": env!("CARGO_PKG_REPOSITORY"),
-        });
-        self.connection.call("server.connection.identify", Some(identity)).await?;
-        self.refresh_klippy().await
+    /// Identifies with Moonraker, with the stored credential of this address if there is one. Refused means
+    /// Moonraker wants a login.
+    async fn introduce(&mut self) -> Result<(), AccessError> {
+        let (access, credential) = match self.credentials.credential(&self.endpoint) {
+            None => (Access::Open, None),
+            Some(Credential::ApiKey { api_key }) => (Access::ApiKey, Some(("api_key", api_key))),
+            Some(Credential::Login { username, refresh_token }) => {
+                match access::refresh(&self.connection, &refresh_token).await {
+                    Ok(token) => (Access::User(username), Some(("access_token", token))),
+                    Err(AccessError::Refused(message)) => {
+                        log::info!("the login of {username} is no longer valid: {message}");
+                        (Access::Open, None)
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+        };
+        let presented = credential.as_ref().map(|(field, value)| (*field, value.as_str()));
+        match access::identify(&self.connection, identity(), presented).await {
+            Ok(()) => self.access = access,
+            // A wrong key is refused even where Moonraker would trust this machine.
+            Err(AccessError::Refused(message)) if presented.is_some() => {
+                log::warn!("Moonraker refused the stored access of this display: {message}");
+                access::identify(&self.connection, identity(), None).await?;
+                self.access = Access::Open;
+            }
+            Err(error) => return Err(error),
+        }
+        Ok(())
+    }
+
+    /// Moonraker wants a login: answers the requests until one succeeds (`None`), or says how the session ends.
+    async fn wait_for_login(
+        &mut self,
+        notifications: &mut mpsc::UnboundedReceiver<Notification>,
+        requests: &mut mpsc::UnboundedReceiver<Request>,
+    ) -> Option<SessionEnd> {
+        publish_connection(self.outputs, &self.endpoint, ConnectionState::LoginRequired);
+        loop {
+            tokio::select! {
+                // An unauthorized connection gets no notifications; this only notices its end.
+                notification = notifications.recv() => if notification.is_none() {
+                    return Some(SessionEnd::ConnectionLost);
+                },
+                request = requests.recv() => match request {
+                    None => return Some(SessionEnd::Shutdown),
+                    Some(Request::Connect(endpoint)) if endpoint != self.endpoint => {
+                        return Some(SessionEnd::SwitchTo(endpoint));
+                    }
+                    Some(Request::LogIn { username, password }) => match self.log_in(&username, &password).await {
+                        Ok(()) => return None,
+                        Err(AccessError::Call(error)) => {
+                            log::warn!("login failed: {error}");
+                            return Some(SessionEnd::ConnectionLost);
+                        }
+                        Err(error) => self.outputs.event(Event::LoginFailed(error.to_string())),
+                    },
+                    Some(Request::Command(command)) => self.outputs.event(Event::CommandFailed {
+                        command: command.describe(),
+                        message: "Moonraker wants a login".to_owned(),
+                    }),
+                    Some(Request::LogOut) => forget_credential(self.credentials, &self.endpoint),
+                    Some(Request::Connect(_) | Request::Query(_)) => {}
+                },
+            }
+        }
+    }
+
+    /// Logs in on this connection and keeps the refresh token for the next ones.
+    async fn log_in(&mut self, username: &str, password: &str) -> Result<(), AccessError> {
+        let login = access::log_in(&self.connection, username, password).await?;
+        let credential = Credential::Login { username: login.username.clone(), refresh_token: login.refresh_token };
+        remember_credential(self.credentials, &self.endpoint, Some(credential));
+        access::identify(&self.connection, identity(), Some(("access_token", &login.token))).await?;
+        log::info!("logged in at Moonraker as {}", login.username);
+        self.access = Access::User(login.username);
+        Ok(())
+    }
+
+    /// Ends the login at Moonraker (an API key stays valid there), forgets the credential and connects again
+    /// without it.
+    async fn log_out(&mut self) -> SessionEnd {
+        if let Access::User(username) = &self.access {
+            match access::log_out(&self.connection).await {
+                Ok(()) => log::info!("logged out {username} at Moonraker"),
+                Err(error) => log::info!("logout at Moonraker failed: {error}"),
+            }
+        }
+        forget_credential(self.credentials, &self.endpoint);
+        SessionEnd::SwitchTo(self.endpoint.clone())
+    }
+
+    /// False once Moonraker refuses a request that needs authorization; other failures leave that open.
+    async fn still_authorized(&self) -> bool {
+        let answer = self.connection.call("server.info", None).await;
+        !matches!(answer.map_err(AccessError::from), Err(AccessError::Refused(_)))
     }
 
     async fn refresh_klippy(&mut self) -> Result<(), CallError> {
@@ -511,6 +699,7 @@ impl<'a> Session<'a> {
         self.outputs.snapshot.send_replace(Snapshot {
             endpoint: self.endpoint.display(),
             connection: ConnectionState::Connected,
+            access: self.access.clone(),
             status,
             sources: self.sources.clone(),
         });
@@ -603,8 +792,11 @@ impl<'a> Session<'a> {
             return;
         }
         let connection = self.connection.clone();
-        let http = self.http.clone();
-        let endpoint = self.endpoint.clone();
+        let downloads = Downloads {
+            http: self.http.clone(),
+            endpoint: self.endpoint.clone(),
+            authorized: self.access.is_authorized(),
+        };
         let events = self.outputs.events.clone();
         let gate_spools = self.spoolman_gate_spools.clone().unwrap_or_default();
         let permits = matches!(query, Query::FileDetails { .. }).then(|| self.file_details.clone());
@@ -615,7 +807,7 @@ impl<'a> Session<'a> {
                 None => None,
             };
             let fetched =
-                tokio::time::timeout(QUERY_TIMEOUT, fetch(&connection, &http, &endpoint, &query, &gate_spools)).await;
+                tokio::time::timeout(QUERY_TIMEOUT, fetch(&connection, &downloads, &query, &gate_spools)).await;
             match fetched {
                 Ok(Ok(results)) => results.into_iter().for_each(|event| {
                     let _ = events.send(event);
@@ -627,10 +819,29 @@ impl<'a> Session<'a> {
     }
 }
 
+/// Files over HTTP (thumbnails); an authorized display shows a one-time token from its connection with each.
+struct Downloads {
+    http: reqwest::Client,
+    endpoint: Endpoint,
+    authorized: bool,
+}
+
+impl Downloads {
+    async fn get(&self, connection: &Connection, path: &str) -> Result<Vec<u8>, String> {
+        let mut url = self.endpoint.http_url(path);
+        if self.authorized {
+            let token = access::oneshot_token(connection).await.map_err(|error| error.to_string())?;
+            url = format!("{url}?token={token}");
+        }
+        let response = self.http.get(url).send().await.map_err(|error| error.to_string())?;
+        let response = response.error_for_status().map_err(|error| error.to_string())?;
+        Ok(response.bytes().await.map_err(|error| error.to_string())?.to_vec())
+    }
+}
+
 async fn fetch(
     connection: &Connection,
-    http: &reqwest::Client,
-    endpoint: &Endpoint,
+    downloads: &Downloads,
     query: &Query,
     gate_spools: &[u32],
 ) -> Result<Vec<Event>, String> {
@@ -647,7 +858,7 @@ async fn fetch(
             let metadata = files::parse_metadata(&result).ok_or("unreadable metadata")?;
             let mut events = Vec::new();
             if let Some(path) = metadata.thumbnail_path() {
-                match download(http, &endpoint.http_url(&path)).await {
+                match downloads.get(connection, &path).await {
                     Ok(data) => match ThumbnailImage::decode(&data) {
                         Some(image) => events.push(Event::Thumbnail { filename: filename.clone(), image }),
                         None => log::info!("thumbnail of {filename} cannot be decoded"),
@@ -686,12 +897,6 @@ async fn fetch(
         }
     };
     Ok(events)
-}
-
-async fn download(http: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
-    let response = http.get(url).send().await.map_err(|error| error.to_string())?;
-    let response = response.error_for_status().map_err(|error| error.to_string())?;
-    Ok(response.bytes().await.map_err(|error| error.to_string())?.to_vec())
 }
 
 /// Waits for the answer of a call; if it takes longer than `LONG_COMMAND`, reports the command as running until then.

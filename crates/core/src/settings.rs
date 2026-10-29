@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-const APP_FOLDER: &str = "freakymate";
+pub(crate) const APP_FOLDER: &str = "freakymate";
 const FILE_NAME: &str = "settings.json";
 /// Presets the Thermal page has room for beside the heaters.
 pub const MAX_SHOWN_PRESETS: usize = 4;
@@ -145,18 +145,34 @@ impl SettingsStore {
         Ok(settings)
     }
 
-    /// Writes atomically via a temporary file so a power loss never leaves a half-written file.
     pub fn save(&self, settings: &Settings) -> Result<(), SettingsError> {
-        let io_error = |source| SettingsError::Io { path: self.path.clone(), source };
-        if let Some(directory) = self.path.parent() {
-            std::fs::create_dir_all(directory).map_err(io_error)?;
-        }
         let text = serde_json::to_string_pretty(settings)
             .map_err(|source| SettingsError::Format { path: self.path.clone(), source })?;
-        let temporary = self.path.with_extension("json.tmp");
-        std::fs::write(&temporary, text).map_err(io_error)?;
-        std::fs::rename(&temporary, &self.path).map_err(io_error)
+        write_atomically(&self.path, &text, false)
+            .map_err(|source| SettingsError::Io { path: self.path.clone(), source })
     }
+}
+
+/// Writes via a temporary file so a power loss never leaves a half-written file. A `private` file can be read by
+/// its owner only (Unix).
+pub(crate) fn write_atomically(path: &Path, text: &str, private: bool) -> std::io::Result<()> {
+    if let Some(directory) = path.parent() {
+        std::fs::create_dir_all(directory)?;
+    }
+    let temporary = path.with_extension("json.tmp");
+    // The mode only applies to a new file; a leftover of an interrupted write keeps its own.
+    let _ = std::fs::remove_file(&temporary);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    if private {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    #[cfg(not(unix))]
+    let _ = private;
+    std::io::Write::write_all(&mut options.open(&temporary)?, text.as_bytes())?;
+    std::fs::rename(&temporary, path)
 }
 
 #[cfg(test)]

@@ -99,11 +99,13 @@ component MoveTab inherits Rectangle {
                 AxisValue { axis: "Y"; value: Printer.position-y; homed: Printer.homed-y; }
                 AxisValue { axis: "Z"; value: Printer.position-z; homed: Printer.homed-z; }
             }
+            // The buttons share the rest of the height like those of the Z card, with or without levelling.
             IconButton {
                 icon: Icons.motion-home;
                 text: @tr("Home all");
                 horizontal: true;
                 align-start: true;
+                vertical-stretch: 1;
                 kind: "accent";
                 clicked => { Actions.home(true, true, true); }
             }
@@ -112,6 +114,7 @@ component MoveTab inherits Rectangle {
                 text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
                 horizontal: true;
                 align-start: true;
+                vertical-stretch: 1;
                 done: Printer.leveling-state == "applied";
                 clicked => { Actions.level(); }
             }
@@ -120,9 +123,9 @@ component MoveTab inherits Rectangle {
                 text: @tr("Motors off");
                 horizontal: true;
                 align-start: true;
+                vertical-stretch: 1;
                 clicked => { Confirm.ask(@tr("Motors off"), @tr("The axes lose their reference and must be homed again."), "disable-motors", "", false); }
             }
-            Rectangle { vertical-stretch: 1; }
         }
     }
 }

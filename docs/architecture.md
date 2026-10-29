@@ -24,7 +24,7 @@ flowchart LR
         DOM[domain/*<br/>questions across sources]
         SRC[sources/*<br/>one module per origin]
         MR[moonraker/*<br/>JSON-RPC over WebSocket]
-        SET[settings.rs<br/>JSON file]
+        SET[settings.rs, credentials.rs<br/>JSON files]
         NET[network/*<br/>NetworkService]
     end
     M[(Moonraker / Klipper)]
@@ -119,7 +119,17 @@ history).
    rows in place, so a tap on a button in a row survives the next status update.
 6. Connection loss: state `disconnected`, retry every 2 s; Klippy shutdown/restart via `notify_klippy_*` and
    `server.info` polling.
-7. Network: `NetworkService` (own task, `NetworkCommand` in, `NetworkState`/`NetworkNotice` out) uses the backend
+7. Authorization (`moonraker/access.rs`, `credentials.rs`): everything runs over the WebSocket, Moonraker offers its
+   `/access/*` endpoints as JSON-RPC methods too. `identify` carries the stored API key, or an access token from
+   `access.refresh_jwt` with the stored refresh token. Refused (Moonraker's 401 arrives as RPC code -32602) means
+   state `login-required`: the session stays open, commands fail, and `PrinterService::log_in` calls `access.login`
+   on the same connection, which authorizes it; only the refresh token is stored. A key that Moonraker refuses where it
+   trusts the machine anyway is dropped for that connection. An authorized connection asks `server.info` every 30 s,
+   because Moonraker sends nothing to a connection whose user logged out elsewhere, not even the logout. Thumbnails
+   over HTTP get a one-time token (`access.oneshot_token`, `?token=`). The credentials stay in
+   `~/.config/freakymate/credentials.json` (mode 0600) also when the settings lie in `printer_data/config`, which
+   Moonraker serves and which is often backed up to git.
+8. Network: `NetworkService` (own task, `NetworkCommand` in, `NetworkState`/`NetworkNotice` out) uses the backend
    `networkmanager.rs` (zbus, only compiled on Linux) or `simulated.rs` (feature `dev-mode`: `--simulate-network`, tests). The
    `NetworkController` only offers management when the backend is available **and** Moonraker is local
    (`Endpoint::is_local`); otherwise it shows the host interfaces from `machine.system_info` read-only.
@@ -143,7 +153,8 @@ history).
 ## Display on the device
 
 - Default is the winit backend: a window on the desktop, fullscreen under `cage` on the printer (kiosk compositor,
-  `scripts/install.sh`). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
+  `scripts/install.sh`). `cage -d` hands the frame to the server, which draws none; without it winit keeps room for
+  its own title bar after leaving fullscreen (black bar at the bottom). Renderer: FemtoVG (OpenGL ES 2.0) with the software renderer as fallback
   (`SLINT_BACKEND=winit-software`).
 - The layout is made for 800x480. `display.rs` scales the window so that this size just fits into the real one
   (`min(width / 800, height / 480)`); the window is then as large as the design size on one axis and larger on the

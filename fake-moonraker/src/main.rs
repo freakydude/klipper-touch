@@ -1,3 +1,4 @@
+use fake_moonraker::access::AccessConfig;
 use fake_moonraker::machine::MachineProfile;
 use fake_moonraker::server::{serve, ServerConfig};
 use std::process::ExitCode;
@@ -7,8 +8,8 @@ use tokio::net::TcpListener;
 const DEFAULT_PORT: u16 = 7125;
 const DEFAULT_TIME_SCALE: f64 = 10.0;
 const DEFAULT_MMU_GATES: usize = 4;
-const USAGE: &str =
-    "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] [--profile basic|voron|happy-hare|ercf] [--gates <1-16>]";
+const USAGE: &str = "Usage: fake-moonraker [--port <port>] [--time-scale <factor>] \
+    [--profile basic|voron|happy-hare|ercf] [--gates <1-16>] [--auth <user>:<password>]";
 
 enum Profile {
     Basic,
@@ -22,6 +23,7 @@ struct Options {
     time_scale: f64,
     profile: Profile,
     gates: usize,
+    access: Option<AccessConfig>,
 }
 
 impl Options {
@@ -41,6 +43,7 @@ fn parse_options(mut args: impl Iterator<Item = String>) -> Result<Options, Stri
         time_scale: DEFAULT_TIME_SCALE,
         profile: Profile::Voron,
         gates: DEFAULT_MMU_GATES,
+        access: None,
     };
 
     while let Some(flag) = args.next() {
@@ -50,10 +53,18 @@ fn parse_options(mut args: impl Iterator<Item = String>) -> Result<Options, Stri
             "--time-scale" => options.time_scale = parse_time_scale(&value)?,
             "--profile" => options.profile = parse_profile(&value)?,
             "--gates" => options.gates = parse_gates(&value)?,
+            "--auth" => options.access = Some(parse_access(&value)?),
             _ => return Err(format!("unknown option '{flag}'")),
         }
     }
     Ok(options)
+}
+
+fn parse_access(value: &str) -> Result<AccessConfig, String> {
+    match value.split_once(':') {
+        Some((username, password)) if !username.is_empty() => Ok(AccessConfig::new(username, password)),
+        _ => Err(format!("invalid login '{value}', expected <user>:<password>")),
+    }
 }
 
 fn parse_profile(value: &str) -> Result<Profile, String> {
@@ -90,11 +101,15 @@ async fn run() -> Result<(), String> {
 
     println!("Fake-Moonraker listening. Start freakymate with:");
     println!("  cargo run -p freakymate -- --moonraker http://127.0.0.1:{}", options.port);
+    if let Some(access) = &options.access {
+        println!("Login required: user '{}', API key '{}'", access.username, access.api_key);
+    }
 
     let config = ServerConfig {
         time_scale: options.time_scale,
         status_interval: Duration::from_millis(250),
         profile: options.machine_profile(),
+        access: options.access.clone(),
     };
     serve(listener, config).await.map_err(|error| error.to_string())
 }

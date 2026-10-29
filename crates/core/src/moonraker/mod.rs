@@ -1,5 +1,6 @@
 //! Access to Moonraker: protocol, connection and address.
 
+pub mod access;
 mod call;
 mod connection;
 mod endpoint;
