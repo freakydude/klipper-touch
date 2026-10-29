@@ -63,6 +63,12 @@ impl PrinterStatus {
         }
     }
 
+    /// A print is under way. After a shutdown `print_stats` keeps "printing" or "paused" (Klipper's virtual_sdcard
+    /// notes a pause), but the print is lost and restarts must stay possible.
+    pub fn print_running(&self) -> bool {
+        self.klippy_state == KlippyState::Ready && self.job.state.is_active()
+    }
+
     pub fn heater(&self, object: &str) -> Option<&Heater> {
         self.heaters.iter().find(|heater| heater.object == object)
     }
