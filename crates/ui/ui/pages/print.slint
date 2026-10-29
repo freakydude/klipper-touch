@@ -322,6 +322,7 @@ export component PrintPage inherits Rectangle {
                     if root.finished: ValueTile {
                         weight: 4;
                         icon: Printer.print-state == "complete" ? Icons.print-complete : Printer.print-state == "cancelled" ? Icons.print-cancel : Icons.state-error;
+                        icon-color: Printer.print-state == "complete" ? Theme.success : Theme.muted;
                         label: Printer.print-state == "complete" ? @tr("Finished") : Printer.print-state == "cancelled" ? @tr("Cancelled") : @tr("Failed");
                         value: Printer.ended;
                     }

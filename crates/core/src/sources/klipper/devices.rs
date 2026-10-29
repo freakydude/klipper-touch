@@ -47,6 +47,17 @@ pub struct Fan {
     pub speed: f64,
     /// Measured speed; only with a `tachometer_pin`.
     pub rpm: Option<f64>,
+    /// Klipper keeps the fan off below this speed (`off_below`, 0 to 1), although `speed` reports the request.
+    pub off_below: f64,
+    /// Asked to turn, but the tachometer has reported 0 rpm since the spin-up time (set by `FanWatch`).
+    pub stalled: bool,
+}
+
+impl Fan {
+    /// Klipper drives the fan: a speed is asked for and it is not below `off_below`.
+    pub fn should_turn(&self) -> bool {
+        self.speed > 0.0 && self.speed >= self.off_below
+    }
 }
 
 /// A light the person can dim: a Klipper LED or, from Moonraker, a WLED strip.
@@ -115,6 +126,7 @@ pub fn instance(object: &str) -> &str {
 
 /// Part fan first, then generic, heater and controller fans, each in name order.
 pub(super) fn read_fans(store: &ObjectStore) -> Vec<Fan> {
+    let settings = store.object("configfile").and_then(|configfile| configfile.get("settings"));
     let mut fans: Vec<Fan> = store
         .names()
         .filter_map(|name| Some((name, FanKind::of(name)?)))
@@ -126,6 +138,12 @@ pub(super) fn read_fans(store: &ObjectStore) -> Vec<Fan> {
                 kind,
                 speed: value.get("speed").and_then(Value::as_f64).unwrap_or_default().clamp(0.0, 1.0),
                 rpm: value.get("rpm").and_then(Value::as_f64),
+                off_below: settings
+                    .and_then(|settings| settings.get(name.to_lowercase()))
+                    .and_then(|section| section.get("off_below"))
+                    .and_then(Value::as_f64)
+                    .unwrap_or_default(),
+                stalled: false,
             })
         })
         .collect();
@@ -179,6 +197,19 @@ mod tests {
         assert_eq!(fans[4].rpm, Some(3100.0));
         assert!(fans[0].kind.is_controllable() && fans[2].kind.is_controllable());
         assert!(!fans[3].kind.is_controllable() && !fans[4].kind.is_controllable());
+    }
+
+    #[test]
+    fn a_fan_below_off_below_is_not_expected_to_turn() {
+        let fans = read_fans(&store(json!({
+            "fan_generic exhaust": { "speed": 0.1, "rpm": 0.0 },
+            "fan": { "speed": 0.1, "rpm": 0.0 },
+            "configfile": { "settings": { "fan_generic exhaust": { "off_below": 0.15 } } }
+        })));
+
+        assert_eq!(fans[1].off_below, 0.15);
+        assert!(fans[0].should_turn());
+        assert!(!fans[1].should_turn());
     }
 
     #[test]

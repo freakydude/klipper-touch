@@ -126,8 +126,9 @@ component FanRow inherits Rectangle {
         spacing: Theme.spacing;
         Image {
             cross-axis-self-alignment: center;
-            source: Icons.thermal-fan;
-            colorize: root.fan.speed > 0 ? Theme.accent : Theme.muted;
+            // A fan that does not turn although it should is an error: its icon and its speeds turn red.
+            source: root.fan.stalled ? Icons.state-error : Icons.thermal-fan;
+            colorize: root.fan.stalled ? Theme.danger : root.fan.speed > 0 ? Theme.accent : Theme.muted;
             width: 28px;
             height: 28px;
         }
@@ -137,7 +138,7 @@ component FanRow inherits Rectangle {
             Text { text: root.fan.label; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
             Text {
                 text: round(fan-slider.shown) + " %" + (root.fan.rpm == "" ? "" : "  ·  " + root.fan.rpm);
-                color: Theme.foreground;
+                color: root.fan.stalled ? Theme.danger : Theme.foreground;
                 font-size: Theme.font-normal;
                 font-weight: 600;
                 overflow: elide;

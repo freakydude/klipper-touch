@@ -5,7 +5,7 @@
 
 use crate::commands::Command;
 use crate::moonraker::{Call, CallError, Connection, Endpoint, Notification, PendingCall};
-use crate::sources::klipper::{KlippyState, PendingTargets, PrintState};
+use crate::sources::klipper::{FanWatch, KlippyState, PendingTargets, PrintState};
 use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
 use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
 use crate::sources::moonraker_server::history::{self, PrintHistory};
@@ -36,6 +36,8 @@ const PRINT_HISTORY_LIMIT: u32 = 300;
 const SPOOLMAN_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// Moonraker does not report WLED changes, and Mainsail or a macro may switch a strip too.
 const WLED_POLL_INTERVAL: Duration = Duration::from_secs(5);
+/// While a fan spins up, its state is looked at this often, so a stalled one shows without news from Klipper.
+const FAN_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 /// Spools for the picker: the most recently used ones.
 const SPOOL_LIST_LIMIT: u32 = 100;
 const CLIENT_NAME: &str = "freakymate";
@@ -257,6 +259,8 @@ struct Session<'a> {
     job_state: PrintState,
     /// Targets sent but not yet reported back; the snapshot shows them.
     pending_targets: PendingTargets,
+    /// Since when each fan should turn; the snapshot marks the stalled ones.
+    fan_watch: FanWatch,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
     spoolman_gate_spools: Option<Vec<u32>>,
     /// Limits the file details in flight, so a long file list does not flood Moonraker.
@@ -287,6 +291,7 @@ impl<'a> Session<'a> {
             job_filename: String::new(),
             job_state: PrintState::default(),
             pending_targets: PendingTargets::default(),
+            fan_watch: FanWatch::default(),
             spoolman_gate_spools: None,
             file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
             wled: Vec::new(),
@@ -308,6 +313,7 @@ impl<'a> Session<'a> {
         let mut klippy_poll = tokio::time::interval(KLIPPY_POLL_INTERVAL);
         let mut spoolman_poll = tokio::time::interval(SPOOLMAN_POLL_INTERVAL);
         let mut wled_poll = tokio::time::interval(WLED_POLL_INTERVAL);
+        let mut fan_check = tokio::time::interval(FAN_CHECK_INTERVAL);
         loop {
             tokio::select! {
                 notification = notifications.recv() => match notification {
@@ -329,6 +335,7 @@ impl<'a> Session<'a> {
                     let strips = self.fetch_wled().await;
                     self.update_wled(strips);
                 }
+                _ = fan_check.tick(), if self.klippy_ready && self.fan_watch.awaits_spin_up() => self.publish(),
                 _ = klippy_poll.tick(), if !self.klippy_ready => {
                     if let Err(error) = self.refresh_klippy().await {
                         log::debug!("klippy not ready yet: {error}");
@@ -470,10 +477,12 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// The state with the heater targets that were sent but not yet reported back.
+    /// The state with the heater targets that were sent but not yet reported back, and the fans that do not turn.
     fn current_status(&mut self) -> PrinterStatus {
         let mut status = PrinterStatus::from_store(&self.store);
-        self.pending_targets.apply(&mut status.heaters, Instant::now());
+        let now = Instant::now();
+        self.pending_targets.apply(&mut status.heaters, now);
+        self.fan_watch.apply(&mut status.fans, now);
         status.leds.extend(self.wled.iter().map(WledStrip::led));
         status
     }

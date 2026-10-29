@@ -7,7 +7,7 @@ use freakymate_core::sources::happy_hare::ServoPosition;
 use freakymate_core::sources::klipper::tuning::TuningKey;
 use freakymate_core::sources::klipper::{Activity, CalibrationMode, KlippyState, PrintState, TestZ};
 use freakymate_core::sources::moonraker_server::wled::{self, StripAction};
-use freakymate_core::{Command, ConnectionState, Query};
+use freakymate_core::{Command, ConnectionState, Query, Snapshot};
 use slint::{ComponentHandle, Model};
 use std::time::Duration;
 
@@ -344,6 +344,24 @@ fn messages(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
+/// The exhaust fan switched on with a blocked tachometer: red after the spin-up time; afterwards off again.
+fn stalled_fan(session: &mut Session) -> Result<(), String> {
+    let exhaust_stalled =
+        |snapshot: &Snapshot| snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.stalled);
+    session
+        .service
+        .send(Command::RunGcode { script: "SET_FAN_SPEED FAN=exhaust SPEED=0.5\nFAKE_FAN_STALL FAN=exhaust".into() });
+    session.wait_until("the exhaust fan to count as stalled", exhaust_stalled)?;
+    session.show_page(Page::Temperature, "temperature-fan-stalled")?;
+    session.service.send(Command::RunGcode {
+        script: "FAKE_FAN_STALL FAN=exhaust STALL=0\nSET_FAN_SPEED FAN=exhaust SPEED=0".into(),
+    });
+    session.wait_until("the exhaust fan to be off", |snapshot| {
+        !exhaust_stalled(snapshot)
+            && snapshot.status.fans.iter().any(|fan| fan.object == "fan_generic exhaust" && fan.speed == 0.0)
+    })
+}
+
 /// The Fans and Sensors tabs of the Thermal page and the light panel, where the printer has them.
 fn heat_tabs(session: &mut Session) -> Result<(), String> {
     let status = session.presenter.snapshot().status;
@@ -351,6 +369,9 @@ fn heat_tabs(session: &mut Session) -> Result<(), String> {
     if !status.fans.is_empty() || !status.leds.is_empty() {
         navigation.set_heat_tab(1);
         session.show_page(Page::Temperature, "temperature-fans")?;
+        if status.fans.iter().any(|fan| fan.object == "fan_generic exhaust") {
+            stalled_fan(session)?;
+        }
     }
     if !status.sensors.is_empty() {
         session.window.global::<Navigation>().set_heat_tab(2);

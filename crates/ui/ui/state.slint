@@ -41,6 +41,8 @@ export struct FanItem {
     speed: float,
     // Measured speed as text ("2800 rpm"), empty without a tachometer.
     rpm: string,
+    // Should turn, but the tachometer has reported 0 rpm since the spin-up time.
+    stalled: bool,
 }
 
 export struct LedItem {
@@ -241,6 +243,7 @@ export struct UpdateItem {
     version: string,
     detail: string,
     has-update: bool,
+    up-to-date: bool,
 }
 
 export struct PresetItem {
@@ -835,6 +838,13 @@ export global StateIcons {
     public pure function summary-value() -> string {
         if (Printer.ready && Printer.is-printing) { return round(Printer.progress * 100) + "%"; }
         return "";
+    }
+
+    // Whether the summary says that all is fine: Klipper ready and nothing running, or the print finished.
+    public pure function summary-is-fine() -> bool {
+        if (!Printer.ready) { return false; }
+        if (Printer.print-state == "complete") { return true; }
+        return Printer.print-state == "standby" && Printer.activity != "busy";
     }
 
     public pure function summary() -> image {

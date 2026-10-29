@@ -6,6 +6,7 @@ pub mod commands;
 mod devices;
 mod exclude_object;
 mod extruder;
+mod fan_watch;
 mod fields;
 mod filament_sensors;
 mod firmware_retraction;
@@ -25,6 +26,7 @@ pub use calibration::{
 pub use devices::{instance, is_led, white_channel, Fan, FanKind, Led, WhiteChannel};
 pub use exclude_object::{object_at, PrintObject};
 pub use extruder::ExtruderState;
+pub use fan_watch::FanWatch;
 pub use filament_sensors::FilamentSensor;
 pub use firmware_retraction::Retraction;
 pub use heaters::{Heater, TemperatureSensor};

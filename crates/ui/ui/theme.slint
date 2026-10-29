@@ -20,8 +20,10 @@ export global Theme {
     // Danger as a filled area (emergency stop, dangerous confirmations, error badge), with `foreground` on it.
     out property <color> danger-fill: #c92a2a;
     out property <color> danger-fill-pressed: #a61e1e;
-    // Reserved for "all fine" (currently unused, Frank 2026-10-29: normal states stay without colour for now).
-    out property <color> success: #37b24d;
+    // A state that is fine (Frank 2026-10-29): ready, homed, connected, filament present, up to date, finished. Never
+    // for what is switched on or running (that is `accent`). As light as `danger`, so it stays readable on
+    // `surface-active`.
+    out property <color> success: #51cf66;
     // A deviation that deserves attention, never an error.
     out property <color> warning: #f59f00;
     // Neutral information: messages, Klipper starting up, secondary chart lines.

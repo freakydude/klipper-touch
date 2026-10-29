@@ -8,7 +8,7 @@ import { Actions, MmuDialogs, MmuGateItem, Navigation, Printer } from "../state.
 import { Card, ColorBar, IconButton, IconLabel, TextWithValue } from "../components/controls.slint";
 import { FilamentPath } from "../components/filament-path.slint";
 
-// Texts of the buffer and FlowGuard, shared by the MMU tab and the strip on the print page.
+// Texts of the buffer and FlowGuard and the colour of FlowGuard, shared by the MMU tab and the strip on the print page.
 export global MmuTexts {
     pure public function buffer(state: string) -> string {
         if (state == "neutral") { return @tr("Neutral"); }
@@ -22,6 +22,12 @@ export global MmuTexts {
         if (state == "boosting") { return @tr("FlowGuard: tangle prevention"); }
         if (state == "monitoring") { return @tr("FlowGuard monitoring"); }
         return @tr("FlowGuard ready");
+    }
+    // Ready and monitoring are fine; tangle prevention is a deviation, triggered an error.
+    pure public function flowguard-color(state: string) -> color {
+        if (state == "triggered") { return Theme.danger; }
+        if (state == "boosting") { return Theme.warning; }
+        return Theme.success;
     }
     pure public function availability(availability: string) -> string {
         if (availability == "available") { return @tr("Available"); }
@@ -38,7 +44,7 @@ export component GateAvailabilityLabel inherits IconLabel {
 
     icon: root.has-filament ? Icons.mmu-gate-available : root.availability == "empty" ? Icons.mmu-gate-empty : Icons.mmu-gate-unknown;
     text: MmuTexts.availability(root.availability);
-    color: root.has-filament ? Theme.foreground : root.availability == "empty" ? Theme.warning : Theme.muted;
+    color: root.has-filament ? Theme.success : root.availability == "empty" ? Theme.warning : Theme.muted;
     font-size: Theme.font-small;
 }
 
@@ -165,7 +171,9 @@ component BypassTile inherits SlotTile {
 export component BufferGauge inherits Rectangle {
     in property <float> bias;
     in property <string> state;
-    out property <color> marker-color: root.state == "neutral" ? Theme.foreground : root.state == "tension" || root.state == "compressed" ? Theme.warning : Theme.muted;
+    // Only a measuring buffer marks its neutral zone as the place where all is fine.
+    property <bool> measuring: root.state == "neutral" || root.state == "tension" || root.state == "compressed";
+    out property <color> marker-color: root.state == "neutral" ? Theme.success : root.state == "tension" || root.state == "compressed" ? Theme.warning : Theme.muted;
 
     height: 18px;
     Rectangle {
@@ -175,7 +183,7 @@ export component BufferGauge inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         width: parent.width * 0.1;
-        background: Theme.surface-active;
+        background: root.measuring ? Theme.success.with-alpha(0.35) : Theme.surface-active;
     }
     Rectangle {
         width: 8px;
@@ -310,7 +318,7 @@ export component MmuTab inherits Rectangle {
                         if Printer.mmu-flowguard-state != "off": IconLabel {
                             icon: Icons.mmu-flowguard;
                             text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
-                            color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Printer.mmu-flowguard-state == "boosting" ? Theme.warning : Theme.muted;
+                            color: MmuTexts.flowguard-color(Printer.mmu-flowguard-state);
                             font-size: Theme.font-small;
                         }
                         if Printer.mmu-flow-rate >= 0: IconLabel {
@@ -404,7 +412,7 @@ export component MmuStrip inherits Card {
             if Printer.mmu-flowguard-state != "off": IconLabel {
                 icon: Icons.mmu-flowguard;
                 text: MmuTexts.flowguard(Printer.mmu-flowguard-state, Printer.mmu-flowguard-detail);
-                color: Printer.mmu-flowguard-state == "triggered" ? Theme.danger : Printer.mmu-flowguard-state == "boosting" ? Theme.warning : Theme.muted;
+                color: MmuTexts.flowguard-color(Printer.mmu-flowguard-state);
                 font-size: Theme.font-small;
                 horizontal-stretch: 1;
                 min-width: 0px;

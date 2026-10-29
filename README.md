@@ -13,11 +13,12 @@ Written in Rust with a [Slint](https://slint.dev/) UI: no browser, no WebView, n
 is the BTT HDMI5 (5", 800x480, landscape).
 
 > [!CAUTION]
-> **Early development, tried by one person only. Not intended for productive use.**
-> So far I have run it against the included fake Moonraker, on desktops and on a BTT HDMI5, and read the data of one
-> real printer; most functions have not been tried on a real machine. It sends commands that move motors, heat up nozzles and beds and restart
-> services; a bug can damage your printer, your print or start a fire. Use it only if you know what you are doing, never
-> leave the printer unattended, and keep an emergency stop within reach.
+> **Young software: use it with care and at your own risk.**
+> FreakyMate has been tried on three different printers and works quite well there, so you are welcome to use it every
+> day. It is still very young, though, and may well contain bugs; feedback and bug reports are very welcome (see
+> [Contact and support](#contact-and-support)). It sends commands that move motors, heat up nozzles and beds and
+> restart services, and a bug can damage your printer or your print or start a fire. Do not leave the printer
+> unattended, and keep an emergency stop within reach.
 > The software is provided "as is", **without any warranty and without any liability** of the author
 > for damage of any kind, to the extent permitted by law (see sections 15 and 16 of the [GPL](LICENSE)).
 
@@ -39,7 +40,8 @@ is the BTT HDMI5 (5", 800x480, landscape).
   history with a grid: the last 20 minutes of Moonraker's temperature store, asked again every five seconds while it
   is open. Moonraker keeps heaters and `temperature_sensor` objects there; the others have no history. Further tabs when the printer has them:
   - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
-    bar, speed in rpm where there is a tachometer.
+    bar, speed in rpm where there is a tachometer; a fan that should turn but has reported 0 rpm for a few seconds
+    turns red.
   - **Sensors**: every temperature without a target (`temperature_sensor` of any sensor type, TMC2240 drivers).
 - **Light**: the light symbol in the status bar opens a panel with the main (chamber) light as a switch, every LED
   (`neopixel`, `led`, `dotstar`, …) on, off and dimmed as white light, and the effects of the
@@ -132,7 +134,7 @@ built in. This is what I found in the KlipperScreen documentation (read in Octob
 
 |                      | KlipperScreen                                                                                                    | FreakyMate                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Maturity             | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI                                 | Early development, one person, English only                                                           |
+| Maturity             | Since 2020, active community, translations on Weblate, sponsored by LDO and YUMI                                 | Young, one developer, tried on three printers, English only                                            |
 | Technology           | Python with GTK; X11 (default) or a Wayland compositor such as Cage or Weston                                    | Rust with Slint, one native binary; fullscreen under `cage` (Wayland) or as a normal window            |
 | Scope                | Many panels, among them bed mesh, bed level screws, input shaper, Z calibrate, limits, retraction, power         | The everyday ones: print, move, heat, tune, filament, console, macros, system, settings, network       |
 | Printers and hosts   | Several printers from one screen; can run on another device than the printer host                                | One Moonraker; can connect to a remote one, Wi-Fi settings need the printer host                       |
@@ -156,8 +158,8 @@ The [releases page](https://github.com/freakydude/freakymate/releases) offers tw
 
 Neither is an untested nightly: a change only reaches `main` through a reviewed pull request whose automated checks
 (tests, builds and packages for all targets) are green, and a release is a state that was the pre-release before.
-Beyond that, "tested" means tried by me on my own setup, and not very intensively yet. Nobody else has confirmed
-either build, so the caution above applies to both in full. Pick the release if you want few updates, the
+Beyond that, "tested" means tried on three different printers, where it works quite well; other setups may still
+show bugs, so the caution above applies to both builds. Pick the release if you want few updates, the
 pre-release if you want to follow the development; the update channel below decides which one Moonraker installs.
 
 ## Install on the printer host

@@ -151,6 +151,7 @@ pub(crate) fn update_item(update: &UpdateInfo) -> UpdateItem {
         version: update.version.as_str().into(),
         detail: detail.into(),
         has_update: update.has_update(),
+        up_to_date: update.is_up_to_date(),
     }
 }
 
@@ -172,6 +173,7 @@ pub(crate) fn fan_item(fan: &Fan) -> FanItem {
         controllable: fan.kind.is_controllable(),
         speed: (fan.speed * 100.0) as f32,
         rpm: view::fan_rpm(fan.rpm).into(),
+        stalled: fan.stalled,
     }
 }
 

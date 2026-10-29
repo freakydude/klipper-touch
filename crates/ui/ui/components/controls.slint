@@ -8,6 +8,8 @@ export component IconButton inherits Rectangle {
     in property <string> text;
     in property <bool> enabled: true;
     in property <bool> checked;
+    // What the button does has taken effect and is fine (homed, levelled): marked like `checked`, but in `success`.
+    in property <bool> done;
     in property <string> kind: "normal";
     in property <length> icon-size: Theme.icon;
     // Icon left of the text instead of above it.
@@ -18,7 +20,8 @@ export component IconButton inherits Rectangle {
     callback clicked;
 
     property <bool> has-icon: root.icon.width > 0;
-    property <color> base: root.kind == "accent" ? Theme.accent : root.kind == "danger" ? Theme.danger-fill : root.checked ? Theme.surface-active : Theme.surface-raised;
+    property <bool> marked: root.checked || root.done;
+    property <color> base: root.kind == "accent" ? Theme.accent : root.kind == "danger" ? Theme.danger-fill : root.marked ? Theme.surface-active : Theme.surface-raised;
     property <color> pressed: root.kind == "accent" ? Theme.accent-pressed : root.kind == "danger" ? Theme.danger-fill-pressed : Theme.surface-active;
     property <color> content: !root.enabled ? Theme.disabled-foreground : root.kind == "accent" ? Theme.on-accent : Theme.foreground;
 
@@ -26,8 +29,8 @@ export component IconButton inherits Rectangle {
     min-height: Theme.touch;
     border-radius: Theme.radius;
     background: !root.enabled ? Theme.surface : touch.pressed ? root.pressed : root.base;
-    border-width: root.checked && root.kind == "normal" ? 2px : 0px;
-    border-color: Theme.accent;
+    border-width: root.marked && root.kind == "normal" ? 2px : 0px;
+    border-color: root.checked ? Theme.accent : Theme.success;
     accessible-role: button;
     accessible-label: root.text;
 
@@ -341,6 +344,8 @@ export component ValueTile inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <image> icon;
+    // A state that the tile reports (a finished print) colours its icon.
+    in property <color> icon-color: Theme.muted;
     // Share of the width among tiles side by side (4 and 5: four to five).
     in property <float> weight: 1;
     // A tile that opens something on a tap shows a small muted icon at its right edge.
@@ -367,7 +372,7 @@ export component ValueTile inherits Rectangle {
         if root.icon.width > 0: Image {
             cross-axis-self-alignment: center;
             source: root.icon;
-            colorize: Theme.muted;
+            colorize: root.icon-color;
             width: 22px;
             height: 22px;
         }

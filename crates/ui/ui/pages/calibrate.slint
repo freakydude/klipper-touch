@@ -84,13 +84,13 @@ component LevelCard inherits Card {
     ActionButton {
         icon: Icons.motion-home;
         text: @tr("Home all");
-        checked: Printer.homed-xy && Printer.homed-z;
+        done: Printer.homed-xy && Printer.homed-z;
         clicked => { Actions.home(true, true, true); }
     }
     if Printer.can-quad-gantry-level || Printer.can-z-tilt: ActionButton {
         icon: Icons.calibration-gantry-level;
         text: Printer.can-quad-gantry-level ? @tr("QGL") : @tr("Z tilt");
-        checked: Printer.leveling-state == "applied";
+        done: Printer.leveling-state == "applied";
         clicked => { Actions.level(); }
     }
     if Printer.z-calibration != "": ActionButton {

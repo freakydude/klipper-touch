@@ -18,6 +18,15 @@ impl UpdateInfo {
     pub fn has_update(&self) -> bool {
         self.pending > 0
     }
+
+    /// Known to be current: nothing pending, a valid repository and a known remote version (Moonraker reports `?`
+    /// while it has not looked yet).
+    pub fn is_up_to_date(&self) -> bool {
+        if self.has_update() || !self.valid {
+            return false;
+        }
+        self.name == "system" || (!self.remote_version.is_empty() && self.remote_version != "?")
+    }
 }
 
 pub fn parse_update_status(result: &Value) -> Vec<UpdateInfo> {
@@ -81,5 +90,20 @@ mod tests {
         assert_eq!(updates[0].pending, 4);
         assert!(updates[1].has_update());
         assert!(!updates[2].has_update());
+    }
+
+    #[test]
+    fn up_to_date_only_with_a_known_remote_version_and_a_valid_repository() {
+        let updates = parse_update_status(&json!({ "version_info": {
+            "klipper": { "version": "v0.12.0-1", "remote_version": "v0.12.0-5" },
+            "moonraker": { "version": "v0.9.3", "remote_version": "v0.9.3" },
+            "fluidd": { "version": "v1.30.0", "remote_version": "?" },
+            "happy_hare": { "version": "v3.0.0", "remote_version": "v3.0.0", "is_valid": false },
+            "system": { "package_count": 0 }
+        }}));
+
+        let current: Vec<&str> =
+            updates.iter().filter(|update| update.is_up_to_date()).map(|update| update.name.as_str()).collect();
+        assert_eq!(current, ["system", "moonraker"]);
     }
 }

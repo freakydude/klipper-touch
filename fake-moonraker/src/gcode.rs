@@ -65,7 +65,7 @@ pub enum Command {
     },
     SetVelocityLimit(VelocityLimit),
     SetRetraction(RetractionChange),
-    /// Fans, LEDs and effects (`SET_FAN_SPEED`, `SET_LED`, `SET_LED_EFFECT`, `STOP_LED_EFFECTS`).
+    /// Fans, LEDs and effects (`SET_FAN_SPEED`, `SET_LED`, `SET_LED_EFFECT`, `STOP_LED_EFFECTS`, `FAKE_FAN_STALL`).
     Device(DeviceCommand),
     SetHeaterTemperature {
         heater: String,
@@ -125,6 +125,12 @@ pub enum DeviceCommand {
         stop: bool,
     },
     StopLedEffects,
+    /// The tachometer of a fan reports 0 rpm, as if the fan were blocked (`FAKE_FAN_STALL FAN= [STALL=0|1]`; not in
+    /// Klipper).
+    FakeFanStall {
+        fan: String,
+        stall: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,6 +336,10 @@ fn parse_line(line: &str) -> Result<Command, CommandError> {
             stop: named_index(&args, "STOP")?.is_some_and(|stop| stop >= 1),
         })),
         "STOP_LED_EFFECTS" => Ok(Command::Device(DeviceCommand::StopLedEffects)),
+        "FAKE_FAN_STALL" => Ok(Command::Device(DeviceCommand::FakeFanStall {
+            fan: required_text(&args, "FAN")?,
+            stall: named_index(&args, "STALL")?.is_none_or(|stall| stall != 0),
+        })),
         "SET_HEATER_TEMPERATURE" => Ok(Command::SetHeaterTemperature {
             heater: named_text(&args, "HEATER").ok_or_else(|| CommandError::new("Missing parameter HEATER"))?,
             target: named_value(&args, "TARGET")?.unwrap_or(0.0),
