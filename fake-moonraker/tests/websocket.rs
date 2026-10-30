@@ -83,9 +83,9 @@ async fn http_get(address: SocketAddr, path: &str) -> String {
     let mut stream = TcpStream::connect(address).await.unwrap();
     let request = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
     stream.write_all(request.as_bytes()).await.unwrap();
-    let mut response = String::new();
-    stream.read_to_string(&mut response).await.unwrap();
-    response
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).await.unwrap();
+    String::from_utf8_lossy(&response).into_owned()
 }
 
 #[tokio::test]
@@ -158,7 +158,7 @@ async fn thumbnail_from_metadata_is_served_over_http() {
     let missing = http_get(address, "/server/files/gcodes/.thumbs/missing.png").await;
 
     assert!(found.starts_with("HTTP/1.1 200"), "{found}");
-    assert!(found.contains("image/svg+xml"));
+    assert!(found.contains("image/png"));
     assert!(missing.starts_with("HTTP/1.1 404"), "{missing}");
 }
 

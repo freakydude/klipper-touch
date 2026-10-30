@@ -32,105 +32,22 @@ is the BTT HDMI5 (5", 800x480, landscape).
 
 ## Features
 
-- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects (on a map of the bed if the slicer defines their outlines);
-  file browser with thumbnails, filament, nozzle and print time of each file.
-- **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
-  Move and Filament are locked while a print runs; the screen leaves them when a print starts.
-  - **Calibrate** tab: Klipper's own calibration commands, with their results. Bed screws
-    (`SCREWS_TILT_CALCULATE` with the turns per screw, or the paper test `BED_SCREWS_ADJUST`), Z offset of the probe or
-    the Z endstop, bed mesh (measure, a coloured map of the active mesh, load, save and remove profiles, clear) and
-    what `SAVE_CONFIG` would write. While Klipper waits for the paper test or the Z height, a dialog shows its steps;
-    closing it aborts. FreakyMate only starts these commands, Klipper does the work.
-- **Thermal**: every heater with a target (nozzle, bed, `heater_generic`, `temperature_fan`), presets; − and +
-  respect `min_temp`/`max_temp` from the Klipper configuration. Tapping a heater or sensor shows its temperature
-  history with a grid: the last 20 minutes of Moonraker's temperature store, asked again every five seconds while it
-  is open. Moonraker keeps heaters and `temperature_sensor` objects there; the others have no history. Further tabs when the printer has them:
-  - **Fans**: part fan and `fan_generic` fans (filter, exhaust) with a slider, `heater_fan` and `controller_fan` as a
-    bar, speed in rpm where there is a tachometer. A fan turns red when its tachometer has reported 0 rpm for a few
-    seconds at a speed where it measured before (many tachometers report nothing at a low speed although the fan
-    turns); what it learned is forgotten when Klipper restarts.
-  - **Sensors**: every temperature without a target (`temperature_sensor` of any sensor type, TMC2240 drivers).
-- **Light**: the light symbol in the status bar opens a panel with the main (chamber) light as a switch, every LED
-  (`neopixel`, `led`, `dotstar`, …) on, off and dimmed as white light, and the effects of the
-  [led_effect](https://github.com/julianschill/klipper-led_effect) plugin when it is installed.
-- **Tune**: what one corrects while watching a print: Z offset (babysteps, apply to probe/endstop, save config) and
-  the speed factor, with a quiet note that layer times then differ from the slicer's plan. The **Expert** tab holds
-  the calibration values until the next restart: flow factor, pressure advance and smooth time, velocity and
-  acceleration limits, square corner velocity, minimum cruise ratio and firmware retraction; it shows where a value
-  differs from the configuration and resets it.
-- **Filament**: extrude/retract with length and speed (lengths up to `max_extrude_only_distance`), `LOAD_FILAMENT`/`UNLOAD_FILAMENT` macros when present, filament sensors (with Happy Hare those it does not show itself).
-- **System**, in five tabs:
-  - **Machine**: Klipper/firmware restart, host reboot/shutdown, service restart, power devices.
-  - **Updates**: Moonraker's update manager; the tab shows how many updates are waiting.
-  - **Network**: Wi-Fi and Ethernet (see [Network settings](#network-settings)).
-  - **Console** (also from the message flyout): G-code history and live responses, a command field (on-screen keyboard
-    or physical keyboard), and an expandable list of macros. Like Mainsail it hides the temperature reports Klipper
-    sends while waiting for a heater (can be turned off). Macros starting with `_` and macros that rename a built-in
-    command (`rename_existing`) are hidden; further macros can be hidden on the Display tab. Macros with parameters
-    open a form first: each parameter is read from the macro's template, Klipper defaults show as placeholders in
-    brackets.
-  - **Display**: Moonraker address and login (see [Moonraker login](#moonraker-login)), fullscreen, the console filter
-    and which macros the console offers. Temperature presets are set in the [settings file](#settings-file).
+- **Print**: progress, layers, ETA and filament; pause, resume, cancel and exclude objects on a map of the bed; a file
+  list with thumbnails.
+- **Move**: jog, home, Quad Gantry Level or Z-Tilt; a **Calibrate** tab for bed screws, Z offset and the bed mesh with
+  a coloured map and profiles.
+- **Thermal**: heaters with presets and temperature history, fans with a warning when one stops, sensors.
+- **Light**: main light, LEDs and the effects of led_effect.
+- **Tune**: Z offset and speed during a print; an Expert tab for flow, pressure advance, limits and retraction.
+- **Filament**: extrude, retract, load and unload macros, filament sensors.
+- **System**: restarts and power devices, updates, Wi-Fi and Ethernet, a full console with macros and forms for their
+  parameters, display settings.
+- **Happy Hare (MMU)**, 4.1 or newer: gates, filament path, buffer, FlowGuard and flow rate; select, load and eject
+  gates, tool-to-gate map, EndlessSpool.
+- **Spoolman**: the spool in use on the print page and at each gate, a spool picker with weighing, a preset from the
+  spool and hints before a print.
 
-Functions only appear when the printer has them (capabilities from `printer.objects.list` and `server.info`).
-
-### Happy Hare (MMU)
-
-Needs Happy Hare 4.1 or newer. The Filament page then opens on the **MMU** tab, next to **Extruder** and **Service**.
-The MMU tab and a strip on the print page show:
-
-- the gates and the bypass (five at a time): status, material, colour and the tools that take their filament from each
-  gate; unload what is loaded, home, recover and unlock after a pause;
-- the way of the filament of the selected gate, from the gate through the bowden and the extruder to the nozzle,
-  filled in the colours of the spool as far as Happy Hare reports it (`filament_pos`), with the sensors on the way,
-  the direction and the distance; on the print page as a slim line;
-- the other MMU sensors, the sync-feedback buffer (tension, neutral, compression) and the FlowGuard state: ready, monitoring,
-  tangle prevention at work, or triggered with its reason;
-- the flow rate, measured by the encoder or estimated by the sync-feedback controller with a proportional sensor.
-
-A tap on a gate opens what can be done with it: select, load, preload, check or eject it, pick its spool, move tools to
-it (Happy Hare's tool-to-gate map) and, with EndlessSpool on, choose its group. Without Spoolman the dialog sets
-material and colour of the gate in Happy Hare's gate map instead, from a set of common materials and colours. A tap on
-a gate never moves the selector by itself. The bypass takes filament fed by hand past the gates; its dialog selects
-and loads it. The **Service** tab holds what is rarely needed for the MMU as a whole: home, recover, unlock, motors
-off, check all gates and, on selectors with a servo, servo up and down; the tools with their gates and a reset of the
-map; EndlessSpool on or off.
-
-| ![MMU tab](docs/screenshots/mmu.png) | ![FlowGuard line while tangle prevention raises the gear current](docs/screenshots/print-tangle-boost.png) |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| The MMU tab: gates, sensors, buffer  | The print page while tangle prevention raises the gear current (the FlowGuard line turns yellow)       |
-
-**Quieter console (recommended).** FreakyMate shows Klipper's console messages in its status bar. Happy Hare prints a
-lot there by default: the gate table at startup, a picture of the filament path and statistics after every tool
-change. FreakyMate draws the gates and the filament path itself from `printer.mmu`, so these lines only crowd the
-status bar.
-Happy Hare can keep the console to the essentials and still write everything to `mmu.log`; in `mmu_parameters.cfg`:
-
-```ini
-log_level: 0            # console: essential messages and errors only
-log_file_level: 2       # mmu.log keeps the details (debug)
-log_visual: 0           # no filament path picture in the console
-log_startup_status: 0   # no gate table at startup
-log_statistics: 0       # no statistics after each tool change (still recorded)
-```
-
-This changes the console for every client, Mainsail and Fluidd included.
-
-### Spoolman
-
-Appears when Moonraker has the `spoolman` component, with or without an MMU:
-
-- the spool in use and what is left of it on the print page and at each gate, with a colour bar for multi-colour
-  filaments: side by side for coaxial ones (silk), taking turns for longitudinal ones (gradient);
-- a picker lists the spools (the ones in a gate first, then the most recently used): assign a spool to a gate or, without
-  an MMU, choose the active spool, and correct the remaining weight by weighing;
-- the temperature page offers a preset for the spool in use and notes quietly when the target is off from it;
-- before a print the confirmation names what differs between the file and the spools (material, weight, colour), only as
-  a hint.
-
-| ![Spool picker](docs/screenshots/spool-picker.png) | ![Start print with hints](docs/screenshots/spool-hints.png) | ![Spool preset on the temperature page](docs/screenshots/temperature-spool.png) |
-| -------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Spools with colour, material and weight left       | Before a print: what differs between file and spools        | The first preset on the temperature page belongs to the spool in use            |
+Functions only appear when the printer has them. Every page in detail: [docs/features.md](docs/features.md).
 
 ## What to expect
 
@@ -149,324 +66,40 @@ Appears when Moonraker has the `spoolman` component, with or without an MMU:
 Functions appear only where the printer has them, and the screen points out what looks unusual without forbidding it.
 Feedback, bug reports and corrections are welcome, please open an issue.
 
-## Release and pre-release
+## Quick start
 
-The [releases page](https://github.com/freakydude/freakymate/releases) offers two kinds of builds:
-
-| Build           | What it is                                                                                                                                  |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Pre-release** | Always the current state of `main`. Every merged change replaces it, so it has the newest functions first.                                 |
-| **Release**     | From time to time I tag a state of `main` as release `vX.Y.0`, when a set of changes feels finished. Fewer updates, more time in use.       |
-
-Neither is an untested nightly: a change only reaches `main` through a reviewed pull request whose automated checks
-(tests, builds and packages for all targets) are green, and a release is a state that was the pre-release before.
-Beyond that, "tested" means tried on three different printers, where it works quite well; other setups may still
-show bugs, so the caution above applies to both builds. Pick the release if you want few updates, the
-pre-release if you want to follow the development; the update channel below decides which one Moonraker installs.
-
-## Install on the printer host
-
-This is the main use case: FreakyMate runs on the host of the printer (Raspberry Pi OS, Armbian or another
-Debian-based system with the display attached), starts fullscreen on the display at boot and updates itself through
-Moonraker's update manager, like Mainsail or Fluidd.
-
-1. Download the zip for your system from the [releases](https://github.com/freakydude/freakymate/releases)
-   (release or pre-release, see above):
-   `aarch64-unknown-linux-gnu` (64-bit Raspberry Pi OS/Armbian, CB1/CB2), `armv7-unknown-linux-gnueabihf` (32-bit), `x86_64-unknown-linux-gnu`.
-   Builds target Debian Bookworm and run on Bookworm and Trixie.
-2. Unpack and run the installer as your normal user (the one running Klipper and Moonraker):
-
-   ```bash
-   unzip freakymate-aarch64-unknown-linux-gnu.zip -d freakymate-setup
-   cd freakymate-setup && ./install.sh -m http://127.0.0.1:7125
-   ```
-
-   The installer
-   - installs the packages from `system-dependencies.json` (among them `cage`, a minimal Wayland kiosk compositor),
-   - copies the program to `~/freakymate` and creates the systemd service `freakymate` (fullscreen on `tty1`),
-   - registers it with Moonraker's update manager (`[update_manager freakymate]` in `moonraker.conf`, service in
-     `moonraker.asvc`) and restarts Moonraker.
-
-   Options: `-m <moonraker url>`, `-d <printer_data folder>` (default `~/printer_data`), `-c stable|beta` (update channel, see below).
-   Settings go to `printer_data/config/freakymate.json`, next to the Klipper configs, so they can be edited in
-   Mainsail or Fluidd. An existing `~/.config/freakymate/settings.json` is copied there once.
-   Remove everything with `~/freakymate/uninstall.sh`; the settings file stays.
-
-### Updates and channels
-
-After the installation FreakyMate shows up in the update list of Mainsail, Fluidd and its own System page.
-Moonraker downloads the matching zip from the GitHub releases, replaces `~/freakymate` and restarts the service.
-The section written by the installer (add it yourself if `moonraker.conf` lives elsewhere):
-
-```ini
-[update_manager freakymate]
-type: zip
-channel: stable          # beta = also the pre-release (current main)
-repo: freakydude/freakymate
-path: ~/freakymate
-managed_services: freakymate
-system_dependencies: system-dependencies.json
-```
-
-| Channel  | What you get                                                                                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `stable` | Only releases `vX.Y.0`. Few updates, more time in use.                                                                              |
-| `beta`   | In addition the pre-release of **every** change on `main` (`vX.Y.Z`, replaced by the next one). New functions first.               |
-
-To change the channel set `channel:` in that section and restart Moonraker (`sudo systemctl restart moonraker`). The
-installer only writes the section once: re-running `install.sh` with `-c beta` does not change an existing `channel`
-line, so edit it by hand. Your edits survive later updates, because Moonraker only replaces the program folder.
-
-## Packages and desktop use
-
-Besides the Moonraker route there are plain packages, for example to try it on a desktop or any other device:
-
-- **Debian package**: each release contains `freakymate_<version>_<arch>.deb` (`amd64`, `arm64`, `armhf`). apt installs
-  the dependencies and removes the package cleanly, but Moonraker does **not** update it, install newer `.deb` files
-  yourself. Use either the zip installer or the package, not both (they would compete for `tty1`).
-
-  ```bash
-  sudo apt install ./freakymate_0.3.0_arm64.deb
-  sudo systemctl disable getty@tty1                # free tty1 for the kiosk
-  sudo systemctl enable --now freakymate@$USER  # fullscreen on tty1 as this user
-  # remove again (stops and disables all freakymate@ instances)
-  sudo apt remove freakymate && sudo systemctl enable getty@tty1
-  ```
-
-- **Windowed mode on a desktop** (Linux PC, Raspberry Pi OS with desktop, Windows): the program opens as a normal window
-  and talks to any Moonraker over the network. On Debian and Ubuntu install the `.deb` and start FreakyMate from the
-  application menu or with `freakymate` in a terminal (skip the `systemctl` lines above, they set up the kiosk); on Windows unpack
-  `freakymate-x86_64-pc-windows-msvc.zip` and run `freakymate.exe`. There is no Windows installer yet. Set the
-  Moonraker address on System → Display or with `-m` (default `http://127.0.0.1:7125`). For fullscreen with a mouse,
-  switch on Fullscreen on System → Display; `-f` is the kiosk mode for a touch screen and hides the mouse pointer.
-
-## Configuration
-
-### Command line
-
-```text
-freakymate [--moonraker <url>] [--fullscreen] [--settings <file>] [--simulate-network]
-```
-
-| Option               | Meaning                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| `-m, --moonraker`    | Moonraker address for this start, e.g. `http://printer.local:7125` (otherwise the saved setting) |
-| `-f, --fullscreen`   | Kiosk mode for a touch screen, as the services start it: fullscreen, no window frame, no mouse pointer |
-| `--settings`         | Settings file, default `~/.config/freakymate/settings.json` (Windows: `%APPDATA%`). The installer passes `printer_data/config/freakymate.json` |
-| `--simulate-network` | Simulated Wi-Fi/Ethernet instead of NetworkManager (development builds only, see below)          |
-
-Useful environment variables: `RUST_LOG=debug` (logging), `SLINT_BACKEND=winit-software` (force software rendering if the GPU
-driver causes trouble), `SLINT_SCALE_FACTOR=1.5` (sets the scale by hand and turns the fitting to the display off, also in fullscreen).
-Without a desktop or compositor the optional cargo feature `linuxkms` renders directly via DRM/KMS (experimental in Slint).
-
-### Settings file
-
-FreakyMate keeps its settings in a JSON file: `printer_data/config/freakymate.json` when installed with the installer
-(so it can be edited in Mainsail or Fluidd next to the Klipper configs), otherwise `~/.config/freakymate/settings.json`
-(Windows: `%APPDATA%\freakymate\settings.json`). The file is created with the defaults at the first start. Most entries are
-changed on the screen; the **temperature presets** only here:
-
-```json
-"temperature_presets": [
-  { "name": "PLA", "extruder": 210.0, "bed": 60.0 },
-  { "name": "PETG", "extruder": 240.0, "bed": 80.0 },
-  { "name": "ABS", "extruder": 250.0, "bed": 105.0 },
-  { "name": "TPU", "extruder": 225.0, "bed": 50.0 }
-]
-```
-
-The Thermal page shows the first four. Restart FreakyMate after editing (`sudo systemctl restart freakymate`); it
-writes the file itself when a setting changes on the screen, so edit it while FreakyMate is stopped or restart right
-after saving.
-
-### Moonraker login
-
-Usually Moonraker trusts the machine FreakyMate runs on (`trusted_clients` in `moonraker.conf`, on the printer host
-`localhost`), and nothing needs to be set up. If it does not, for example with FreakyMate on another machine or with
-`force_logins: True`, the screen says that Moonraker wants a login and offers one:
-
-- **Log in on the screen** with a Moonraker user. FreakyMate keeps only Moonraker's refresh token, not the password,
-  and logs in again with it at every start until it expires (`login_timeout` in `moonraker.conf`, 90 days by default)
-  or the user logs out; then the screen asks again. Logging out (Display tab, or the same user logging out in
-  Mainsail or Fluidd) ends every login of that user, so a user of its own for the display avoids surprises.
-- **API key**, entered by hand in the credentials file below. Moonraker hands it out to an authorized client, for
-  example on the printer host, which it usually trusts: `curl http://localhost:7125/access/api_key`.
-
-The credentials are kept per Moonraker address in `~/.config/freakymate/credentials.json` (Windows:
-`%APPDATA%\freakymate\credentials.json`), readable by the owner only. They stay there also when the settings lie in
-`printer_data/config`, because Moonraker serves that folder and it is often backed up to a git repository.
-
-```json
-{
-  "moonraker": {
-    "http://printer.local:7125": { "api_key": "<Moonraker's API key>" }
-  }
-}
-```
-
-FreakyMate talks plain HTTP and WebSocket to Moonraker so far (no HTTPS), like most installations in a home network;
-the password of a login goes over the network unencrypted.
-
-### Displays
-
-FreakyMate works best on a display of 5" or more at 800x480, such as the BTT HDMI5: the layout is made for that size and
-it is the one it has been tested with. In fullscreen, other resolutions show the same layout scaled up or down to fit, so
-a 7" 1024x600 display fills its screen and a smaller one, say a 4.3" 480x272, shows everything, only smaller. A window on
-a desktop is never smaller than 800x480; a larger one shows more room instead of scaling (where a compositor forces a
-smaller window, the layout is fitted as in fullscreen). Other sizes are not tested yet. Whether a small display is
-comfortable to read and touch depends on the display and on you, so it is worth a try. Layouts of their own for the 7"
-and 4.3" displays are planned.
-
-### Network settings
-
-Moonraker can only report the host's network (`machine.system_info`), it cannot change it. FreakyMate therefore talks
-to NetworkManager over D-Bus. Managing Wi-Fi (open, WPA/WPA2, WPA3, hidden, remove saved networks,
-on/off) and Ethernet (status, connect/disconnect) is offered when
-
-- FreakyMate runs on Linux with NetworkManager (default on Raspberry Pi OS Bookworm and newer), and
-- Moonraker runs on the same host (`localhost`/`127.0.0.1`), so the changed network is the printer's network.
-
-The user needs the polkit rule `50-freakymate.rules` (allows the NetworkManager actions for the group `netdev`).
-`install.sh` installs it to `/etc/polkit-1/rules.d` and adds the user to `netdev`; the Debian package ships it in
-`/usr/share/polkit-1/rules.d`, add the user yourself: `sudo usermod -aG netdev $USER` (takes effect after re-login or a
-service restart). Changing the network while printing asks for confirmation, because the connection may drop.
-
-On Windows, on Linux without NetworkManager or with a remote Moonraker the section only shows the printer host's
-interfaces and addresses read from Moonraker.
-
-## Development
-
-Rust stable (see `rust-toolchain.toml`). On Linux install `libfontconfig1-dev libxkbcommon-dev`.
-For Windows without admin rights (setup, faster linking with `rust-lld`, build times) see
-[docs/windows-without-admin.md](docs/windows-without-admin.md). Structure, data flow and conventions:
-[docs/architecture.md](docs/architecture.md).
-
-### Try it without a printer
-
-The `fake-moonraker` crate is a simulated Moonraker/Klipper (WebSocket JSON-RPC, files, thumbnails, heaters, a print job
-that progresses). It listens on `127.0.0.1` only.
+On the printer host (Raspberry Pi OS, Armbian or another Debian-based system with the display attached), download the
+zip for your system from the [releases](https://github.com/freakydude/freakymate/releases) and run the installer as
+the user running Klipper and Moonraker:
 
 ```bash
-cargo run -p fake-moonraker -- --profile voron --port 7125 --time-scale 10   # the simulated printer
-cargo run -p freakymate -- -m http://127.0.0.1:7125                       # the app, in a window
+unzip freakymate-aarch64-unknown-linux-gnu.zip -d freakymate-setup
+cd freakymate-setup && ./install.sh -m http://127.0.0.1:7125
 ```
 
-| Fake option    | Meaning                                                                          |
-| -------------- | -------------------------------------------------------------------------------- |
-| `--profile`    | `basic`, `voron` (default), `happy-hare` or `ercf`, see below                    |
-| `--gates`      | number of MMU gates, 1 to 16 (default 4; only with `happy-hare` and `ercf`)      |
-| `--port`       | port to listen on (default 7125; only one fake can run per port)                 |
-| `--time-scale` | simulation speed (default 10): heating and printing run that many times faster   |
-| `--auth`       | `<user>:<password>`: Moonraker wants a login (also accepts the API key `fake-api-key`) |
+FreakyMate then starts fullscreen on the display at boot and updates through Moonraker's update manager, like Mainsail
+or Fluidd. Release or pre-release, update channels, the Debian package and the desktop window:
+[docs/install.md](docs/install.md). For thumbnails, layers and the layer pause see
+[Slicer and macros](docs/printer-setup.md). To try it without a printer, see
+[Try it without a printer](docs/development.md#try-it-without-a-printer).
 
-| Profile      | Simulates                                                                                                                  |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `basic`      | a plain printer: nozzle, bed, fans, no optional modules                                                                    |
-| `voron`      | adds Quad Gantry Level, a chamber heater, filament sensors, `exclude_object` and Spoolman                                  |
-| `happy-hare` | adds a Happy Hare MMU with a proportional sync-feedback buffer and FlowGuard, spools in the gates, and Spoolman            |
-| `ercf`       | like `happy-hare`, but without Spoolman: material and colour of the gates live in Happy Hare's gate map                    |
+## Documentation
 
-`FAKE_MMU_TANGLE BOOST=1` (G-code, simulator only) lets tangle prevention boost the gear current during a print. In VS Code
-the tasks and debug configurations "run: fake-moonraker", "run: freakymate (fake Moonraker)" and their Happy Hare
-variants start both. The app also takes `--simulate-network` in development builds to try the Wi-Fi settings without
-NetworkManager.
-
-### Checks, screenshots and previews
-
-```bash
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-scripts/verify.sh [--snapshot]                           # WSL2/Arch: all of the above plus previews and the skill check in one go
-scripts/ui-preview.sh                                    # renders crates/ui/ui/preview/*.slint with sample data in seconds
-scripts/ui-snapshot.sh [-p happy-hare] [-s 1024x600] [-F] [-S pages,printing]   # starts the fake itself, renders the screens to PNG
-cargo run -p ui-snapshot -- --out shots --scenes all     # the same by hand (needs the fake running)
-cargo run -p icon-index                                  # after changing icons in assets/icons
-```
-
-`ui-snapshot` runs the real UI headless against the fake and writes one PNG per screen (`-p` picks the fake profile,
-`-s` the window size, `-F` switches the fitting to the display off, `-S` chooses scenes: `pages`, `spools`, `network`,
-`taps`, `typing`, `calibrate`, `printing`, `shutdown`, and only when chosen `idle` (slow) and `login` (the fake then wants
-a login)). `ui-preview` renders single `.slint` files with fixed sample data, no build needed.
-
-Scripts exist in two variants with the same behaviour:
-
-- `scripts/*.sh` (bash) for Arch Linux, native or in WSL2, the main development environment. `scripts/setup-linux.sh` checks the environment.
-- `scripts/*.ps1` (PowerShell) for Windows without admin rights. `scripts\setup.ps1` prepares the GNU toolchain there, see [docs/windows-without-admin.md](docs/windows-without-admin.md).
-
-### Tools
-
-| Tool                                                                                   | Needed for                                      | How to get it                                                                                                           | Where it is looked up                                                                  |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Rust (`rustup`)                                                                        | everything                                      | [rustup.rs](https://rustup.rs); `rust-toolchain.toml` selects the version                                               | `PATH`                                                                                 |
-| MinGW linker ([w64devkit](https://github.com/skeeto/w64devkit))                        | building on Windows without MSVC                | `scripts\setup.ps1` downloads it                                                                                        | `%USERPROFILE%\tools\w64devkit\bin`, added to the user `PATH` by the script            |
-| [`slint-viewer`](https://docs.slint.dev/latest/docs/slint/guide/tooling/slint-viewer/) | `scripts/ui-preview.sh` (WSL2), `scripts\ui-preview.ps1` (Windows) | WSL2: the script compiles the version matching `slint` in `Cargo.lock` into `~/.local/bin` (`cargo install slint-viewer --version <same>`); Windows: the script downloads it | `slint-viewer` on `PATH` first, otherwise the script's install location |
-| Slint extension for VS Code (optional)                                                 | live preview of `crates/ui/ui/preview/*.slint` | VS Code marketplace (`Slint.slint`)                                                                                     | –                                                                                      |
-
-To use your own `slint-viewer`, put it on `PATH`; it should have the same version as the `slint` crate.
-
-### Faster builds (optional, Linux)
-
-[`sccache`](https://github.com/mozilla/sccache) caches compiled crates across `cargo clean`, branches and checkouts
-on Arch Linux, native or in WSL2. It skips incremental builds, so it mainly saves rebuilding the dependencies (Slint
-above all). It is configured per user, not in the repo, so CI and machines without it are unaffected;
-`scripts/setup-linux.sh` reports whether it is set up.
-
-```bash
-sudo pacman -S --needed sccache
-```
-
-`~/.cargo/config.toml`:
-
-```toml
-[build]
-rustc-wrapper = "sccache"
-```
-
-`sccache --show-stats` shows the cache hits. In WSL2, keep the repo in the Linux file system (e.g. under `~`), not under `/mnt/c`.
-
-### Development builds and releases
-
-Local builds of `freakymate` include the cargo feature `dev-mode` (default): the option `--simulate-network`
-and the simulated networks in the core. Releases are built with `--no-default-features` and contain none of it.
-The development tools are separate programs and never shipped: `fake-moonraker` (simulated printer) and
-`ui-snapshot` (screenshots of the UI).
-
-### Contributing
-
-`main` is protected: changes go through a pull request, all CI checks must be green and the code owner
-(`.github/CODEOWNERS`) has to approve it. Before the first pull request is merged, contributors agree to the
-[Contributor License Agreement](CLA.md) once (currently a draft). Details in [CONTRIBUTING.md](CONTRIBUTING.md). This is a hobby
-project, so replies may take a while.
-
-### CI, versions and releases
-
-- Versions come from git tags (`.github/scripts/version.sh`): releases are `vX.Y.0`, every later commit on `main` adds
-  one to the patch number (`0.2.1`, `0.2.2`, ...). Pull request builds are `X.Y.Z-pr.<number>.<run>`, other branches
-  `X.Y.Z-dev.<commit>` (started manually), local builds `0.0.0-dev`. The version is shown on the Settings page and by
-  `--version`.
-- Every push to `main` and every pull request: format, clippy, tests, builds and packages for all targets
-  (`.github/workflows/ci.yml`), with cargo caching; a branch without a pull request can be built with **Run workflow**.
-  A newer commit cancels the running build of the same branch or pull request. The packages are attached to the run as artifact `packages-<version>`; pull requests get a
-  comment with the download link, so an open pull request can be tried before it is merged.
-- Every push to `main` is published as prerelease `vX.Y.Z`, replacing the previous prerelease. Moonraker offers it on
-  the `beta` channel.
-- Release: run the workflow **Release** (Actions tab) on `main` and choose `minor` or `major`. It tags `vX.Y.0`,
-  builds and publishes the release with generated notes; Moonraker offers it on the `stable` channel. The patch number
-  then starts again at 0.
-- Assets: one zip per target and one `.deb` per Linux target (`.github/scripts/build-deb.sh`, files in
-  `scripts/debian`). Linux zips contain `freakymate`, `install.sh`, `uninstall.sh`,
-  `system-dependencies.json` and `release_info.json` (version and asset name for Moonraker); Windows: `freakymate.exe`.
-  Every zip and `.deb` also contains `LICENSE` and `THIRD-PARTY-LICENSES.html` (licenses of all compiled-in crates,
-  generated by `cargo about` from `about.toml` and `about.hbs`).
-- Licenses of dependencies: `cargo deny check licenses` in CI fails on any crate whose license is not in the allow
-  list of `deny.toml` (all compatible with GPL-3.0-or-later).
+| Page                                   | What it covers                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| [Features](docs/features.md)           | Every page in detail, Happy Hare (MMU) and Spoolman                                  |
+| [Install and update](docs/install.md)  | Release and pre-release, installer, update channels, Debian package, desktop use     |
+| [Slicer and macros](docs/printer-setup.md) | Thumbnails, layers, excluding objects; macros for loading filament and pausing at a layer |
+| [Configuration](docs/configuration.md) | Command line, settings file and temperature presets, Moonraker login, displays, network |
+| [Development](docs/development.md)     | Build, simulated printer, checks and screenshots, CI, versions and releases          |
+| [Architecture](docs/architecture.md)   | Structure, data flow and conventions of the code                                     |
+| [Contributing](CONTRIBUTING.md)        | Pull requests and the Contributor License Agreement                                  |
 
 ## Contact and support
 
 Want to get in touch, report a bug, discuss a feature or show what you built? Meet me and the others who try
 FreakyMate on Discord. Bugs and feature requests are also welcome as GitHub issues, and pull requests too (see
-[Contributing](#contributing)).
+[CONTRIBUTING.md](CONTRIBUTING.md)).
 
 <a href="https://discord.gg/Ja2cxCcmJQ"><img src="https://img.shields.io/badge/Discord-join%20the%20chat-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord" height="40"></a>
 
@@ -476,6 +109,25 @@ promises, so answers may take a while. If you like it and want to say thanks, yo
 <a href="https://ko-fi.com/freakydude"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="40"></a>
 <a href="https://www.patreon.com/freakydude"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Become a patron" height="40"></a>
 <a href="https://www.buymeacoffee.com/freakydude"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40"></a>
+
+## Thanks
+
+FreakyMate builds on the work of many people. Thank you to
+
+- [Klipper](https://github.com/Klipper3d/klipper) and [Moonraker](https://github.com/Arksine/moonraker), above all:
+  the firmware and the API that FreakyMate talks to; without them it would have nothing to show.
+- [Happy Hare](https://github.com/moggieuk/Happy-Hare) for the multi-material support that the MMU pages show and
+  control.
+- [Spoolman](https://github.com/Donkie/Spoolman) for keeping track of the spools.
+- [Mainsail](https://github.com/mainsail-crew/mainsail), [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen)
+  and the [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition) for their
+  work on running Klipper and Happy Hare from a browser and a touch screen.
+- [Slint](https://slint.dev/) for the UI toolkit, and the Rust crates FreakyMate is built with, among them
+  [Tokio](https://tokio.rs/), [reqwest](https://github.com/seanmonstar/reqwest),
+  [tokio-tungstenite](https://github.com/snapview/tokio-tungstenite), [serde](https://serde.rs/),
+  [image](https://github.com/image-rs/image), [zbus](https://github.com/dbus2/zbus) and
+  [clap](https://github.com/clap-rs/clap); the [license](#license) section says where to find all of them.
+- [#3DBenchy](https://www.3dbenchy.com/) (CC0) for the boat in the screenshots.
 
 ## License
 

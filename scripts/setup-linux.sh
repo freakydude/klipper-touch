@@ -54,7 +54,7 @@ case ":$PATH:" in
     *) echo "hint    add ~/.local/bin to PATH (e.g. in ~/.bashrc)" ;;
 esac
 
-# Optional build cache, configured per user in ~/.cargo/config.toml (see README, "Faster builds").
+# Optional build cache, configured per user in ~/.cargo/config.toml (see docs/development.md, "Faster builds").
 if ! command -v sccache > /dev/null; then
     echo "hint    optional sccache not installed  ->  sudo pacman -S --needed sccache"
 elif ! grep -qs sccache "$HOME/.cargo/config.toml"; then

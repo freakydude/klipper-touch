@@ -108,7 +108,7 @@ report "Registering with the Moonraker update manager"
 MOONRAKER_CONF="$DATA_DIR/config/moonraker.conf"
 ALLOWED_SERVICES="$DATA_DIR/moonraker.asvc"
 if [ ! -f "$MOONRAKER_CONF" ]; then
-  echo "$MOONRAKER_CONF not found; add the [update_manager $NAME] section manually (see README)."
+  echo "$MOONRAKER_CONF not found; add the [update_manager $NAME] section manually (see docs/install.md)."
 else
   if [ -f "$ALLOWED_SERVICES" ]; then
     if ! grep -qx "$NAME" "$ALLOWED_SERVICES"; then

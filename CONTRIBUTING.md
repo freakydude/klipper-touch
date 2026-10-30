@@ -14,7 +14,7 @@ open an issue or ask on Discord, so we can agree on the approach first and your 
 - `main` is protected: changes go through a pull request, all CI checks must be green and the code owner
   (`.github/CODEOWNERS`) has to approve it.
 - Run `scripts/verify.sh` before you push (format, clippy, tests, builds, previews); for UI changes
-  `scripts/verify.sh --snapshot` and look at the screenshots. See [Development](README.md#development).
+  `scripts/verify.sh --snapshot` and look at the screenshots. See [Development](docs/development.md).
 - One topic per pull request, with a short description of what changes and why.
 - New dependencies need a license compatible with GPL-3.0-or-later; CI checks this with `cargo deny`
   (allowed licenses in `deny.toml`).

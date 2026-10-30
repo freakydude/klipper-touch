@@ -429,9 +429,8 @@ async fn runs_print_job_and_loads_file_details() {
     .await;
     let thumbnail = next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
     assert!(matches!(metadata, Event::FileMetadata(meta) if meta.estimated_time == Some(7200.0)));
-    assert!(
-        matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Svg(data), .. } if data.starts_with(b"<svg"))
-    );
+    // Of 32x32, 300x300 and 400x300 the square one fills the slot best.
+    assert!(matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Rgba { width: 300, height: 300, .. }, .. }));
 
     service.send(Command::RestartService { service: "klipper".into() });
     let refused = next_event(&mut channels, |event| matches!(event, Event::CommandFailed { .. })).await;
@@ -715,7 +714,7 @@ async fn an_api_key_opens_the_connection_and_the_thumbnails() {
     assert_eq!(snapshot.access, Access::ApiKey);
     service.query(Query::FileDetails { filename: "benchy.gcode".into() });
     let thumbnail = next_event(&mut channels, |event| matches!(event, Event::Thumbnail { .. })).await;
-    assert!(matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Svg(_), .. }));
+    assert!(matches!(thumbnail, Event::Thumbnail { image: ThumbnailImage::Rgba { .. }, .. }));
 }
 
 #[tokio::test(flavor = "multi_thread")]
