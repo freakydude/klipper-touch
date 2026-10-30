@@ -82,16 +82,18 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
-    pub fn largest_thumbnail(&self) -> Option<&Thumbnail> {
-        self.thumbnails
-            .iter()
-            .filter(|thumbnail| !thumbnail.relative_path.is_empty())
-            .max_by_key(|thumbnail| u64::from(thumbnail.width) * u64::from(thumbnail.height))
+    /// The thumbnail that fills a square best: the longest short side (sharpest in the square), then the squarest
+    /// (least border), so of 300x300 and 400x300 the square one wins.
+    pub fn best_thumbnail(&self) -> Option<&Thumbnail> {
+        self.thumbnails.iter().filter(|thumbnail| !thumbnail.relative_path.is_empty()).max_by_key(|thumbnail| {
+            let short_side = thumbnail.width.min(thumbnail.height);
+            (short_side, std::cmp::Reverse(thumbnail.width.max(thumbnail.height)))
+        })
     }
 
-    /// HTTP path of the largest thumbnail relative to the Moonraker server.
+    /// HTTP path of the best thumbnail relative to the Moonraker server.
     pub fn thumbnail_path(&self) -> Option<String> {
-        let thumbnail = self.largest_thumbnail()?;
+        let thumbnail = self.best_thumbnail()?;
         let directory = self.filename.rsplit_once('/').map_or("", |(directory, _)| directory);
         let relative = if directory.is_empty() {
             thumbnail.relative_path.clone()
@@ -165,23 +167,39 @@ mod tests {
     }
 
     #[test]
-    fn picks_largest_thumbnail_and_builds_encoded_path() {
+    fn picks_the_sharpest_square_thumbnail_and_builds_encoded_path() {
         let metadata = parse_metadata(&json!({
             "filename": "my parts/cube.gcode",
             "estimated_time": 1500.0,
             "thumbnails": [
                 { "width": 32, "height": 32, "relative_path": ".thumbs/cube-32x32.png" },
+                { "width": 400, "height": 300, "relative_path": ".thumbs/cube-400x300.png" },
                 { "width": 300, "height": 300, "relative_path": ".thumbs/cube-300x300.png" }
             ]
         }))
         .unwrap();
 
         assert_eq!(metadata.estimated_time, Some(1500.0));
-        assert_eq!(metadata.largest_thumbnail().unwrap().width, 300);
+        assert_eq!(metadata.best_thumbnail().unwrap().width, 300);
         assert_eq!(
             metadata.thumbnail_path().as_deref(),
             Some("server/files/gcodes/my%20parts/.thumbs/cube-300x300.png")
         );
+    }
+
+    #[test]
+    fn a_wide_thumbnail_wins_when_it_is_sharper_in_a_square() {
+        let metadata = parse_metadata(&json!({
+            "filename": "cube.gcode",
+            "thumbnails": [
+                { "width": 16, "height": 16, "relative_path": ".thumbs/cube-16x16.png" },
+                { "width": 313, "height": 173, "relative_path": ".thumbs/cube-313x173.png" },
+                { "width": 440, "height": 240, "relative_path": ".thumbs/cube-440x240.png" }
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(metadata.best_thumbnail().unwrap().width, 440);
     }
 
     #[test]

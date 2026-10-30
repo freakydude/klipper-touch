@@ -2,8 +2,54 @@
 
 use crate::print_objects::Definitions;
 use serde_json::{json, Value};
+use std::borrow::Cow;
 
-const THUMBNAIL_SIZE: u32 = 300;
+const PLACEHOLDER_SIZE: u32 = 300;
+
+/// The benchy's thumbnails as preFlight 1.4.1 rendered them in FreakyMate's accent colour, so screenshots show a real
+/// print preview. #3DBenchy (3DBenchy.com) is licensed CC0 1.0.
+const BENCHY_THUMBNAILS: [(u32, u32, &[u8]); 3] = [
+    (32, 32, include_bytes!("../assets/benchy-32x32.png")),
+    (300, 300, include_bytes!("../assets/benchy-300x300.png")),
+    (400, 300, include_bytes!("../assets/benchy-400x300.png")),
+];
+
+/// A thumbnail image as Moonraker serves it from `.thumbs/`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ThumbnailImage {
+    Png(&'static [u8]),
+    Svg(String),
+}
+
+impl ThumbnailImage {
+    pub fn content_type(&self) -> &'static str {
+        match self {
+            Self::Png(_) => "image/png",
+            Self::Svg(_) => "image/svg+xml",
+        }
+    }
+
+    pub fn into_bytes(self) -> Cow<'static, [u8]> {
+        match self {
+            Self::Png(bytes) => Cow::Borrowed(bytes),
+            Self::Svg(text) => Cow::Owned(text.into_bytes()),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            Self::Png(bytes) => bytes.len(),
+            Self::Svg(text) => text.len(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Thumbnail {
+    width: u32,
+    height: u32,
+    image: ThumbnailImage,
+}
 
 #[derive(Debug, Clone)]
 pub struct GcodeFile {
@@ -83,15 +129,44 @@ impl GcodeFile {
         self.path.strip_suffix(".gcode").unwrap_or(&self.path)
     }
 
-    fn thumbnail_path(&self) -> String {
-        format!(".thumbs/{}-{THUMBNAIL_SIZE}x{THUMBNAIL_SIZE}.png", self.stem())
+    /// The benchy has real slicer thumbnails, the cube was sliced without any (the screen shows its own placeholder),
+    /// the long job has an SVG with its name.
+    fn thumbnail_images(&self) -> Vec<Thumbnail> {
+        match self.path.as_str() {
+            "benchy.gcode" => BENCHY_THUMBNAILS
+                .iter()
+                .map(|&(width, height, png)| Thumbnail { width, height, image: ThumbnailImage::Png(png) })
+                .collect(),
+            "calibration_cube.gcode" => Vec::new(),
+            _ => {
+                let image = ThumbnailImage::Svg(self.placeholder_svg());
+                vec![Thumbnail { width: PLACEHOLDER_SIZE, height: PLACEHOLDER_SIZE, image }]
+            }
+        }
     }
 
-    fn thumbnail_svg(&self) -> String {
+    fn thumbnail_path(&self, thumbnail: &Thumbnail) -> String {
+        format!(".thumbs/{}-{}x{}.png", self.stem(), thumbnail.width, thumbnail.height)
+    }
+
+    /// The thumbnails as Moonraker lists them, the path under `path_key`.
+    fn thumbnail_entries(&self, path_key: &str) -> Value {
+        let entries = self.thumbnail_images().into_iter().map(|thumbnail| {
+            json!({
+                "width": thumbnail.width,
+                "height": thumbnail.height,
+                "size": thumbnail.image.len(),
+                path_key: self.thumbnail_path(&thumbnail),
+            })
+        });
+        Value::Array(entries.collect())
+    }
+
+    fn placeholder_svg(&self) -> String {
         format!(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"><rect width="{size}" height="{size}" fill="#2b5876"/><text x="{middle}" y="{middle}" font-size="24" fill="white" text-anchor="middle">{label}</text></svg>"##,
-            size = THUMBNAIL_SIZE,
-            middle = THUMBNAIL_SIZE / 2,
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"><rect width="{size}" height="{size}" fill="#2a2f36"/><text x="{middle}" y="{middle}" font-size="24" fill="#9aa0a6" text-anchor="middle">{label}</text></svg>"##,
+            size = PLACEHOLDER_SIZE,
+            middle = PLACEHOLDER_SIZE / 2,
             label = self.stem(),
         )
     }
@@ -101,12 +176,7 @@ impl GcodeFile {
     }
 
     pub fn thumbnails(&self) -> Value {
-        json!([{
-            "width": THUMBNAIL_SIZE,
-            "height": THUMBNAIL_SIZE,
-            "size": self.thumbnail_svg().len(),
-            "thumbnail_path": self.thumbnail_path(),
-        }])
+        self.thumbnail_entries("thumbnail_path")
     }
 
     pub fn metadata(&self) -> Value {
@@ -137,12 +207,7 @@ impl GcodeFile {
             "job_id": null,
             "print_start_time": null,
             "uuid": format!("fake-{}", self.stem()),
-            "thumbnails": [{
-                "width": THUMBNAIL_SIZE,
-                "height": THUMBNAIL_SIZE,
-                "size": self.thumbnail_svg().len(),
-                "relative_path": self.thumbnail_path(),
-            }],
+            "thumbnails": self.thumbnail_entries("relative_path"),
         })
     }
 }
@@ -203,8 +268,13 @@ impl Catalog {
         json!({ "count": jobs.len(), "jobs": jobs })
     }
 
-    pub fn thumbnail_svg(&self, thumbnail_path: &str) -> Option<String> {
-        self.files.iter().find(|file| file.thumbnail_path() == thumbnail_path).map(GcodeFile::thumbnail_svg)
+    pub fn thumbnail(&self, thumbnail_path: &str) -> Option<ThumbnailImage> {
+        self.files.iter().find_map(|file| {
+            file.thumbnail_images()
+                .into_iter()
+                .find(|thumbnail| file.thumbnail_path(thumbnail) == thumbnail_path)
+                .map(|thumbnail| thumbnail.image)
+        })
     }
 }
 
@@ -221,12 +291,18 @@ mod tests {
     }
 
     #[test]
-    fn metadata_points_to_a_servable_thumbnail() {
+    fn metadata_points_to_servable_thumbnails() {
         let catalog = Catalog::demo();
-        let metadata = catalog.find("benchy.gcode").unwrap().metadata();
-        let relative_path = metadata["thumbnails"][0]["relative_path"].as_str().unwrap();
+        let thumbnail_of = |file: &str, index: usize| {
+            let metadata = catalog.find(file).unwrap().metadata();
+            catalog.thumbnail(metadata["thumbnails"][index]["relative_path"].as_str().unwrap())
+        };
 
-        assert!(catalog.thumbnail_svg(relative_path).is_some());
+        assert!(
+            matches!(thumbnail_of("benchy.gcode", 1), Some(ThumbnailImage::Png(png)) if png.starts_with(b"\x89PNG"))
+        );
+        assert!(matches!(thumbnail_of("long_job.gcode", 0), Some(ThumbnailImage::Svg(_))));
+        assert_eq!(catalog.find("calibration_cube.gcode").unwrap().metadata()["thumbnails"], json!([]));
     }
 
     #[test]
