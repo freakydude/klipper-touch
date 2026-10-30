@@ -19,6 +19,9 @@ impl FileEntry {
     }
 }
 
+/// Slicers add icon-sized previews (16x16, 32x32, 48x48) next to the real one; a shorter side than this is one of them.
+const MINI_THUMBNAIL_BELOW: u32 = 100;
+
 /// A file's preview ready to show. PNG and JPEG are decoded here, in a worker thread, so the UI only copies pixels;
 /// SVG (from the fake Moonraker) stays as text for the UI toolkit.
 #[derive(Debug, Clone, PartialEq)]
@@ -82,12 +85,14 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
-    /// The thumbnail that fills a square best: the longest short side (sharpest in the square), then the squarest
-    /// (least border), so of 300x300 and 400x300 the square one wins.
+    /// The thumbnail that fills the square slots best: a square one in full size before a non-square one in full
+    /// size before a mini one; within each the longest short side (sharpest), then the squarest (least border).
     pub fn best_thumbnail(&self) -> Option<&Thumbnail> {
         self.thumbnails.iter().filter(|thumbnail| !thumbnail.relative_path.is_empty()).max_by_key(|thumbnail| {
             let short_side = thumbnail.width.min(thumbnail.height);
-            (short_side, std::cmp::Reverse(thumbnail.width.max(thumbnail.height)))
+            let full_size = short_side >= MINI_THUMBNAIL_BELOW;
+            let square = thumbnail.width == thumbnail.height;
+            (full_size, square, short_side, std::cmp::Reverse(thumbnail.width.max(thumbnail.height)))
         })
     }
 
@@ -188,7 +193,21 @@ mod tests {
     }
 
     #[test]
-    fn a_wide_thumbnail_wins_when_it_is_sharper_in_a_square() {
+    fn a_square_thumbnail_in_full_size_wins_over_a_sharper_wide_one() {
+        let metadata = parse_metadata(&json!({
+            "filename": "cube.gcode",
+            "thumbnails": [
+                { "width": 440, "height": 240, "relative_path": ".thumbs/cube-440x240.png" },
+                { "width": 200, "height": 200, "relative_path": ".thumbs/cube-200x200.png" }
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(metadata.best_thumbnail().unwrap().width, 200);
+    }
+
+    #[test]
+    fn a_wide_thumbnail_wins_over_mini_square_ones() {
         let metadata = parse_metadata(&json!({
             "filename": "cube.gcode",
             "thumbnails": [
