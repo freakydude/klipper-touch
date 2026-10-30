@@ -110,6 +110,25 @@ promises, so answers may take a while. If you like it and want to say thanks, yo
 <a href="https://www.patreon.com/freakydude"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Become a patron" height="40"></a>
 <a href="https://www.buymeacoffee.com/freakydude"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40"></a>
 
+## Thanks
+
+FreakyMate builds on the work of many people. Thank you to
+
+- [Klipper](https://github.com/Klipper3d/klipper) and [Moonraker](https://github.com/Arksine/moonraker), above all:
+  the firmware and the API that FreakyMate talks to; without them it would have nothing to show.
+- [Happy Hare](https://github.com/moggieuk/Happy-Hare) for the multi-material support that the MMU pages show and
+  control.
+- [Spoolman](https://github.com/Donkie/Spoolman) for keeping track of the spools.
+- [Mainsail](https://github.com/mainsail-crew/mainsail), [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen)
+  and the [KlipperScreen Happy Hare Edition](https://github.com/moggieuk/KlipperScreen-Happy-Hare-Edition) for their
+  work on running Klipper and Happy Hare from a browser and a touch screen.
+- [Slint](https://slint.dev/) for the UI toolkit, and the Rust crates FreakyMate is built with, among them
+  [Tokio](https://tokio.rs/), [reqwest](https://github.com/seanmonstar/reqwest),
+  [tokio-tungstenite](https://github.com/snapview/tokio-tungstenite), [serde](https://serde.rs/),
+  [image](https://github.com/image-rs/image), [zbus](https://github.com/dbus2/zbus) and
+  [clap](https://github.com/clap-rs/clap); the [license](#license) section says where to find all of them.
+- [#3DBenchy](https://www.3dbenchy.com/) (CC0) for the boat in the screenshots.
+
 ## License
 
 GPL-3.0-or-later, see [LICENSE](LICENSE). Slint is used under its GPLv3 option. The packages list the licenses of
