@@ -123,7 +123,7 @@ impl Setup {
             ]),
         );
         subscription.add("motion_report", Some(&["live_position", "live_velocity", "live_extruder_velocity"]));
-        subscription.add("gcode_move", Some(&["homing_origin", "speed_factor", "extrude_factor"]));
+        subscription.add("gcode_move", Some(&["gcode_position", "homing_origin", "speed_factor", "extrude_factor"]));
         subscription.add(
             "extruder",
             Some(&["temperature", "target", "power", "pressure_advance", "smooth_time", "can_extrude"]),

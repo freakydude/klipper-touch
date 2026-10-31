@@ -12,6 +12,7 @@ mod fields;
 mod filament_sensors;
 mod firmware_retraction;
 mod heaters;
+mod height_watch;
 mod job;
 mod leveling;
 mod macros;
@@ -32,6 +33,7 @@ pub use fan_watch::FanWatch;
 pub use filament_sensors::FilamentSensor;
 pub use firmware_retraction::Retraction;
 pub use heaters::{Heater, TemperatureSensor};
+pub use height_watch::HeightWatch;
 pub use job::{PrintJob, PrintState};
 pub use leveling::Leveling;
 pub use macros::{

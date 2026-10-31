@@ -5,6 +5,8 @@ use serde_json::{json, Value};
 use std::borrow::Cow;
 
 const PLACEHOLDER_SIZE: u32 = 300;
+/// Layer height of every fake file; the first layer is as high.
+pub const LAYER_HEIGHT: f64 = 0.2;
 
 /// The benchy's thumbnails as preFlight 1.4.1 rendered them in FreakyMate's accent colour, so screenshots show a real
 /// print preview. #3DBenchy (3DBenchy.com) is licensed CC0 1.0.
@@ -188,9 +190,9 @@ impl GcodeFile {
             "slicer_version": "1.0.0",
             "estimated_time": self.estimated_time,
             "layer_count": self.layer_count,
-            "layer_height": 0.2,
-            "first_layer_height": 0.2,
-            "object_height": f64::from(self.layer_count) * 0.2,
+            "layer_height": LAYER_HEIGHT,
+            "first_layer_height": LAYER_HEIGHT,
+            "object_height": f64::from(self.layer_count) * LAYER_HEIGHT,
             "nozzle_diameter": 0.4,
             "filament_name": "Fake PLA",
             "filament_type": if self.path == "long_job.gcode" { "PLA;PETG" } else { "PLA" },

@@ -19,6 +19,14 @@ impl<'a> Subscription<'a> {
         }
     }
 
+    /// Like [`Self::add`] for an object whose name comes from the configuration (`gcode_macro <NAME>`): Klipper lists it
+    /// as written there, in any case.
+    pub(in crate::sources) fn add_any_case(&mut self, name: &str, fields: Option<&[&str]>) {
+        if let Some(listed) = self.available.iter().find(|candidate| candidate.eq_ignore_ascii_case(name)) {
+            self.add(listed, fields);
+        }
+    }
+
     pub(in crate::sources) fn into_parameters(self) -> Value {
         json!({ "objects": self.objects })
     }

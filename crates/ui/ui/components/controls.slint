@@ -351,6 +351,8 @@ export component ValueTile inherits Rectangle {
     // A tile that opens something on a tap shows a small muted icon at its right edge.
     in property <image> action-icon;
     in property <bool> enabled-action;
+    // A word under the action icon about what is set there (a planned pause); colours the icon with the accent.
+    in property <string> action-note;
     callback clicked;
     background: tile-touch.pressed ? Theme.surface-raised : Theme.surface;
     border-radius: Theme.radius;
@@ -394,12 +396,21 @@ export component ValueTile inherits Rectangle {
                 overflow: elide;
             }
         }
-        if root.enabled-action && root.action-icon.width > 0: Image {
-            cross-axis-self-alignment: center;
-            source: root.action-icon;
-            colorize: Theme.muted;
-            width: 18px;
-            height: 18px;
+        if root.enabled-action && root.action-icon.width > 0: VerticalLayout {
+            alignment: center;
+            Image {
+                horizontal-alignment: center;
+                source: root.action-icon;
+                colorize: root.action-note != "" ? Theme.accent : Theme.muted;
+                width: 18px;
+                height: 18px;
+            }
+            if root.action-note != "": Text {
+                text: root.action-note;
+                color: Theme.accent;
+                font-size: Theme.font-small;
+                horizontal-alignment: center;
+            }
         }
     }
 }

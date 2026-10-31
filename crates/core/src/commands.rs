@@ -27,9 +27,8 @@ pub enum Command {
     PausePrint,
     ResumePrint,
     CancelPrint,
-    /// Plans a pause at the next layer change with Mainsail's macro, see [`crate::domain::pause::layer_pause_offer`].
-    PauseAtNextLayer,
-    /// Plans a pause when the print reaches `layer`.
+    /// Plans a pause when the print reaches `layer` with Mainsail's macros, see
+    /// [`crate::domain::pause::layer_pause_offer`].
     PauseAtLayer {
         layer: u32,
     },
@@ -270,6 +269,7 @@ const NO_UNLOAD_WAY: &str = "no way to unload filament: no Happy Hare and no UNL
 const NO_LIGHT: &str = "this printer has no LED";
 const NO_Z_CALIBRATION: &str = "this printer has neither a probe nor a Z endstop with position_endstop";
 const NO_LAYER_PAUSE: &str = "this printer has no macro to pause at a layer";
+const NO_LAYER_REPORT: &str = "the print file reports no layers";
 const NO_MMU: &str = "this printer has no MMU";
 const GATE_MAP_FROM_SPOOLMAN: &str =
     "Happy Hare takes material and colour of the gates from Spoolman (spoolman_support: pull)";
@@ -358,9 +358,9 @@ impl Command {
                 }
                 _ => return Err(NO_UNLOAD_WAY.to_owned()),
             },
-            Self::PauseAtNextLayer => layer_pause(sources.layer_pause.and_then(|macros| macros.pause_next_layer()))?,
             Self::PauseAtLayer { layer } => {
-                layer_pause(sources.layer_pause.and_then(|macros| macros.pause_at_layer(layer)))?
+                let current = status.job.current_layer.ok_or_else(|| NO_LAYER_REPORT.to_owned())?;
+                layer_pause(sources.layer_pause.and_then(|macros| macros.pause_at(layer, current)))?
             }
             Self::ClearLayerPause => {
                 let scripts = sources.layer_pause.map(|macros| macros.clear()).unwrap_or_default();
@@ -485,7 +485,6 @@ impl Command {
             | Self::ApplyZOffset
             | Self::LoadFilament
             | Self::UnloadFilament
-            | Self::PauseAtNextLayer
             | Self::PauseAtLayer { .. }
             | Self::ClearLayerPause
             | Self::SetGateFilament { .. }
@@ -575,7 +574,7 @@ fn spaced_words(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sources::klipper::WhiteChannel;
+    use crate::sources::klipper::{PrintJob, WhiteChannel};
     use serde_json::json;
 
     fn motion_at(position: [f64; 4]) -> Motion {
@@ -663,12 +662,17 @@ mod tests {
     fn layer_pauses_call_mainsails_macros_with_documented_parameters_only() {
         let both = ["gcode_macro SET_PAUSE_NEXT_LAYER", "gcode_macro SET_PAUSE_AT_LAYER"];
         let gcode = |script: &str| Command::RunGcode { script: script.into() };
+        let at_layer_10 = PrinterStatus {
+            job: PrintJob { current_layer: Some(10), ..PrintJob::default() },
+            ..PrinterStatus::default()
+        };
+        let pause_at =
+            |layer: u32, objects: &[&str]| Command::PauseAtLayer { layer }.resolve(&printer(objects), &at_layer_10);
 
-        assert_eq!(resolved(Command::PauseAtNextLayer, &both), Ok(vec![gcode("SET_PAUSE_NEXT_LAYER ENABLE=1")]));
-        assert_eq!(
-            resolved(Command::PauseAtLayer { layer: 42 }, &both),
-            Ok(vec![gcode("SET_PAUSE_AT_LAYER ENABLE=1 LAYER=42")])
-        );
+        assert_eq!(pause_at(11, &both), Ok(vec![gcode("SET_PAUSE_NEXT_LAYER ENABLE=1")]));
+        assert_eq!(pause_at(42, &both), Ok(vec![gcode("SET_PAUSE_AT_LAYER ENABLE=1 LAYER=42")]));
+        assert!(pause_at(42, &["gcode_macro SET_PAUSE_NEXT_LAYER"]).is_err());
+        assert!(resolved(Command::PauseAtLayer { layer: 42 }, &both).is_err());
         assert_eq!(
             resolved(Command::ClearLayerPause, &both),
             Ok(vec![gcode("SET_PAUSE_NEXT_LAYER ENABLE=0"), gcode("SET_PAUSE_AT_LAYER ENABLE=0")])
@@ -677,7 +681,6 @@ mod tests {
             resolved(Command::ClearLayerPause, &["gcode_macro SET_PAUSE_AT_LAYER"]),
             Ok(vec![gcode("SET_PAUSE_AT_LAYER ENABLE=0")])
         );
-        assert!(resolved(Command::PauseAtNextLayer, &["gcode_macro SET_PAUSE_AT_LAYER"]).is_err());
         assert!(resolved(Command::ClearLayerPause, &["extruder"]).is_err());
     }
 

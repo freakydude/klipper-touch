@@ -93,6 +93,9 @@ pub struct Motion {
     pub minimum_cruise_ratio: f64,
     pub live_velocity: f64,
     pub live_extruder_velocity: f64,
+    /// The position in the coordinates of the G-code file: without the G-code offset and the bed mesh, so its Z is
+    /// the height the slicer planned.
+    pub gcode_position: [f64; 4],
     pub homing_origin: [f64; 4],
     pub speed_factor: f64,
     pub extrude_factor: f64,
@@ -120,6 +123,7 @@ pub(super) fn read_motion(toolhead: &Value, motion_report: &Value, gcode_move: &
         minimum_cruise_ratio: number(toolhead, "minimum_cruise_ratio"),
         live_velocity: number(motion_report, "live_velocity"),
         live_extruder_velocity: number(motion_report, "live_extruder_velocity"),
+        gcode_position: vector(gcode_move, "gcode_position"),
         homing_origin: vector(gcode_move, "homing_origin"),
         speed_factor: number_or(gcode_move, "speed_factor", 1.0),
         extrude_factor: number_or(gcode_move, "extrude_factor", 1.0),

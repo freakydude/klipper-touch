@@ -3,7 +3,7 @@
 What each page of FreakyMate does. Functions only appear when the printer has them (capabilities from
 `printer.objects.list` and `server.info`).
 
-- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers, filament; start, pause, resume, cancel, exclude objects (on a map of the bed if the slicer defines their outlines);
+- **Print**: thumbnail, progress, elapsed/remaining/ETA, layers with current and object height, filament; start, pause, resume, cancel, pause at a layer (planned pause shown), exclude objects (on a map of the bed if the slicer defines their outlines);
   file browser with thumbnails, filament, nozzle and print time of each file.
 - **Move**: jog X/Y/Z with selectable steps, home (all/XY/Z), motors off, Quad Gantry Level or Z-Tilt when configured.
   Move and Filament are locked while a print runs; the screen leaves them when a print starts.

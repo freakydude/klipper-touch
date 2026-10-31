@@ -535,9 +535,11 @@ fn taps(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
-/// The Layer tile of the print page and the first button of the layer pause dialog (800x480, no fitting).
+/// The Layer tile of the print page and the main button of the layer pause dialog (800x480, no fitting).
 const LAYER_TILE: (f32, f32) = (580.0, 133.0);
-const NEXT_LAYER_BUTTON: (f32, f32) = (440.0, 210.0);
+const LAYER_PAUSE_BUTTON: (f32, f32) = (440.0, 320.0);
+/// How far ahead the scene plans a pause first, so that it shows without pausing.
+const PLANNED_LAYERS_AHEAD: i32 = 40;
 /// The nozzle temperature of the status bar while a print runs and no message is shown (800x480, no fitting).
 const STATUS_BAR_NOZZLE: (f32, f32) = (440.0, 22.0);
 /// The Objects button of the paused print page, then in its dialog: the fake's BENCHY_1 on the bed map (centre
@@ -778,17 +780,27 @@ fn printing(session: &mut Session) -> Result<(), String> {
     print_error(session)
 }
 
-/// The Layer tile opens the dialog of Mainsail's layer pause macros (the fake has them); its first button plans a
-/// pause at the next layer, and the fake pauses there. Another layout sends the command instead of tapping.
+/// A pause planned layers ahead shows at the Layer tile and in its dialog (the fake has Mainsail's macros and their
+/// variables). The dialog's main button then plans a pause at the next layer, and the fake pauses there. Another
+/// layout sends the command instead of tapping.
 fn pause_at_next_layer(session: &mut Session) -> Result<(), String> {
+    let current = session.window.global::<Printer>().get_current_layer();
+    let ahead = u32::try_from(current + PLANNED_LAYERS_AHEAD).unwrap_or_default();
+    session.service.send(Command::PauseAtLayer { layer: ahead });
+    session.wait_until("pause planned ahead", |snapshot| {
+        snapshot.status.layer_pause_plan.is_some_and(|plan| plan.at_layer == Some(ahead))
+    })?;
+    session.pump(Duration::from_secs(1));
+    session.capture("print-pause-planned")?;
     if session.has_reference_layout() {
         let (x, y) = LAYER_TILE;
         session.tap(x, y);
         session.capture("layer-pause")?;
-        let (x, y) = NEXT_LAYER_BUTTON;
+        let (x, y) = LAYER_PAUSE_BUTTON;
         session.tap(x, y);
     } else {
-        session.service.send(Command::PauseAtNextLayer);
+        let next = u32::try_from(session.window.global::<Printer>().get_current_layer() + 1).unwrap_or_default();
+        session.service.send(Command::PauseAtLayer { layer: next });
     }
     session.wait_until("paused at the next layer", |snapshot| snapshot.status.job.state == PrintState::Paused)?;
     session.pump(Duration::from_secs(1));

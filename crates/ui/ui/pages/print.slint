@@ -300,13 +300,15 @@ export component PrintPage inherits Rectangle {
                         label: @tr("Elapsed");
                         value: Printer.elapsed;
                     }
-                    // A tap plans a pause at a layer, if the printer has Mainsail's macros for it.
+                    // The heights take the place of the label, as the flow does on the speed tile. A tap plans a pause
+                    // at a layer, if the printer has Mainsail's macros for it; a planned one shows at the pause icon.
                     ValueTile {
                         weight: 5;
                         icon: Icons.print-layers;
-                        label: @tr("Layer");
+                        label: Printer.print-heights != "" ? Printer.print-heights : @tr("Layer");
                         value: Printer.layers;
                         action-icon: Icons.print-pause;
+                        action-note: Printer.layer-pause-planned;
                         enabled-action: Printer.layer-pause-next || Printer.layer-pause-at;
                         clicked => { layer-pause-dialog.open(); }
                     }

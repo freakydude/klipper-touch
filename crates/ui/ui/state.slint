@@ -338,6 +338,8 @@ export global Printer {
     in property <string> remaining;
     in property <string> eta;
     in property <string> layers;
+    // Height of the current layer and of the object, e.g. "2.40 / 24.0 mm"; empty if neither is known.
+    in property <string> print-heights;
     in property <string> filament;
     // When a finished job ended, from the job history; "-" if unknown.
     in property <string> ended;
@@ -349,6 +351,10 @@ export global Printer {
     in property <int> current-layer;
     // 0 if the slicer does not report the number of layers.
     in property <int> total-layers;
+    // The macros' variables tell what is planned; without them the plan is not known.
+    in property <bool> layer-pause-plan-known;
+    // The planned pause in a word: "next" or the layer; empty if nothing is planned or not known.
+    in property <string> layer-pause-planned;
     in property <image> job-thumbnail;
     in property <bool> has-job-thumbnail;
 
@@ -640,9 +646,10 @@ export global Actions {
     callback pause-print();
     callback resume-print();
     callback cancel-print();
-    callback pause-at-next-layer();
     callback pause-at-layer(int);
     callback clear-layer-pause();
+    // The height a layer ahead will have, e.g. "~10.00 mm"; empty if it cannot be told.
+    pure callback height-at-layer(int) -> string;
     callback emergency-stop();
     callback restart-klipper();
     callback firmware-restart();

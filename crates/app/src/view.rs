@@ -12,6 +12,7 @@ use freakymate_core::sources::happy_hare::{
 };
 use freakymate_core::sources::klipper::tuning::TuningRange;
 use freakymate_core::sources::klipper::{FanKind, PrintJob, PrintState};
+use freakymate_core::sources::mainsail_config::{self, PlannedLayerPause};
 use freakymate_core::sources::moonraker_server::files::FileMetadata;
 use freakymate_core::sources::moonraker_server::history::{FinishedJob, LastPrint};
 use freakymate_core::sources::spoolman::Spool;
@@ -27,6 +28,8 @@ pub struct JobTexts {
     pub remaining: String,
     pub eta: String,
     pub layers: String,
+    /// Height of the current layer and of the object, for example `2.40 / 24.0 mm`; empty if neither is known.
+    pub heights: String,
     pub filament: String,
     /// Source of the expected print time behind the remaining time while a job runs; for the log.
     pub expectation_origin: Option<&'static str>,
@@ -51,6 +54,7 @@ pub fn job_texts(
         remaining: remaining.map_or_else(|| NO_VALUE.to_owned(), format::duration),
         eta: remaining.map_or_else(|| NO_VALUE.to_owned(), |seconds| format::finish_time(now, seconds)),
         layers: layers(job, metadata),
+        heights: heights(job, metadata),
         filament: filament(job, metadata),
         expectation_origin: job
             .state
@@ -67,6 +71,43 @@ fn layers(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
         (Some(current), None) => current.to_string(),
         (None, Some(total)) if job.state == PrintState::Standby => total,
         _ => NO_VALUE.to_owned(),
+    }
+}
+
+/// The current height shows each layer step (0.12 or 0.28 mm); for the object height one decimal is enough.
+fn heights(job: &PrintJob, metadata: Option<&FileMetadata>) -> String {
+    let object = metadata.and_then(|metadata| metadata.object_height).filter(|height| *height > 0.0);
+    match (job.height, object) {
+        (Some(current), Some(object)) => format!("{current:.2} / {object:.1} mm"),
+        (Some(current), None) => format!("{current:.2} mm"),
+        (None, Some(object)) => format!("{object:.1} mm"),
+        (None, None) => String::new(),
+    }
+}
+
+/// The height a layer ahead will have, for example `~10.00 mm`; empty if it cannot be told.
+pub fn height_at_layer(job: &PrintJob, metadata: Option<&FileMetadata>, layer: u32) -> String {
+    let metadata = metadata.filter(|metadata| metadata.filename == job.filename);
+    estimates::height_at_layer(job, metadata, layer)
+        .map(|height| show(height, |mm| format!("{mm:.2} mm")))
+        .unwrap_or_default()
+}
+
+/// The notice after planning a pause at `layer`, named as the dialog's button names it.
+pub fn layer_pause_notice(layer: u32, current_layer: Option<u32>) -> String {
+    if current_layer.is_some_and(|current| mainsail_config::is_next_layer(layer, current)) {
+        "Pause at the next layer sent".to_owned()
+    } else {
+        format!("Pause at layer {layer} sent")
+    }
+}
+
+/// The planned pause in a word for the Layer tile: `next` or the layer; empty if nothing is planned or not known.
+pub fn planned_layer_pause(plan: Option<PlannedLayerPause>) -> String {
+    match plan {
+        Some(PlannedLayerPause { next_layer: true, .. }) => "next".to_owned(),
+        Some(PlannedLayerPause { at_layer: Some(layer), .. }) => layer.to_string(),
+        _ => String::new(),
     }
 }
 
@@ -89,8 +130,9 @@ pub fn ended_text(job: &PrintJob, newest: Option<&FinishedJob>, now: DateTime<Lo
         .map_or_else(|| NO_VALUE.to_owned(), |end| format::unix_moment(now, end))
 }
 
-/// What the sources state about a pause or an error, one fact per line; empty if none states anything.
-pub fn interruption_text(interruption: &Interruption) -> String {
+/// What the sources state about a pause or an error, one fact per line, and where the print stands (layer and
+/// height); empty if nothing is known.
+pub fn interruption_text(interruption: &Interruption, job: &PrintJob) -> String {
     interruption
         .facts
         .iter()
@@ -98,8 +140,17 @@ pub fn interruption_text(interruption: &Interruption) -> String {
             InterruptionFact::KlipperMessage(text) | InterruptionFact::MmuReason(text) => text.clone(),
             InterruptionFact::SensorEmpty { label } => format!("{label}: no filament"),
         })
+        .chain(stands_at(job))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// `Layer 50 · 10.00 mm`, or the part that is known.
+fn stands_at(job: &PrintJob) -> Option<String> {
+    let layer = job.current_layer.map(|layer| format!("Layer {layer}"));
+    let height = job.height.map(|height| format!("{height:.2} mm"));
+    let parts: Vec<String> = layer.into_iter().chain(height).collect();
+    (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
 /// What is left of a spool, for example `613 g`; empty without a weight.
@@ -412,6 +463,40 @@ mod tests {
     }
 
     #[test]
+    fn heights_show_the_current_layer_finer_than_the_object() {
+        let file = metadata("a.gcode");
+        let printing = PrintJob {
+            state: PrintState::Printing,
+            filename: "a.gcode".into(),
+            current_layer: Some(13),
+            height: Some(2.6),
+            ..PrintJob::default()
+        };
+        let ended = PrintJob { state: PrintState::Complete, height: None, ..printing.clone() };
+
+        assert_eq!(job_texts(&printing, Some(&file), None, now()).heights, "2.60 / 20.0 mm");
+        assert_eq!(job_texts(&printing, None, None, now()).heights, "2.60 mm");
+        assert_eq!(job_texts(&ended, Some(&file), None, now()).heights, "20.0 mm");
+        assert_eq!(job_texts(&PrintJob::default(), None, None, now()).heights, "");
+        assert_eq!(height_at_layer(&printing, Some(&file), 20), "~4.00 mm");
+    }
+
+    #[test]
+    fn the_notice_names_the_next_layer_as_the_dialog_does() {
+        assert_eq!(layer_pause_notice(13, Some(12)), "Pause at the next layer sent");
+        assert_eq!(layer_pause_notice(40, Some(12)), "Pause at layer 40 sent");
+        assert_eq!(layer_pause_notice(13, None), "Pause at layer 13 sent");
+    }
+
+    #[test]
+    fn the_planned_pause_shows_in_a_word() {
+        assert_eq!(planned_layer_pause(None), "");
+        assert_eq!(planned_layer_pause(Some(PlannedLayerPause::default())), "");
+        assert_eq!(planned_layer_pause(Some(PlannedLayerPause { next_layer: false, at_layer: Some(49) })), "49");
+        assert_eq!(planned_layer_pause(Some(PlannedLayerPause { next_layer: true, at_layer: Some(49) })), "next");
+    }
+
+    #[test]
     fn metadata_of_other_file_is_ignored() {
         let job = PrintJob { filename: "a.gcode".into(), ..PrintJob::default() };
 
@@ -438,7 +523,12 @@ mod tests {
             ],
         };
 
-        assert_eq!(interruption_text(&interruption), "Filament runout\nToolhead Runout: no filament");
+        assert_eq!(
+            interruption_text(&interruption, &PrintJob::default()),
+            "Filament runout\nToolhead Runout: no filament"
+        );
+        let job = PrintJob { current_layer: Some(50), height: Some(10.0), ..PrintJob::default() };
+        assert_eq!(interruption_text(&Interruption { failed: false, facts: Vec::new() }, &job), "Layer 50 · 10.00 mm");
     }
 
     fn file_metadata() -> FileMetadata {

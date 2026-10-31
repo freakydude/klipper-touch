@@ -769,14 +769,18 @@ export component ExcludeObjectsDialog inherits Scrim {
     }
 }
 
-// Plans a pause at a layer with Mainsail's macros. Whether a pause is planned is not shown: the macros keep the plan,
-// and another client may change it.
+// Plans a pause at a layer with Mainsail's macros: one counter from the next layer on, the core picks the macro.
+// What is planned shows if the macros' variables tell it; otherwise "Clear" is always offered.
 export component LayerPauseDialog inherits Scrim {
     property <bool> shown;
     property <int> layer;
     property <int> first-layer: Printer.current-layer + 1;
-    // Without a reported total the layer has no upper limit.
-    property <int> last-layer: Printer.total-layers > 0 ? Printer.total-layers : 999999;
+    // Only the next layer without SET_PAUSE_AT_LAYER; without a reported total the layer has no upper limit.
+    property <int> last-layer: !Printer.layer-pause-at ? root.first-layer : Printer.total-layers > 0 ? Printer.total-layers : 999999;
+    // The chosen layer, never one the print has reached meanwhile.
+    property <int> target: max(root.first-layer, min(root.last-layer, root.layer));
+    property <bool> next-layer: root.target == root.first-layer;
+    property <string> target-height: Actions.height-at-layer(root.target);
     // A tap on the status bar or the navigation closes the dialog without planning a pause.
     property <int> dismissals: Dialogs.dismissals;
     visible: root.shown && (Printer.layer-pause-next || Printer.layer-pause-at);
@@ -786,12 +790,12 @@ export component LayerPauseDialog inherits Scrim {
     }
 
     public function open() {
-        root.layer = min(root.first-layer, root.last-layer);
+        root.layer = root.first-layer;
         root.shown = true;
     }
 
     function step(delta: int) {
-        root.layer = max(min(root.first-layer, root.last-layer), min(root.last-layer, root.layer + delta));
+        root.layer = max(root.first-layer, min(root.last-layer, root.target + delta));
     }
 
     DialogPanel {
@@ -808,18 +812,14 @@ export component LayerPauseDialog inherits Scrim {
                 close => { root.shown = false; }
             }
             Text {
-                text: Printer.total-layers > 0 ? @tr("Now at layer {} of {}", Printer.current-layer, Printer.total-layers) : @tr("Now at layer {}", Printer.current-layer);
+                text: (Printer.total-layers > 0 ? @tr("Now at layer {} of {}", Printer.current-layer, Printer.total-layers) : @tr("Now at layer {}", Printer.current-layer)) + (Printer.print-heights != "" ? " · " + Printer.print-heights : "");
                 color: Theme.muted;
                 font-size: Theme.font-small;
             }
-            if Printer.layer-pause-next: IconButton {
-                icon: Icons.print-pause;
-                text: @tr("At the next layer");
-                horizontal: true;
-                clicked => {
-                    Actions.pause-at-next-layer();
-                    root.shown = false;
-                }
+            if Printer.layer-pause-planned != "": Text {
+                text: Printer.layer-pause-planned == "next" ? @tr("Planned: pause at the next layer") : @tr("Planned: pause at layer {}", Printer.layer-pause-planned);
+                color: Theme.accent;
+                font-size: Theme.font-small;
             }
             if Printer.layer-pause-at: HorizontalLayout {
                 spacing: Theme.spacing;
@@ -831,14 +831,23 @@ export component LayerPauseDialog inherits Scrim {
                     icon: Icons.ui-minus;
                     clicked => { root.step(-1); }
                 }
-                Text {
+                VerticalLayout {
                     horizontal-stretch: 1;
-                    text: root.layer;
-                    color: Theme.foreground;
-                    font-size: Theme.font-large;
-                    font-weight: 600;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                    alignment: center;
+                    Text {
+                        text: root.target;
+                        color: Theme.foreground;
+                        font-size: Theme.font-large;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+                    // A layer ahead has a predicted height; the next layer also says so.
+                    Text {
+                        text: root.next-layer ? (root.target-height != "" ? @tr("next layer · {}", root.target-height) : @tr("next layer")) : root.target-height;
+                        color: Theme.muted;
+                        font-size: Theme.font-small;
+                        horizontal-alignment: center;
+                    }
                 }
                 IconButton {
                     icon: Icons.ui-plus;
@@ -849,17 +858,17 @@ export component LayerPauseDialog inherits Scrim {
                     clicked => { root.step(10); }
                 }
             }
-            if Printer.layer-pause-at: IconButton {
+            IconButton {
                 icon: Icons.print-pause;
-                text: @tr("At layer {}", root.layer);
+                text: root.next-layer ? @tr("Pause at the next layer") : @tr("Pause at layer {}", root.target);
                 horizontal: true;
                 kind: "accent";
                 clicked => {
-                    Actions.pause-at-layer(root.layer);
+                    Actions.pause-at-layer(root.target);
                     root.shown = false;
                 }
             }
-            IconButton {
+            if !Printer.layer-pause-plan-known || Printer.layer-pause-planned != "": IconButton {
                 icon: Icons.ui-delete;
                 text: @tr("Clear planned pause");
                 horizontal: true;

@@ -282,12 +282,16 @@ impl Presenter {
         printer.set_filename(status.job.filename.as_str().into());
         printer.set_progress(status.job.progress as f32);
         let interruption = pause::interruption(status);
-        printer.set_interruption_text(interruption.as_ref().map(view::interruption_text).unwrap_or_default().into());
+        let interruption_text = interruption.map(|interruption| view::interruption_text(&interruption, &status.job));
+        printer.set_interruption_text(interruption_text.unwrap_or_default().into());
         let layer_pause = pause::layer_pause_offer(&snapshot.sources, status);
         printer.set_layer_pause_next(layer_pause.is_some_and(|offer| offer.next_layer));
         printer.set_layer_pause_at(layer_pause.is_some_and(|offer| offer.at_layer));
         printer.set_current_layer(layer_pause.map_or(0, |offer| offer.current_layer as i32));
         printer.set_total_layers(layer_pause.and_then(|offer| offer.total_layers).map_or(0, |total| total as i32));
+        let plan = layer_pause.and_then(|offer| offer.plan);
+        printer.set_layer_pause_plan_known(plan.is_some());
+        printer.set_layer_pause_planned(view::planned_layer_pause(plan).into());
 
         let motion = &status.motion;
         printer.set_position_x(motion.live_position[0] as f32);
@@ -428,6 +432,7 @@ impl Presenter {
         printer.set_remaining(texts.remaining.into());
         printer.set_eta(texts.eta.into());
         printer.set_layers(texts.layers.into());
+        printer.set_print_heights(texts.heights.into());
         printer.set_filament(texts.filament.into());
         printer.set_ended(view::ended_text(job, cache.newest_job.as_ref(), now).into());
         if let Some(origin) = texts.expectation_origin {
@@ -870,6 +875,19 @@ impl Presenter {
     }
 
     /// What differs between the file and the spools, as lines for the confirmation to start it; empty if nothing.
+    /// What was sent to pause at `layer`, in the words of the dialog's button.
+    pub fn layer_pause_notice(&self, layer: u32) -> String {
+        view::layer_pause_notice(layer, self.cache.borrow().snapshot.status.job.current_layer)
+    }
+
+    /// The height `layer` of the running print will have, for the layer pause dialog.
+    pub fn height_at_layer_text(&self, layer: i32) -> String {
+        let Ok(layer) = u32::try_from(layer) else { return String::new() };
+        let cache = self.cache.borrow();
+        let job = &cache.snapshot.status.job;
+        view::height_at_layer(job, cache.catalog.metadata(&job.filename), layer)
+    }
+
     pub fn print_hints_text(&self, path: &str) -> String {
         let snapshot = self.snapshot();
         let lanes = self.lanes(&snapshot);
