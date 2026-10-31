@@ -17,6 +17,7 @@ const ASSUMED_FILAMENT_DIAMETER_MM: f64 = 1.75;
 
 pub const ORIGIN_KLIPPER_REPORT: &str = "reported by Klipper";
 pub const ORIGIN_LAYER_HEIGHT: &str = "object height divided by layer height";
+pub const ORIGIN_HEIGHT_AHEAD: &str = "current height plus the slicer's layer height per layer ahead";
 pub const ORIGIN_CONFIGURED_DIAMETER: &str = "configured filament diameter";
 pub const ORIGIN_ASSUMED_DIAMETER: &str = "assumed filament diameter of 1.75 mm";
 pub const ORIGIN_LAST_PRINT: &str = "last completed print";
@@ -99,6 +100,14 @@ pub fn remaining_print_seconds(job: &PrintJob, expected: Option<f64>) -> Option<
     let prior_seconds = PRIOR_WEIGHT * expected;
     let pace = (elapsed + prior_seconds) / (progress * expected + prior_seconds);
     Some(remaining_share * expected * pace)
+}
+
+/// The height a layer ahead will have: the current height plus the slicer's layer height for each layer in between.
+/// Starting from what is printed now leaves out the first layer; a variable layer height still makes it wrong.
+pub fn height_at_layer(job: &PrintJob, metadata: Option<&FileMetadata>, layer: u32) -> Option<Sourced<f64>> {
+    let layer_height = metadata?.layer_height.filter(|height| *height > 0.0)?;
+    let ahead = layer.checked_sub(job.current_layer?)?;
+    Some(Sourced::estimated(job.height? + f64::from(ahead) * layer_height, ORIGIN_HEIGHT_AHEAD))
 }
 
 #[cfg(test)]
@@ -249,6 +258,19 @@ mod tests {
         let file = FileMetadata { object_height: Some(20.0), layer_height: Some(0.2), ..FileMetadata::default() };
 
         assert_eq!(total_layers(&job, Some(&file)), Some(Sourced::measured(120, ORIGIN_KLIPPER_REPORT)));
+    }
+
+    #[test]
+    fn the_height_ahead_counts_from_the_current_layer() {
+        let job = PrintJob { current_layer: Some(10), height: Some(2.2), ..PrintJob::default() };
+        let file = FileMetadata { layer_height: Some(0.2), ..FileMetadata::default() };
+
+        let height = height_at_layer(&job, Some(&file), 15).unwrap();
+        assert!((height.value - 3.2).abs() < 1e-9);
+        assert_eq!(height.origin, ORIGIN_HEIGHT_AHEAD);
+        assert_eq!(height_at_layer(&job, Some(&file), 9), None);
+        assert_eq!(height_at_layer(&job, None, 15), None);
+        assert_eq!(height_at_layer(&PrintJob { height: None, ..job }, Some(&file), 15), None);
     }
 
     #[test]

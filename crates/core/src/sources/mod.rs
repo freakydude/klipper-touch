@@ -66,6 +66,9 @@ impl Sources {
         self.klipper.subscribe(&mut subscription);
         led_effect::subscribe(&self.led_effects, &mut subscription);
         happy_hare::subscribe(&mut subscription);
+        if self.layer_pause.is_some() {
+            mainsail_config::subscribe(&mut subscription);
+        }
         subscription.into_parameters()
     }
 }

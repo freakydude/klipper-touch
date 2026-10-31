@@ -2,7 +2,7 @@
 
 use crate::calibration::Calibration;
 use crate::devices::{DeviceInputs, Devices};
-use crate::files::GcodeFile;
+use crate::files::{GcodeFile, LAYER_HEIGHT};
 use crate::gcode::{Axis, Command, CommandError, DeviceCommand, MmuCommand, Move, RetractionChange, VelocityLimit};
 use crate::happy_hare::HappyHare;
 use crate::history::{Sample, TemperatureStore};
@@ -569,6 +569,7 @@ impl Printer {
             "fan": { "speed": self.fan_speed, "rpm": null },
             "gcode_move": {
                 "homing_origin": [0.0, 0.0, self.z_offset, 0.0],
+                "gcode_position": self.gcode_position(),
                 "speed": 1500.0,
                 "speed_factor": self.speed_factor,
                 "extrude_factor": self.extrude_factor,
@@ -851,6 +852,16 @@ impl Printer {
 
     fn homed_axes(&self) -> String {
         ALL_AXES.iter().filter(|axis| self.homed[axis.index()]).map(|axis| axis.letter()).collect()
+    }
+
+    /// The position in the file's coordinates: while a job runs the nozzle is at the top of the current layer.
+    fn gcode_position(&self) -> [f64; 4] {
+        let mut position = self.rounded_position();
+        position[2] = match self.layers() {
+            (Some(layer), _) if self.print_state.is_active() => f64::from(layer) * LAYER_HEIGHT,
+            _ => position[2] - self.z_offset,
+        };
+        position.map(|value| round(value, 3))
     }
 
     fn rounded_position(&self) -> [f64; 4] {

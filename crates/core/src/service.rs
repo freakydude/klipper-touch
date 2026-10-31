@@ -7,7 +7,7 @@ use crate::commands::Command;
 use crate::credentials::{Credential, CredentialStore};
 use crate::moonraker::access::{self, AccessError};
 use crate::moonraker::{Call, CallError, Connection, Endpoint, Notification, PendingCall};
-use crate::sources::klipper::{FanWatch, KlippyState, PendingTargets, PrintState};
+use crate::sources::klipper::{FanWatch, HeightWatch, KlippyState, PendingTargets, PrintState};
 use crate::sources::moonraker_server::files::{self, FileEntry, FileMetadata, ThumbnailImage};
 use crate::sources::moonraker_server::gcode_store::{self, ConsoleKind, ConsoleLine};
 use crate::sources::moonraker_server::history::{self, PrintHistory};
@@ -336,6 +336,7 @@ struct Session<'a> {
     pending_targets: PendingTargets,
     /// What each fan's tachometer has measured since Klipper started; the snapshot marks the stalled ones.
     fan_watch: FanWatch,
+    height_watch: HeightWatch,
     /// The spools of the gates at the last look; `None` until Spoolman was asked once.
     spoolman_gate_spools: Option<Vec<u32>>,
     /// Limits the file details in flight, so a long file list does not flood Moonraker.
@@ -370,6 +371,7 @@ impl<'a> Session<'a> {
             job_state: PrintState::default(),
             pending_targets: PendingTargets::default(),
             fan_watch: FanWatch::default(),
+            height_watch: HeightWatch::default(),
             spoolman_gate_spools: None,
             file_details: Arc::new(Semaphore::new(PARALLEL_FILE_DETAILS)),
             wled: Vec::new(),
@@ -663,12 +665,14 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// The state with the heater targets that were sent but not yet reported back, and the fans that do not turn.
+    /// The state with the heater targets that were sent but not yet reported back, the fans that do not turn and the
+    /// height of the layer being printed.
     fn current_status(&mut self) -> PrinterStatus {
         let mut status = PrinterStatus::from_store(&self.store);
         let now = Instant::now();
         self.pending_targets.apply(&mut status.heaters, now);
         self.fan_watch.apply(&mut status.fans, now);
+        self.height_watch.apply(&mut status.job, status.motion.gcode_position[2], now);
         status.leds.extend(self.wled.iter().map(WledStrip::led));
         status
     }

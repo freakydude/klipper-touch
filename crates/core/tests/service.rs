@@ -452,8 +452,8 @@ async fn a_layer_pause_pauses_and_the_history_tells_when_the_job_ended() {
 
     service.send(Command::StartPrint { filename: "calibration_cube.gcode".into() });
     let printing = wait_for(&mut channels, |snapshot| snapshot.status.job.current_layer.is_some()).await;
-    assert!(pause::layer_pause_offer(&printing.sources, &printing.status).is_some());
-    service.send(Command::PauseAtNextLayer);
+    let offer = pause::layer_pause_offer(&printing.sources, &printing.status).expect("layer pause offered");
+    service.send(Command::PauseAtLayer { layer: offer.current_layer + 1 });
     let paused = wait_for(&mut channels, |snapshot| snapshot.status.job.state == PrintState::Paused).await;
     assert!(pause::interruption(&paused.status).is_some_and(|interruption| !interruption.failed));
 

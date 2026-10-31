@@ -4,6 +4,7 @@
 //! display, in Mainsail, by a macro or by the file all read the same.
 
 use crate::sources::klipper::PrintState;
+use crate::sources::mainsail_config::PlannedLayerPause;
 use crate::sources::{PrinterStatus, Sources};
 
 /// Something a source states while the print is paused or failed.
@@ -63,6 +64,8 @@ pub struct LayerPauseOffer {
     pub current_layer: u32,
     /// Known only if the slicer reports it (`SET_PRINT_STATS_INFO TOTAL_LAYER=`).
     pub total_layers: Option<u32>,
+    /// What the macros have planned; `None` if their variables do not tell.
+    pub plan: Option<PlannedLayerPause>,
 }
 
 /// A pause at a layer can be planned while a job runs, the slicer reports the layers (the macros act on that
@@ -78,6 +81,7 @@ pub fn layer_pause_offer(sources: &Sources, status: &PrinterStatus) -> Option<La
         at_layer: macros.at_layer,
         current_layer,
         total_layers: status.job.total_layer,
+        plan: status.layer_pause_plan,
     })
 }
 
@@ -182,6 +186,7 @@ mod tests {
         let mut status = status(PrintState::Printing);
         status.job.current_layer = layer;
         status.job.total_layer = Some(200);
+        status.layer_pause_plan = Some(PlannedLayerPause { next_layer: false, at_layer: Some(50) });
         status
     }
 
@@ -191,7 +196,13 @@ mod tests {
 
         assert_eq!(
             layer_pause_offer(&both, &printing_at_layer(Some(12))),
-            Some(LayerPauseOffer { next_layer: true, at_layer: true, current_layer: 12, total_layers: Some(200) })
+            Some(LayerPauseOffer {
+                next_layer: true,
+                at_layer: true,
+                current_layer: 12,
+                total_layers: Some(200),
+                plan: Some(PlannedLayerPause { next_layer: false, at_layer: Some(50) }),
+            })
         );
         assert_eq!(layer_pause_offer(&sources(false, false), &printing_at_layer(Some(12))), None);
         assert_eq!(layer_pause_offer(&both, &printing_at_layer(None)), None);

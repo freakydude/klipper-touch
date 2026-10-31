@@ -6,6 +6,7 @@ use super::klipper::{
     PrintJob, PrintObject, PrintState, Retraction, TemperatureSensor,
 };
 use super::led_effect::{self, LedEffect};
+use super::mainsail_config::{self, PlannedLayerPause};
 use super::objects::ObjectStore;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -36,6 +37,8 @@ pub struct PrinterStatus {
     pub print_objects: Vec<PrintObject>,
     /// Happy Hare; `None` without the `mmu` object.
     pub mmu: Option<MmuStatus>,
+    /// The pause planned with Mainsail's layer macros; `None` if the plan is not known.
+    pub layer_pause_plan: Option<PlannedLayerPause>,
 }
 
 impl PrinterStatus {
@@ -60,6 +63,7 @@ impl PrinterStatus {
             filament_sensors: klipper.filament_sensors,
             print_objects: klipper.print_objects,
             mmu: happy_hare::read_mmu(store),
+            layer_pause_plan: mainsail_config::read_plan(store),
         }
     }
 
